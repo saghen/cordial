@@ -1,7 +1,7 @@
 // The shell: one grid (style.ts), one element per region and per list row. Server icons, channels, categories and
 // DMs are all the same <a> (Item): its state is classes, its icon and badge the CSS's ::before and ::after.
 
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
@@ -118,13 +118,29 @@ function Me() {
     </>;
 }
 
+// GatewayConnectionStore reads the socket and doesn't emit when it drops or comes back, so follow the actions (the
+// socket's own state changes only after CONNECTION_INTERRUPTED)
+function Connection() {
+    const [connected, setConnected] = createSignal(S.Gateway.isConnected());
+    let once = connected();
+    const on = (type: string, now: boolean) => A.dispatcher.subscribe(type, () => {
+        once ||= now;
+        setConnected(now);
+    });
+    on("CONNECTION_OPEN", true);
+    on("CONNECTION_RESUMED", true);
+    on("CONNECTION_INTERRUPTED", false);
+    on("CONNECTION_CLOSED", false);
+    return <Show when={!connected()}>
+        <p data-mc="notice">{!S.Gateway.isTryingToConnect() ? "Disconnected" : once ? "Reconnecting…" : "Connecting…"}</p>
+    </Show>;
+}
+
 export function App(p: { root: HTMLElement; }) {
     const channel = () => $.Channel.getChannel(selected()!);
     return <>
         <style>{CSS}</style>
-        <Show when={!$.Gateway.isConnected()}>
-            <p>{$.Gateway.isTryingToConnect() ? "Connecting…" : "Disconnected"}</p>
-        </Show>
+        <Connection />
         <Servers />
         <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : "Direct Messages"}</h1>
         <Nav />
