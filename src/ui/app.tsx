@@ -28,15 +28,24 @@ function dmName(c?: Rec) {
     return c?.name || users.map((u: Rec) => u.global_name ?? u.username).join(", ");
 }
 
+// a DM shows its user's avatar and status; a group DM its icon
+function dmUser(c?: Rec) {
+    return c?.type === 1 ? $.User.getUser(c.recipients[0]) : undefined;
+}
+function dmIcon(c?: Rec) {
+    return dmUser(c)?.getAvatarURL(undefined, 64) ?? (c?.icon && `https://cdn.discordapp.com/channel-icons/${c.id}/${c.icon}.webp?size=64`);
+}
+function dmStatus(c?: Rec) {
+    const user = dmUser(c);
+    return user && $.Presence.getStatus(user.id);
+}
+
 function Dm(p: { id: Id; bar?: boolean; }) {
     const c = () => $.Channel.getChannel(p.id);
-    // a DM's user; a group DM shows its icon
-    const user = () => c()?.type === 1 ? $.User.getUser(c()!.recipients[0]) : undefined;
     const name = () => dmName(c());
-    return <Item mc={`dm:${p.id}`} title={name()} label={p.bar ? "" : name()}
-        icon={user()?.getAvatarURL(undefined, 64) ?? (c()?.icon && `https://cdn.discordapp.com/channel-icons/${p.id}/${c()!.icon}.webp?size=64`)}
-        status={user() && $.Presence.getStatus(user()!.id)} sel={selected() === p.id} unread={$.ReadState.hasUnread(p.id)}
-        mentions={$.ReadState.getMentionCount(p.id)} go={() => A.nav.transitionTo(`/channels/@me/${p.id}`)} />;
+    return <Item mc={`dm:${p.id}`} title={name()} label={p.bar ? "" : name()} icon={dmIcon(c())} status={dmStatus(c())}
+        sel={selected() === p.id} unread={$.ReadState.hasUnread(p.id)} mentions={$.ReadState.getMentionCount(p.id)}
+        go={() => A.nav.transitionTo(`/channels/@me/${p.id}`)} />;
 }
 
 function Servers() {
@@ -120,8 +129,8 @@ export function App(p: { root: HTMLElement; }) {
         <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : "Direct Messages"}</h1>
         <Nav />
         <Me />
-        <header>
-            <Show when={channel()}>{c => <>{c().guild_id ? `# ${c().name}` : `@ ${dmName(c())}`}<small>{c().topic}</small></>}</Show>
+        <header style={channel()?.guild_id ? undefined : url(dmIcon(channel()))} data-status={channel()?.guild_id ? undefined : dmStatus(channel())}>
+            <Show when={channel()}>{c => <>{c().guild_id ? `# ${c().name}` : dmName(c())}<small>{c().topic}</small></>}</Show>
         </header>
         <Messages root={p.root} />
         <Composer />

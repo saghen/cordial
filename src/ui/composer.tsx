@@ -11,7 +11,11 @@ import { $ } from "./store";
 export function Composer() {
     const channelId = createMemo(() => $.SelectedChannel.getChannelId());
     const editing = createMemo(() => channelId() ? $.EditMessage.getEditingMessageId(channelId()!) : undefined);
-    const can = createMemo(() => !!channelId() && $.Permission.can(2048n, $.Channel.getChannel(channelId()!)!));
+    // stock's rule: anyone in a DM, SEND_MESSAGES elsewhere
+    const can = createMemo(() => {
+        const c = channelId() && $.Channel.getChannel(channelId()!);
+        return !!c && (c.isPrivate() || $.Permission.can(2048n, c));
+    });
     let box!: HTMLTextAreaElement;
 
     // Stock saves the draft as it changes, at most every 500 ms (the first change at once, the last at the end), and

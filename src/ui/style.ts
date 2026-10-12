@@ -47,9 +47,10 @@ export const CSS = `
   nav > a.cat::before { content: "⌄"; font-size: 12px; }
   nav > a.cat.collapsed::before { content: "›"; }
   /* an icon instead of #: avatars (DMs, the user panel) are round, with the status as a ring */
-  nav > a[style]::before, & > button::before, menu > b::before {
+  nav > a[style]::before, & > header[style]::before, & > button::before, menu > b::before {
     content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
   }
+  & > header[style]::before { width: 24px; height: 24px; }
   [data-status=online]::before { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--positive); }
   [data-status=idle]::before { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--warning); }
   [data-status=dnd]::before { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--danger); }
