@@ -1,7 +1,7 @@
 {
     "name": "mincord",
     "private": true,
-    "main": "app/main.js",
+    "main": "src/shell/main.js",
     "scripts": {
         "build": "vite build",
         "watch": "vite build --watch",
