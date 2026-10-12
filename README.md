@@ -60,9 +60,10 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 | Path | What |
 |---|---|
 | `atlas/` | the feature map (`feature-map.html`), its data (element counts, stores, enums), the saved plan, and the CDP scripts that measured them |
-| `adapter/` | (Phase 0) the only code that touches Discord internals |
-| `renderer/` | (Phase 0) the UI |
-| `lab/` | (Phase 0) scenarios, the conformance recorder and performance budgets |
+| `adapter/` | the only code that touches Discord internals; `anchor.ts` keeps Discord's App class and renders our root |
+| `renderer/` | the UI; `index.ts` is the entry Equibop imports |
+| `nix/` | `equibop.nix`: stock Equibop with `adapter/` and `renderer/` built in |
+| `lab/` | test account login and server setup, scenarios, measurements (`lab/data/`); later the conformance recorder and budgets |
 
 The lab harness itself (isolated headless Equibop, CDP client, input-driven benchmarks) lives in
 `~/code/personal/discord-uiprof`; mincord's scripts import its `cdp.py` and `bench.py`.
