@@ -78,7 +78,7 @@ export function Composer() {
         }
     };
 
-    return <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} disabled={!can()}
+    return <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} hidden={!channelId()} disabled={!can()}
         placeholder={editing() ? "Editing: Enter saves, Escape cancels" : can() ? "Message" : "You can't send messages here"}
         onInput={input} onKeyDown={key} />;
 }

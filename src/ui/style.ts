@@ -47,7 +47,7 @@ export const CSS = `
   nav > a.cat::before { content: "⌄"; font-size: 12px; }
   nav > a.cat.collapsed::before { content: "›"; }
   /* an icon instead of #: avatars (DMs, the user panel) are round, with the status as a ring */
-  nav > a[style]::before, footer::before {
+  nav > a[style]::before, & > button::before, menu > b::before {
     content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
   }
   [data-status=online]::before { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--positive); }
@@ -58,12 +58,33 @@ export const CSS = `
     font: 700 12px/16px "gg sans", sans-serif; color: #fff; text-align: center;
   }
   aside > a[data-n]::after { position: absolute; right: -4px; bottom: -4px; box-shadow: 0 0 0 3px var(--bg); }
-  footer {
-    grid-area: me; display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; padding: 0 8px;
-    border-top: 1px solid var(--bg-raised); font-weight: 500; color: var(--text-strong);
+  /* the user panel (a button: it opens the account popout) */
+  & > button, menu > b {
+    display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; text-align: left;
+    font: inherit; font-weight: 500; color: var(--text-strong);
   }
-  footer::before { grid-row: span 2; align-self: center; }
-  footer > small { font-size: 12px; }
+  & > button {
+    grid-area: me; padding: 0 8px; border: 0; border-top: 1px solid var(--bg-raised); background: none; cursor: pointer;
+  }
+  & > button::before, menu > b::before { grid-row: span 2; align-self: center; }
+  & > button > small, menu > b > small { font-size: 12px; }
+
+  /* the account popout, above the panel (popovertarget makes the panel its anchor) */
+  menu {
+    inset: auto; margin: 0 0 8px; position-area: top span-right; width: 224px; padding: 8px; border: 0;
+    border-radius: 8px; background: var(--bg-floating); color: var(--text); box-shadow: 0 8px 16px #0006;
+  }
+  menu:popover-open { display: grid; gap: 2px; }
+  menu > b { padding: 4px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--bg-raised); }
+  menu > button {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 4px; background: none;
+    color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+  }
+  menu > button:hover, menu > button.sel { background: var(--bg-raised); color: var(--text-strong); }
+  menu > button::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
+  menu > button[value=online]::before { background: var(--positive); }
+  menu > button[value=idle]::before { background: var(--warning); }
+  menu > button[value=dnd]::before { background: var(--danger); }
 
   /* messages: column-reverse keeps the view at the bottom (scroller.ts) */
   .messages { grid-area: main; overflow-y: auto; display: flex; flex-direction: column-reverse; overflow-anchor: none; }

@@ -84,9 +84,33 @@ function Nav() {
     </nav>;
 }
 
+const STATUSES = { online: "Online", idle: "Idle", dnd: "Do Not Disturb", invisible: "Invisible" } as Record<string, string>;
+
+// the user panel, and its account popout with the status picker: a popover the panel opens, placed by CSS anchor
+// positioning. A pick calls stock's status setter as its menu does (a synced setting)
+function Me() {
+    const me = () => $.User.getCurrentUser();
+    const status = () => $.SelfPresence.getStatus();
+    let menu!: HTMLMenuElement;
+    const pick = (next: string) => {
+        menu.hidePopover();
+        const prevStatus = S.SelfPresence.getStatus();
+        if (next !== prevStatus) A.setStatus({ nextStatus: next, prevStatus });
+    };
+    return <>
+        <button data-mc="me" popovertarget="mc-account" style={url(me()?.getAvatarURL(undefined, 64))} data-status={status()}>
+            {me()?.globalName ?? me()?.username}<small>{STATUSES[status()] ?? status()}</small>
+        </button>
+        <menu ref={menu} id="mc-account" data-mc="account" popover>
+            <b style={url(me()?.getAvatarURL(undefined, 128))}>{me()?.globalName ?? me()?.username}<small>{me()?.username}</small></b>
+            {Object.entries(STATUSES).map(([value, label]) =>
+                <button value={value} data-mc={`status:${value}`} class={{ sel: status() === value }} onClick={() => pick(value)}>{label}</button>)}
+        </menu>
+    </>;
+}
+
 export function App(p: { root: HTMLElement; }) {
     const channel = () => $.Channel.getChannel(selected()!);
-    const me = () => $.User.getCurrentUser();
     return <>
         <style>{CSS}</style>
         <Show when={!$.Gateway.isConnected()}>
@@ -95,9 +119,7 @@ export function App(p: { root: HTMLElement; }) {
         <Servers />
         <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : "Direct Messages"}</h1>
         <Nav />
-        <footer style={url(me()?.getAvatarURL(undefined, 64))} data-status={$.SelfPresence.getStatus()}>
-            {me()?.globalName ?? me()?.username}<small>{$.SelfPresence.getStatus()}</small>
-        </footer>
+        <Me />
         <header>
             <Show when={channel()}>{c => <>{c().guild_id ? `# ${c().name}` : `@ ${dmName(c())}`}<small>{c().topic}</small></>}</Show>
         </header>

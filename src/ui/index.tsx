@@ -8,6 +8,7 @@
 //   data-mc="author:ID"                             an author's name in the list
 //   data-mc="category:ID"                           a category row; a click collapses or expands it
 //   data-mc="composer"                              the composer's textarea
+//   data-mc="me" | "account" | "status:NAME"      the user panel, its popout, a status in it (online, idle, dnd, invisible)
 
 import { render } from "@solidjs/web";
 
