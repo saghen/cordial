@@ -3,103 +3,64 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// Discord's markdown AST (model.ts contentAST) to DOM. Node types as its parser emits them for message content;
-// anything unknown renders its text, so a new node type degrades to plain text instead of disappearing.
+// Discord's markdown AST (model.ts contentAST) to DOM, imperatively: a message's content never changes (an edit
+// replaces the record), so it needs no reactivity. Node types as its parser emits them for message content; anything
+// unknown renders its text, so a new node type degrades to plain text instead of disappearing. Plain tags, styled
+// by tag in style.ts.
 
 type Node = Record<string, any> & { type: string; };
 
-const TAGS: Record<string, string> = { strong: "strong", em: "em", u: "u", s: "s", subtext: "small" };
+const TAGS: Record<string, string> = {
+    strong: "strong", em: "em", u: "u", s: "s", subtext: "small", inlineCode: "code", blockQuote: "blockquote",
+    spoiler: "del", link: "a", url: "a", autolink: "a", mention: "mark", channelMention: "mark", roleMention: "mark",
+    timestamp: "time"
+};
 
-function children(parent: HTMLElement, content: unknown) {
-    if (typeof content === "string") parent.append(content);
-    else if (Array.isArray(content)) renderAST(content, parent);
-    return parent;
-}
+const text = (n: Node): string =>
+    typeof n.content === "string" ? n.content : Array.isArray(n.content) ? n.content.map(text).join("") : "";
 
-function el(tag: string, cls?: string) {
-    const e = document.createElement(tag);
-    if (cls) e.className = cls;
+function el(tag: string, content: unknown) {
+    const e = document.createElement(tag) as HTMLElement & Record<string, any>;
+    if (typeof content === "string") e.append(content);
+    else if (Array.isArray(content)) renderAST(content, e);
     return e;
 }
 
-function text(n: Node): string {
-    if (typeof n.content === "string") return n.content;
-    if (Array.isArray(n.content)) return n.content.map(text).join("");
-    return "";
+function node(n: Node): globalThis.Node | string {
+    switch (n.type) {
+        case "text": return n.content;
+        case "br": case "newline": return "\n";
+        case "heading": return el(`h${Math.min(3, n.level)}`, n.content);
+        case "codeBlock": return el("pre", n.content);
+        case "list": {
+            const l = el(n.ordered ? "ol" : "ul", null);
+            if (n.ordered && n.start != null) l.start = n.start;
+            for (const item of n.items) l.append(el("li", item));
+            return l;
+        }
+        case "emoji": case "customEmoji": {
+            const img = el("img", null);
+            img.alt = n.name ?? n.surrogate ?? "";
+            img.src = n.src ?? `https://cdn.discordapp.com/emojis/${n.emojiId}.${n.animated ? "gif" : "webp"}?size=48`;
+            return img;
+        }
+        case "mention": case "channelMention": case "roleMention": {
+            const m = el("mark", (n.type === "channelMention" ? "#" : "") + text(n));
+            if (n.roleColor) m.style.color = `#${n.roleColor.toString(16).padStart(6, "0")}`;
+            return m;
+        }
+        case "timestamp": return el("time", n.formatted ?? text(n));
+    }
+    const tag = TAGS[n.type];
+    if (!tag) return text(n);
+    const e = el(tag, n.content);
+    if (tag === "a") Object.assign(e, { href: n.target, target: "_blank", rel: "noreferrer noopener" });
+    // a spoiler shows on click
+    if (tag === "del") e.onclick = () => e.toggleAttribute("open", true);
+    return e;
 }
 
-export function renderAST(nodes: Node[], parent: HTMLElement) {
-    for (const n of nodes) {
-        switch (n.type) {
-            case "text":
-                parent.append(n.content);
-                break;
-            case "strong": case "em": case "u": case "s": case "subtext":
-                parent.append(children(el(TAGS[n.type], n.type === "subtext" ? "mc-subtext" : undefined), n.content));
-                break;
-            case "heading":
-                parent.append(children(el(`h${Math.min(3, n.level)}`, "mc-h"), n.content));
-                break;
-            case "inlineCode":
-                parent.append(children(el("code", "mc-code"), n.content));
-                break;
-            case "codeBlock": {
-                const pre = el("pre", "mc-pre");
-                pre.append(children(el("code"), n.content));
-                parent.append(pre);
-                break;
-            }
-            case "blockQuote":
-                parent.append(children(el("blockquote", "mc-quote"), n.content));
-                break;
-            case "list": {
-                const list = el(n.ordered ? "ol" : "ul", "mc-list");
-                if (n.ordered && n.start != null) list.setAttribute("start", n.start);
-                for (const item of n.items) list.append(children(el("li"), item));
-                parent.append(list);
-                break;
-            }
-            case "spoiler": {
-                const s = children(el("span", "mc-spoiler"), n.content);
-                s.onclick = () => s.classList.add("mc-shown");
-                parent.append(s);
-                break;
-            }
-            case "link": case "url": case "autolink": {
-                const a = children(el("a", "mc-link"), n.content) as HTMLAnchorElement;
-                a.href = n.target;
-                a.target = "_blank";
-                a.rel = "noreferrer noopener";
-                parent.append(a);
-                break;
-            }
-            case "emoji": case "customEmoji": {
-                const img = el("img", "mc-emoji") as HTMLImageElement;
-                img.alt = n.name ?? n.surrogate ?? "";
-                img.draggable = false;
-                img.src = n.src ?? `https://cdn.discordapp.com/emojis/${n.emojiId}.${n.animated ? "gif" : "webp"}?size=48`;
-                parent.append(img);
-                break;
-            }
-            case "mention": case "channelMention": case "roleMention": {
-                const m = el("span", "mc-mention");
-                m.textContent = n.type === "channelMention" ? `#${text(n)}` : text(n);
-                if (n.roleColor) m.style.color = `#${n.roleColor.toString(16).padStart(6, "0")}`;
-                parent.append(m);
-                break;
-            }
-            case "timestamp": {
-                const t = el("time", "mc-time");
-                t.textContent = n.formatted ?? text(n);
-                parent.append(t);
-                break;
-            }
-            case "br": case "newline":
-                parent.append("\n");
-                break;
-            default:
-                parent.append(text(n));
-        }
-    }
+export function renderAST(nodes: Node[], parent: HTMLElement | DocumentFragment) {
+    for (const n of nodes) parent.append(node(n));
     return parent;
 }

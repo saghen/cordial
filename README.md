@@ -3,13 +3,13 @@
 Discord UI renderer built on top of discord's existing core.
 
 Discord's desktop client is a React UI over a large JavaScript core: 564 Flux stores, action creators, the gateway
-and REST clients, and Chromium's WebRTC for voice. mincord keeps that core running inside Discord's own Electron app
-(Equibop) and replaces the React UI with a small, fast renderer of our own. Performance is the point: interaction
-latency first, then memory and CPU. Screen sharing uses a custom backend that lives in its own repo.
+and REST clients, and Chromium's WebRTC for voice. mincord loads Discord's web client (discord.com/app) in a small
+Electron shell of our own, keeps that core running, and replaces the React UI with a small, fast renderer. Performance
+is the point: interaction latency first, then memory and CPU. Screen sharing uses a custom backend that lives in its own repo.
 
 ## Why this can work
 
-Measured in the lab (`atlas/data/`, stock Equibop 3.2.2, Discord stable, October 2026):
+Measured in the lab (`ai/atlas/data/`, stock Equibop 3.2.2, Discord stable, October 2026):
 
 | | Stock Discord | Core only, no UI |
 |---|---|---|
@@ -41,7 +41,7 @@ Anchor patch          Discord's root App component stays mounted (it starts the 
                       only its render is replaced with ours
 ```
 
-What makes it fragile, and what keeps it in check, is in [ROADMAP.md](ROADMAP.md#robustness). In short: stores and
+What makes it fragile, and what keeps it in check, is in [ai/ROADMAP.md](ai/ROADMAP.md#robustness). In short: stores and
 dispatch action types are stable, action creators need occasional new finds, and behaviour that Discord keeps inside
 its UI is caught by diffing what our renderer sends against stock Discord for the same scripted scenario.
 
@@ -50,23 +50,26 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 - **Feature map**: https://claude.ai/artifact/VfUwXYd3rQ3yiEBPRJ7KDx, every feature of the client as a tree with
   measured element counts, backing stores, and a phase (1-4 or not included) and note per item. It is the source of
   truth for scope.
-- `atlas/plan.md`: the map's saved plan rendered per phase (`python3 atlas/scripts/plan_report.py atlas/plan-export/plan`).
-- [ROADMAP.md](ROADMAP.md): Phase 0 (foundations), how phases 1-4 are built, budgets, open decisions.
-- [LOG.md](LOG.md): what each work session did, measured and decided; open questions at the top.
-- [CLAUDE.md](CLAUDE.md): how agents work on this repo (the iteration loop and its rules).
+- `ai/atlas/plan.md`: the map's saved plan rendered per phase (`python3 ai/atlas/scripts/plan_report.py ai/atlas/plan-export/plan`).
+- [ai/ROADMAP.md](ai/ROADMAP.md): Phase 0 (foundations), how phases 1-4 are built, budgets, open decisions.
+- [ai/LOG.md](ai/LOG.md): what each work session did, measured and decided; open questions at the top.
+- [ai/CLAUDE.md](ai/CLAUDE.md): how agents work on this repo (the iteration loop and its rules).
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `atlas/` | the feature map (`feature-map.html`), its data (element counts, stores, enums), the saved plan, and the CDP scripts that measured them |
 | `adapter/` | the only code that touches Discord internals: `anchor.ts` keeps Discord's App class and renders our root, `core.ts` resolves what we use (`S`, `A`) and checks it at startup, `triggers.ts` does what Discord's UI did for the core |
-| `renderer/` | the UI; `index.ts` is the entry Equibop imports. The message list: `model.ts` (what a channel shows), `content.ts` (markdown AST to DOM), `scroller.ts`, `list-dom.ts` (the one we use) and `list-react.tsx` (the lab's baseline), picked in `list.ts` |
-| `nix/` | `equibop.nix`: stock Equibop with `adapter/` and `renderer/` built in |
-| `lab/` | test account login and server setup, scenarios, the conformance recorder (`conformance.py`), the budget runner (`budgets.py`), the list benchmark (`listbench.py`), the grouping check against stock (`grouping.py`), the login fallback check (`loggedout.py`), the older-history rule check (`older.py`), the status setter check (`status.py`), the unattended build check (`buildcheck.py`, against the differences accepted in `expected.json`), measurements (`lab/data/`) |
+| `app/` | the Electron shell: `main.js` opens discord.com/app, `preload.js` injects `dist/mincord.js` before Discord's scripts run |
+| `adapter/webpack.ts` | our hook into Discord's webpack: its require, module search, and source patches applied as webpack sets its modules |
+| `renderer/` | the UI, in Solid 2 (JSX compiled by Vite, `npm run build` into `dist/mincord.js`); `index.tsx` is the entry. `app.tsx` (the shell: server bar, channel and DM lists, headers, user panel), `messages.tsx` (the message list), `store.ts` (Discord's stores as Solid dependencies), `style.ts` (all the CSS: one grid, rows as subgrids), `model.ts` (what a channel shows), `content.ts` (markdown AST to DOM), `scroller.ts` |
+| `flake.nix` | the package (Vite build, nixpkgs' Electron) and a dev shell |
+| `ai/` | what agents work from: `CLAUDE.md`, `LOG.md`, `ROADMAP.md` |
+| `ai/atlas/` | the feature map (`feature-map.html`), its data (element counts, stores, enums), the saved plan, and the CDP scripts that measured them |
+| `ai/lab/` | test account login and server setup, scenarios, the conformance recorder (`conformance.py`), the budget runner (`budgets.py`), the grouping check against stock (`grouping.py`), the login fallback check (`loggedout.py`), the older-history rule check (`older.py`), the status setter check (`status.py`), the unattended build check (`buildcheck.py`, against the differences accepted in `expected.json`), measurements (`ai/lab/data/`) |
 | `design/` | the Phase 1 design draft (`phase1.md`) and its mockup |
 
-The lab harness itself (isolated headless Equibop, CDP client, input-driven benchmarks) lives in
+The lab harness itself (isolated headless Electron, CDP client, input-driven benchmarks) lives in
 `~/code/personal/discord-uiprof`; mincord's scripts import its `cdp.py` and `bench.py`.
 
 ## Test accounts

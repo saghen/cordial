@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "jsx": "preserve",
+        "jsxImportSource": "@solidjs/web",
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "types": ["vite/client"]
+    },
+    "include": ["adapter", "renderer"]
+}

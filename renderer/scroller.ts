@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// The message list's scroll container, shared by every list variant. column-reverse keeps the view at the bottom
+// The message list's scroll container (messages.tsx). column-reverse keeps the view at the bottom
 // without measuring (scrollTop 0 is the bottom). Like stock's, it reports its position to the core
 // (triggers.channelDimensions), turns automatic acks on for the channel it shows (triggers.automaticAck) and asks for
-// older history near the top (LOG.md, 0.4): without a UI nothing else does.
+// older history near the top (ai/LOG.md, 0.4): without a UI nothing else does.
 
 import { A, S } from "../adapter/core";
 import type { Id } from "../adapter/discord";
@@ -15,15 +15,7 @@ import { automaticAck, channelDimensions } from "../adapter/triggers";
 // stock's cap on a fetch's limit (a constant in Discord's constants module, 30 since at least 2026-10)
 const MAX_FETCH = 30;
 
-export function createScroller(host: HTMLElement, channel: () => Id | null) {
-    const scroller = document.createElement("div");
-    scroller.className = "mc-scroller";
-    scroller.dataset.mc = "messages";
-    const inner = document.createElement("div");
-    inner.className = "mc-messages";
-    scroller.append(inner);
-    host.append(scroller);
-
+export function createScroller(scroller: HTMLElement, channel: () => Id | null) {
     // older history near the top, as stock's list does: within 500 px of the top, two of stock's pages at most 30
     // messages (its fetch cap), truncating the other end. A channel whose messages don't fill the view never scrolls,
     // so this also runs after each render.
@@ -83,13 +75,10 @@ export function createScroller(host: HTMLElement, channel: () => Id | null) {
         update();
     }, { passive: true });
 
-    return {
-        scroller, inner,
-        // after each render; a switch to another channel starts at the bottom
-        rendered(switched: boolean) {
-            toBottom ||= switched;
-            dims = true;
-            update();
-        }
+    // after each render; a switch to another channel starts at the bottom
+    return (switched: boolean) => {
+        toBottom ||= switched;
+        dims = true;
+        update();
     };
 }

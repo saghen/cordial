@@ -1,0 +1,26 @@
+{
+    "name": "mincord",
+    "private": true,
+    "main": "app/main.js",
+    "scripts": {
+        "build": "vite build",
+        "watch": "vite build --watch",
+        "check": "tsc"
+    },
+    "dependencies": {
+        "@solidjs/web": "2.0.0-rc.11",
+        "solid-js": "2.0.0-rc.11"
+    },
+    "devDependencies": {
+        "@solidjs/vite-plugin": "3.0.0-next.46",
+        "typescript": "7.0.2",
+        "vite": "8.3.1"
+    },
+    "overrides": {
+        "@solidjs/signals": "2.0.0-rc.11",
+        "@solidjs/compiler": "2.0.0-rc.11",
+        "@solidjs/babel-plugin": "2.0.0-rc.11",
+        "seroval": "1.6.7",
+        "seroval-plugins": "1.6.7"
+    }
+}

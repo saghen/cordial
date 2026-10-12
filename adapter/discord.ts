@@ -11,6 +11,7 @@ export type Id = string;
 export type Rec = Record<string, any>;
 
 export interface FluxStore {
+    getName(): string;
     addChangeListener(fn: () => void): void;
     removeChangeListener(fn: () => void): void;
 }
@@ -61,6 +62,9 @@ export interface Stores {
 }
 
 export interface Actions {
+    dispatcher: { dispatch(action: Rec & { type: string; }): void; subscribe(type: string, fn: (action: Rec) => void): void; _actionHandlers: Rec; };
+    flux: { connectStores: unknown; Store: { getAll(): FluxStore[]; }; };
+    react: { createElement(type: unknown, props?: Rec | null, ...children: unknown[]): unknown; useEffect: unknown; };
     messages: {
         sendMessage(channelId: Id, message: Rec, waitForReady?: boolean, options?: Rec): Promise<unknown>;
         editMessage(channelId: Id, messageId: Id, message: Rec): Promise<unknown>;

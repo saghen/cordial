@@ -11,11 +11,8 @@
 // and the console names each missing need, so a Discord update degrades to stock instead of to a broken client.
 // After that, S and A are plain objects: no lookups or proxies on the renderer's hot paths.
 
-import { localStorage } from "@equicord/types/utils";
-import { cache, filters, find, findModuleId, wreq } from "@equicord/types/webpack";
-import { Flux, FluxDispatcher } from "@equicord/types/webpack/common";
-
 import type { Actions, Stores } from "./discord";
+import { byCode as hasCode, byProps as hasProps, find, findModuleId, inModule, localStorage, wreq } from "./webpack";
 
 export const S = {} as Stores;
 export const A = {} as Actions;
@@ -43,7 +40,7 @@ function storeNeed<K extends keyof Stores>(key: K, name: string, ...methods: (ke
         name: `S.${key}`,
         what: `${name} { ${methods.join(", ")} }`,
         resolve() {
-            const s: any = (Flux.Store as any).getAll().find((s: any) => s.getName() === name);
+            const s: any = A.flux.Store.getAll().find(s => s.getName() === name);
             if (!s) return "no store by that name";
             const gone = methods.filter(m => typeof s[m] !== "function");
             if (gone.length) return `methods gone: ${gone.join(", ")}`;
@@ -78,19 +75,6 @@ function saveIds() {
     try {
         localStorage.setItem(ID_CACHE, JSON.stringify({ build: build(), ids }));
     } catch { }
-}
-
-// find's test for one module: its exports, else each of their members
-function inModule(id: string, filter: (m: any) => boolean) {
-    const mod = cache[id as any];
-    if (!mod?.loaded || mod.exports == null) return null;
-    if (filter(mod.exports)) return mod.exports;
-    if (typeof mod.exports !== "object") return null;
-    for (const k in mod.exports) {
-        const nested = mod.exports[k];
-        if (nested && filter(nested)) return nested;
-    }
-    return null;
 }
 
 function moduleNeed<K extends keyof Actions>(
@@ -128,7 +112,7 @@ function moduleNeed<K extends keyof Actions>(
         },
         searched() {
             const m = search()?.[0];
-            return members.length ? m != null && members.every(k => m[k] === A[key][k]) : m === A[key];
+            return members.length ? m != null && members.every(k => m[k] === (A[key] as any)[k]) : m === A[key];
         }
     });
 }
@@ -137,28 +121,27 @@ function byFilter<K extends keyof Actions>(key: K, what: string, filter: (m: any
     moduleNeed(
         key, what,
         () => {
-            const [m, id] = find(filter, { isIndirect: true, isWaitFor: true }) as [any, PropertyKey | null];
-            return m == null ? null : [m, String(id)];
+            return find(filter);
         },
         id => inModule(id, filter)
     );
 }
 
 function byProps<K extends keyof Actions>(key: K, ...props: (keyof Actions[K] & string)[]) {
-    byFilter(key, `props ${props.join(", ")}`, filters.byProps(...props));
+    byFilter(key, `props ${props.join(", ")}`, hasProps(...props));
 }
 
 function byCode<K extends keyof Actions>(key: K, ...code: string[]) {
-    byFilter(key, `code ${code.map(c => JSON.stringify(c)).join(" ")}`, filters.byCode(...code));
+    byFilter(key, `code ${code.map(c => JSON.stringify(c)).join(" ")}`, hasCode(...code));
 }
 
 // a module whose exports are all minified: found by one code string in its factory, members by their own
 function mangled<K extends keyof Actions>(key: K, anchor: string, members: Record<keyof Actions[K] & string, string>) {
     const names = Object.keys(members);
-    const mappers = names.map(n => [n, filters.byCode(members[n])] as const);
+    const mappers = names.map(n => [n, hasCode(members[n as keyof typeof members])] as const);
     // as mapMangledModule does once it has the module
     const map = (id: string) => {
-        const mod = wreq(id as any), out: Record<string, any> = {};
+        const mod = wreq(id), out: Record<string, any> = {};
         for (const k of Object.keys(mod)) {
             const member = mod[k];
             const hit = mappers.find(([, f]) => f(member));
@@ -174,7 +157,7 @@ function mangled<K extends keyof Actions>(key: K, anchor: string, members: Recor
             return id == null ? null : [map(id), id];
         },
         id => {
-            const factory = wreq.m[id as any];
+            const factory = wreq.m[id];
             return factory && Function.prototype.toString.call(factory).includes(anchor) ? map(id) : null;
         },
         names
@@ -187,13 +170,18 @@ function dispatched(type: string, why: string) {
         name: `dispatch ${type}`,
         what: why,
         resolve() {
-            const tokens = (FluxDispatcher as any)._actionHandlers?._tokensByActionType?.[type];
+            const tokens = A.dispatcher._actionHandlers?._tokensByActionType?.[type];
             return tokens?.length ? null : "no store handles it";
         }
     });
 }
 
 // ---- the needs ----
+
+// first: the store needs look stores up through Flux, the dispatch needs through the dispatcher
+byProps("dispatcher", "dispatch", "subscribe", "_actionHandlers");
+byProps("flux", "connectStores", "Store");
+byProps("react", "createElement", "useEffect");
 
 storeNeed("Gateway", "GatewayConnectionStore", "isConnected", "isTryingToConnect");
 storeNeed("Auth", "AuthenticationStore", "getId", "isAuthenticated");
@@ -249,6 +237,8 @@ dispatched("TYPING_STOP_LOCAL", "typing stops when the composer empties");
 dispatched("PRESENCE_SUBSCRIPTIONS_ADD", "presence of users on screen (stock adds them from a useEffect)");
 dispatched("ENABLE_AUTOMATIC_ACK", "acks: ReadStateStore acks the shown channel while it's at the bottom");
 dispatched("DISABLE_AUTOMATIC_ACK", "acks stop when the list leaves a channel");
+dispatched("CATEGORY_COLLAPSE", "a category's channels hide: CategoryCollapseStore, and a user guild setting (it syncs)");
+dispatched("CATEGORY_EXPAND", "a category's channels show again");
 needs.push({
     name: "window id",
     what: "window.__DISCORD_WINDOW_ID, the window acks are enabled for",
@@ -283,7 +273,7 @@ export function checkOk() {
     return check().every(r => r.ok);
 }
 
-// the lab's test of the id cache (lab/adapter.py): the needs a full search resolves differently
+// the lab's test of the id cache (ai/lab/adapter.py): the needs a full search resolves differently
 export function searchMismatches() {
     return needs.filter(n => n.searched && !n.searched()).map(n => n.name);
 }
