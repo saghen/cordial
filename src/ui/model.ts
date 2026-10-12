@@ -10,6 +10,7 @@ export interface Author {
     name: string;
     color: string | null;
     avatar: string;
+    bot: boolean;
 }
 
 // Stock's grouping rule, ported from Discord's module with "IS_SCHEDULED)!==" (2026-10): it lives in a chunk only
@@ -49,16 +50,23 @@ export function authorOf(m: Message, guildId: Id | null): Author {
         id: u.id,
         name: member?.nick ?? u.globalName ?? u.username,
         color: member?.colorString ?? null,
-        avatar: u.getAvatarURL(guildId, 80)
+        avatar: u.getAvatarURL(guildId, 80),
+        bot: !!u.bot
     };
 }
 
 const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
 const date = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "2-digit", day: "2-digit" });
+const longDate = new Intl.DateTimeFormat(undefined, { dateStyle: "long" });
 
 export function when(d: Date) {
     const today = new Date();
     return d.toDateString() === today.toDateString() ? time.format(d) : `${date.format(d)} ${time.format(d)}`;
+}
+
+// the date divider above a message, when it's the first loaded of its day
+export function dayOf(prev: Message | undefined, m: Message) {
+    return prev && prev.timestamp.toDateString() !== m.timestamp.toDateString() ? longDate.format(m.timestamp) : undefined;
 }
 
 // message content as Discord's markdown AST (what its React output is built from), with message-content options

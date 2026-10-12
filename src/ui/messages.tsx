@@ -7,7 +7,7 @@ import { createEffect, createMemo, For, Show, untrack } from "solid-js";
 import { S } from "../adapter/core";
 import type { Id } from "../adapter/discord";
 import { renderAST } from "./content";
-import { authorOf, contentAST, type Message, startsGroup, when } from "./model";
+import { authorOf, contentAST, dayOf, type Message, startsGroup, when } from "./model";
 import { createScroller } from "./scroller";
 import { $ } from "./store";
 
@@ -41,12 +41,16 @@ export function Messages(p: { root: HTMLElement; }) {
     const Row = (m: Message, i: () => number) => {
         const head = createMemo(() => startsGroup(channel(), list()[i() - 1], m));
         const author = createMemo(() => head() ? authorOf(m, channel()?.guild_id) : null);
+        // a new day always starts a group, so the author line carries the divider
+        const day = createMemo(() => dayOf(list()[i() - 1], m));
         const nodes = content(m, untrack(channelId)!);
         return <article
-            class={{ head: head(), system: m.type !== 0 && m.type !== 19, new: unread() === m.id, edited: !!m.editedTimestamp }}
+            class={{ head: head(), system: m.type !== 0 && m.type !== 19, new: unread() === m.id, edited: !!m.editedTimestamp, day: !!day() }}
             style={author() ? { "--av": `url(${author()!.avatar})` } : undefined}
         >
-            <Show when={author()}>{a => <b data-mc={`author:${a().id}`} data-ts={when(m.timestamp)} style={{ color: a().color ?? undefined }}>{a().name}</b>}</Show>
+            <Show when={author()}>{a => <b data-mc={`author:${a().id}`} data-ts={when(m.timestamp)} data-day={day()} style={{ color: a().color ?? undefined }}>
+                {a().name}<Show when={a().bot}><i>APP</i></Show>
+            </b>}</Show>
             {nodes}
         </article>;
     };

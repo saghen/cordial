@@ -94,17 +94,28 @@ export const CSS = `
     /* offscreen rows skip style and layout until scrolled to (ai/LOG.md, 0.7) */
     content-visibility: auto; contain-intrinsic-size: auto 26px;
   }
-  article:hover { background: #0000001a; }
+  article:hover { background-color: #0000001a; }
   article.head { margin-top: 16px; min-height: 48px; contain-intrinsic-size: auto 48px; }
   article.head::before {
     content: ""; position: absolute; left: 16px; top: 4px; width: 40px; height: 40px; border-radius: 50%;
     background: var(--av) center / cover, var(--bg-raised);
   }
   article.system { color: var(--text-muted); font-style: italic; }
-  article.new { border-top: 1px solid var(--danger); }
   article.edited::after { content: " (edited)"; font-size: 10px; color: var(--text-muted); }
   article > b { display: block; font-weight: 500; color: var(--text-strong); white-space: normal; cursor: pointer; }
   article > b::after { content: attr(data-ts); margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+  article > b > i {
+    margin-left: 4px; padding: 0 4px; border-radius: 3px; background: var(--accent); color: #fff;
+    font: 600 10px/15px "gg sans", sans-serif; vertical-align: 2px;
+  }
+  /* the date divider, inside the row (content-visibility clips what's outside it): a line, the date centred on it */
+  article.day { padding-top: 32px; min-height: 80px; background: linear-gradient(var(--bg-raised) 0 0) 0 8px / 100% 1px no-repeat; }
+  article.day::before { top: 36px; }
+  article.day > b::before {
+    content: attr(data-day); position: absolute; top: 0; left: 50%; translate: -50%; padding: 0 4px;
+    background: var(--bg); font-size: 12px; font-weight: 600; line-height: 16px; color: var(--text-muted);
+  }
+  article.new { border-top: 1px solid var(--danger); }
 
   /* the composer (composer.tsx): grows with its text, up to half the window */
   textarea {
