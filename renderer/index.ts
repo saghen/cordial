@@ -6,11 +6,12 @@
 // Entry point Equibop imports (nix/equibop.nix). Until the framework is chosen (ROADMAP 0.6) the root is a plain-DOM
 // placeholder: who is connected and how much the core has synced, so a glance shows the core is alive.
 
-import { findStore } from "@equicord/types/webpack";
-
 import { setMount } from "../adapter/anchor";
+import { A, checkReport, S } from "../adapter/core";
+import * as triggers from "../adapter/triggers";
 
-const STORES = ["GatewayConnectionStore", "UserStore", "GuildStore", "SelectedChannelStore"];
+// for lab scripts over CDP
+Object.assign(VesktopPatchGlobals, { mincordAdapter: { S, A, checkReport, ...triggers } });
 
 setMount(host => {
     host.style.cssText =
@@ -22,15 +23,14 @@ setMount(host => {
     const status = document.createElement("div");
     host.replaceChildren(title, status);
 
-    const stores = STORES.map(name => findStore(name) as any);
-    const [gateway, users, guilds, selected] = stores;
+    const stores = [S.Gateway, S.User, S.Guild, S.SelectedChannel];
     const update = () => {
-        const user = users.getCurrentUser();
+        const user = S.User.getCurrentUser();
         status.textContent = [
-            gateway.isConnected() ? "connected" : "connecting",
+            S.Gateway.isConnected() ? "connected" : "connecting",
             user ? `as ${user.username}` : "",
-            `${Object.keys(guilds.getGuilds()).length} servers`,
-            `channel ${selected.getChannelId() ?? "none"}`
+            `${Object.keys(S.Guild.getGuilds()).length} servers`,
+            `channel ${S.SelectedChannel.getChannelId() ?? "none"}`
         ].filter(Boolean).join(" · ");
     };
     update();
