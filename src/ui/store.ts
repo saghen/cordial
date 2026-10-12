@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // Discord's Flux stores as Solid dependencies: `$.ReadState.hasUnread(id)` reads the store like `S.ReadState`, and
 // subscribes the computation reading it to the store's changes. Solid applies writes in a microtask, so the stores
 // one dispatch changes (a message changes several) update the UI once, after the dispatch.

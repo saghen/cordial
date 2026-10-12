@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // The parts of Discord's stores and action creators the renderer uses, typed only as far as we call them. Records
 // (users, channels, messages) stay loose until a feature needs their fields. Every method named here is checked at
 // startup (core.ts), so adding one to an interface means adding it to its need too.

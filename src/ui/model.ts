@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // What a channel's message list shows, derived from the stores. Every list variant renders from this, so they differ
 // only in how they turn it into DOM.
 

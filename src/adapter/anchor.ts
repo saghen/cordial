@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // The anchor. Discord's root App class stays mounted: its componentDidMount starts ~60 managers and its route
 // listener starts the session and selects guilds and channels from the URL. Only its render changes: instead of
 // Discord's routes it renders one host element, and our renderer mounts into that.

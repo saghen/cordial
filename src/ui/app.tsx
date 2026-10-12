@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // The shell: one grid (style.ts), one element per region and per list row. Server icons, channels, categories and
 // DMs are all the same <a> (Item): its state is classes, its icon and badge the CSS's ::before and ::after.
 

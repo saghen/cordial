@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // Everything the renderer uses from Discord, declared once as a list of needs and resolved before our root mounts:
 //   stores by name, with the methods we call on them;
 //   action creators by props or by code strings (minified names change every build, these don't);

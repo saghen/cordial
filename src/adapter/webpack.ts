@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // Discord's webpack: its require (wreq), module search, and source patches. Runs before Discord's scripts (the
 // preload injects us), so it sees webpack set its module factories and can patch them before any runs.
 

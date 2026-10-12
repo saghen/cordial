@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // All of the renderer's CSS (design/phase1.md: palette in section 3, sizes in section 2). The root is one grid; list
 // rows are subgrids of their list (icon, label, badge), so every row's columns line up without wrappers. Elements are
 // styled by tag, nested under the root (Discord's own layers, which are outside it, never see these rules): each

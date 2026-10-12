@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // The bundle's entry (vite.config.ts), injected by app/preload.js: mounts the shell (app.tsx) where the anchor puts
 // our root.
 //

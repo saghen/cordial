@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // The message list's scroll container (messages.tsx). column-reverse keeps the view at the bottom
 // without measuring (scrollTop 0 is the bottom). Like stock's, it reports its position to the core
 // (triggers.channelDimensions), turns automatic acks on for the channel it shows (triggers.automaticAck) and asks for

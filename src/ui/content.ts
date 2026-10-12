@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // Discord's markdown AST (model.ts contentAST) to DOM, imperatively: a message's content never changes (an edit
 // replaces the record), so it needs no reactivity. Node types as its parser emits them for message content; anything
 // unknown renders its text, so a new node type degrades to plain text instead of disappearing. Plain tags, styled

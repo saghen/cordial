@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // What Discord's UI does that its core doesn't do by itself. Without the UI nothing types, loads a channel's messages
 // or subscribes to presences: we have to. Each one is checked against stock in the conformance diff (ROADMAP 0.4).
 

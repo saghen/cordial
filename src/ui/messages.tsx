@@ -1,8 +1,3 @@
-/*
- * mincord: Discord's core with our own renderer
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 // The selected channel's messages. One element per message (two with its author line): the avatar is the row's
 // ::before, the timestamp the name's ::after, the content goes straight into the row. Rows follow message records,
 // which are immutable (an edit replaces the record), so a row never updates its content; only whether it starts a
