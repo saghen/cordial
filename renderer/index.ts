@@ -3,19 +3,21 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// Entry point Equibop imports (nix/equibop.nix). Until the framework is chosen (ROADMAP 0.6) the root is a plain-DOM
-// placeholder: status, server/channel/DM lists that navigate, and the selected channel's message count. It follows
-// the lab's conventions, so the budget runner (lab/budgets.py) measures switches through it: the core's own cost
-// under a trivial renderer.
+// Entry point Equibop imports (nix/equibop.nix). Until the framework is chosen (ROADMAP 0.6) the shell is plain DOM:
+// status, server/channel/DM lists that navigate, and the selected channel's message list (list.ts: one of the
+// variants 0.6 compares). It follows the lab's conventions, so the budget runner (lab/budgets.py) drives it.
 //
 // Lab conventions (the real renderer keeps them):
 //   data-mc="guild:ID" | "channel:ID" | "dm:ID"   the element a click on navigates there
-//   #mincord-root[data-view="channel:ID"]          set in the frame that shows that channel's messages
+//   #mincord-root[data-view="channel:ID"]          set in the task that puts that channel's messages in the DOM
+//   data-mc="messages"                              the message list's scroller
+//   data-mc="author:ID"                             an author's name in the list
 
 import { setMount } from "../adapter/anchor";
 import { A, checkReport, S } from "../adapter/core";
 import type { FluxStore } from "../adapter/discord";
 import * as triggers from "../adapter/triggers";
+import { createList, CSS, listVariant } from "./list";
 
 // for lab scripts over CDP
 Object.assign(VesktopPatchGlobals, { mincordAdapter: { S, A, checkReport, ...triggers } });
@@ -44,13 +46,18 @@ setMount(host => {
     const status = el("div", "grid-column:1/-1;padding:8px 16px;border-bottom:1px solid #2b2d31");
     const guilds = el("div", COL);
     const channels = el("div", COL + ";background:#2b2d31");
-    const view = el("div", "padding:16px;overflow:auto");
-    host.replaceChildren(status, guilds, channels, view);
+    const view = el("div", "min-height:0;background:var(--bg)");
+    const style = el("style", "", CSS);
+    host.replaceChildren(style, status, guilds, channels, view);
+    const list = createList(view, cid => {
+        if (cid === S.SelectedChannel.getChannelId()) host.dataset.view = `channel:${cid}`;
+    });
+    Object.assign(VesktopPatchGlobals, { mincordList: list });
 
     const updateStatus = () => {
         const user = S.User.getCurrentUser();
         status.textContent = [
-            "mincord",
+            `mincord (list: ${listVariant()})`,
             S.Gateway.isConnected() ? "connected" : "connecting",
             user ? `as ${user.username}` : ""
         ].filter(Boolean).join(" · ");
@@ -81,30 +88,20 @@ setMount(host => {
         }
     };
 
-    let shown = "";
+    let shown: string | null = null;
     const updateView = () => {
         const cid = S.SelectedChannel.getChannelId();
-        if (!cid) {
-            if (shown) view.replaceChildren();
-            shown = "";
-            delete host.dataset.view;
-            return;
-        }
-        const messages = S.Message.getMessages(cid);
-        const c = S.Channel.getChannel(cid);
-        const key = `${cid}|${messages.ready}|${messages.length}`;
-        if (key === shown) return;
-        shown = key;
-        view.textContent = messages.ready ? `${c?.name ?? cid}: ${messages.length} messages loaded` : `${c?.name ?? cid}: loading`;
-        if (messages.ready) host.dataset.view = `channel:${cid}`;
-        else delete host.dataset.view;
+        if (cid === shown) return;
+        shown = cid;
+        delete host.dataset.view;
+        list.show(cid);
     };
 
     const listeners: [FluxStore, () => void][] = [
         [S.Gateway, updateStatus], [S.User, updateStatus],
         [S.SelectedGuild, updateLists], [S.SelectedChannel, updateLists], [S.SortedGuild, updateLists],
         [S.GuildChannel, updateLists], [S.PrivateChannelSort, updateLists],
-        [S.SelectedChannel, updateView], [S.Message, updateView]
+        [S.SelectedChannel, updateView]
     ];
     updateStatus();
     updateLists();
@@ -112,6 +109,7 @@ setMount(host => {
     for (const [s, fn] of listeners) s.addChangeListener(fn);
     return () => {
         for (const [s, fn] of listeners) s.removeChangeListener(fn);
+        list.dispose();
         host.replaceChildren();
     };
 });
