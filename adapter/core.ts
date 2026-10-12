@@ -102,25 +102,36 @@ function dispatched(type: string, why: string) {
 // ---- the needs ----
 
 storeNeed("Gateway", "GatewayConnectionStore", "isConnected", "isTryingToConnect");
-storeNeed("Auth", "AuthenticationStore", "getId");
+storeNeed("Auth", "AuthenticationStore", "getId", "isAuthenticated");
 storeNeed("User", "UserStore", "getCurrentUser", "getUser");
 storeNeed("Guild", "GuildStore", "getGuild", "getGuilds");
 storeNeed("SortedGuild", "SortedGuildStore", "getGuildFolders", "getFlattenedGuildIds");
 storeNeed("Channel", "ChannelStore", "getChannel");
 storeNeed("GuildChannel", "GuildChannelStore", "getChannels");
-storeNeed("PrivateChannelSort", "PrivateChannelSortStore", "getPrivateChannelIds");
+storeNeed("PrivateChannelSort", "PrivateChannelSortStore", "getPrivateChannelIds", "getSortedChannels");
 storeNeed("SelectedGuild", "SelectedGuildStore", "getGuildId");
 storeNeed("SelectedChannel", "SelectedChannelStore", "getChannelId");
 storeNeed("Message", "MessageStore", "getMessages", "isReady", "whenReady");
-storeNeed("ReadState", "ReadStateStore", "hasUnread", "getMentionCount");
+storeNeed("ReadState", "ReadStateStore", "hasUnread", "getMentionCount", "getOldestUnreadMessageId", "ackMessageId");
+storeNeed("GuildReadState", "GuildReadStateStore", "hasUnread", "getMentionCount", "getPrivateChannelMentionCount");
+storeNeed("PrivateChannelReadState", "PrivateChannelReadStateStore", "getUnreadPrivateChannelIds");
 storeNeed("Presence", "PresenceStore", "getStatus");
 storeNeed("Relationship", "RelationshipStore", "getFriendIDs");
 storeNeed("Permission", "PermissionStore", "can");
 storeNeed("UserGuildSettings", "UserGuildSettingsStore", "isMuted", "isChannelMuted");
 storeNeed("Typing", "TypingStore", "getTypingUsers");
 storeNeed("GuildMember", "GuildMemberStore", "getMember");
+storeNeed("Draft", "DraftStore", "getDraft");
+storeNeed("EditMessage", "EditMessageStore", "isEditing", "getEditingTextValue", "getEditingMessageId");
+storeNeed("Slowmode", "SlowmodeStore", "getSlowmodeCooldownGuess");
+storeNeed("CategoryCollapse", "CategoryCollapseStore", "isCollapsed");
+storeNeed("SelfPresence", "SelfPresenceStore", "getStatus");
 
-byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "jumpToPresent", "jumpToMessage");
+byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "jumpToPresent", "jumpToMessage",
+    "startEditMessage", "updateEditMessage", "endEditMessage");
+byProps("parser", "parse", "parsePreprocessor", "unparse");
+byProps("drafts", "saveDraft", "changeDraft", "clearDraft");
+byCode("setStatus", "nextStatus:", "statusExpiresAtMs=");
 byCode("ack", 'type:"CHANNEL_ACK",channelId:', "immediate:", "location:");
 byProps("channels", "selectChannel", "selectPrivateChannel");
 byProps("guilds", "selectGuild");
