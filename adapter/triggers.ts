@@ -23,7 +23,7 @@ export function stopTyping(channelId: Id) {
 
 // Stock fetches a channel's messages when its chat mounts. Sending waits for that: sendMessage to a channel that was
 // never loaded queues until it is, silently (LOG.md, 0.1).
-export function loadChannel(channelId: Id, limit = 50) {
+export function loadChannel(channelId: Id, limit = A.pages.size("MessageManager")) {
     if (!S.Message.getMessages(channelId).ready) A.messages.fetchMessages({ channelId, limit });
 }
 
@@ -33,4 +33,15 @@ export function loadChannel(channelId: Id, limit = 50) {
 // geometry: scrollTop from the top, at the bottom when scrollTop === scrollHeight - offsetHeight.
 export function channelDimensions(channelId: Id, scrollTop: number, scrollHeight: number, offsetHeight: number) {
     FluxDispatcher.dispatch({ type: "UPDATE_CHANNEL_DIMENSIONS", channelId, scrollTop, scrollHeight, offsetHeight });
+}
+
+// Stock's scroller turns automatic acks on for the channel it shows once its messages are ready, and off when it
+// leaves. ReadStateStore does the rest: it acks only while the channel is at the bottom (DimensionStore), loaded and
+// not in a fullscreen call, so the list must report its position first. windowId is Discord's id for this window.
+export function automaticAck(channelId: Id, on: boolean) {
+    FluxDispatcher.dispatch({ type: on ? "ENABLE_AUTOMATIC_ACK" : "DISABLE_AUTOMATIC_ACK", channelId, windowId: windowId() });
+}
+
+export function windowId(): string | undefined {
+    return (window as any).__DISCORD_WINDOW_ID;
 }

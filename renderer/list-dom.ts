@@ -73,6 +73,7 @@ export const createDomList: ListFactory = (host, onShown) => {
         if (!channelId) {
             inner.replaceChildren();
             shown = null;
+            rendered(false);
             return;
         }
         const ms = S.Message.getMessages(channelId);

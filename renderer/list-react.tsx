@@ -67,6 +67,7 @@ export const createReactList: ListFactory = (host, onShown) => {
         shown = ms;
         if (!channelId) {
             ReactDOM.flushSync(() => root.render(null));
+            rendered(false);
             return;
         }
         const channel = S.Channel.getChannel(channelId);

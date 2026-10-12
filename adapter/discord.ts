@@ -45,7 +45,7 @@ export interface Actions {
         sendMessage(channelId: Id, message: Rec, waitForReady?: boolean, options?: Rec): Promise<unknown>;
         editMessage(channelId: Id, messageId: Id, message: Rec): Promise<unknown>;
         deleteMessage(channelId: Id, messageId: Id): Promise<unknown>;
-        fetchMessages(options: { channelId: Id; limit?: number; before?: Id; after?: Id; jump?: Rec; }): Promise<unknown>;
+        fetchMessages(options: { channelId: Id; limit?: number; before?: Id; after?: Id; jump?: Rec; truncate?: boolean; }): Promise<unknown>;
         jumpToPresent(channelId: Id, limit?: number): void;
         jumpToMessage(options: Rec): void;
     };
@@ -54,5 +54,8 @@ export interface Actions {
     channels: { selectChannel(options: { guildId?: Id | null; channelId: Id; messageId?: Id; }): void; selectPrivateChannel(channelId: Id): void; };
     guilds: { selectGuild(guildId: Id): void; };
     nav: { transitionTo(path: string, state?: Rec): void; transitionToGuild(guildId: Id, channelId?: Id): void; replaceWith(path: string): void; back(): void; };
+    // stock's page size: the messages that fit the window's height (at least 10, at most 30), from its window size,
+    // density and font size; the argument is only a label
+    pages: { size(label?: string): number; };
     markdown: { parseToAST(text: string, inline?: boolean, state?: Rec): Rec[]; parse(text: string, inline?: boolean, state?: Rec): unknown; astParserFor(rules: Rec): unknown; defaultRules: Rec; };
 }

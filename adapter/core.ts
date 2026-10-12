@@ -130,11 +130,19 @@ mangled("nav", "transitionTo - Transitioning to", {
     replaceWith: "Replacing route with",
     back: "goBack()"
 });
+mangled("pages", "windowSize().height-145", { size: ".getSetting()," });
 byProps("markdown", "parseToAST", "parse", "astParserFor", "defaultRules");
 
 dispatched("TYPING_START_LOCAL", "typing: TypingStore throttles and POSTs /typing");
 dispatched("TYPING_STOP_LOCAL", "typing stops when the composer empties");
 dispatched("PRESENCE_SUBSCRIPTIONS_ADD", "presence of users on screen (stock adds them from a useEffect)");
+dispatched("ENABLE_AUTOMATIC_ACK", "acks: ReadStateStore acks the shown channel while it's at the bottom");
+dispatched("DISABLE_AUTOMATIC_ACK", "acks stop when the list leaves a channel");
+needs.push({
+    name: "window id",
+    what: "window.__DISCORD_WINDOW_ID, the window acks are enabled for",
+    resolve: () => typeof (window as any).__DISCORD_WINDOW_ID === "string" ? null : "not set"
+});
 
 // ---- the check ----
 
