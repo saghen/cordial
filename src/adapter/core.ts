@@ -188,7 +188,7 @@ storeNeed("GuildChannel", "GuildChannelStore", "getChannels");
 storeNeed("PrivateChannelSort", "PrivateChannelSortStore", "getPrivateChannelIds", "getSortedChannels");
 storeNeed("SelectedGuild", "SelectedGuildStore", "getGuildId");
 storeNeed("SelectedChannel", "SelectedChannelStore", "getChannelId");
-storeNeed("Message", "MessageStore", "getMessages", "isReady", "whenReady");
+storeNeed("Message", "MessageStore", "getMessages", "isReady", "whenReady", "getMessage", "getLastEditableMessage");
 storeNeed("ReadState", "ReadStateStore", "hasUnread", "getMentionCount", "getOldestUnreadMessageId", "ackMessageId");
 storeNeed("GuildReadState", "GuildReadStateStore", "hasUnread", "getMentionCount", "getPrivateChannelMentionCount");
 storeNeed("PrivateChannelReadState", "PrivateChannelReadStateStore", "getUnreadPrivateChannelIds");
@@ -211,7 +211,7 @@ needs.push({
 });
 
 byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "jumpToPresent", "jumpToMessage",
-    "startEditMessage", "updateEditMessage", "endEditMessage");
+    "startEditMessage", "startEditMessageRecord", "updateEditMessage", "endEditMessage");
 byProps("parser", "parse", "parsePreprocessor", "unparse");
 byProps("drafts", "saveDraft", "changeDraft", "clearDraft");
 byCode("setStatus", "nextStatus:", "statusExpiresAtMs=");

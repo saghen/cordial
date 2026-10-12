@@ -9,7 +9,8 @@ export const CSS = `
   --text: #efeff1; --text-strong: #fbfbfb; --text-muted: #96979e; --text-faint: #4f505a;
   --mention-bg: #5f8cfb3d; --mention-fg: #a9bbff; --danger: #da3e44; --positive: #3d9e60; --warning: #fdb833;
   position: fixed; inset: 0; z-index: 1; display: grid;
-  grid: "notice notice notice" auto "servers side head" 48px "servers nav main" 1fr "servers me main" 52px / 72px 240px minmax(0, 1fr);
+  grid: "notice notice notice" auto "servers side head" 48px "servers nav main" 1fr "servers nav compose" auto
+    "servers me compose" 52px / 72px 240px minmax(0, 1fr);
   background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
 
   & * { margin: 0; box-sizing: border-box; }
@@ -83,6 +84,14 @@ export const CSS = `
   article.edited::after { content: " (edited)"; font-size: 10px; color: var(--text-muted); }
   article > b { display: block; font-weight: 500; color: var(--text-strong); white-space: normal; cursor: pointer; }
   article > b::after { content: attr(data-ts); margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+
+  /* the composer (composer.tsx): grows with its text, up to half the window */
+  textarea {
+    grid-area: compose; margin: 0 16px 16px; min-height: 56px; max-height: 50vh; padding: 16px; resize: none;
+    field-sizing: content; border: 0; border-radius: 8px; outline: 0; background: var(--bg-raised); color: inherit; font: inherit;
+  }
+  textarea.editing { box-shadow: 0 0 0 2px var(--accent); }
+  textarea::placeholder { color: var(--text-faint); }
 
   /* content (content.ts) */
   article h1, article h2, article h3 { margin: 8px 0 0; line-height: 1.25; color: var(--text-strong); }

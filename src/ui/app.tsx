@@ -5,6 +5,7 @@ import { For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
+import { Composer } from "./composer";
 import { Messages } from "./messages";
 import { $ } from "./store";
 import { CSS } from "./style";
@@ -101,5 +102,6 @@ export function App(p: { root: HTMLElement; }) {
             <Show when={channel()}>{c => <>{c().guild_id ? `# ${c().name}` : `@ ${dmName(c())}`}<small>{c().topic}</small></>}</Show>
         </header>
         <Messages root={p.root} />
+        <Composer />
     </>;
 }

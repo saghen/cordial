@@ -6,6 +6,8 @@
 //   #mincord-root[data-view="channel:ID"]          set in the task that puts that channel's messages in the DOM
 //   data-mc="messages"                              the message list's scroller
 //   data-mc="author:ID"                             an author's name in the list
+//   data-mc="category:ID"                           a category row; a click collapses or expands it
+//   data-mc="composer"                              the composer's textarea
 
 import { render } from "@solidjs/web";
 

@@ -27,6 +27,9 @@ export interface Stores {
         getMessages(channelId: Id): Rec & { ready: boolean; };
         isReady(channelId: Id): boolean;
         whenReady(channelId: Id, fn: () => void): void;
+        getMessage(channelId: Id, messageId: Id): Rec | undefined;
+        // what Up in an empty composer edits
+        getLastEditableMessage(channelId: Id): Rec | undefined;
     };
     ReadState: FluxStore & {
         hasUnread(channelId: Id): boolean;
@@ -67,8 +70,9 @@ export interface Actions {
         fetchMessages(options: { channelId: Id; limit?: number; before?: Id; after?: Id; jump?: Rec; truncate?: boolean; }): Promise<unknown>;
         jumpToPresent(channelId: Id, limit?: number): void;
         jumpToMessage(options: Rec): void;
-        // edit mode, kept in EditMessageStore
+        // edit mode, kept in EditMessageStore. startEditMessageRecord is what stock's Up and its menu's Edit call
         startEditMessage(channelId: Id, messageId: Id, content: string): void;
+        startEditMessageRecord(channelId: Id, message: Rec): void;
         updateEditMessage(channelId: Id, textValue: string): void;
         endEditMessage(channelId: Id, response?: unknown): void;
     };
