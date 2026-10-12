@@ -26,10 +26,13 @@ export function createScroller(host: HTMLElement, channel: () => Id | null) {
 
     // older history near the top, as stock's list does: within 500 px of the top, two of stock's pages at most 30
     // messages (its fetch cap), truncating the other end. A channel whose messages don't fill the view never scrolls,
-    // so this also runs after each render
+    // so this also runs after each render.
+    // While the channel has unreads stock waits until the view is past the oldest loaded message (into the placeholder
+    // it draws above them): reading down from the unread line shouldn't pull in history. With no placeholder, that's
+    // the top (2 px: at the top scrollTop stops 1 px short here, clientHeight is rounded)
     function older(channelId: Id) {
         const fromTop = scroller.scrollHeight - scroller.clientHeight + scroller.scrollTop;
-        if (fromTop > 500) return;
+        if (fromTop > (S.ReadState.getOldestUnreadMessageId(channelId) != null ? 2 : 500)) return;
         const ms = S.Message.getMessages(channelId);
         if (ms.ready && ms.hasMoreBefore && !ms.loadingMore && ms.length)
             A.messages.fetchMessages({ channelId, before: ms.first().id, limit: Math.min(MAX_FETCH, 2 * A.pages.size("scrollManager.loadMore")), truncate: true });
