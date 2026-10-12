@@ -18,9 +18,10 @@ import { A, checkReport, S } from "../adapter/core";
 import type { FluxStore } from "../adapter/discord";
 import * as triggers from "../adapter/triggers";
 import { createList, CSS, listVariant } from "./list";
+import * as model from "./model";
 
 // for lab scripts over CDP
-Object.assign(VesktopPatchGlobals, { mincordAdapter: { S, A, checkReport, ...triggers } });
+Object.assign(VesktopPatchGlobals, { mincordAdapter: { S, A, checkReport, ...triggers }, mincordModel: model });
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, css: string, text = "") {
     const e = document.createElement(tag);

@@ -40,6 +40,9 @@ export const CSS = `
 .mc-messages { padding: 16px 0 8px; }
 .mc-msg { padding: 2px 16px 2px 72px; position: relative; overflow-wrap: anywhere; }
 .mc-msg.mc-head { margin-top: 16px; min-height: 44px; }
+/* offscreen rows skip style and layout until scrolled to (LOG.md, 0.7): the column-reverse scroller is anchored at the
+   bottom, so rows above the view taking their real height don't move what's on screen */
+.mc-msg { content-visibility: auto; contain-intrinsic-size: auto 22px; } .mc-msg.mc-head { contain-intrinsic-size: auto 44px; }
 .mc-msg:hover { background: #2e3035; }
 .mc-avatar { position: absolute; left: 16px; top: 4px; width: 40px; height: 40px; border-radius: 50%; }
 .mc-meta { display: flex; gap: 8px; align-items: baseline; }

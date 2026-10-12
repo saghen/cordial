@@ -7,7 +7,7 @@
 // only in how they turn it into DOM.
 
 import { A, S } from "../adapter/core";
-import type { Id } from "../adapter/discord";
+import type { Id, Rec } from "../adapter/discord";
 
 export type Message = Record<string, any> & { id: Id; content: string; timestamp: Date; author: Record<string, any>; };
 
@@ -18,16 +18,38 @@ export interface Author {
     avatar: string;
 }
 
-// stock groups a message under the previous one's header when the same author wrote both within 7 minutes
-const GROUP_MS = 7 * 60 * 1000;
-
 export function messagesOf(channelId: Id): Message[] {
     return S.Message.getMessages(channelId).toArray() as Message[];
 }
 
-export function startsGroup(prev: Message | undefined, m: Message) {
-    return !prev || prev.author.id !== m.author.id || m.type !== 0 && m.type !== 19 || prev.type !== 0 && prev.type !== 19
-        || m.timestamp.getTime() - prev.timestamp.getTime() > GROUP_MS || m.messageReference != null;
+// Stock's grouping rule, ported from Discord's module with "IS_SCHEDULED)!==" (2026-10): it lives in a chunk only
+// Discord's message list loads. A message starts a new group unless it continues the previous one: same author
+// (and, for webhooks, the same name) within 7 minutes on the same day, both user messages, matching flags.
+const GROUP_MS = 7 * 60 * 1000;
+const USER_MESSAGE = new Set([0, 19, 20, 23, 26, 41, 45, 47, 68]);
+const REPLY = 19;
+const HAS_THREAD = 1 << 5, EPHEMERAL = 1 << 6, SUPPRESS_NOTIFICATIONS = 1 << 12, IS_SCHEDULED = 1 << 20;
+
+const flag = (m: Message, f: number) => (m.flags & f) !== 0;
+const orNull = (s: unknown) => s == null || s === "" ? null : s;
+
+export function startsGroup(channel: Rec | undefined, prev: Message | undefined, m: Message) {
+    if (!prev) return true;
+    if (flag(m, HAS_THREAD) || m.isCommandType?.() || prev.blocked !== m.blocked || prev.ignored !== m.ignored) return true;
+    if (m.applicationId !== prev.applicationId || orNull(m.additionalName) !== orNull(prev.additionalName)) return true;
+    if (m.type > 0) return USER_MESSAGE.has(prev.type) || m.type === REPLY;
+    const a = prev.timestamp, b = m.timestamp, apart = Math.abs(a.getTime() - b.getTime());
+    return !USER_MESSAGE.has(prev.type)
+        || prev.author.id !== m.author.id
+        || flag(prev, EPHEMERAL) !== flag(m, EPHEMERAL)
+        || flag(prev, IS_SCHEDULED) !== flag(m, IS_SCHEDULED)
+        || m.webhookId != null && prev.author.username !== m.author.username
+        || channel?.isForumPost?.() && prev.id === channel.id
+        || !(apart <= 864e5 && a.getDate() === b.getDate())
+        || !(apart < GROUP_MS)
+        || flag(m, SUPPRESS_NOTIFICATIONS) && !flag(prev, SUPPRESS_NOTIFICATIONS)
+        || flag(prev, SUPPRESS_NOTIFICATIONS) && !flag(m, SUPPRESS_NOTIFICATIONS)
+            && (m.mentions.length > 0 || m.mentionRoles.length > 0 || m.mentionEveryone);
 }
 
 export function authorOf(m: Message, guildId: Id | null): Author {

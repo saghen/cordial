@@ -79,12 +79,13 @@ export const createDomList: ListFactory = (host, onShown) => {
         if (ms === shown) return;
         const switched = (shown as any)?.channelId !== channelId;
         shown = ms;
-        const guildId = S.Channel.getChannel(channelId)?.guild_id ?? null;
+        const channel = S.Channel.getChannel(channelId);
+        const guildId = channel?.guild_id ?? null;
         const list = messagesOf(channelId);
         let cur = inner.firstChild;
         for (let i = 0; i < list.length; i++) {
             const m = list[i];
-            const head = startsGroup(list[i - 1], m);
+            const head = startsGroup(channel, list[i - 1], m);
             const cache = head ? heads : rest;
             let e = cache.get(m);
             if (!e) cache.set(m, e = row(m, head, channelId, guildId));

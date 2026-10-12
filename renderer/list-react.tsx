@@ -11,7 +11,7 @@ import { createRoot, React, ReactDOM } from "@equicord/types/webpack/common";
 import type { Root } from "react-dom/client";
 
 import { S } from "../adapter/core";
-import type { Id } from "../adapter/discord";
+import type { Id, Rec } from "../adapter/discord";
 import { renderAST } from "./content-react";
 import type { ListFactory } from "./list";
 import { authorOf, contentAST, Message, messagesOf, startsGroup, when } from "./model";
@@ -47,10 +47,11 @@ function RowImpl({ m, head, channelId, guildId }: RowProps) {
 // React isn't resolved when this module loads (CLAUDE.md gotchas): memo on first use
 let Row: React.ComponentType<RowProps> | null = null;
 
-function List({ channelId, list, guildId }: { channelId: Id; list: Message[]; guildId: Id | null; }) {
+function List({ channelId, list, channel }: { channelId: Id; list: Message[]; channel: Rec | undefined; }) {
+    const guildId = channel?.guild_id ?? null;
     const R = Row ??= React.memo(RowImpl);
     return <>{list.map((m, i) =>
-        <R key={m.id} m={m} head={startsGroup(list[i - 1], m)} channelId={channelId} guildId={guildId} />)}</>;
+        <R key={m.id} m={m} head={startsGroup(channel, list[i - 1], m)} channelId={channelId} guildId={guildId} />)}</>;
 }
 
 export const createReactList: ListFactory = (host, onShown) => {
@@ -68,9 +69,9 @@ export const createReactList: ListFactory = (host, onShown) => {
             ReactDOM.flushSync(() => root.render(null));
             return;
         }
-        const guildId = S.Channel.getChannel(channelId)?.guild_id ?? null;
+        const channel = S.Channel.getChannel(channelId);
         const id = channelId;
-        ReactDOM.flushSync(() => root.render(<List channelId={id} list={messagesOf(id)} guildId={guildId} />));
+        ReactDOM.flushSync(() => root.render(<List channelId={id} list={messagesOf(id)} channel={channel} />));
         rendered(switched);
         if (ms!.ready) onShown(channelId);
     }

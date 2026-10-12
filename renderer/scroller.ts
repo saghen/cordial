@@ -30,13 +30,16 @@ export function createScroller(host: HTMLElement, channel: () => Id | null) {
             A.messages.fetchMessages({ channelId, before: ms.first().id, limit: 50 });
     }
 
-    // once per frame, and never inside a dispatch: lists render from store listeners
-    let queued = false;
+    // once per frame, and never inside a dispatch: lists render from store listeners. A switch scrolls to the bottom
+    // there too, before paint: setting scrollTop in the render task would force a second style and layout pass
+    let queued = false, toBottom = false;
     function update() {
         if (queued) return;
         queued = true;
         requestAnimationFrame(() => {
             queued = false;
+            if (toBottom) scroller.scrollTop = 0;
+            toBottom = false;
             const channelId = channel();
             if (!channelId) return;
             const height = scroller.scrollHeight, view = scroller.clientHeight;
@@ -53,7 +56,7 @@ export function createScroller(host: HTMLElement, channel: () => Id | null) {
         scroller, inner,
         // after each render; a switch to another channel starts at the bottom
         rendered(switched: boolean) {
-            if (switched) scroller.scrollTop = 0;
+            toBottom ||= switched;
             update();
         }
     };

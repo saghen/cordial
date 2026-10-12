@@ -8,7 +8,7 @@
 // startup (core.ts), so adding one to an interface means adding it to its need too.
 
 export type Id = string;
-type Rec = Record<string, any>;
+export type Rec = Record<string, any>;
 
 export interface FluxStore {
     addChangeListener(fn: () => void): void;
