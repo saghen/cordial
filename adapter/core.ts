@@ -220,6 +220,12 @@ storeNeed("EditMessage", "EditMessageStore", "isEditing", "getEditingTextValue",
 storeNeed("Slowmode", "SlowmodeStore", "getSlowmodeCooldownGuess");
 storeNeed("CategoryCollapse", "CategoryCollapseStore", "isCollapsed");
 storeNeed("SelfPresence", "SelfPresenceStore", "getStatus");
+storeNeed("DefaultRoute", "DefaultRouteStore");
+needs.push({
+    name: "S.DefaultRoute.defaultRoute",
+    what: "DefaultRouteStore.defaultRoute, where stock's /app route redirects",
+    resolve: () => typeof S.DefaultRoute?.defaultRoute === "string" ? null : "not a path"
+});
 
 byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "jumpToPresent", "jumpToMessage",
     "startEditMessage", "updateEditMessage", "endEditMessage");

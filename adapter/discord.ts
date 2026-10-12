@@ -56,6 +56,8 @@ export interface Stores {
     Slowmode: FluxStore & { getSlowmodeCooldownGuess(channelId: Id, type?: number): number; };
     CategoryCollapse: FluxStore & { isCollapsed(categoryId: Id): boolean; };
     SelfPresence: FluxStore & { getStatus(): string; };
+    // a getter: "/channels/@me" (its lastViewedPath isn't used for it)
+    DefaultRoute: FluxStore & { readonly defaultRoute: string; };
 }
 
 export interface Actions {

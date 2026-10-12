@@ -23,9 +23,10 @@ import { React } from "@equicord/types/webpack/common";
 
 import { VesktopLogger } from "../../logger";
 import { addPatch } from "../../patches/shared";
-import { checkOk, checkReport, S } from "./core";
+import { A, checkOk, checkReport, S } from "./core";
 
 type Mount = (host: HTMLElement) => () => void;
+type App = { handleHistoryChange(location: Location, ...rest: unknown[]): void; forceUpdate(): void; };
 
 const applied = [false, false];
 let mount: Mount | null = null;
@@ -94,9 +95,10 @@ addPatch({
                     replace: mark(0, "render(){if($self.mincordActive())return $self.mincordRoot();")
                 },
                 {
-                    // with no routes mounted, nothing fires the route handler for the URL we start on: run it once
+                    // with no routes mounted, nothing fires the route handler for the URL we start on: run it once.
+                    // Before the App registers its route handler, ours wraps it (mincordListen)
                     match: /(this\.historyUnlisten=\i\.\i\.addRouteChangeListener\(this\.handleHistoryChange\))/,
-                    replace: mark(1, "$1,$self.mincordDidMount(this)")
+                    replace: mark(1, "$self.mincordListen(this),$1,$self.mincordDidMount(this)")
                 }
             ]
         }
@@ -110,7 +112,20 @@ addPatch({
         return React.createElement("div", { id: "mincord-root", ref: hostRef });
     },
 
-    mincordDidMount(app: { handleHistoryChange(location: Location): void; forceUpdate(): void; }) {
+    // Stock's routes redirect /app (where a start or a login lands) to DefaultRouteStore.defaultRoute; with ours showing
+    // no route is mounted to do it, so the route handler does
+    mincordListen(app: App) {
+        const handle = app.handleHistoryChange;
+        // stock handles /app like any route (ROUTE_CHANGED), then its route's Redirect replaces it once rendered: the
+        // replace waits for the other history listeners to see /app first
+        app.handleHistoryChange = (location, ...rest) => {
+            handle.call(app, location, ...rest);
+            if (location.pathname === "/app" && active())
+                queueMicrotask(() => location.pathname === window.location.pathname && A.nav.replaceWith(S.DefaultRoute.defaultRoute));
+        };
+    },
+
+    mincordDidMount(app: App) {
         if (stock() || adapterFailed()) return;
         let was = active();
         if (was) {
