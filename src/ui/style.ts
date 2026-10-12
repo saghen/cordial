@@ -87,8 +87,9 @@ export const CSS = `
   menu > button[value=idle]::before { background: var(--warning); }
   menu > button[value=dnd]::before { background: var(--danger); }
 
-  /* messages: column-reverse keeps the view at the bottom (scroller.ts) */
-  .messages { grid-area: main; overflow-y: auto; display: flex; flex-direction: column-reverse; overflow-anchor: none; }
+  /* messages: column-reverse keeps the view at the bottom (scroller.ts); scroll anchoring keeps it still when rows
+     arrive while scrolled up */
+  .messages { grid-area: main; overflow-y: auto; display: flex; flex-direction: column-reverse; }
   .messages > div { padding: 16px 0 24px; }
   article {
     position: relative; padding: 2px 16px 2px 72px; white-space: pre-wrap; overflow-wrap: anywhere;
