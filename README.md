@@ -25,7 +25,8 @@ same data (same guilds, DMs, friends and presences).
 
 Targets for the renderer: cached switches in 1-2 frames (15-25 ms at 144 Hz), popouts and menus in one frame, typing
 painted in the same frame, ~1 ms/s idle, 70-90 MB heap. The whole app only shrinks 10-20 %: Electron's other
-processes (~700 MB) stay, and going below that means leaving Electron (see future ideas).
+processes (~700 MB, summed RSS; to be re-measured as PSS) stay. Phase 3 trims them; Tauri was ruled out
+(`ai/atlas/tauri.md`: no Discord voice in WebKitGTK yet, no CDP for the lab, no memory gain).
 
 ## How it fits together
 
