@@ -7,8 +7,8 @@
 // listener starts the session and selects guilds and channels from the URL. Only its render changes: instead of
 // Discord's routes it renders one host element, and our renderer mounts into that.
 //
-// Discord's login screen is not part of the App class (the outer router shows it while logged out), so it keeps
-// working untouched.
+// Logged out, the App renders Discord's own tree: the login screen is one of its routes (/login). Our root renders only
+// while AuthenticationStore says logged in, and the App re-renders when that changes (login, logout, a token expiring).
 //
 // If the patch stops matching Discord's code, Equicord undoes the whole group and Discord's own UI shows: the console
 // then says so ("mincord anchor did not apply"), and VesktopPatchGlobals.mincordStatus() reports it.
@@ -23,7 +23,7 @@ import { React } from "@equicord/types/webpack/common";
 
 import { VesktopLogger } from "../../logger";
 import { addPatch } from "../../patches/shared";
-import { checkOk, checkReport } from "./core";
+import { checkOk, checkReport, S } from "./core";
 
 type Mount = (host: HTMLElement) => () => void;
 
@@ -36,6 +36,10 @@ let failed: boolean | null = null;
 
 function stock() {
     return window.name.includes("mincord:stock");
+}
+
+function active() {
+    return !stock() && !adapterFailed() && S.Auth.isAuthenticated();
 }
 
 // once, at the App's first render: by then the modules the App imports (stores, action creators) are evaluated
@@ -99,24 +103,33 @@ addPatch({
     ],
 
     mincordActive() {
-        return !stock() && !adapterFailed();
+        return active();
     },
 
     mincordRoot() {
         return React.createElement("div", { id: "mincord-root", ref: hostRef });
     },
 
-    mincordDidMount(app: { handleHistoryChange(location: Location): void }) {
+    mincordDidMount(app: { handleHistoryChange(location: Location): void; forceUpdate(): void; }) {
         if (stock() || adapterFailed()) return;
-        routed = true;
-        app.handleHistoryChange(window.location);
+        let was = active();
+        if (was) {
+            routed = true;
+            app.handleHistoryChange(window.location);
+        }
+        // after a login, Discord navigates away from /login and the route listener runs on its own
+        S.Auth.addChangeListener(() => {
+            if (active() === was) return;
+            was = !was;
+            app.forceUpdate();
+        });
     },
 
     mincordStatus() {
         return {
             applied: applied.every(Boolean),
             replacements: [...applied],
-            mode: stock() ? "stock" : failed ? "fallback" : "mincord",
+            mode: stock() ? "stock" : failed ? "fallback" : active() ? "mincord" : "logged out",
             adapter: checkReport(),
             routed,
             mounted: !!unmount
@@ -129,6 +142,6 @@ Vencord.Webpack.onceReady.then(() =>
         if (stock() || failed) return;
         if (!applied.every(Boolean))
             VesktopLogger.error("mincord anchor did not apply (Discord's code changed): Discord's own UI is showing", applied);
-        else if (!unmount) VesktopLogger.error("mincord anchor applied but our root never mounted");
+        else if (!unmount && active()) VesktopLogger.error("mincord anchor applied but our root never mounted");
     }, 10_000)
 );
