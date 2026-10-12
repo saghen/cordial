@@ -1,7 +1,5 @@
-// All of the renderer's CSS (design/phase1.md: palette in section 3, sizes in section 2). The root is one grid; list
-// rows are subgrids of their list (icon, label, badge), so every row's columns line up without wrappers. Elements are
-// styled by tag, nested under the root (Discord's own layers, which are outside it, never see these rules): each
-// tag has one use.
+// All of the renderer's CSS. The root is one grid; list rows are subgrids of their list (icon, label, badge). Elements
+// are styled by tag, nested under the root so Discord's own layers never see these rules.
 
 export const CSS = `
 #mincord-root {

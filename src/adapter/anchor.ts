@@ -1,16 +1,11 @@
-// The anchor. Discord's root App class stays mounted: its componentDidMount starts ~60 managers and its route
-// listener starts the session and selects guilds and channels from the URL. Only its render changes: instead of
-// Discord's routes it renders one host element, and our renderer mounts into that.
+// The anchor. Discord's root App class stays mounted: its componentDidMount starts its managers and its route
+// listener starts the session and selects guilds and channels from the URL. Only its render changes: it renders one
+// host element, and our renderer mounts into that. Logged out, it renders Discord's own tree (the login screen).
 //
-// Logged out, the App renders Discord's own tree: the login screen is one of its routes (/login). Our root renders only
-// while AuthenticationStore says logged in, and the App re-renders when that changes (login, logout, a token expiring).
-//
-// If the patch stops matching Discord's code, it doesn't apply and Discord's own UI shows; mincord.status() says so.
-// So does window.name containing "mincord:stock", in the same build (window.name survives a reload; Discord deletes
-// localStorage and sessionStorage from the page). And so does a failed self-check (core.ts) at the App's first render:
-// the console names each missing need.
+// Discord's own UI shows instead when the patch doesn't match, when the self-check (core.ts) fails, or when
+// window.name contains "mincord:stock" (it survives a reload). mincord.status() says which.
 
-import { A, checkOk, checkReport, S } from "./core";
+import { A, check, S } from "./core";
 import { patch } from "./webpack";
 
 type Mount = (host: HTMLElement) => () => void;
@@ -21,14 +16,13 @@ export const G: Record<string, any> = (window as any).mincord = {};
 
 let mount: Mount | null = null;
 let unmount: (() => void) | null = null;
-let routed = false;
-let failed: boolean | null = null;
+let checked = false;
 
 const anchor = patch("addRouteRewriter(this.ensureChannelMatchesGuild)",
     // App.render: Discord's route switch, from "/channels" redirect on
     [/render\(\)\{(?=return.{0,120}?from:"\/channels",to:"\/")/, "render(){if(mincord.active())return mincord.root();"],
-    // with no routes mounted, nothing fires the route handler for the URL we start on: run it once. Before the App
-    // registers its route handler, ours wraps it (listen)
+    // with no routes mounted, nothing runs the route handler for the URL we start on: didMount does. listen wraps the
+    // handler before the App registers it
     [/(this\.historyUnlisten=[\w$]+\.[\w$]+\.addRouteChangeListener\(this\.handleHistoryChange\))/,
         "mincord.listen(this),$1,mincord.didMount(this)"]
 );
@@ -36,20 +30,19 @@ const anchor = patch("addRouteRewriter(this.ensureChannelMatchesGuild)",
 const stock = () => window.name.includes("mincord:stock");
 const active = () => !stock() && !adapterFailed() && S.Auth.isAuthenticated();
 
-// once, at the App's first render: by then the modules the App imports (stores, action creators) are evaluated
+// at the App's first render, once the modules it imports are evaluated
 function adapterFailed() {
-    if (failed !== null) return failed;
-    failed = !checkOk();
-    if (failed) console.error("[mincord] off, Discord's UI is showing: adapter needs missing (Discord's code changed)",
-        checkReport().missing.map(m => `${m.name} = ${m.what}: ${m.why}`));
-    return failed;
+    const r = check();
+    if (!checked && !r.ok) console.error("[mincord] off, Discord's UI is showing: adapter needs missing (Discord's code changed)",
+        r.missing.map(m => `${m.name} = ${m.what}: ${m.why}`));
+    checked = true;
+    return !r.ok;
 }
 
 // stable across renders, so React never detaches and reattaches the host
 function hostRef(host: HTMLElement | null) {
     unmount?.();
-    unmount = null;
-    if (host && mount) unmount = mount(host);
+    unmount = host && mount ? mount(host) : null;
 }
 
 export function setMount(fn: Mount) {
@@ -61,9 +54,8 @@ Object.assign(G, {
 
     root: () => A.react.createElement("div", { id: "mincord-root", ref: hostRef }),
 
-    // Stock's routes redirect /app (where a start or a login lands) to DefaultRouteStore.defaultRoute; with ours showing
-    // no route is mounted to do it, so the route handler does. Stock handles /app like any route (ROUTE_CHANGED), then
-    // its route's Redirect replaces it once rendered: the replace waits for the other history listeners to see /app
+    // stock's routes redirect /app (where a start or a login lands) to the default route; with no route mounted, the
+    // route handler does, after the other history listeners have seen /app (as stock's Redirect waits for its render)
     listen(app: App) {
         const handle = app.handleHistoryChange;
         app.handleHistoryChange = (location, ...rest) => {
@@ -77,10 +69,7 @@ Object.assign(G, {
         // the check runs in stock mode too: the lab reads stores through the adapter in both
         if (adapterFailed() || stock()) return;
         let was = active();
-        if (was) {
-            routed = true;
-            app.handleHistoryChange(window.location);
-        }
+        if (was) app.handleHistoryChange(window.location);
         // after a login, Discord navigates away from /login and the route listener runs on its own
         S.Auth.addChangeListener(() => {
             if (active() === was) return;
@@ -91,17 +80,16 @@ Object.assign(G, {
 
     status: () => ({
         applied: anchor.applied,
-        // before the App's first render the check would run too early, and its result sticks
-        mode: stock() ? "stock" : !anchor.applied ? "not applied" : failed === null ? "starting" : failed ? "fallback"
+        // before the App's first render the check would run too early
+        mode: stock() ? "stock" : !anchor.applied ? "not applied" : !checked ? "starting" : !check().ok ? "fallback"
             : active() ? "mincord" : "logged out",
-        adapter: failed === null ? null : checkReport(),
-        routed,
+        adapter: checked ? check() : null,
         mounted: !!unmount
     })
 });
 
 window.addEventListener("load", () => setTimeout(() => {
-    if (stock() || failed) return;
+    if (stock() || checked && !check().ok) return;
     if (!anchor.applied) console.error("[mincord] the anchor did not apply (Discord's code changed): Discord's own UI is showing");
     else if (!unmount && active()) console.error("[mincord] the anchor applied but our root never mounted");
 }, 10_000));

@@ -1,5 +1,4 @@
-// What a channel's message list shows, derived from the stores. Every list variant renders from this, so they differ
-// only in how they turn it into DOM.
+// What a message row shows, derived from the records and stores.
 
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
@@ -11,10 +10,6 @@ export interface Author {
     name: string;
     color: string | null;
     avatar: string;
-}
-
-export function messagesOf(channelId: Id): Message[] {
-    return S.Message.getMessages(channelId).toArray() as Message[];
 }
 
 // Stock's grouping rule, ported from Discord's module with "IS_SCHEDULED)!==" (2026-10): it lives in a chunk only

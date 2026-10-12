@@ -1,7 +1,5 @@
-// Discord's markdown AST (model.ts contentAST) to DOM, imperatively: a message's content never changes (an edit
-// replaces the record), so it needs no reactivity. Node types as its parser emits them for message content; anything
-// unknown renders its text, so a new node type degrades to plain text instead of disappearing. Plain tags, styled
-// by tag in style.ts.
+// Discord's markdown AST (model.ts contentAST) to plain DOM: content never changes, so it needs no reactivity. An
+// unknown node type renders its text.
 
 type Node = Record<string, any> & { type: string; };
 

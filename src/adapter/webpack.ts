@@ -1,16 +1,13 @@
 // Discord's webpack: its require (wreq), module search, and source patches. Runs before Discord's scripts (the
 // preload injects us), so it sees webpack set its module factories and can patch them before any runs.
 
-// Discord deletes localStorage from the page later on
-export const localStorage = window.localStorage;
-
 export let wreq: any = null;
 let size = 0;
 
 interface Patch { find: string; replace: [RegExp, string][]; applied: boolean; }
 const patches: Patch[] = [];
 
-// all replacements apply, or none do
+// registered at module top level; all replacements apply, or none do
 export function patch(find: string, ...replace: [RegExp, string][]) {
     const p = { find, replace, applied: false };
     patches.push(p);

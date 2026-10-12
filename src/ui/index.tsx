@@ -1,5 +1,4 @@
-// The bundle's entry (vite.config.ts), injected by app/preload.js: mounts the shell (app.tsx) where the anchor puts
-// our root.
+// The bundle's entry, injected by shell/preload.js: mounts the shell (app.tsx) where the anchor puts our root.
 //
 // Lab conventions (ai/lab/budgets.py, conformance.py and the scenarios rely on them):
 //   data-mc="guild:ID" | "channel:ID" | "dm:ID"   the element a click on navigates there
@@ -14,9 +13,9 @@
 import { render } from "@solidjs/web";
 
 import { G, setMount } from "../adapter/anchor";
-import { A, checkReport, S, searchMismatches } from "../adapter/core";
+import { A, check, S } from "../adapter/core";
 import * as triggers from "../adapter/triggers";
-import { byCode, byProps, find, findModuleId, inModule, localStorage, wreq } from "../adapter/webpack";
+import { byCode, byProps, find, findModuleId, inModule, wreq } from "../adapter/webpack";
 import { App } from "./app";
 import { resetContent } from "./messages";
 import * as model from "./model";
@@ -24,7 +23,7 @@ import * as model from "./model";
 // for lab scripts over CDP
 Object.assign(G, {
     adapter: {
-        S, A, checkReport, searchMismatches, ...triggers, localStorage, find, findModuleId, inModule, byProps, byCode,
+        S, A, check, ...triggers, find, findModuleId, inModule, byProps, byCode,
         get wreq() { return wreq; },
         store: (name: string) => A.flux.Store.getAll().find(s => s.getName() === name),
         findByProps: (...props: string[]) => find(byProps(...props))?.[0],

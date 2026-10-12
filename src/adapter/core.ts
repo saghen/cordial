@@ -1,31 +1,18 @@
-// Everything the renderer uses from Discord, declared once as a list of needs and resolved before our root mounts:
-//   stores by name, with the methods we call on them;
-//   action creators by props or by code strings (minified names change every build, these don't);
-//   action types we dispatch ourselves, which some store must still handle.
-// The self-check resolves the whole list. If a required need is missing, the anchor shows Discord's own UI instead
-// and the console names each missing need, so a Discord update degrades to stock instead of to a broken client.
-// After that, S and A are plain objects: no lookups or proxies on the renderer's hot paths.
+// Everything the renderer uses from Discord, as a list of needs resolved at the App's first render: stores by name,
+// action creators by props or code strings (minified names change every build, these don't), and action types we
+// dispatch ourselves. If one is missing, the anchor shows Discord's own UI and the console names it.
 
 import type { Actions, Stores } from "./discord";
-import { byCode as hasCode, byProps as hasProps, find, findModuleId, inModule, localStorage, wreq } from "./webpack";
+import { byCode as hasCode, byProps as hasProps, find, findModuleId, wreq } from "./webpack";
 
 export const S = {} as Stores;
 export const A = {} as Actions;
 
-export interface NeedResult {
-    name: string;
-    what: string;
-    ok: boolean;
-    why?: string;
-}
-
 interface Need {
     name: string;
     what: string;
-    // returns why it failed, or null
+    // why it failed, or null
     resolve(): string | null;
-    // for the lab: whether a full search finds what was resolved
-    searched?(): boolean;
 }
 
 const needs: Need[] = [];
@@ -45,133 +32,48 @@ function storeNeed<K extends keyof Stores>(key: K, name: string, ...methods: (ke
     });
 }
 
-// Module ids found on this Discord build. A search walks every loaded module (11k of them, 18 MB of code for the
-// lookups by code string): ~86 ms for the needs below. With the ids from the last start, each need is verified in its
-// own module instead, with the same test the search applies; a miss (or another build) searches again and rewrites them
-const ID_CACHE = "mincord:needs";
-let ids: Record<string, string> = {};
-let idsChanged = false;
-let cacheHits = 0;
-
-function build(): string | null {
-    const env = (window as any).GLOBAL_ENV;
-    return env?.SENTRY_TAGS?.buildId ?? env?.BUILD_NUMBER ?? null;
-}
-
-function loadIds() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(ID_CACHE) ?? "null");
-        if (saved?.build && saved.build === build()) ids = saved.ids ?? {};
-    } catch { }
-}
-
-function saveIds() {
-    if (!idsChanged || !build()) return;
-    try {
-        localStorage.setItem(ID_CACHE, JSON.stringify({ build: build(), ids }));
-    } catch { }
-}
-
-function moduleNeed<K extends keyof Actions>(
-    key: K, what: string,
-    search: () => [any, string] | null,
-    at: (id: string) => any,
-    members: string[] = []
-) {
-    const name = `A.${key}`;
-    const complete = (m: any) => m != null && members.every(k => m[k] !== undefined);
+function moduleNeed<K extends keyof Actions>(key: K, what: string, search: () => any) {
     needs.push({
-        name,
+        name: `A.${key}`,
         what,
         resolve() {
-            const known = ids[name];
-            let m = known != null ? at(known) : null;
-            if (complete(m)) {
-                cacheHits++;
-            } else {
-                const found = search();
-                m = found?.[0];
-                if (found && m != null) {
-                    if (ids[name] !== found[1]) idsChanged = true;
-                    ids[name] = found[1];
-                } else if (known != null) {
-                    delete ids[name];
-                    idsChanged = true;
-                }
-            }
+            const m = search();
             if (m == null) return "no module matches";
-            const gone = members.filter(k => m[k] === undefined);
-            if (gone.length) return `members gone: ${gone.join(", ")}`;
             A[key] = m;
             return null;
-        },
-        searched() {
-            const m = search()?.[0];
-            return members.length ? m != null && members.every(k => m[k] === (A[key] as any)[k]) : m === A[key];
         }
     });
 }
 
-function byFilter<K extends keyof Actions>(key: K, what: string, filter: (m: any) => boolean) {
-    moduleNeed(
-        key, what,
-        () => {
-            return find(filter);
-        },
-        id => inModule(id, filter)
-    );
-}
+const byProps = <K extends keyof Actions>(key: K, ...props: (keyof Actions[K] & string)[]) =>
+    moduleNeed(key, `props ${props.join(", ")}`, () => find(hasProps(...props))?.[0]);
 
-function byProps<K extends keyof Actions>(key: K, ...props: (keyof Actions[K] & string)[]) {
-    byFilter(key, `props ${props.join(", ")}`, hasProps(...props));
-}
-
-function byCode<K extends keyof Actions>(key: K, ...code: string[]) {
-    byFilter(key, `code ${code.map(c => JSON.stringify(c)).join(" ")}`, hasCode(...code));
-}
+const byCode = <K extends keyof Actions>(key: K, ...code: string[]) =>
+    moduleNeed(key, `code ${code.map(c => JSON.stringify(c)).join(" ")}`, () => find(hasCode(...code))?.[0]);
 
 // a module whose exports are all minified: found by one code string in its factory, members by their own
 function mangled<K extends keyof Actions>(key: K, anchor: string, members: Record<keyof Actions[K] & string, string>) {
-    const names = Object.keys(members);
-    const mappers = names.map(n => [n, hasCode(members[n as keyof typeof members])] as const);
-    // as mapMangledModule does once it has the module
-    const map = (id: string) => {
+    moduleNeed(key, `module ${JSON.stringify(anchor)} { ${Object.keys(members).join(", ")} }`, () => {
+        const id = findModuleId(anchor);
+        if (id == null) return null;
         const mod = wreq(id), out: Record<string, any> = {};
-        for (const k of Object.keys(mod)) {
-            const member = mod[k];
-            const hit = mappers.find(([, f]) => f(member));
-            if (hit) out[hit[0]] = member;
+        for (const [name, code] of Object.entries(members)) {
+            const member = Object.values(mod).find(hasCode(code as string));
+            if (member === undefined) return null;
+            out[name] = member;
         }
         return out;
-    };
-    moduleNeed(
-        key,
-        `module ${JSON.stringify(anchor)} { ${names.join(", ")} }`,
-        () => {
-            const id = findModuleId(anchor);
-            return id == null ? null : [map(id), id];
-        },
-        id => {
-            const factory = wreq.m[id];
-            return factory && Function.prototype.toString.call(factory).includes(anchor) ? map(id) : null;
-        },
-        names
-    );
+    });
 }
 
-// an action type we dispatch ourselves (the UI's action creator for it isn't loaded without the UI)
+// an action type we dispatch ourselves: some store must still handle it
 function dispatched(type: string, why: string) {
     needs.push({
         name: `dispatch ${type}`,
         what: why,
-        resolve() {
-            const tokens = A.dispatcher._actionHandlers?._tokensByActionType?.[type];
-            return tokens?.length ? null : "no store handles it";
-        }
+        resolve: () => A.dispatcher._actionHandlers?._tokensByActionType?.[type]?.length ? null : "no store handles it"
     });
 }
-
-// ---- the needs ----
 
 // first: the store needs look stores up through Flux, the dispatch needs through the dispatcher
 byProps("dispatcher", "dispatch", "subscribe", "_actionHandlers");
@@ -179,28 +81,25 @@ byProps("flux", "connectStores", "Store");
 byProps("react", "createElement", "useEffect");
 
 storeNeed("Gateway", "GatewayConnectionStore", "isConnected", "isTryingToConnect");
-storeNeed("Auth", "AuthenticationStore", "getId", "isAuthenticated");
+storeNeed("Auth", "AuthenticationStore", "isAuthenticated");
 storeNeed("User", "UserStore", "getCurrentUser", "getUser");
-storeNeed("Guild", "GuildStore", "getGuild", "getGuilds");
-storeNeed("SortedGuild", "SortedGuildStore", "getGuildFolders", "getFlattenedGuildIds");
+storeNeed("Guild", "GuildStore", "getGuild");
+storeNeed("SortedGuild", "SortedGuildStore", "getFlattenedGuildIds");
 storeNeed("Channel", "ChannelStore", "getChannel");
 storeNeed("GuildChannel", "GuildChannelStore", "getChannels");
-storeNeed("PrivateChannelSort", "PrivateChannelSortStore", "getPrivateChannelIds", "getSortedChannels");
+storeNeed("PrivateChannelSort", "PrivateChannelSortStore", "getSortedChannels");
 storeNeed("SelectedGuild", "SelectedGuildStore", "getGuildId");
 storeNeed("SelectedChannel", "SelectedChannelStore", "getChannelId");
-storeNeed("Message", "MessageStore", "getMessages", "isReady", "whenReady", "getMessage", "getLastEditableMessage");
-storeNeed("ReadState", "ReadStateStore", "hasUnread", "getMentionCount", "getOldestUnreadMessageId", "ackMessageId");
+storeNeed("Message", "MessageStore", "getMessages", "getMessage", "getLastEditableMessage");
+storeNeed("ReadState", "ReadStateStore", "hasUnread", "getMentionCount", "getOldestUnreadMessageId");
 storeNeed("GuildReadState", "GuildReadStateStore", "hasUnread", "getMentionCount", "getPrivateChannelMentionCount");
 storeNeed("PrivateChannelReadState", "PrivateChannelReadStateStore", "getUnreadPrivateChannelIds");
 storeNeed("Presence", "PresenceStore", "getStatus");
-storeNeed("Relationship", "RelationshipStore", "getFriendIDs");
 storeNeed("Permission", "PermissionStore", "can");
 storeNeed("UserGuildSettings", "UserGuildSettingsStore", "isMuted", "isChannelMuted");
-storeNeed("Typing", "TypingStore", "getTypingUsers");
 storeNeed("GuildMember", "GuildMemberStore", "getMember");
 storeNeed("Draft", "DraftStore", "getDraft");
-storeNeed("EditMessage", "EditMessageStore", "isEditing", "getEditingTextValue", "getEditingMessageId");
-storeNeed("Slowmode", "SlowmodeStore", "getSlowmodeCooldownGuess");
+storeNeed("EditMessage", "EditMessageStore", "getEditingTextValue", "getEditingMessageId");
 storeNeed("CategoryCollapse", "CategoryCollapseStore", "isCollapsed");
 storeNeed("SelfPresence", "SelfPresenceStore", "getStatus");
 storeNeed("DefaultRoute", "DefaultRouteStore");
@@ -210,26 +109,20 @@ needs.push({
     resolve: () => typeof S.DefaultRoute?.defaultRoute === "string" ? null : "not a path"
 });
 
-byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "jumpToPresent", "jumpToMessage",
-    "startEditMessage", "startEditMessageRecord", "updateEditMessage", "endEditMessage");
-byProps("parser", "parse", "parsePreprocessor", "unparse");
-byProps("drafts", "saveDraft", "changeDraft", "clearDraft");
+byProps("messages", "sendMessage", "editMessage", "fetchMessages", "startEditMessageRecord", "updateEditMessage", "endEditMessage");
+byProps("parser", "parse", "unparse");
+byProps("drafts", "saveDraft", "changeDraft");
 byCode("setStatus", "nextStatus:", "statusExpiresAtMs=");
-byCode("ack", 'type:"CHANNEL_ACK",channelId:', "immediate:", "location:");
-byProps("channels", "selectChannel", "selectPrivateChannel");
-byProps("guilds", "selectGuild");
 mangled("nav", "transitionTo - Transitioning to", {
     transitionTo: "transitionTo -",
     transitionToGuild: "transitionToGuild -",
-    replaceWith: "Replacing route with",
-    back: "goBack()"
+    replaceWith: "Replacing route with"
 });
 mangled("pages", "windowSize().height-145", { size: ".getSetting()," });
-byProps("markdown", "parseToAST", "parse", "astParserFor", "defaultRules");
+byProps("markdown", "parseToAST");
 
 dispatched("TYPING_START_LOCAL", "typing: TypingStore throttles and POSTs /typing");
 dispatched("TYPING_STOP_LOCAL", "typing stops when the composer empties");
-dispatched("PRESENCE_SUBSCRIPTIONS_ADD", "presence of users on screen (stock adds them from a useEffect)");
 dispatched("ENABLE_AUTOMATIC_ACK", "acks: ReadStateStore acks the shown channel while it's at the bottom");
 dispatched("DISABLE_AUTOMATIC_ACK", "acks stop when the list leaves a channel");
 dispatched("CATEGORY_COLLAPSE", "a category's channels hide: CategoryCollapseStore, and a user guild setting (it syncs)");
@@ -240,40 +133,20 @@ needs.push({
     resolve: () => typeof (window as any).__DISCORD_WINDOW_ID === "string" ? null : "not set"
 });
 
-// ---- the check ----
+let report: { ok: boolean; took: number; needs: number; missing: { name: string; what: string; why: string; }[]; } | null = null;
 
-let results: NeedResult[] | null = null;
-let checkedAt = 0;
-let took = 0;
-
-export function check(): NeedResult[] {
-    if (results) return results;
-    checkedAt = performance.now();
-    loadIds();
-    results = needs.map(n => {
+// once: the result sticks
+export function check() {
+    if (report) return report;
+    const t = performance.now();
+    const missing = needs.flatMap(n => {
         let why: string | null;
         try {
             why = n.resolve();
         } catch (e) {
             why = `threw: ${e}`;
         }
-        return why ? { name: n.name, what: n.what, ok: false, why } : { name: n.name, what: n.what, ok: true };
+        return why ? [{ name: n.name, what: n.what, why }] : [];
     });
-    took = performance.now() - checkedAt;
-    saveIds();
-    return results;
-}
-
-export function checkOk() {
-    return check().every(r => r.ok);
-}
-
-// the lab's test of the id cache (ai/lab/adapter.py): the needs a full search resolves differently
-export function searchMismatches() {
-    return needs.filter(n => n.searched && !n.searched()).map(n => n.name);
-}
-
-export function checkReport() {
-    const r = check();
-    return { ok: r.every(x => x.ok), at: Math.round(checkedAt), took: Math.round(took * 10) / 10, missing: r.filter(x => !x.ok), needs: r.length, cached: cacheHits };
+    return report = { ok: !missing.length, took: Math.round(performance.now() - t), needs: needs.length, missing };
 }

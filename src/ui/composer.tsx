@@ -1,6 +1,5 @@
-// The composer: one textarea, with stock's own actions behind it (its chat input, module 688438, calls the same ones
-// in the same order). Enter sends, Shift+Enter is a new line. Up in an empty box edits the last own message in the
-// box itself: Enter saves, Escape leaves. Its text is the channel's draft.
+// The composer: one textarea calling stock's chat input actions in stock's order. Enter sends, Shift+Enter is a new
+// line, Up in an empty box edits the last own message in place (Enter saves, Escape leaves). Its text is the draft.
 
 import { createEffect, createMemo } from "solid-js";
 
@@ -18,8 +17,7 @@ export function Composer() {
     });
     let box!: HTMLTextAreaElement;
 
-    // Stock saves the draft as it changes, at most every 500 ms (the first change at once, the last at the end), and
-    // at once on a switch. DraftStore already has the text from changeDraft: saving it again is what stock does
+    // as stock: the draft is saved at most every 500 ms while it changes (first and last change included), and on a switch
     let last = 0, timer: ReturnType<typeof setTimeout> | undefined;
     const save = (id: string) => {
         clearTimeout(timer);

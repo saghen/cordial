@@ -1,7 +1,6 @@
 // The selected channel's messages. One element per message (two with its author line): the avatar is the row's
-// ::before, the timestamp the name's ::after, the content goes straight into the row. Rows follow message records,
-// which are immutable (an edit replaces the record), so a row never updates its content; only whether it starts a
-// group can change. Content is cached per record, so a channel shown again doesn't parse its markdown again.
+// ::before, the timestamp the name's ::after. Message records are immutable (an edit replaces the record), so a row's
+// content is built once per record and cached; only whether it starts a group can change.
 
 import { createEffect, createMemo, For, Show, untrack } from "solid-js";
 
@@ -54,8 +53,7 @@ export function Messages(p: { root: HTMLElement; }) {
 
     const view = <div class="messages" data-mc="messages"><div><For each={list()}>{Row}</For></div></div> as HTMLElement;
 
-    // after the rows are in the DOM (effects run after rendering, in the same task): the scroller's position and acks,
-    // and the lab's marker that this channel is shown
+    // after the rows are in the DOM: the scroller, and the lab's marker that this channel is shown
     const rendered = createScroller(view, channelId);
     createEffect(() => [channelId(), list(), messages()?.ready] as const, ([id, , ready], prev) => {
         rendered(id !== prev?.[0]);
