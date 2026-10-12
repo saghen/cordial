@@ -9,6 +9,7 @@
 
 import type { Id } from "../adapter/discord";
 import { createDomList } from "./list-dom";
+import { createReactList } from "./list-react";
 
 export interface MessageList {
     show(channelId: Id | null): void;
@@ -20,7 +21,8 @@ export interface MessageList {
 export type ListFactory = (host: HTMLElement, onShown: (channelId: Id) => void) => MessageList;
 
 const LISTS: Record<string, ListFactory> = {
-    dom: createDomList
+    dom: createDomList,
+    react: createReactList
 };
 
 export function listVariant() {

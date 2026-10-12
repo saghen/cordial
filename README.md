@@ -61,9 +61,9 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 |---|---|
 | `atlas/` | the feature map (`feature-map.html`), its data (element counts, stores, enums), the saved plan, and the CDP scripts that measured them |
 | `adapter/` | the only code that touches Discord internals: `anchor.ts` keeps Discord's App class and renders our root, `core.ts` resolves what we use (`S`, `A`) and checks it at startup, `triggers.ts` does what Discord's UI did for the core |
-| `renderer/` | the UI; `index.ts` is the entry Equibop imports |
+| `renderer/` | the UI; `index.ts` is the entry Equibop imports. The message list: `model.ts` (what a channel shows), `content.ts` (markdown AST to DOM), `scroller.ts`, `list-dom.ts` (the one we use) and `list-react.tsx` (the lab's baseline), picked in `list.ts` |
 | `nix/` | `equibop.nix`: stock Equibop with `adapter/` and `renderer/` built in |
-| `lab/` | test account login and server setup, scenarios, the conformance recorder (`conformance.py`), the budget runner (`budgets.py`), measurements (`lab/data/`) |
+| `lab/` | test account login and server setup, scenarios, the conformance recorder (`conformance.py`), the budget runner (`budgets.py`), the list benchmark (`listbench.py`), measurements (`lab/data/`) |
 
 The lab harness itself (isolated headless Equibop, CDP client, input-driven benchmarks) lives in
 `~/code/personal/discord-uiprof`; mincord's scripts import its `cdp.py` and `bench.py`.

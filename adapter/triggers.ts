@@ -26,3 +26,11 @@ export function stopTyping(channelId: Id) {
 export function loadChannel(channelId: Id, limit = 50) {
     if (!S.Message.getMessages(channelId).ready) A.messages.fetchMessages({ channelId, limit });
 }
+
+// Stock's scroller reports its position. When a message arrives, MessageStore asks DimensionStore.isAtBottom: at the
+// bottom it trims the oldest loaded messages, anywhere else (or never reported) it trims the newest once more than 120
+// are loaded, so a list that never reports loses the live end, the new message included (LOG.md, 0.6). Stock's
+// geometry: scrollTop from the top, at the bottom when scrollTop === scrollHeight - offsetHeight.
+export function channelDimensions(channelId: Id, scrollTop: number, scrollHeight: number, offsetHeight: number) {
+    FluxDispatcher.dispatch({ type: "UPDATE_CHANNEL_DIMENSIONS", channelId, scrollTop, scrollHeight, offsetHeight });
+}

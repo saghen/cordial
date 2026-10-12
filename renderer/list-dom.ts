@@ -7,11 +7,12 @@
 // so each row's element is cached by its record: re-rendering a channel only builds rows for records it hasn't seen,
 // and the list is reconciled by moving existing elements.
 
-import { A, S } from "../adapter/core";
+import { S } from "../adapter/core";
 import type { Id } from "../adapter/discord";
 import { renderAST } from "./content";
 import { authorOf, contentAST, Message, messagesOf, startsGroup, when } from "./model";
 import type { ListFactory } from "./list";
+import { createScroller } from "./scroller";
 
 function div(cls: string) {
     const e = document.createElement("div");
@@ -60,16 +61,12 @@ function row(m: Message, head: boolean, channelId: Id, guildId: Id | null) {
 }
 
 export const createDomList: ListFactory = (host, onShown) => {
-    const scroller = div("mc-scroller");
-    scroller.dataset.mc = "messages";
-    const inner = div("mc-messages");
-    scroller.append(inner);
-    host.append(scroller);
+    let channelId: Id | null = null;
+    const { inner, rendered } = createScroller(host, () => channelId);
 
     // a record's row with and without its header
     let heads = new WeakMap<Message, HTMLElement>();
     let rest = new WeakMap<Message, HTMLElement>();
-    let channelId: Id | null = null;
     let shown: unknown = null;
 
     function render() {
@@ -99,20 +96,10 @@ export const createDomList: ListFactory = (host, onShown) => {
             cur.remove();
             cur = next;
         }
-        if (switched) scroller.scrollTop = 0; // column-reverse: 0 is the bottom
+        rendered(switched);
         if (ms.ready) onShown(channelId);
     }
 
-    // older history: stock's list asks for it near the top (LOG.md, 0.4); without a UI nothing does
-    function onScroll() {
-        if (!channelId) return;
-        const fromTop = scroller.scrollHeight - scroller.clientHeight + scroller.scrollTop;
-        if (fromTop > 400) return;
-        const ms = S.Message.getMessages(channelId);
-        if (ms.ready && ms.hasMoreBefore && !ms.loadingMore && ms.length)
-            A.messages.fetchMessages({ channelId, before: ms.first().id, limit: 50 });
-    }
-    scroller.addEventListener("scroll", onScroll, { passive: true });
     S.Message.addChangeListener(render);
 
     return {
@@ -128,7 +115,7 @@ export const createDomList: ListFactory = (host, onShown) => {
         },
         dispose() {
             S.Message.removeChangeListener(render);
-            scroller.remove();
+            host.replaceChildren();
         }
     };
 };
