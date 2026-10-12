@@ -72,7 +72,7 @@ function Nav() {
         <Show when={selectedGuild()} keyed fallback={
             <For each={$.PrivateChannelSort.getSortedChannels().flat().slice(0, 100)}>{c => <Dm id={c.channelId} />}</For>
         }>{guildId => <For each={channelRows(guildId)}>{c => c.type === 4
-            ? <a class={["cat", { collapsed: $.CategoryCollapse.isCollapsed(c.id) }]}
+            ? <a data-mc={`category:${c.id}`} class={["cat", { collapsed: $.CategoryCollapse.isCollapsed(c.id) }]}
                 onClick={() => A.dispatcher.dispatch({ type: S.CategoryCollapse.isCollapsed(c.id) ? "CATEGORY_EXPAND" : "CATEGORY_COLLAPSE", id: c.id })}>
                 {c.name}
             </a>
