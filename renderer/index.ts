@@ -14,14 +14,14 @@
 //   data-mc="author:ID"                             an author's name in the list
 
 import { setMount } from "../adapter/anchor";
-import { A, checkReport, S } from "../adapter/core";
+import { A, checkReport, S, searchMismatches } from "../adapter/core";
 import type { FluxStore } from "../adapter/discord";
 import * as triggers from "../adapter/triggers";
 import { createList, CSS, listVariant } from "./list";
 import * as model from "./model";
 
 // for lab scripts over CDP
-Object.assign(VesktopPatchGlobals, { mincordAdapter: { S, A, checkReport, ...triggers }, mincordModel: model });
+Object.assign(VesktopPatchGlobals, { mincordAdapter: { S, A, checkReport, searchMismatches, ...triggers }, mincordModel: model });
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, css: string, text = "") {
     const e = document.createElement(tag);
