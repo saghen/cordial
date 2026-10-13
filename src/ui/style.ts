@@ -429,9 +429,9 @@ export const CSS = `
     /* notification settings (header.tsx): mute with its durations on hover, then the levels as radios */
     > button[data-mc=notifications] { --i: var(--i-bell); }
     > button[data-mc=notifications].muted { --i: var(--i-bell-slash); }
-    /* pins: a dot while there are new ones */
+    /* pins: a dot while there are new ones, cut out of the icon by a ring of the header's background */
     > button[data-mc=pins] { --i: var(--i-pin); position: relative; }
-    > button[data-mc=pins].unread::after { content: ""; position: absolute; right: 0; bottom: 1px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+    > button[data-mc=pins].unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
     /* search: a box at the header's end, wider while in use */
     > input[data-mc=search] {
       width: 160px; height: 28px; margin-left: 16px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
