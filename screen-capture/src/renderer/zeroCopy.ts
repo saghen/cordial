@@ -28,7 +28,7 @@
 // When capture goes (cast.ts falls back to a normal capture into the same track) or the stream is neither AV1 nor
 // H.264, Chromium's own frames go out again, from a keyframe of its re-initialised encoder (see Swap.stop).
 
-import { CastConsumer, CastMessage, CastSession, castSessionFor } from './cast'
+import { CastConsumer, CastMessage, CastSession, captureEncodes, castSessionFor } from './cast'
 import { logger as makeLogger } from './log'
 import { settings } from './settings'
 import { fill, FillState, initialFill, stuff } from './stuffing'
@@ -561,6 +561,7 @@ const sendCodec = (sender: RTCRtpSender) => sender.getParameters().codecs?.[0]?.
 export type SwapCodec = 'av1' | 'h264'
 /** the codecs capture encodes, by the sender's negotiated mime type */
 const SWAP_CODECS: Record<string, SwapCodec> = { 'video/av1': 'av1', 'video/h264': 'h264' }
+const CODEC_NAMES: Record<SwapCodec, string> = { av1: 'AV1', h264: 'H.264' }
 const swapCodec = (sender: RTCRtpSender): SwapCodec | undefined => SWAP_CODECS[sendCodec(sender) ?? '']
 
 /**
@@ -602,14 +603,18 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   // only what capture encodes can be sent: wait for the negotiation
   await negotiated(sender)
   const codec = swapCodec(sender)
-  if (!codec) {
+  if (!codec || !captureEncodes(codec)) {
     active.delete(sender)
-    return session.fallback(`the stream is ${sendCodec(sender) ?? 'not negotiated'}, not AV1 or H.264`)
+    return session.fallback(
+      codec
+        ? `the stream is ${CODEC_NAMES[codec]}, which capture can't encode on this GPU`
+        : `the stream is ${sendCodec(sender) ?? 'not negotiated'}, not AV1 or H.264`,
+    )
   }
   if (sender.track !== track || session.state !== 'cast') return active.delete(sender)
   const max = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
   swap.start(session, sender, Math.min(6000, (max * 0.7) / 1000), codec)
-  logger.info(`Streaming capture's ${codec === 'av1' ? 'AV1' : 'H.264'} (zero-copy)`)
+  logger.info(`Streaming capture's ${CODEC_NAMES[codec]} (zero-copy)`)
   let lastHeight = 0 // capture starts at its --size (0); a scale Discord set before the session is sent at once
   let prev: { at: number; bytes: number; packets: number; delay: number } | null = null
   const timer = setInterval(async () => {
@@ -620,7 +625,7 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
       return
     }
     const now = swapCodec(sender)
-    if (!now) return session.fallback(`the codec is now ${sendCodec(sender)}`)
+    if (!now || !captureEncodes(now)) return session.fallback(`the codec is now ${sendCodec(sender)}`)
     swap.setCodec(now)
     try {
       // capture's target (targetRate.ts): WebRTC's bandwidth estimate under Discord's cap, except where the

@@ -473,9 +473,11 @@ let available: Promise<boolean> | null = null
 /** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on). */
 export const castAvailable = () => (available ??= host.native?.available().catch(() => false) ?? Promise.resolve(false))
 
-let codecs: ('av1' | 'h264')[] = []
-/** What capture encodes on this machine's GPU, once probeCaptureCodecs has its answer ([] until then). */
+let codecs: ('av1' | 'h264')[] | null = null
+/** What capture encodes on this machine's GPU, once probeCaptureCodecs has its answer (null until then). */
 export const captureCodecs = () => codecs
+/** Whether capture can encode `codec` here (true while unknown: capture's own error then falls back). */
+export const captureEncodes = (codec: 'av1' | 'h264') => codecs?.includes(codec) ?? true
 /** Asks capture once, at startup (the codec order is read when a call connects). */
 export const probeCaptureCodecs = () =>
   host.native?.codecs().then(

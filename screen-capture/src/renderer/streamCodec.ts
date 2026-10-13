@@ -22,13 +22,17 @@ export const codecPatch = {
  */
 export function orderCodecs(list: string[]): string[] {
   try {
-    const preferred = settings.codec
+    const capture = captureCodecs() ?? []
+    // capture encodes H.264 but not AV1 (a GPU without AV1 encode, e.g. an RDNA2 card or an iGPU): H.264 first, on
+    // capture, rather than AV1 on the CPU (Chromium's)
+    const preferred =
+      settings.codec === 'AV1' && capture.includes('h264') && !capture.includes('av1') ? 'H264' : settings.codec
     if (!encodableCodecs().includes(preferred)) return list
     if (preferred === 'AV1') {
       // If AV1 can't be used (a viewer's client lacks it, as stock Discord here): H.264 when capture encodes it (still
       // zero-copy on the GPU), else VP9, the next best at the same bitrate (Chromium's encoder, on the CPU)
       const next =
-        captureCodecs().includes('h264') && list.includes('H264')
+        capture.includes('h264') && list.includes('H264')
           ? 'H264'
           : settings.vp9Fallback && list.includes('VP9') && encodableCodecs().includes('VP9')
             ? 'VP9'
