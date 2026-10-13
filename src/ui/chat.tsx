@@ -64,6 +64,21 @@ const attachment = (a: Attachment) => {
     </a>
   )
 }
+// a sticker as its image from Discord's CDN, at stock's 160 px (an APNG animates with passthrough); a Lottie one, an
+// animated vector, as its name
+const sticker = (s: { id: string; name: string; format_type: number }) =>
+  s.format_type === 3 ? (
+    <i class="sticker">{s.name}</i>
+  ) : (
+    <img
+      class="sticker"
+      alt={s.name}
+      title={s.name}
+      width={160}
+      height={160}
+      src={`https://media.discordapp.net/stickers/${s.id}.${s.format_type === 4 ? 'gif' : 'png'}?size=160${s.format_type === 2 ? '&passthrough=true' : ''}`}
+    />
+  )
 const size = (n: number) =>
   n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`
 
@@ -155,7 +170,15 @@ export function Chat(p: { root: HTMLElement }) {
           {(r) => (
             <q
               data-mc="reply-to"
-              onClick={() => view.querySelector(`[data-id="${r().message?.id}"]`)?.scrollIntoView({ block: 'center' })}
+              // as stock: a jump (a fetch around it when it isn't loaded), the list scrolls to it below
+              onClick={() =>
+                A.messages.jumpToMessage({
+                  channelId: m.messageReference.channel_id,
+                  messageId: m.messageReference.message_id,
+                  flash: true,
+                  returnMessageId: m.id,
+                })
+              }
             >
               <Show when={r().message} fallback="Original message was deleted or isn't loaded">
                 {(rm) => {
@@ -196,6 +219,7 @@ export function Chat(p: { root: HTMLElement }) {
         </Show>
         {nodes}
         {m.attachments?.map(attachment)}
+        {m.stickerItems?.map(sticker)}
         {m.embeds?.map(embed)}
         <Show when={m.reactions?.length}>
           <p data-mc="reactions">
@@ -251,12 +275,31 @@ export function Chat(p: { root: HTMLElement }) {
     } else view.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // a jump (a reply, the new messages bar, a link to a message): its target in view once rendered, flashed. Each
+  // channel's last jump seen is kept, so coming back to a channel doesn't jump again
+  const jumps = new Map<Id, number>()
+  function jumped(id: Id) {
+    const ms = messages()!,
+      seen = jumps.get(id)
+    jumps.set(id, ms.jumpSequenceId)
+    if (seen === undefined || seen === ms.jumpSequenceId || !ms.jumpTargetId) return
+    // after the scroller's frame, which takes a switched channel to the bottom
+    requestAnimationFrame(() => {
+      const row = view.querySelector<HTMLElement>(`[data-id="${ms.jumpTargetId}"]`)
+      if (!row) return
+      // an offset (stock's jump to unread, from the last read message): the messages after it from the top
+      row.scrollIntoView({ block: ms.jumpTargetOffset ? 'start' : 'center' })
+      if (ms.jumpFlash) row.animate([{ background: 'var(--mention-bg)' }, {}], { duration: 2000 })
+    })
+  }
+
   // after the rows are in the DOM: the scroller, and the lab's marker that this channel is shown
   const rendered = createScroller(view, channelId)
   createEffect(
     () => [channelId(), list(), messages()?.ready] as const,
     ([id, , ready], prev) => {
       rendered(id !== prev?.[0])
+      if (id && ready) jumped(id)
       if (jumping && !messages()?.hasMoreAfter) {
         jumping = false
         view.scrollTop = 0
@@ -268,11 +311,88 @@ export function Chat(p: { root: HTMLElement }) {
   return (
     <>
       {view}
+      <NewMessages channelId={channelId} />
       <Show when={up() || messages()?.hasMoreAfter}>
         <button data-mc="jump" title="Jump to Present" onClick={present} />
       </Show>
       <MessageMenu list={view} channelId={channelId} />
+      <Viewer list={view} />
     </>
+  )
+}
+
+// stock's new messages bar, while the channel has unreads: "N new messages since 10:59 PM", a click jumps to the oldest
+// unread, Mark As Read acks the channel
+function NewMessages(p: { channelId: () => Id | null }) {
+  const bar = createMemo(() => {
+    const id = p.channelId()
+    const n = id ? $.ReadState.getUnreadCount(id) : 0,
+      since = id ? $.ReadState.getOldestUnreadTimestamp(id) : 0
+    if (!n || !since) return null
+    const t = new Date(since),
+      today = t.toDateString() === new Date().toDateString()
+    return `${n}${$.ReadState.isEstimated(id!) ? '+' : ''} new message${n === 1 ? '' : 's'} since ${clock(t)}${today ? '' : ` on ${t.toLocaleDateString()}`}`
+  })
+  return (
+    <Show when={bar()}>
+      {(text) => (
+        <div data-mc="new-messages">
+          <button
+            data-mc="new-messages:jump"
+            onClick={() => {
+              const id = p.channelId()!
+              A.messages.jumpToMessage({
+                channelId: id,
+                messageId: S.ReadState.ackMessageId(id) ?? id,
+                offset: 1,
+                context: 'Mark As Read',
+              })
+            }}
+          >
+            {text()}
+          </button>
+          <button
+            data-mc="new-messages:read"
+            onClick={() =>
+              A.acks.ack(p.channelId()!, {
+                section: 'New Messages Banner',
+                object: 'Mark Channel as Read Button',
+                objectType: 'ack_manual',
+              })
+            }
+          >
+            Mark As Read
+          </button>
+        </div>
+      )}
+    </Show>
+  )
+}
+
+// stock's media viewer, roughly: an image large over a dimmed window, with a link to the original. Escape or a click
+// outside the image closes it
+function Viewer(p: { list: HTMLElement }) {
+  const [shown, setShown] = createSignal<{ src: string; url: string }>()
+  let dialog!: HTMLDialogElement
+  p.list.addEventListener('click', (e) => {
+    const i = e.target as HTMLElement
+    if (!i.matches('img[data-full]')) return
+    setShown({ src: i.dataset.full!, url: i.dataset.url! })
+    dialog.showModal()
+  })
+  return (
+    <dialog ref={dialog} data-mc="viewer" onClick={(e) => e.target === dialog && dialog.close()}>
+      <Show when={shown()}>
+        {(s) => (
+          <>
+            <img alt="" src={s().src} />
+            <a href={s().url} target="_blank" rel="noreferrer noopener">
+              Open in Browser
+            </a>
+          </>
+        )}
+      </Show>
+    </dialog>
   )
 }
 

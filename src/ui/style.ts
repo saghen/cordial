@@ -11,7 +11,7 @@ export const CSS = `
   ${ICONS}
   --i: var(--i-hash);
   position: fixed; inset: 0; z-index: 1; display: grid;
-  grid: "notice notice notice notice" auto "servers side head head" 48px "servers nav main members" 1fr
+  grid: "notice notice notice notice" auto "servers side head head" 48px "servers nav call members" auto "servers nav main members" 1fr
     "servers nav uploads members" auto "servers nav reply members" auto "servers nav compose members" auto
     "servers me compose members" 60px / 72px 300px minmax(0, 1fr) auto;
   background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
@@ -28,7 +28,7 @@ export const CSS = `
 
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
-  & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before,
+  & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after,
   menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, menu > button[data-mc="menu:react"]::after, article > p > button[data-mc="reaction:add"]::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
@@ -58,6 +58,25 @@ export const CSS = `
   aside a[data-mc=dms] { background: var(--img-discord) center / 28px no-repeat, var(--bg-raised); }
   /* folders, as stock measures them: closed, a 48 px tile of four; open, the folder icon in its colour over its servers,
      on one column */
+  /* Add a Server: a + tile at the bar's end, its form beside the bar */
+  aside > button[data-mc=add-server] {
+    --i: var(--i-plus); display: grid; place-content: center; width: 40px; height: 40px; border: 0; border-radius: 12px; background: var(--bg-raised);
+    color: var(--positive); cursor: pointer;
+  }
+  aside > button[data-mc=add-server]::before { width: 20px; height: 20px; }
+  aside > button[data-mc=add-server]:hover { background: var(--positive); color: #fff; }
+  form[data-mc=join] {
+    position: fixed; inset: 48px auto auto 80px; width: 360px; padding: 16px; border: 0; border-radius: 8px; background: var(--bg-floating);
+    color: var(--text); font-size: 14px; box-shadow: 0 8px 16px #0006;
+  }
+  form[data-mc=join]:popover-open { display: grid; gap: 12px; }
+  form[data-mc=join] > label { display: grid; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+  form[data-mc=join] input { padding: 8px; border: 0; border-radius: 4px; background: var(--bg-deep); color: var(--text); font: inherit; text-transform: none; }
+  form[data-mc=join] > p { display: grid; grid-template-columns: 48px 1fr; column-gap: 12px; align-items: center; font-weight: 600; }
+  form[data-mc=join] > p[style]::before { content: ""; grid-row: 1 / 3; width: 48px; height: 48px; border-radius: 16px; background: var(--icon) center / cover; }
+  form[data-mc=join] > p > small { grid-column: 2; font-weight: 400; color: var(--text-muted); }
+  form[data-mc=join] > button { padding: 8px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; font: inherit; font-weight: 500; cursor: pointer; }
+  form[data-mc=join] > button:disabled { opacity: .5; cursor: default; }
   aside > div { display: grid; gap: 8px; justify-items: center; width: 48px; border-radius: 16px; }
   aside > div.open { padding: 4px 0 8px; background: #97979f1f; }
   aside a.folder {
@@ -127,16 +146,30 @@ export const CSS = `
   /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size */
   &:has(> footer) > nav { padding-bottom: 64px; }
   & > footer {
-    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr auto; padding: 8px; border-top: 1px solid var(--bg-raised);
+    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr auto auto; padding: 8px; border-top: 1px solid var(--bg-raised);
     font-size: 14px; font-weight: 600; color: var(--warning);
   }
   & > footer[data-state=RTC_CONNECTED] { color: var(--positive); }
   & > footer > small { grid-column: 1; font-weight: 400; font-size: 12px; color: var(--text-muted); }
   & > footer > button {
-    --i: var(--i-hangup); grid-area: 1 / 2 / 3; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
+    --i: var(--i-hangup); grid-row: 1 / 3; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
     color: var(--text-muted);
   }
   & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
+  & > footer > button[data-mc="voice:settings"] { --i: var(--i-settings); }
+  & > footer > button[data-mc="voice:settings"]:hover { color: var(--text-strong); }
+  /* the voice settings: a column of labelled controls over the panel */
+  form[data-mc=voice-settings] {
+    position: fixed; inset: auto auto 72px 80px; width: 320px; max-height: 80vh; overflow-y: auto; padding: 16px; border: 0; border-radius: 8px;
+    background: var(--bg-floating); color: var(--text); font-size: 14px; font-weight: 500; box-shadow: 0 8px 16px #0006;
+  }
+  form[data-mc=voice-settings]:popover-open { display: grid; gap: 12px; }
+  form[data-mc=voice-settings] :is(label:has(> select), label:has(> [type=range]), fieldset) { display: grid; gap: 4px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+  form[data-mc=voice-settings] fieldset { margin: 0; padding: 0; border: 0; }
+  form[data-mc=voice-settings] fieldset > label { text-transform: none; font-size: 14px; color: var(--text); }
+  form[data-mc=voice-settings] label:has(> [type=checkbox], > [type=radio]) { display: flex; gap: 8px; align-items: center; }
+  form[data-mc=voice-settings] select { padding: 6px; border: 0; border-radius: 4px; background: var(--bg-deep); color: var(--text); font: inherit; text-transform: none; }
+  form[data-mc=voice-settings] input { accent-color: var(--accent); }
   /* a category: its name and a chevron, lit on hover (no background) */
   nav > a.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 14px; line-height: 18px; font-weight: 500; }
   nav > a.cat:hover { background: none; }
@@ -305,7 +338,7 @@ export const CSS = `
   article > p > button > img:not(.media) { width: 20px; height: 20px; }
   article > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); }
   /* the context menus: popovers at the pointer */
-  menu:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=devices]) { position: fixed; margin: 0; }
+  menu:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=channel-menu], [data-mc=devices]) { position: fixed; margin: 0; }
   menu > button.danger { color: var(--danger); }
   menu > button:disabled { opacity: 0.5; cursor: default; }
   /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
@@ -388,6 +421,47 @@ export const CSS = `
   }
   & > button[data-mc=jump]::before { width: 28px; height: 28px; }
   & > button[data-mc=jump]:hover { color: var(--text-strong); }
+  /* the call view: a tile per person (avatar, name, a ring while speaking), Join beside them */
+  & > section[data-mc=call] {
+    grid-area: call; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 16px; background: var(--bg-deep);
+  }
+  section[data-mc=call] > figure {
+    display: grid; place-items: end start; width: 160px; height: 90px; padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 500;
+    background: var(--icon, none) center / 48px no-repeat, var(--bg-raised); outline: 2px solid transparent; outline-offset: -2px;
+  }
+  section[data-mc=call] > figure.speaking { outline-color: var(--positive); }
+  section[data-mc=call] > figure.mute { --i: var(--i-mic-off); }
+  section[data-mc=call] > figure.deaf { --i: var(--i-deaf); }
+  section[data-mc=call] > figure:is(.mute, .deaf)::after { grid-area: 1 / 1; place-self: start end; width: 16px; height: 16px; color: var(--danger); }
+  section[data-mc=call] > button, dialog[data-mc^=incoming] > button {
+    padding: 8px 16px; border: 0; border-radius: 4px; background: var(--positive); color: #fff; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  & > header > button[data-mc="call:start"] { --i: var(--i-voice); margin-left: auto; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; }
+  & > header > button[data-mc="call:start"]:hover { color: var(--text-strong); }
+  /* a call ringing for you, at the top of the window */
+  dialog[data-mc^=incoming] {
+    position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; width: 280px;
+    padding: 16px 16px 16px 80px; border: 0; border-radius: 8px; background: var(--icon) 16px center / 48px no-repeat, var(--bg-floating); color: var(--text);
+    box-shadow: 0 8px 16px #0006;
+  }
+  dialog[data-mc^=incoming] > small { grid-column: 1; color: var(--text-muted); }
+  dialog[data-mc^=incoming] > button { grid-row: 1 / 3; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+  dialog[data-mc^=incoming] > button { --i: var(--i-voice); display: grid; place-content: center; }
+  dialog[data-mc^=incoming] > button[data-mc="incoming:decline"] { --i: var(--i-hangup); background: var(--danger); }
+  /* the new messages bar, across the messages' top */
+  & > div[data-mc=new-messages] {
+    grid-area: main; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
+    color: #fff; font-size: 14px; font-weight: 500; line-height: 24px;
+  }
+  & > div[data-mc=new-messages] > button { padding: 0 12px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+  & > div[data-mc=new-messages] > button:first-child { flex: 1; text-align: left; }
+  /* the media viewer (chat.tsx): the whole window, so a click outside the image lands on the dialog itself */
+  dialog[data-mc=viewer] { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: none; }
+  dialog[data-mc=viewer][open] { display: grid; place-content: center; justify-items: center; gap: 8px; }
+  dialog[data-mc=viewer]::backdrop { background: #000c; }
+  dialog[data-mc=viewer] > img { max-width: 90vw; max-height: 85vh; object-fit: contain; }
+  dialog[data-mc=viewer] > a { font-size: 14px; color: var(--text-muted); }
+  img[data-full] { cursor: zoom-in; }
   /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
      on the background with a fade above, over what scrolls under it */
   & > output {
@@ -417,6 +491,8 @@ export const CSS = `
   article a { color: var(--link); } article a:hover { text-decoration: underline; }
   article img:not(.media) { width: 22px; height: 22px; vertical-align: bottom; object-fit: contain; }
   article img.jumbo { width: 48px; height: 48px; }
+  article :is(img, i).sticker { display: block; width: 160px; height: 160px; margin-top: 4px; }
+  article i.sticker { display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); color: var(--text-muted); font-size: 14px; }
   article mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
   article del { text-decoration: none; background: var(--bg-deep); color: transparent; border-radius: 4px; cursor: pointer; }
   article del[open] { background: var(--bg-raised); color: inherit; }

@@ -6,6 +6,7 @@ import { createEffect, createSignal, For, Show } from 'solid-js'
 import { A, S } from '../adapter/core'
 import type { Id, Rec } from '../adapter/discord'
 import { nameOf } from './lib/model'
+import { popAt } from './lib/popover'
 import { preload } from './lib/preload'
 import { $, selected, selectedGuild } from './lib/store'
 
@@ -125,8 +126,9 @@ function channelRows(guildId: Id) {
 
 export function Channels() {
   useChannelInfo(selectedGuild)
+  const menu = channelMenu()
   return (
-    <nav>
+    <nav onContextMenu={menu.open}>
       <Show
         when={selectedGuild()}
         keyed
@@ -176,8 +178,68 @@ export function Channels() {
           </For>
         )}
       </Show>
+      {menu.view}
     </nav>
   )
+}
+
+// a right click on a channel or a category: stock's Mark As Read, Mute, Copy Link and Copy Channel ID
+function channelMenu() {
+  const [channel, setChannel] = createSignal<Rec>()
+  let menu!: HTMLMenuElement
+  const open = (e: MouseEvent) => {
+    const row = (e.target as Element).closest<HTMLElement>("[data-mc^='channel:'], [data-mc^='category:']")
+    const c = row && S.Channel.getChannel(row.dataset.mc!.split(':')[1])
+    if (!c) return
+    setChannel(c)
+    popAt(menu, e)
+  }
+  const act = (fn: (c: Rec) => void) => () => {
+    menu.hidePopover()
+    fn(channel()!)
+  }
+  const muted = () => $.UserGuildSettings.isChannelMuted(channel()!.guild_id, channel()!.id)
+  const what = () => (channel()!.type === 4 ? 'Category' : 'Channel')
+  const view = (
+    <menu ref={menu} data-mc="channel-menu" popover>
+      <Show when={channel()}>
+        {(c) => (
+          <>
+            <button
+              data-mc="menu:read"
+              disabled={c().type !== 4 && !$.ReadState.hasUnread(c().id)}
+              onClick={act((c) => A.acks.markRead(c))}
+            >
+              Mark As Read
+            </button>
+            <button
+              data-mc="menu:mute"
+              onClick={act((c) =>
+                A.notifications.updateChannelOverrideSettings({
+                  guildId: c.guild_id,
+                  channelId: c.id,
+                  settings: { muted: !muted() },
+                  label: muted() ? 'unmuted' : 'muted',
+                }),
+              )}
+            >
+              {muted() ? `Unmute ${what()}` : `Mute ${what()}`}
+            </button>
+            <button
+              data-mc="menu:copy-link"
+              onClick={act((c) => navigator.clipboard.writeText(`https://discord.com/channels/${c.guild_id}/${c.id}`))}
+            >
+              Copy Link
+            </button>
+            <button data-mc="menu:copy-id" onClick={act((c) => navigator.clipboard.writeText(c.id))}>
+              Copy Channel ID
+            </button>
+          </>
+        )}
+      </Show>
+    </menu>
+  )
+  return { open, view }
 }
 
 // as stock's voice rows: a server's voice channel statuses, once until a resume clears them (op 43)

@@ -15,7 +15,36 @@ export function MessageInput() {
   const channelId = selected
   const channel = createMemo(selectedChannel)
   const editing = createMemo(() => (channelId() ? $.EditMessage.getEditingMessageId(channelId()!) : undefined))
-  const can = createMemo(() => !!channel() && allowed(PERMS.SEND_MESSAGES, channel()!))
+  // why the box is closed, as stock says it: no permission, a blocked DM recipient, a timeout
+  const [now, setNow] = createSignal(Date.now())
+  const closed = createMemo(() => {
+    const c = channel()
+    if (!c) return null
+    if (!allowed(PERMS.SEND_MESSAGES, c)) return 'You do not have permission to send messages in this channel.'
+    if (c.type === 1 && $.Relationship.isBlocked(c.recipients[0]))
+      return 'You cannot send messages to a user you have blocked.'
+    const until =
+      c.guild_id && $.GuildMember.getMember(c.guild_id, S.User.getCurrentUser()!.id)?.communicationDisabledUntil
+    if (until && Date.parse(until) > now()) return `You are timed out until ${new Date(until).toLocaleString()}.`
+    return null
+  })
+  const can = createMemo(() => !!channel() && !closed())
+  // slowmode: seconds left before the next message (none for those who manage messages or the channel)
+  const cooldown = createMemo(() => {
+    const c = channel()
+    if (!c?.rateLimitPerUser || allowed(PERMS.MANAGE_MESSAGES, c) || allowed(PERMS.MANAGE_CHANNELS, c)) return 0
+    now()
+    return Math.ceil($.Slowmode.getSlowmodeCooldownGuess(c.id, 0) / 1000)
+  })
+  // a clock while a countdown or a timeout runs
+  createEffect(
+    () => cooldown() > 0 || (closed()?.startsWith('You are timed out') ?? false),
+    (ticking) => {
+      if (!ticking) return
+      const t = setInterval(() => setNow(Date.now()), 1000)
+      return () => clearInterval(t)
+    },
+  )
   const reply = createMemo(() => (channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined))
   const uploads = createMemo(() => (channelId() ? $.UploadAttachment.getUploads(channelId()!, 0) : []))
   let box!: HTMLTextAreaElement, files!: HTMLInputElement
@@ -78,7 +107,7 @@ export function MessageInput() {
       if (text && content !== S.Message.getMessage(id, edit)?.content)
         A.messages.editMessage(id, edit, { content, components: undefined })
       A.messages.endEditMessage(id)
-    } else if (text || uploads().length) {
+    } else if ((text || uploads().length) && !cooldown()) {
       const options = A.messages.getSendMessageOptionsForReply(S.PendingReply.getPendingReply(id))
       // with files, as stock: no optimistic row (eagerDispatch), the message shows once uploaded
       const attachmentsToUpload = uploads().length ? uploads() : undefined
@@ -105,6 +134,13 @@ export function MessageInput() {
     e.preventDefault()
     A.promptToUpload.prompt(pasted, channel()!, 0)
   }
+  // files dropped anywhere on the window join them too (left to the browser, a drop would navigate to the file)
+  addEventListener('dragover', (e) => e.dataTransfer?.types.includes('Files') && e.preventDefault())
+  addEventListener('drop', (e) => {
+    if (!e.dataTransfer?.files.length) return
+    e.preventDefault()
+    if (can()) A.promptToUpload.prompt([...e.dataTransfer.files], channel()!, 0)
+  })
 
   const key = (e: KeyboardEvent) => {
     const id = channelId()!
@@ -183,9 +219,10 @@ export function MessageInput() {
         placeholder={
           editing()
             ? 'Editing: Enter saves, Escape cancels'
-            : can()
-              ? `Message${target()}`
-              : "You can't send messages here"
+            : (closed() ??
+              (cooldown()
+                ? `Slowmode: wait ${cooldown()} s`
+                : `Message${target()}${channel()?.rateLimitPerUser ? ' (slowmode)' : ''}`))
         }
         onInput={input}
         onKeyDown={key}

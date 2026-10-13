@@ -31,6 +31,9 @@ export const img = (m: Media, box: keyof typeof BOX, open?: string) => {
       height={height}
       loading="lazy"
       {...(isGif ? gif(src) : { src })}
+      // an image that isn't a link to a page opens in the viewer (chat.tsx), at its full size
+      data-full={open ? undefined : (m.proxyURL ?? m.url)}
+      data-url={open ? undefined : m.url}
       onClick={open ? () => window.open(open) : undefined}
     />
   )

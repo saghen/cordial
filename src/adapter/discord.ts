@@ -22,7 +22,14 @@ export interface Stores {
   VoiceState: FluxStore & { getVoiceStatesForChannel(channelId: Id): Record<Id, Rec> }
   Speaking: FluxStore & { isSpeaking(userId: Id): boolean }
   // getState: CONNECTING, AUTHENTICATING, AWAITING_ENDPOINT, RTC_CONNECTING, RTC_CONNECTED, NO_ROUTE, DISCONNECTED...
-  RTCConnection: FluxStore & { getState(): string; getChannelId(): Id | null }
+  RTCConnection: FluxStore & {
+    getState(): string
+    getChannelId(): Id | null
+  }
+  // a DM's call: { channelId, ringing, ... }, null without one
+  Call: FluxStore & { getCall(channelId: Id): Rec | null }
+  // calls ringing for you: { channel, senderId }
+  IncomingCall: FluxStore & { getIncomingCalls(): Rec[] }
   ChannelStatus: FluxStore & {
     hasRequestedStatuses(guildId: Id): boolean
     getChannelStatus(channel: Rec): string | undefined
@@ -39,6 +46,15 @@ export interface Stores {
     getOutputDevices(): Record<string, Rec>
     getInputDeviceId(): string
     getOutputDeviceId(): string
+    getInputVolume(): number
+    getOutputVolume(): number
+    getMode(): string
+    getModeOptions(): Rec
+    getNoiseSuppression(): boolean
+    getNoiseCancellation(): boolean
+    getEchoCancellation(): boolean
+    getAutomaticGainControl(): boolean
+    isNoiseCancellationSupported(): boolean
   }
   ExpandedGuildFolder: FluxStore & { isFolderExpanded(folderId: number): boolean }
   Channel: FluxStore & { getChannel(id: Id): Rec | undefined }
@@ -57,17 +73,37 @@ export interface Stores {
     hasUnread(channelId: Id): boolean
     getMentionCount(channelId: Id): number
     getOldestUnreadMessageId(channelId: Id): Id | null
+    // 0 without unreads
+    getOldestUnreadTimestamp(channelId: Id): number
+    getUnreadCount(channelId: Id): number
+    // the count is a guess (more than a page unread): stock shows it as "N+"
+    isEstimated(channelId: Id): boolean
+    ackMessageId(channelId: Id): Id | null
   }
   GuildReadState: FluxStore & {
     hasUnread(guildId: Id): boolean
     getMentionCount(guildId: Id): number
     getGuildHasUnreadIgnoreMuted(guildId: Id): boolean
+    // every server's and DM's mentions, and whether anything is unread: the app badge
+    getTotalMentionCount(): number
+    hasAnyUnread(): boolean
   }
+  NotificationSettings: FluxStore & { getDisableUnreadBadge(): boolean; isSoundDisabled(sound: string): boolean }
+  Soundpack: FluxStore & { getSoundpack(): string }
   PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[] }
   // activities: { type, name, state }; type 4 is the custom status
+  // this client's own activities (games, Rich Presence, a custom status): { type, name, state, details }
+  LocalActivity: FluxStore & { getPrimaryActivity(): Rec | null }
   Presence: FluxStore & { getStatus(userId: Id): string; getActivities(userId: Id): Rec[] }
   // friend nicknames
-  Relationship: FluxStore & { getNickname(userId: Id): string | undefined }
+  Relationship: FluxStore & {
+    getNickname(userId: Id): string | undefined
+    isBlocked(userId: Id): boolean
+    // incoming friend requests
+    getPendingCount(): number
+  }
+  // ms left before the next message may be sent (type 0: messages)
+  Slowmode: FluxStore & { getSlowmodeCooldownGuess(channelId: Id, type?: number): number }
   Permission: FluxStore & { can(permission: bigint, context: Rec): boolean }
   UserGuildSettings: FluxStore & { isMuted(guildId: Id): boolean; isChannelMuted(guildId: Id, channelId: Id): boolean }
   GuildMember: FluxStore & { getMember(guildId: Id, userId: Id): Rec | null }
@@ -130,6 +166,16 @@ export interface Actions {
       truncate?: boolean
     }): Promise<unknown>
     jumpToPresent(channelId: Id, limit: number): void
+    // a fetch around the message (or none, if loaded), then ChannelMessages' jumpTargetId and jumpSequenceId. offset: a
+    // jump to the message after it (stock's to unread, from the last read message)
+    jumpToMessage(o: {
+      channelId: Id
+      messageId: Id
+      flash?: boolean
+      offset?: number
+      context?: string
+      returnMessageId?: Id
+    }): void
     // edit mode, kept in EditMessageStore. startEditMessageRecord is what stock's Up and its menu's Edit call
     startEditMessageRecord(channelId: Id, message: Rec): void
     updateEditMessage(channelId: Id, textValue: string): void
@@ -175,8 +221,33 @@ export interface Actions {
   }
   guilds: { toggleGuildFolderExpand(folderId: number): void }
   // reason: the analytics label stock passes ("muted", "unmuted")
-  notifications: { updateGuildNotificationSettings(guildId: Id, settings: Rec, reason?: string): void }
+  notifications: {
+    updateGuildNotificationSettings(guildId: Id, settings: Rec, reason?: string): void
+    // label: the analytics label stock passes ("muted", "unmuted")
+    updateChannelOverrideSettings(o: {
+      guildId: Id
+      channelId: Id
+      settings: Rec
+      label?: string
+      location?: string
+    }): void
+  }
+  // location: where stock's menu says the ack came from
+  acks: { markRead(channel: Rec, location?: string): void; ack(channelId: Id, location?: Rec | string): void }
   voice: { selectVoiceChannel(channelId: Id | null): void; disconnect(): void }
+  sounds: { forPack(name: string, soundpack: string): { play(): void; loop(): void; stop(): void } }
+  calls: {
+    // video, ring; recipientId: a 1:1 DM's user (stock checks the call is allowed first)
+    call(channelId: Id, video: boolean, ring: boolean, recipientId?: Id): void
+    ring(channelId: Id, recipients?: Id[]): void
+    stopRinging(channelId: Id, recipients?: Id[]): Promise<unknown>
+  }
+  // an invite by code: resolve (no write) gives { invite: { code, guild, channel, approximate_*_count } }; accepting
+  // joins and opens the channel it points to
+  invites: {
+    resolveInvite(code: string, location?: string): Promise<{ invite?: Rec; code: string }>
+    acceptInviteAndTransitionToInviteChannel(o: { inviteKey: string; context?: Rec }): Promise<unknown>
+  }
   channelInfo(guildId: Id): void
   rest: Record<
     'del' | 'get' | 'patch' | 'post' | 'put',
@@ -189,6 +260,16 @@ export interface Actions {
     toggleSelfDeaf(): void
     setInputDevice(id: string): void
     setOutputDevice(id: string): void
+    // the voice settings (local to this client, MediaEngineStore): input 0-100, output 0-200
+    setInputVolume(volume: number): void
+    setOutputVolume(volume: number): void
+    // mode: VOICE_ACTIVITY or PUSH_TO_TALK; options: getModeOptions() with changes (autoThreshold, threshold in dB)
+    setMode(mode: string, options: Rec): void
+    setNoiseSuppression(on: boolean): void
+    // Krisp
+    setNoiseCancellation(on: boolean): void
+    setEchoCancellation(on: boolean): void
+    setAutomaticGainControl(on: boolean): void
   }
   markGuildsRead(guildIds: Id[], source: string): void
   channelSections: { toggleMembersSection(): void; toggleUserProfileSidebarSection(): void }

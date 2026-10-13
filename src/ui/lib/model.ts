@@ -21,6 +21,7 @@ export interface Reaction {
 }
 
 export const PERMS = {
+  MANAGE_CHANNELS: 16n,
   ADD_REACTIONS: 64n,
   SEND_MESSAGES: 2048n,
   MANAGE_MESSAGES: 8192n,

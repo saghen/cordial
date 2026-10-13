@@ -6,6 +6,15 @@ const path = require('node:path')
 // Discord's web client, as Chrome would load it
 app.userAgentFallback = app.userAgentFallback.replace(/ (mincord|Electron)\/\S+/g, '')
 
+// Trims (ai/LOG.md Key finds, measured as each process's USS): the audio service in the browser process (one process
+// less, 10 MB), Chrome services Discord doesn't use; and V8's heap growing by half rather than doubling, which halves
+// the full GCs that cause switch spikes at the same memory
+app.commandLine.appendSwitch(
+  'disable-features',
+  'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication',
+)
+app.commandLine.appendSwitch('js-flags', '--heap-growing-percent=50')
+
 // Chrome's zoom steps between 0.5 and 3
 const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]
 
@@ -41,6 +50,23 @@ ipcMain.on('mincord:games', (e, list) => {
   })
 })
 
+// discord:// links, handed to us by the desktop (the package's desktop entry; nothing here registers the scheme): their
+// path on discord.com, discord://-/channels/1/2 is /channels/1/2. A second launch passes its link to this one and quits
+const linkPath = (argv) => {
+  const link = argv.find((a) => a.startsWith('discord:'))
+  return link ? new URL(link).pathname.replace(/^\/*/, '/') : undefined
+}
+if (!app.requestSingleInstanceLock()) app.quit()
+let win
+
+app.on('second-instance', (_, argv) => {
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.focus()
+  const to = linkPath(argv)
+  if (to) win.webContents.executeJavaScript(`mincord.adapter.A.nav.transitionTo(${JSON.stringify(to)})`).catch(() => {})
+})
+
 app.whenReady().then(() => {
   const zoomFile = path.join(app.getPath('userData'), 'zoom')
   let zoom = 1.5
@@ -48,7 +74,7 @@ app.whenReady().then(() => {
     zoom = Math.min(3, Math.max(0.5, Number(fs.readFileSync(zoomFile, 'utf8')) || 1.5))
   } catch {}
 
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 1280,
     height: 800,
     backgroundColor: '#1e1e2e',
@@ -69,9 +95,11 @@ app.whenReady().then(() => {
     win.webContents.setZoomFactor(zoom)
     fs.writeFile(zoomFile, String(zoom), () => {})
   })
+  // the badge from the title our UI writes (app.tsx): "(N) Discord" is N (Unity launchers and macOS show it)
+  win.on('page-title-updated', (_, title) => app.setBadgeCount(+(title.match(/^\((\d+)\) /)?.[1] ?? 0)))
   // hidden rather than auto-hidden: Alt doesn't show it, its shortcuts (DevTools, reload) still work
   win.setMenuBarVisibility(false)
-  win.loadURL('https://discord.com/app')
+  win.loadURL(`https://discord.com${linkPath(process.argv) ?? '/app'}`)
 })
 
 app.on('window-all-closed', () => app.quit())

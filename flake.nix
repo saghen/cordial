@@ -26,13 +26,26 @@
             fileset = fs.unions [ ./src ./package.json ./package-lock.json ./vite.config.ts ./tsconfig.json ];
           };
           npmDepsHash = "sha256-QFMwblwopJFT5qZ0c8GUFtYRixNTLPy2ctAvgvl9wMA=";
-          nativeBuildInputs = [ pkgs.makeWrapper ];
+          nativeBuildInputs = [ pkgs.makeWrapper pkgs.copyDesktopItems ];
+          # discord:// links come to mincord when the desktop picks it as their handler (main.js routes them)
+          desktopItems = [
+            (pkgs.makeDesktopItem {
+              name = "mincord";
+              desktopName = "mincord";
+              exec = "mincord %U";
+              icon = "discord";
+              categories = [ "Network" "InstantMessaging" ];
+              mimeTypes = [ "x-scheme-handler/discord" ];
+            })
+          ];
           installPhase = ''
+            runHook preInstall
             mkdir -p $out/lib/mincord/src
             cp -r dist package.json $out/lib/mincord/
             cp -r src/shell $out/lib/mincord/src/
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/mincord --add-flags $out/lib/mincord \
               --set-default MINCORD_GAME_DETECTION ${game-detection}/bin/game-detection
+            runHook postInstall
           '';
         };
         inherit game-detection;

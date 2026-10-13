@@ -3,7 +3,7 @@
 import { createSignal, For, Show } from 'solid-js'
 
 import { A, S } from '../adapter/core'
-import type { Id } from '../adapter/discord'
+import type { Id, Rec } from '../adapter/discord'
 import { Dm, Item, url } from './channels'
 import { popAt } from './lib/popover'
 import { $, selectedGuild } from './lib/store'
@@ -94,8 +94,66 @@ export function ServerBar() {
       <For each={$.SortedGuild.getGuildFolders()}>
         {(f) => (f.folderId == null ? <Guild id={f.guildIds[0]} /> : <Folder folder={f} />)}
       </For>
+      <AddServer />
       <ServerMenu bar={bar} />
     </aside>
+  )
+}
+
+// Add a Server, by link only (the plan's): an invite link or code, stock's resolve shows the server, Join accepts it and
+// opens its channel. Accepting is a write: Liam checks joins by hand
+const code = (text: string) =>
+  text.trim().match(/(?:discord(?:app)?\.com\/invite|discord\.gg)\/([\w-]+)/)?.[1] ?? text.trim().match(/^[\w-]+$/)?.[0]
+function AddServer() {
+  const [invite, setInvite] = createSignal<Rec | null | undefined>()
+  let form!: HTMLFormElement
+  const resolve = (text: string) => {
+    const c = code(text)
+    if (!c) return setInvite(undefined)
+    A.invites.resolveInvite(c, 'Join Guild').then((r) => setInvite(r.invite ?? null))
+  }
+  return (
+    <>
+      <button data-mc="add-server" title="Add a Server" popovertarget="mc-join" />
+      <form
+        ref={form}
+        id="mc-join"
+        data-mc="join"
+        popover
+        onSubmit={(e) => {
+          e.preventDefault()
+          const i = invite()
+          if (!i) return
+          form.hidePopover()
+          A.invites.acceptInviteAndTransitionToInviteChannel({
+            inviteKey: i.code,
+            context: { location: 'Create or Join Guild Modal' },
+          })
+        }}
+      >
+        <label>
+          Invite Link
+          <input placeholder="https://discord.gg/hTKzmak" onInput={(e) => resolve(e.currentTarget.value)} />
+        </label>
+        <Show when={invite() !== undefined}>
+          <Show when={invite()} fallback={<p>The invite is invalid or has expired.</p>}>
+            {(i) => (
+              <p
+                style={url(
+                  i().guild?.icon && `https://cdn.discordapp.com/icons/${i().guild.id}/${i().guild.icon}.webp?size=64`,
+                )}
+              >
+                {i().guild?.name ?? i().channel?.name}
+                <small>
+                  {i().approximate_presence_count ?? 0} Online · {i().approximate_member_count ?? 0} Members
+                </small>
+              </p>
+            )}
+          </Show>
+        </Show>
+        <button disabled={!invite()}>Join Server</button>
+      </form>
+    </>
   )
 }
 

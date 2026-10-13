@@ -1,9 +1,10 @@
 // The shell: one grid (style.ts), one element per region and per list row.
 
-import { createSignal, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, Show } from 'solid-js'
 
 import { A, S } from '../adapter/core'
 import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from './channels'
+import { CallButton, CallView, IncomingCalls } from './call'
 import { Chat } from './chat'
 import { warm } from './lib/preload'
 import { $, selectedChannel, selectedGuild } from './lib/store'
@@ -34,9 +35,20 @@ function Connection() {
   )
 }
 
+// stock's badge, in the window title as on the web: mentions and friend requests as "(N)", a dot for anything else
+// unread; the shell turns it into the app badge (src/shell/main.js)
+function badge() {
+  const n = $.GuildReadState.getTotalMentionCount() + $.Relationship.getPendingCount()
+  if (n) return `(${n}) `
+  return $.GuildReadState.hasAnyUnread() && !$.NotificationSettings.getDisableUnreadBadge() ? '• ' : ''
+}
+
 export function App(p: { root: HTMLElement }) {
   const channel = selectedChannel
   const dm = () => channel() && !channel()!.guild_id
+  createEffect(createMemo(badge), (b) => {
+    document.title = `${b}Discord`
+  })
   warm()
   return (
     <>
@@ -59,9 +71,14 @@ export function App(p: { root: HTMLElement }) {
             </>
           )}
         </Show>
+        <Show when={dm()}>
+          <CallButton channel={channel()!} />
+        </Show>
         <MembersToggle />
       </header>
+      <CallView />
       <Chat root={p.root} />
+      <IncomingCalls />
       <MessageInput />
       <MembersList />
     </>

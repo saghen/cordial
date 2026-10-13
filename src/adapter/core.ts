@@ -93,11 +93,32 @@ storeNeed('PrivateChannelSort', 'PrivateChannelSortStore', 'getSortedChannels')
 storeNeed('SelectedGuild', 'SelectedGuildStore', 'getGuildId')
 storeNeed('SelectedChannel', 'SelectedChannelStore', 'getChannelId')
 storeNeed('Message', 'MessageStore', 'getMessages', 'getMessage', 'getLastEditableMessage')
-storeNeed('ReadState', 'ReadStateStore', 'hasUnread', 'getMentionCount', 'getOldestUnreadMessageId')
-storeNeed('GuildReadState', 'GuildReadStateStore', 'hasUnread', 'getMentionCount', 'getGuildHasUnreadIgnoreMuted')
+storeNeed(
+  'ReadState',
+  'ReadStateStore',
+  'hasUnread',
+  'getMentionCount',
+  'getOldestUnreadMessageId',
+  'getOldestUnreadTimestamp',
+  'getUnreadCount',
+  'isEstimated',
+  'ackMessageId',
+)
+storeNeed(
+  'GuildReadState',
+  'GuildReadStateStore',
+  'hasUnread',
+  'getMentionCount',
+  'getGuildHasUnreadIgnoreMuted',
+  'getTotalMentionCount',
+  'hasAnyUnread',
+)
+storeNeed('NotificationSettings', 'NotificationSettingsStore', 'getDisableUnreadBadge', 'isSoundDisabled')
+storeNeed('Soundpack', 'SoundpackStore', 'getSoundpack')
 storeNeed('PrivateChannelReadState', 'PrivateChannelReadStateStore', 'getUnreadPrivateChannelIds')
 storeNeed('Presence', 'PresenceStore', 'getStatus', 'getActivities')
-storeNeed('Relationship', 'RelationshipStore', 'getNickname')
+storeNeed('Relationship', 'RelationshipStore', 'getNickname', 'isBlocked', 'getPendingCount')
+storeNeed('Slowmode', 'SlowmodeStore', 'getSlowmodeCooldownGuess')
 storeNeed('Permission', 'PermissionStore', 'can')
 storeNeed('UserGuildSettings', 'UserGuildSettingsStore', 'isMuted', 'isChannelMuted')
 storeNeed('GuildMember', 'GuildMemberStore', 'getMember')
@@ -115,6 +136,8 @@ storeNeed('ChannelMember', 'ChannelMemberStore', 'getProps')
 storeNeed('VoiceState', 'VoiceStateStore', 'getVoiceStatesForChannel')
 storeNeed('Speaking', 'SpeakingStore', 'isSpeaking')
 storeNeed('RTCConnection', 'RTCConnectionStore', 'getState', 'getChannelId')
+storeNeed('Call', 'CallStore', 'getCall')
+storeNeed('IncomingCall', 'IncomingCallStore', 'getIncomingCalls')
 storeNeed('ChannelStatus', 'ChannelStatusStore', 'hasRequestedStatuses', 'getChannelStatus')
 storeNeed('VoiceChannelStartTime', 'VoiceChannelStartTimeStore', 'getStartTime')
 storeNeed('Frecency', 'FrecencyStore', 'getFrequentlyWithoutFetchingLatest')
@@ -127,8 +150,18 @@ storeNeed(
   'getOutputDevices',
   'getInputDeviceId',
   'getOutputDeviceId',
+  'getInputVolume',
+  'getOutputVolume',
+  'getMode',
+  'getModeOptions',
+  'getNoiseSuppression',
+  'getNoiseCancellation',
+  'getEchoCancellation',
+  'getAutomaticGainControl',
+  'isNoiseCancellationSupported',
 )
 storeNeed('SelfPresence', 'SelfPresenceStore', 'getStatus')
+storeNeed('LocalActivity', 'LocalActivityStore', 'getPrimaryActivity')
 storeNeed('DefaultRoute', 'DefaultRouteStore')
 needs.push({
   name: 'S.DefaultRoute.defaultRoute',
@@ -143,6 +176,7 @@ byProps(
   'deleteMessage',
   'fetchMessages',
   'jumpToPresent',
+  'jumpToMessage',
   'getSendMessageOptionsForReply',
   'startEditMessageRecord',
   'updateEditMessage',
@@ -153,10 +187,18 @@ byProps('drafts', 'saveDraft', 'changeDraft')
 byProps('uploads', 'addFiles', 'remove', 'clearAll')
 byProps('autocomplete', 'queryMentionResults', 'queryChannelResults', 'queryEmojiResults')
 byProps('guilds', 'toggleGuildFolderExpand')
-byProps('notifications', 'updateGuildNotificationSettings')
+byProps('notifications', 'updateGuildNotificationSettings', 'updateChannelOverrideSettings')
+// stock's Mark As Read for a channel (an immediate ack), or for a category (each channel and active thread in it); ack
+// is the new messages bar's
+mangled('acks', 'type:"CHANNEL_LOCAL_ACK"', { markRead: 'e.isCategory()?', ack: 'type:"CHANNEL_ACK"' })
 // stock's Mark As Read for servers: every channel, thread and event read state up to its last message, as BULK_ACK
 byCode('markGuildsRead', 'getActiveJoinedThreadsForGuild', 'GUILD_ONBOARDING_QUESTION')
 byProps('voice', 'selectVoiceChannel', 'disconnect')
+// DM calls: call selects the DM's voice and rings, stopRinging declines
+byProps('calls', 'call', 'ring', 'stopRinging')
+// stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone)
+mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e' })
+byProps('invites', 'resolveInvite', 'acceptInviteAndTransitionToInviteChannel')
 // Discord's REST client and its endpoint paths: pins and Mark Unread are stock requests from its menu's chunk, which
 // isn't loaded without its UI
 moduleNeed(
@@ -167,7 +209,20 @@ moduleNeed(
 byProps('endpoints', 'PIN', 'MESSAGE_ACK')
 // whether a message counts towards a channel's mentions (suppress settings; every message in a DM)
 mangled('readStates', '"ReadStateStore"', { countsAsMention: 'isSuppressRolesEnabled' })
-byProps('audio', 'toggleSelfMute', 'toggleSelfDeaf', 'setInputDevice', 'setOutputDevice')
+byProps(
+  'audio',
+  'toggleSelfMute',
+  'toggleSelfDeaf',
+  'setInputDevice',
+  'setOutputDevice',
+  'setInputVolume',
+  'setOutputVolume',
+  'setMode',
+  'setNoiseSuppression',
+  'setNoiseCancellation',
+  'setEchoCancellation',
+  'setAutomaticGainControl',
+)
 // stock's voice rows: FETCH_CHANNEL_INFO and op 43 for a server's voice channel statuses, once until a resume
 byCode('channelInfo', 'type:"FETCH_CHANNEL_INFO"', 'requestChannelInfo')
 byProps('channelSections', 'toggleMembersSection', 'toggleUserProfileSidebarSection')
