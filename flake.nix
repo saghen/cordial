@@ -64,11 +64,13 @@
           buildPhase = "$CC -O2 -Wall -static -o wine-client.exe wine-client.c";
           installPhase = "install -D wine-client.exe $out/wine-client.exe";
         };
+        capture = pkgs.callPackage ./screen-capture/capture { };
         inherit (pkgs) electron;
       };
 
       devShells.x86_64-linux.default = pkgs.mkShell {
-        packages = [ pkgs.nodejs pkgs.electron pkgs.prettier pkgs.cargo pkgs.rustc ];
+        packages = [ pkgs.nodejs pkgs.electron pkgs.prettier pkgs.cargo pkgs.rustc pkgs.pkg-config ];
+        inputsFrom = [ (pkgs.callPackage ./screen-capture/capture { }) ];
       };
     };
 }

@@ -5,7 +5,8 @@ process takes the screen cast as DMA-BUFs, scales it on the GPU and encodes it t
 so only the bitstream leaves VRAM. Discord's own Go Live sender (Chromium's WebRTC, with DAVE encryption) then sends
 those frames in place of its own encode ("the swap"). Where that can't run, there are fallbacks (below).
 
-Status: scaffold. Plan, state and the work loop are in `ai/`.
+Status: P1 (the C port) in progress; `capture/` builds and encodes (`nix build .#capture`, or `make` in the dev shell).
+Plan, state and the work loop are in `ai/`.
 
 ## Paths
 
