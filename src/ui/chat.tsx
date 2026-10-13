@@ -135,7 +135,11 @@ export function Chat(p: { root: HTMLElement; }) {
 
     // scrolled up more than a screen, or the newest messages not loaded: a button back to them (stock's Jump to Present)
     const [up, setUp] = createSignal(false);
-    const view = <div class="messages" data-mc="messages" onScroll={() => setUp(view.scrollTop < -view.clientHeight)}>
+    // .up: off the bottom at all (the typing row covers what scrolls under it)
+    const view = <div class="messages" data-mc="messages" onScroll={() => {
+        setUp(view.scrollTop < -view.clientHeight);
+        view.classList.toggle("up", view.scrollTop < -1);
+    }}>
         <div><For each={list()}>{Row}</For></div>
     </div> as HTMLElement;
     let jumping = false;

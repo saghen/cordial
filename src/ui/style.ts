@@ -136,7 +136,7 @@ export const CSS = `
   & > footer > button::before { mask-image: var(--i-hangup); }
   & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
   /* a category: its name and a chevron, lit on hover (no background) */
-  nav > a.cat { display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 12px; font-weight: 500; }
+  nav > a.cat { display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; font-weight: 500; }
   nav > a.cat:hover { background: none; }
   nav > a.cat::before { display: none; }
   nav > a.cat::after { content: ""; width: 12px; height: 12px; background: currentColor; mask: var(--i-chevron) center / contain no-repeat; }
@@ -397,10 +397,10 @@ export const CSS = `
     box-shadow: 0 4px 8px #0006; cursor: pointer;
   }
   & > button[data-mc=jump]::before { content: ""; width: 20px; height: 20px; background: currentColor; mask: var(--i-chevron) center / contain no-repeat; }
-  /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them */
+  /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
+     on the background with a fade above, over what scrolls under it */
   & > output {
-    grid-area: main; align-self: end; z-index: 1; margin: 0 16px; padding: 0 16px;
-    background: var(--bg); box-shadow: 0 -8px 8px var(--bg); font-size: 12px; line-height: 24px; color: var(--text-muted);
+    grid-area: main; align-self: end; z-index: 1; margin: 0 16px; padding: 0 16px; font-size: 12px; line-height: 24px; color: var(--text-muted);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   & > output::before {
@@ -408,6 +408,7 @@ export const CSS = `
     background: radial-gradient(circle 3px at 3px 50%, var(--text-strong) 95%, #0000) 0 / 8px 6px;
     mask: linear-gradient(90deg, #0006 33%, #000 50%, #0006 67%) 100% / 300% 100%; animation: mc-typing 1.2s linear infinite;
   }
+  &:has(> .messages.up) > output { background: var(--bg); box-shadow: 0 -8px 8px var(--bg); }
   & > output > b { font-weight: 700; color: var(--text-strong); }
 
   /* content (lib/content.ts) */
