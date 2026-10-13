@@ -73,7 +73,7 @@ function Folder(p: { folder: ReturnType<typeof S.SortedGuild.getGuildFolders>[nu
         <a data-mc={`folder:${id}`} title={p.folder.folderName ?? ids().map(g => $.Guild.getGuild(g)?.name).join(", ")}
             class={{ folder: true, open: open(), unread: !open() && ids().some(g => $.GuildReadState.hasUnread(g) && !$.UserGuildSettings.isMuted(g)) }}
             data-n={!open() && ids().reduce((n, g) => n + $.GuildReadState.getMentionCount(g), 0) || undefined}
-            style={{ "--icon": open() ? undefined : icons() || undefined, "--folder": `#${(p.folder.folderColor ?? 0x5865f2).toString(16).padStart(6, "0")}` }}
+            style={{ "--icon": !open() && icons() || undefined, "--folder": `#${(p.folder.folderColor ?? 0x5865f2).toString(16).padStart(6, "0")}` }}
             onClick={() => A.guilds.toggleGuildFolderExpand(id)} />
         <Show when={open()}><For each={ids()}>{g => <Guild id={g} />}</For></Show>
     </>;
@@ -177,7 +177,7 @@ function Gate(p: { channel: Rec; }) {
     return <Show when={gated()}>
         <figure data-mc="gate">
             <h2>Age-Restricted Channel</h2>
-            <p>{allowed() ? "This channel is for adults (18+) only." : "This channel is for adults (18+) only. Confirm your age in Discord to see it."}</p>
+            <p>This channel is for adults (18+) only.{allowed() ? "" : " Confirm your age in Discord to see it."}</p>
             <button data-mc="gate:back" onClick={() => A.guilds.nsfwReturnToSafety(p.channel.guild_id)}>Go Back</button>
             <Show when={allowed()}>
                 <button data-mc="gate:continue" onClick={() => A.guilds.nsfwAgree(p.channel.guild_id)}>Continue</button>

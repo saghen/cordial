@@ -154,6 +154,11 @@ export const CSS = `
     background: var(--bg); font-size: 12px; font-weight: 600; line-height: 16px; color: var(--text-muted);
   }
   article.new { border-top: 1px solid var(--danger); }
+  /* sending, then failed with Retry and Delete */
+  article.sending { opacity: 0.5; }
+  article.failed { color: var(--danger); }
+  article > p[data-mc=failed] { font-size: 14px; }
+  article > p[data-mc=failed] > button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
 
   /* a reply: the replied-to message above the author line, the reply bar above the composer */
   article > q {
@@ -248,11 +253,6 @@ export const CSS = `
   /* Discord's reset (its stylesheet stays loaded for the fonts) */
   article em { font-style: italic; } article strong { font-weight: 700; }
   article a { color: var(--link); } article a:hover { text-decoration: underline; }
-  /* sending and failed messages (stock: faded, then red with Retry and Delete) */
-  article.sending { opacity: 0.5; }
-  article.failed { color: var(--danger); }
-  article > p[data-mc=failed] { font-size: 14px; }
-  article > p[data-mc=failed] > button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
   article img:not(.media) { width: 22px; height: 22px; vertical-align: bottom; object-fit: contain; }
   article mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
   article del { text-decoration: none; background: var(--bg-deep); color: transparent; border-radius: 4px; cursor: pointer; }

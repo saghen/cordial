@@ -1,5 +1,4 @@
-// The context menus (right click on a message, on a server): stock's basics, each as it's built. Popovers at the
-// pointer.
+// The context menus (right click on a message, on a server): popovers at the pointer.
 
 import { createSignal, For, Show } from "solid-js";
 
@@ -98,13 +97,12 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
                     box();
                 })}>Edit</button>
             </Show>
-            <Show when={(target()!.type === 0 || target()!.type === 19) && (channel().isPrivate()
-                || S.Permission.can(PIN_MESSAGES, channel()) && S.Permission.can(READ_MESSAGE_HISTORY, channel()))}>
-                <button data-mc="menu:pin" onClick={act(() => target()!.pinned
-                    ? A.rest.del({ url: A.endpoints.PIN(channel().id, target()!.id), oldFormErrors: true, rejectWithError: true })
-                    : A.rest.put({ url: A.endpoints.PIN(channel().id, target()!.id), rejectWithError: true }))}>
-                    {target()!.pinned ? "Unpin" : "Pin"}
-                </button>
+            <Show when={(target()!.type === 0 || target()!.type === 19) && can(PIN_MESSAGES) && can(READ_MESSAGE_HISTORY)}>
+                <button data-mc="menu:pin" onClick={act(() => {
+                    const url = A.endpoints.PIN(channel().id, target()!.id);
+                    if (target()!.pinned) A.rest.del({ url, oldFormErrors: true, rejectWithError: true });
+                    else A.rest.put({ url, rejectWithError: true });
+                })}>{target()!.pinned ? "Unpin" : "Pin"}</button>
             </Show>
             <button data-mc="menu:unread" onClick={act(() => markUnread(channel().id, target()!.id))}>Mark Unread</button>
             <button data-mc="menu:copy" onClick={act(() => navigator.clipboard.writeText(target()!.content))}>Copy text</button>
