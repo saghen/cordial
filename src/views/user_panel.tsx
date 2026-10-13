@@ -7,8 +7,10 @@ import * as screen from '../../screen-capture/src/renderer'
 
 import { A, S } from '../adapter/needs'
 import type { Rec } from '../adapter/discord'
-import { dmName, url } from './channels'
-import { emojiSrc, nameOf } from '../api/model'
+import { dmName } from './channels'
+import { emojiSrc } from '../api/model'
+import { me, nameOf } from '../api/users'
+import { Avatar } from '../components/avatar'
 import { contextMenu, Items } from '../primitives/menu'
 import { $ } from '../api/store'
 import { Button, IconButton, Toggle } from '../primitives/button'
@@ -35,7 +37,6 @@ const STATUSES = { online: 'Online', idle: 'Idle', dnd: 'Do Not Disturb', invisi
 const VERBS = ['Playing', 'Streaming', 'Listening to', 'Watching', '', 'Competing in']
 
 function Me() {
-  const me = () => $.User.getCurrentUser()
   const status = () => $.SelfPresence.getStatus()
   const playing = () => {
     const a = $.LocalActivity.getPrimaryActivity()
@@ -47,19 +48,16 @@ function Me() {
   }
   return (
     <>
-      <button
-        class="user-panel"
-        popovertarget="mc-account"
-        style={url(me()?.getAvatarURL(undefined, 64))}
-        data-status={status()}
-      >
+      <button class="user-panel" popovertarget="mc-account">
+        <Show when={me()}>{(u) => <Avatar user={u()} size={32} status={status()} />}</Show>
         {nameOf(me())}
         <small>{playing() ?? STATUSES[status()] ?? status()}</small>
       </button>
       <Popout name="account" class="account">
         <Items
           items={Object.entries(STATUSES).map(([value, label]) => ({
-            name: 'status',
+            name: 'set-status',
+            id: value,
             label,
             status: value,
             checked: status() === value,

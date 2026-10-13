@@ -43,7 +43,7 @@ div.open > a.folder::before, section.call > figure:is(.mute, .deaf)::after, menu
   content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
 }
 /* avatars (DMs, the user panel) are round, with the status as a ring */
-nav > a[style]::before, & > header[style]::before, button.user-panel::before {
+nav > a[style]::before, & > header[style]::before {
   content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
 }
 /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
@@ -219,7 +219,7 @@ form.voice-settings {
 section.side > button {
   grid-area: me; display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; padding: 0 8px;
   border-top: 1px solid var(--bg-raised); text-align: left; font: inherit; font-weight: 500; color: var(--text-strong);
-  &.user-panel::before { grid-row: span 2; align-self: center; }
+  > .avatar { grid-row: span 2; align-self: center; }
   > small { font-size: 12px; }
   &.user-panel { padding-right: 88px; }
   &:is(.self-mute, .self-deafen) {
@@ -238,7 +238,6 @@ menu {
   &:popover-open { display: grid; gap: 2px; }
   > button { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; color: inherit; font: inherit; font-size: 14px; text-align: left; }
   > button:hover, > button.sel, > button[aria-checked=true] { background: var(--bg-raised); color: var(--text-strong); }
-  > button[data-status]::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--status); }
   > button.danger { color: var(--danger); }
   > button:disabled { opacity: 0.5; cursor: default; }
   > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
@@ -319,8 +318,8 @@ article {
     position: relative; display: block; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; quotes: none;
     overflow: clip; overflow-clip-margin: 40px;
   }
-  > q > img:first-child { width: 16px; height: 16px; margin-right: 4px; border-radius: 50%; vertical-align: -3px; }
-  > q > b { margin-right: 4px; font-weight: 500; color: var(--text-strong); }
+  > q > .avatar { margin-right: 4px; vertical-align: text-bottom; }
+  > q > .name { margin-right: 4px; font-weight: 500; color: var(--text-strong); }
   > q > span * { display: inline; margin: 0; padding: 0; border: 0; }
   > q:hover { color: var(--text-strong); }
   > q::before {

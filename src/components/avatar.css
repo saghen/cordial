@@ -1,0 +1,6 @@
+:where(.avatar) { position: relative; flex: none; display: inline-grid; width: var(--size); height: var(--size); border-radius: 50%; }
+:where(.avatar > img) { grid-area: 1 / 1; width: 100%; height: 100%; border-radius: 50%; background: var(--bg-raised); object-fit: cover; }
+:where(.avatar > .status) { grid-area: 1 / 1; place-self: end; width: 32%; height: 32%; }
+/* the ring around the status, cut out of the image */
+:where(.avatar:has(> .status) > img) { mask: radial-gradient(25% 25% at 84% 84%, #0000 calc(100% - 1px), #000); }
+:where(.avatar.speaking) { box-shadow: 0 0 0 2px var(--positive); }

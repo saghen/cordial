@@ -7,7 +7,7 @@ import { createEffect, createMemo, For, Show } from 'solid-js'
 import { A, S } from '../adapter/needs'
 import type { FluxStore, Id, Rec } from '../adapter/discord'
 import { url } from './channels'
-import { nameOf } from '../api/model'
+import { nameOf } from '../api/users'
 import { $, selectedChannel } from '../api/store'
 import { Button, IconButton } from '../primitives/button'
 

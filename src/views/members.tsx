@@ -7,7 +7,7 @@ import { createEffect, createMemo, For, Show } from 'solid-js'
 
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { nameOf } from '../api/model'
+import { nameOf } from '../api/users'
 import { $, selectedChannel } from '../api/store'
 import { Toggle } from '../primitives/button'
 import { Badge } from '../primitives/badge'

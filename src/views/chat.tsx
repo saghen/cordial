@@ -16,7 +16,6 @@ import {
   dayOf,
   emojiSrc,
   type Message,
-  nameOf,
   PERMS,
   type Reaction,
   startsGroup,
@@ -24,6 +23,11 @@ import {
   hiddenAs,
 } from '../api/model'
 import { clock } from '../api/strings'
+import * as users from '../api/users'
+import { nameOf } from '../api/users'
+import type { User } from '../api/records'
+import { Avatar } from '../components/avatar'
+import { Name } from '../components/name'
 import { Time } from '../components/time'
 import { Badge } from '../primitives/badge'
 import { contextMenu, Items } from '../primitives/menu'
@@ -244,14 +248,15 @@ export function Chat(p: { root: HTMLElement }) {
                 <Show when={r().message} fallback="Original message was deleted or isn't loaded">
                   {(rm) => {
                     // as stock: its author's avatar and name (with @ if the reply pings them), then its text
-                    const a = authorOf(rm() as Message, channel()?.guild_id)
+                    const author = rm().author as User
                     return (
                       <>
-                        <img src={a.avatar} />
-                        <b style={{ color: a.color ?? undefined }}>
-                          {m.mentions?.includes(a.id) ? '@' : ''}
-                          {a.name}
-                        </b>
+                        <Avatar user={author} guildId={channel()?.guild_id} size={16} />
+                        <Name
+                          user={author}
+                          guildId={rm().webhookId ? null : channel()?.guild_id}
+                          at={m.mentions?.includes(author.id)}
+                        />
                         {rm().content ? (
                           <span ref={(s) => renderAST(contentAST(rm() as Message, rm().channel_id), s)} />
                         ) : (
@@ -266,11 +271,11 @@ export function Chat(p: { root: HTMLElement }) {
           </Show>
           <Show when={command}>
             {(i) => {
-              const user = i().user && $.User.getUser(i().user.id)
+              const user = i().user && users.get(i().user.id)
               return (
                 <q class="command">
-                  <img src={user?.getAvatarURL(channel()?.guild_id, 32)} />
-                  <b>{nameOf(user ?? i().user)}</b> used <span>/{i().displayName ?? i().name}</span>
+                  {user && <Avatar user={user} guildId={channel()?.guild_id} size={16} />}
+                  <Name user={user ?? i().user} /> used <span>/{i().displayName ?? i().name}</span>
                 </q>
               )
             }}

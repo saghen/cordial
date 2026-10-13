@@ -1,12 +1,14 @@
 // Menus as data. An item is a button (its class, the id of what it's for, label and state); a click closes the
 // popover around it, unless it keeps it open, then runs it. One with `confirm` runs on a second click, showing that
-// label after the first; one with `checked` is a radio. '-' is a divider; false or null leaves an item out. A context
-// menu's target is what the right click was on, the menu shown at the pointer.
+// label after the first; one with `checked` is a radio; `status` puts a presence status before the label. '-' is a
+// divider; false or null leaves an item out. A context menu's target is what the right click was on, the menu shown at
+// the pointer.
 
 import { createSignal, flush, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
 import { Icon } from './icon'
+import { Status } from './status'
 import type { IconName } from './icons'
 import { popAt } from './popover'
 
@@ -42,7 +44,6 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
             aria-checked={i.checked == null ? undefined : i.checked ? 'true' : 'false'}
             disabled={i.disabled}
             title={i.title}
-            data-status={i.status}
             onClick={(e) => {
               if (i.confirm && armed() !== key(i)) return setArmed(key(i))
               if (!i.keep) e.currentTarget.closest<HTMLElement>('[popover]')!.hidePopover()
@@ -50,6 +51,7 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
             }}
           >
             <Show when={i.icon}>{(name) => <Icon name={name()} />}</Show>
+            <Show when={i.status}>{(kind) => <Status kind={kind()} />}</Show>
             {armed() === key(i) ? i.confirm : i.label}
           </button>
         )

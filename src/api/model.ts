@@ -4,6 +4,7 @@ import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { $ } from './store'
 import { day } from './strings'
+import { nameOf } from './users'
 
 export type Message = Record<string, any> & { id: Id; content: string; timestamp: Date; author: Record<string, any> }
 export interface Attachment {
@@ -33,8 +34,6 @@ export const PERMS = {
 
 // stock's rule: anything in a DM
 export const can = (permission: bigint, channel: Rec) => channel.isPrivate() || $.Permission.can(permission, channel)
-
-export const nameOf = (user?: Rec | null, nick?: string | null): string => nick ?? user?.globalName ?? user?.username
 
 export interface Author {
   id: Id
