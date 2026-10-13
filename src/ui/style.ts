@@ -71,13 +71,21 @@ export const CSS = `
     color: var(--text); font-size: 14px; box-shadow: 0 8px 16px #0006;
   }
   form[data-mc=join]:popover-open { display: grid; gap: 12px; }
-  form[data-mc=join] > label { display: grid; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
-  form[data-mc=join] input { padding: 8px; border: 0; border-radius: 4px; background: var(--bg-deep); color: var(--text); font: inherit; text-transform: none; }
+  form:is([data-mc=join], [data-mc=login]) > label { display: grid; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+  form:is([data-mc=join], [data-mc=login]) input { padding: 8px; border: 0; border-radius: 4px; background: var(--bg-deep); color: var(--text); font: inherit; text-transform: none; }
   form[data-mc=join] > p { display: grid; grid-template-columns: 48px 1fr; column-gap: 12px; align-items: center; font-weight: 600; }
   form[data-mc=join] > p[style]::before { content: ""; grid-row: 1 / 3; width: 48px; height: 48px; border-radius: 16px; background: var(--icon) center / cover; }
   form[data-mc=join] > p > small { grid-column: 2; font-weight: 400; color: var(--text-muted); }
-  form[data-mc=join] > button { padding: 8px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; font: inherit; font-weight: 500; cursor: pointer; }
-  form[data-mc=join] > button:disabled { opacity: .5; cursor: default; }
+  form:is([data-mc=join], [data-mc=login]) > button { padding: 8px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; font: inherit; font-weight: 500; cursor: pointer; }
+  form:is([data-mc=join], [data-mc=login]) > button:disabled { opacity: .5; cursor: default; }
+  /* logged out (login.tsx): the form alone, centred */
+  form[data-mc=login] {
+    grid-area: 1 / 1 / -1 / -1; place-self: center; display: grid; gap: 16px; width: min(480px, 100% - 32px); padding: 32px;
+    border-radius: 8px; background: var(--bg-floating); font-size: 14px;
+  }
+  form[data-mc=login] > h2 { font-size: 24px; text-align: center; color: var(--text-strong); }
+  form[data-mc=login] > p[role=alert] { color: var(--danger); }
+  form[data-mc=login] > button[type=button] { justify-self: start; padding: 0; background: none; color: var(--link); }
   aside > div { display: grid; gap: 8px; justify-items: center; width: 48px; border-radius: 16px; }
   aside > div.open { padding: 4px 0 8px; background: #97979f1f; }
   aside a.folder {

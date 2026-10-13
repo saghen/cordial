@@ -1,6 +1,7 @@
 // The anchor. Discord's root App class stays mounted: its componentDidMount starts its managers and its route
 // listener starts the session and selects guilds and channels from the URL. Only its render changes: it renders one
-// host element, and our renderer mounts into that. Logged out, it renders Discord's own tree (the login screen).
+// host element, and our renderer mounts into that. Logged out, our login form shows (ui/login.tsx), or Discord's own
+// tree (its login screen) once the form hands over to it.
 //
 // Discord's own UI shows instead when the patch doesn't match, when the self-check (core.ts) fails, or when
 // window.name contains "mincord:stock" (it survives a reload). mincord.status() says which.
@@ -17,11 +18,14 @@ export const G: Record<string, any> = ((window as any).mincord = {})
 let mount: Mount | null = null
 let unmount: (() => void) | null = null
 let checked = false
+// logged out, Discord's login screen instead of ours (until the next login)
+let discords = false
+let app: App | null = null
 
 const anchor = patch(
   'addRouteRewriter(this.ensureChannelMatchesGuild)',
   // App.render: Discord's route switch, from "/channels" redirect on
-  [/render\(\)\{(?=return.{0,120}?from:"\/channels",to:"\/")/, 'render(){if(mincord.active())return mincord.root();'],
+  [/render\(\)\{(?=return.{0,120}?from:"\/channels",to:"\/")/, 'render(){if(mincord.own())return mincord.root();'],
   // with no routes mounted, nothing runs the route handler for the URL we start on: didMount does. listen wraps the
   // handler before the App registers it
   [
@@ -30,8 +34,19 @@ const anchor = patch(
   ],
 )
 
+// above the App, a route switch sends /login (where a logout or a start logged out lands) to Discord's login pages, and
+// the App never mounts: while our form is on, its path lists (built by one function, next to a set that starts with
+// LOGIN) leave /login out, and it stays with the App. Its own patch, so the anchor still applies without it (a start on
+// /login then shows Discord's screen)
+const login = patch('.wasAuthenticated=', [
+  /(new Set\(\[([\w$]+\.[\w$]+\.LOGIN),.{0,300}?function [\w$]+\(([\w$]+),[\w$]+\)\{)/,
+  '$1$3=mincord.ownLogin()?$3.filter(p=>p!==$2):$3;',
+])
+
 const stock = () => window.name.includes('mincord:stock')
 const active = () => !stock() && !adapterFailed() && S.Auth.isAuthenticated()
+// our root renders: logged in, or our login form
+const own = () => !stock() && !adapterFailed() && (S.Auth.isAuthenticated() || !discords)
 
 // at the App's first render, once the modules it imports are evaluated
 function adapterFailed() {
@@ -57,6 +72,14 @@ export function setMount(fn: Mount) {
 
 Object.assign(G, {
   active,
+  own,
+  // read by the route switch before the App's first render, so without the self-check
+  ownLogin: () => !stock() && !discords,
+
+  discordLogin() {
+    discords = true
+    app?.forceUpdate()
+  },
 
   root: () => A.react.createElement('div', { id: 'mincord-root', ref: hostRef }),
 
@@ -73,21 +96,26 @@ Object.assign(G, {
     }
   },
 
-  didMount(app: App) {
+  didMount(a: App) {
     // the check runs in stock mode too: the lab reads stores through the adapter in both
     if (adapterFailed() || stock()) return
+    app = a
     let was = active()
-    if (was) app.handleHistoryChange(window.location)
-    // after a login, Discord navigates away from /login and the route listener runs on its own
+    if (was) a.handleHistoryChange(window.location)
     S.Auth.addChangeListener(() => {
       if (active() === was) return
       was = !was
-      app.forceUpdate()
+      if (!was) return a.forceUpdate()
+      // logged in. Through Discord's screen, it navigates away from /login and the route listener runs on its own; through
+      // our form, nothing navigates: /app, where stock's login lands, which the listener redirects to the default route
+      discords ? (discords = false) : A.nav.replaceWith('/app')
+      a.forceUpdate()
     })
   },
 
   status: () => ({
     applied: anchor.applied,
+    login: login.applied,
     // before the App's first render the check would run too early
     mode: stock()
       ? 'stock'
@@ -99,7 +127,9 @@ Object.assign(G, {
             ? 'fallback'
             : active()
               ? 'mincord'
-              : 'logged out',
+              : own()
+                ? 'login'
+                : 'logged out',
     adapter: checked ? check() : null,
     mounted: !!unmount,
     native: G.nativeApplied?.() ?? null,

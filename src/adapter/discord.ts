@@ -11,7 +11,16 @@ export interface FluxStore {
 
 export interface Stores {
   Gateway: FluxStore & { isConnected(): boolean; isTryingToConnect(): boolean }
-  Auth: FluxStore & { isAuthenticated(): boolean; getId(): Id }
+  Auth: FluxStore & {
+    isAuthenticated(): boolean
+    getId(): Id
+    // NONE, LOGGING_IN, MFA_STEP, LOGGING_IN_MFA, ACCOUNT_DISABLED, PHONE_IP_AUTHORIZATION...
+    getLoginStatus(): string
+    getMFATicket(): string
+    // { type: totp, sms, backup, webauthn, ... }
+    getMFAMethods(): Rec[]
+    getLoginInstanceId(): string | null
+  }
   User: FluxStore & { getCurrentUser(): Rec | undefined; getUser(id: Id): Rec | undefined }
   Guild: FluxStore & { getGuild(id: Id): Rec | undefined }
   // the server bar: single servers are folders without a folderId
@@ -399,6 +408,18 @@ export interface Actions {
   memberSubscriptions: { range(o: { guildId: Id; channelId: Id; y: number; height: number; rowHeight: number }): void }
   // stock's status picker: writes the status user setting (it syncs to every client)
   setStatus(options: { nextStatus: string; prevStatus?: string; durationMillis?: number }): Promise<void>
+  // stock's login actions: each dispatches its result (LOGIN_MFA_STEP, LOGIN_SUCCESS, LOGIN_FAILURE...) and rejects with
+  // the request's error (its fields' messages) on a failure
+  auth: {
+    login(o: { login: unknown; password: unknown; source: null }): Promise<void>
+    loginMFAv2(o: {
+      code: string
+      ticket: string
+      mfaType: string
+      loginInstanceId: string | null
+      source: null
+    }): Promise<void>
+  }
   nav: {
     transitionTo(path: string, state?: Rec): void
     transitionToGuild(guildId: Id, channelId?: Id): void

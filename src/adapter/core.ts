@@ -83,7 +83,16 @@ byProps('flux', 'connectStores', 'Store')
 byProps('react', 'createElement', 'useEffect')
 
 storeNeed('Gateway', 'GatewayConnectionStore', 'isConnected', 'isTryingToConnect')
-storeNeed('Auth', 'AuthenticationStore', 'isAuthenticated', 'getId')
+storeNeed(
+  'Auth',
+  'AuthenticationStore',
+  'isAuthenticated',
+  'getId',
+  'getLoginStatus',
+  'getMFATicket',
+  'getMFAMethods',
+  'getLoginInstanceId',
+)
 storeNeed('User', 'UserStore', 'getCurrentUser', 'getUser')
 storeNeed('Guild', 'GuildStore', 'getGuild')
 storeNeed('SortedGuild', 'SortedGuildStore', 'getGuildFolders')
@@ -240,6 +249,8 @@ byProps('calls', 'call', 'ring', 'stopRinging')
 // stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone); play plays one
 mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e', play: 'disableSounds)return' })
 byProps('invites', 'resolveInvite', 'acceptInviteAndTransitionToInviteChannel')
+// stock's login: email and password, then a two-factor code (its request layer asks for a captcha when needed)
+byProps('auth', 'login', 'loginMFAv2')
 // stock's sticker packs fetch (once), and its rule for which stickers you can send
 moduleNeed(
   'stickers',
