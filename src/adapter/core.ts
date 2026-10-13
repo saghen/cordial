@@ -119,6 +119,7 @@ byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessage
 byProps("parser", "parse", "unparse");
 byProps("drafts", "saveDraft", "changeDraft");
 byProps("uploads", "addFiles", "remove", "clearAll");
+byProps("autocomplete", "queryMentionResults", "queryChannelResults", "queryEmojiResults");
 // stock's file chooser handler: size and count limits, then the files staged in UploadAttachmentStore
 mangled("promptToUpload", "Unexpected mismatch between files and file metadata", { prompt: "requireConfirm" });
 byCode("setStatus", "nextStatus:", "statusExpiresAtMs=");

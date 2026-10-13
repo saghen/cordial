@@ -103,6 +103,12 @@ export interface Actions {
     };
     uploads: { addFiles(o: Rec): void; remove(channelId: Id, id: string, draftType: number): void; clearAll(channelId: Id, draftType: number): void; };
     promptToUpload: { prompt(files: File[], channel: Rec, draftType: number): Promise<void>; };
+    // stock's autocomplete queries. Mentions: users as { user, nick }, roles as records, globals as { text }
+    autocomplete: {
+        queryMentionResults(o: { query: string; channel: Rec; canMentionEveryone?: boolean; request?: boolean; }): { users: Rec[]; roles: Rec[]; globals: Rec[]; };
+        queryChannelResults(o: { query: string; channel: Rec; }): { channels: Rec[]; };
+        queryEmojiResults(o: { query: string; channel: Rec; intention: number; maxCount?: number; }): { emojis: { unlocked: Rec[]; }; };
+    };
     setStatus(options: { nextStatus: string; prevStatus?: string; durationMillis?: number; }): Promise<void>;
     nav: { transitionTo(path: string, state?: Rec): void; transitionToGuild(guildId: Id, channelId?: Id): void; replaceWith(path: string): void; };
     // stock's page size: the messages that fit the window's height (at least 10, at most 30), from its window size,

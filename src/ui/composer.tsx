@@ -1,11 +1,12 @@
 // The composer: one textarea calling stock's chat input actions in stock's order. Enter sends, Shift+Enter is a new
 // line, Up in an empty box edits the last own message in place (Enter saves, Escape leaves). Its text is the draft.
-// Files from + wait as chips above it and go with the next message.
+// Files from + wait as chips above it and go with the next message. Autocomplete: autocomplete.tsx.
 
 import { createEffect, createMemo, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import { startTyping, stopTyping } from "../adapter/triggers";
+import { createAutocomplete } from "./autocomplete";
 import { authorOf, type Message } from "./model";
 import { $ } from "./store";
 
@@ -20,6 +21,7 @@ export function Composer() {
     const reply = createMemo(() => channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined);
     const uploads = createMemo(() => channelId() ? $.UploadAttachment.getUploads(channelId()!, 0) : []);
     let box!: HTMLTextAreaElement, files!: HTMLInputElement;
+    const complete = createAutocomplete(() => box, () => channelId() ? S.Channel.getChannel(channelId()!) : undefined);
 
     // as stock: the draft is saved at most every 500 ms while it changes (first and last change included), and on a switch
     let last = 0, timer: ReturnType<typeof setTimeout> | undefined;
@@ -44,6 +46,7 @@ export function Composer() {
 
     const input = () => {
         const id = channelId()!, text = box.value;
+        complete.update();
         if (editing()) return A.messages.updateEditMessage(id, text);
         A.drafts.changeDraft(id, text, 0);
         saveSoon(id);
@@ -76,6 +79,7 @@ export function Composer() {
 
     const key = (e: KeyboardEvent) => {
         const id = channelId()!;
+        if (complete.key(e)) return;
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             send();
@@ -106,7 +110,7 @@ export function Composer() {
                 <button data-mc={`upload:${u.filename}`} title="Remove" onClick={() => A.uploads.remove(channelId()!, u.id, 0)}>{u.filename} ✕</button>
             }</For></ul>
         </Show>
-        <button data-mc="attach" title="Upload a file" hidden={!channelId() || !can()} onClick={() => files.click()}>+</button>
+        <button data-mc="attach" title="Upload a file" hidden={!channelId() || !can()} onClick={() => files.click()} />
         <input ref={files} type="file" multiple hidden onChange={() => {
             A.promptToUpload.prompt([...files.files!], S.Channel.getChannel(channelId()!)!, 0);
             files.value = "";
@@ -114,5 +118,6 @@ export function Composer() {
         <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} hidden={!channelId()} disabled={!can()}
         placeholder={editing() ? "Editing: Enter saves, Escape cancels" : can() ? "Message" : "You can't send messages here"}
         onInput={input} onKeyDown={key} />
+        {complete.view}
     </>;
 }

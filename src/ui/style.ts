@@ -158,13 +158,17 @@ export const CSS = `
   /* the composer (composer.tsx): grows with its text, up to half the window */
   textarea {
     grid-area: compose; margin: 0 16px 16px; min-height: 56px; max-height: 50vh; padding: 16px 16px 16px 56px; resize: none;
-    field-sizing: content; border: 0; border-radius: 8px; outline: 0; background: var(--bg-raised); color: inherit; font: inherit;
+    field-sizing: content; anchor-name: --box; border: 0; border-radius: 8px; outline: 0; background: var(--bg-raised); color: inherit; font: inherit;
   }
   textarea.editing { box-shadow: 0 0 0 2px var(--accent); }
+  /* autocomplete (autocomplete.tsx): a list over the messages, as wide as the box, just above it */
+  menu[data-mc=autocomplete] { position-anchor: --box; width: anchor-size(width); margin: 0 0 8px; }
+  menu[data-mc=autocomplete] > button > img { width: 24px; height: 24px; border-radius: 50%; }
   /* the attach button over the box's left edge, the files waiting to go as chips above it */
   & > button[data-mc=attach] {
     grid-area: compose; align-self: start; justify-self: start; z-index: 1; width: 24px; height: 24px; margin: 16px 0 0 32px;
-    padding: 0; border: 0; border-radius: 50%; overflow: hidden; background: var(--text-muted); color: var(--bg); font: 700 18px/24px sans-serif; cursor: pointer;
+    padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+    background: linear-gradient(var(--bg) 0 0) center / 12px 2px no-repeat, linear-gradient(var(--bg) 0 0) center / 2px 12px no-repeat, var(--text-muted);
   }
   & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
   & > ul > button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
