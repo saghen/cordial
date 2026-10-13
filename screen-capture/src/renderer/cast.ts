@@ -8,8 +8,10 @@
 // - if the stream's codec isn't one capture encodes, or its encoder fails (fallback()): capture keeps its cast and
 //   hands its scaled frames over instead ("raw": GPU buffers, imported by main/raw.js and preload/raw.js), they're
 //   piped into the encoder track and Chromium encodes them; no second source, no dialog;
-// - if capture fails to start, dies or stalls, or raw doesn't come up: a normal getDisplayMedia (the portal's dialog,
-//   Chromium reading the full-size cast) is piped into the encoder track instead. Either way Discord's track shows
+// - if capture dies or stalls: it's started again once on the same source (niri's, the clip, the portal's restore
+//   token: no dialog) and its frames go raw as above;
+// - if capture fails to start, can't be restarted, or raw doesn't come up: a normal getDisplayMedia (the portal's
+//   dialog, Chromium reading the full-size cast) is piped into the encoder track instead. Either way Discord's track shows
 //   the same frames, and neither track object ever changes.
 // The track's label, settings and constraints are the session's: Discord reads the label as the source id and the
 // settings for its preview's size; its constraints go to the fallback capture.
@@ -139,6 +141,7 @@ export class CastSession {
   /** raw: capture's frames feed the encoder (the fallback without a second source); its frames come on this port */
   private rawPort: MessagePort | null = null
   private rawFailed: () => void = () => {}
+  private restarted = false
   private started: (ok: boolean) => void = () => {}
 
   constructor(
@@ -210,7 +213,7 @@ export class CastSession {
     })
     this.started = () => {}
     if (up && this.state === 'starting') this.state = 'cast'
-    return this.state === 'cast'
+    return up && this.state !== 'ended'
   }
 
   send(command: object) {
@@ -219,9 +222,11 @@ export class CastSession {
 
   private message(m: CastMessage) {
     if (this.state === 'fallback' && this.port) {
-      // raw: capture failing now means the portal after all
-      if (m.type === 'closed') this.rawFailed()
-      else if (m.type === 'info' && m.info.type === 'error') this.rawFailed()
+      // raw (or capture restarting for it): capture failing now means a restart, or the portal after all
+      if (m.type === 'closed' || (m.type === 'info' && m.info.type === 'error')) {
+        this.started(false)
+        this.rawFailed()
+      } else if (m.type === 'info' && m.info.type === 'input') this.started(true)
       else if (m.type === 'info' && m.info.type === 'stats') this.stats = m.info
       else if (m.type === 'info' && m.info.type === 'ended') this.end('the cast ended')
       return
@@ -248,7 +253,7 @@ export class CastSession {
       this.decode(m)
     } else if (m.type === 'closed') {
       this.started(false)
-      if (this.state === 'cast') this.fallback(`capture ${m.why}`, false)
+      if (this.state === 'cast') this.fallback(`capture ${m.why}`, 'restart')
       return
     }
     this.consumer?.message(m)
@@ -374,15 +379,31 @@ export class CastSession {
    * Chromium encodes from now on: capture's own frames (raw) while it runs, else a normal getDisplayMedia capture
    * (the portal's dialog). Resolves once one of them feeds the track (or the session has ended: no capture).
    */
-  async fallback(why: string, raw = true) {
+  async fallback(why: string, how: 'raw' | 'restart' | 'portal' = 'raw') {
     if (this.state === 'fallback' || this.state === 'ended') return
     logger.warn(`Falling back to Chromium's encoder: ${why}`)
     this.state = 'fallback'
     this.consumer?.stop()
     this.consumer = null
     this.stopDecoder()
-    if (raw && (await this.raw())) return
+    if (how === 'raw' && (await this.raw())) return
+    if (how === 'restart' && (await this.restart())) return
     if (this.state === 'fallback') await this.portal()
+  }
+
+  /**
+   * capture died: once per session, start it again on the same source and take its frames raw. Not for the portal's
+   * own dialog (that would ask again, as getDisplayMedia does).
+   */
+  private async restart(): Promise<boolean> {
+    if (this.restarted || this.pick.source === 'portal:choose' || !host.native) return false
+    this.restarted = true
+    this.closeCast()
+    this.rawPort?.close()
+    this.rawPort = null
+    logger.info('Starting capture again on the same source')
+    if (!(await this.run()) || this.state !== 'fallback') return false
+    return this.raw()
   }
 
   /** capture stops; a getDisplayMedia capture (the portal's dialog) feeds the track */
@@ -455,8 +476,8 @@ export class CastSession {
     let pending = 0
     this.rawFailed = () => {
       if (this.state !== 'fallback' || this.rawPort !== port) return
-      logger.warn('capture stopped during raw: asking for a source')
-      this.portal()
+      logger.warn('capture stopped during raw')
+      this.restart().then((ok) => ok || this.state !== 'fallback' || this.portal())
     }
     port.onmessage = ({ data }) => {
       const frame: VideoFrame = data.frame
@@ -602,7 +623,7 @@ export async function castDisplayMedia(
   // reach a sender (zeroCopy.ts waits for the session to be up). A capture that doesn't come up falls back to
   // Chromium's capture into the same track, as one that fails later does.
   session.start().then((ok) => {
-    if (!ok) session.fallback("capture didn't start", false)
+    if (!ok) session.fallback("capture didn't start", 'portal')
   })
   return new MediaStream([session.track])
 }
