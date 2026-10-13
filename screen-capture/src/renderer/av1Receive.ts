@@ -1,24 +1,26 @@
-// Watching an AV1 Go Live stream (or camera) behind DAVE in Chromium. Two things break it on the receiving side, for
-// any AV1 sender, ours or Discord's native clients:
+// Watching a Go Live stream (or camera) behind DAVE in Chromium, AV1 above all. Two things break it on the receiving
+// side, for any sender, ours or Discord's native clients:
 // - Chromium's AV1 depacketizer gives every OBU of the frame a size field, but DAVE's encryptor took the last OBU's
 //   out (its trailer rides at the end of that OBU) and the frame's clear ranges say so: decryption fails its tag check
-//   on every frame. Before decryption the last OBU loses its size field again.
-// - Without a dependency descriptor (Discord's video m-line has none) a decrypted AV1 delta frame never gets past
-//   Chromium's reference finder: only key frames are shown, each after a PLI. After decryption each frame goes back
-//   as a clone with a frame id and its dependency (the frame before; none for a key frame), which it then follows.
+//   on every AV1 frame. Before decryption the last OBU loses its size field again.
+// - A frame Discord's worker gives back isn't the receiver's own (it crossed into the worker), and Chromium takes a
+//   foreign frame's RTP sequence numbers to be its frame id: -1 before reference finding. With those, Chromium's
+//   sequence-number reference finder (AV1 and H.264 without a dependency descriptor, which Discord's m-line doesn't
+//   negotiate) never passes a delta frame, only key frames after PLIs, and its packet buffer is never cleared up to
+//   what was decoded: it fills (2048 packets), clears itself and asks for a key frame, and the frames it dropped
+//   decode as garbage; while the real numbers are within half the range below 65535 every packet is dropped as too
+//   old (the stream stops until they wrap). So the receiver's own frame is kept while the worker has its copy, and
+//   it goes back with the decrypted payload.
 //
 // Discord sets its decryption up per receiver with RTCRtpScriptTransform when the receiver has `transform`, else with
 // createEncodedStreams (handing the streams to its worker), so `transform` goes and video receivers' streams get a
-// stage on each side of Discord's worker. Other codecs pass through untouched.
-
-// (not in TypeScript's DOM types yet)
-const EncodedFrame = (globalThis as any).RTCEncodedVideoFrame as new (frame: any, init?: { metadata: any }) => any
+// stage on each side of Discord's worker.
 
 const isAv1 = (f: any) => f.getMetadata().mimeType === 'video/AV1'
 
-/** What the receive stages did (lab): frames unsized and cloned, and the last error (the frame then goes on as it
- * was: a stage that throws would end the receiver's stream for good). */
-export const av1ReceiveStats = { unsized: 0, cloned: 0, errors: 0, lastError: '' }
+/** What the receive stages did (lab): AV1 frames unsized, frames that went back as the receiver's own, and the last
+ * error (the frame then goes on as it was: a stage that throws would end the receiver's stream for good). */
+export const av1ReceiveStats = { unsized: 0, own: 0, errors: 0, lastError: '' }
 const failed = (e: unknown) => {
   av1ReceiveStats.errors++
   av1ReceiveStats.lastError = String(e).slice(0, 200)
@@ -55,7 +57,8 @@ export function unsizeLastObu(d: Uint8Array): Uint8Array | null {
 }
 
 function stages() {
-  let id = 0
+  // the receiver's own frames, by RTP timestamp, while Discord's worker has their copies
+  const own = new Map<number, any>()
   const before = new TransformStream({
     transform(f: any, c) {
       try {
@@ -63,6 +66,9 @@ function stages() {
           const d = unsizeLastObu(new Uint8Array(f.data))
           if (d) ((f.data = d.buffer), av1ReceiveStats.unsized++)
         }
+        own.set(f.getMetadata().rtpTimestamp, f)
+        // (frames the worker drops)
+        if (own.size > 64) own.delete(own.keys().next().value!)
       } catch (e) {
         failed(e)
       }
@@ -72,12 +78,13 @@ function stages() {
   const after = new TransformStream({
     transform(f: any, c) {
       try {
-        if (isAv1(f)) {
-          id++
-          const metadata = { ...f.getMetadata(), frameId: id, dependencies: f.type === 'key' ? [] : [id - 1] }
-          c.enqueue(new EncodedFrame(f, { metadata }))
-          av1ReceiveStats.cloned++
-          return
+        const rtp = f.getMetadata().rtpTimestamp
+        const o = own.get(rtp)
+        if (o && o !== f) {
+          own.delete(rtp)
+          o.data = f.data
+          av1ReceiveStats.own++
+          f = o
         }
       } catch (e) {
         failed(e)
