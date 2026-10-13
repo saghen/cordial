@@ -2,10 +2,21 @@
 
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
+import { $ } from "./store";
 
 export type Message = Record<string, any> & { id: Id; content: string; timestamp: Date; author: Record<string, any>; };
 export interface Attachment { url: string; proxy_url: string; filename: string; size: number; content_type?: string; width?: number; height?: number; }
 export interface Reaction { emoji: { id: Id | null; name: string; animated?: boolean; }; count: number; me: boolean; }
+
+export const PERMS = {
+    ADD_REACTIONS: 64n, SEND_MESSAGES: 2048n, MANAGE_MESSAGES: 8192n, READ_MESSAGE_HISTORY: 65536n,
+    MENTION_EVERYONE: 131072n, PIN_MESSAGES: 1n << 51n
+};
+
+// stock's rule: anything in a DM
+export const can = (permission: bigint, channel: Rec) => channel.isPrivate() || $.Permission.can(permission, channel);
+
+export const nameOf = (user?: Rec | null, nick?: string | null): string => nick ?? user?.globalName ?? user?.username;
 
 export interface Author {
     id: Id;
@@ -50,7 +61,7 @@ export function authorOf(m: Message, guildId: Id | null): Author {
     const member = guildId && !m.webhookId ? S.GuildMember.getMember(guildId, u.id) : null;
     return {
         id: u.id,
-        name: member?.nick ?? u.globalName ?? u.username,
+        name: nameOf(u, member?.nick),
         color: member?.colorString ?? null,
         avatar: u.getAvatarURL(guildId, 80),
         bot: !!u.bot

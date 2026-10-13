@@ -6,6 +6,7 @@ import { createEffect, createSignal, For, Show } from "solid-js";
 import { A } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
 import { popAt } from "./menu";
+import { nameOf } from "./model";
 import { $ } from "./store";
 
 // as stock's voice rows: a server's voice channel statuses, once until a resume clears them (op 43)
@@ -29,7 +30,7 @@ export function VoiceRow(p: { channel: Rec; }) {
             const user = () => $.User.getUser(v.userId);
             return <a data-mc={`voice-user:${v.userId}`} style={{ "--icon": `url(${user()?.getAvatarURL(p.channel.guild_id, 32)})` }}
                 class={{ speaking: $.Speaking.isSpeaking(v.userId), muted: v.selfMute || v.mute, deaf: v.selfDeaf || v.deaf }}>
-                {$.GuildMember.getMember(p.channel.guild_id, v.userId)?.nick ?? user()?.globalName ?? user()?.username}
+                {nameOf(user(), $.GuildMember.getMember(p.channel.guild_id, v.userId)?.nick)}
             </a>;
         }}</For>
     </>;

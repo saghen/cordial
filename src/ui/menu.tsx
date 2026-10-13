@@ -4,7 +4,7 @@ import { createSignal, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Id } from "../adapter/discord";
-import type { Message } from "./model";
+import { can as allowed, type Message, PERMS } from "./model";
 import { $ } from "./store";
 
 export function popAt(menu: HTMLElement, e: MouseEvent) {
@@ -22,8 +22,6 @@ export function popAt(menu: HTMLElement, e: MouseEvent) {
     if (e.buttons) addEventListener("pointerup", show, { once: true });
     else show();
 }
-
-const MANAGE_MESSAGES = 8192n, SEND_MESSAGES = 2048n, ADD_REACTIONS = 64n, READ_MESSAGE_HISTORY = 65536n, PIN_MESSAGES = 1n << 51n;
 
 // stock's Mark Unread: a manual ack of the message before this one (or of the millisecond before it), with the
 // mentions after it as the count
@@ -55,7 +53,7 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
 
     const channel = () => S.Channel.getChannel(target()!.channel_id)!;
     const own = () => target()!.author.id === S.User.getCurrentUser()?.id;
-    const can = (permission: bigint) => channel().isPrivate() || S.Permission.can(permission, channel());
+    const can = (permission: bigint) => allowed(permission, channel());
     const act = (fn: () => void) => () => {
         menu.hidePopover();
         fn();
@@ -81,11 +79,11 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
             <Emojis each={emojis()} />
         </Show>
         <Show when={target() && query() == null}>
-            <Show when={can(ADD_REACTIONS)}>
+            <Show when={can(PERMS.ADD_REACTIONS)}>
                 <Emojis each={recent().slice(0, 4)} />
                 <button data-mc="menu:react" onClick={() => setQuery("")}>React</button>
             </Show>
-            <Show when={can(SEND_MESSAGES)}>
+            <Show when={can(PERMS.SEND_MESSAGES)}>
                 <button data-mc="menu:reply" onClick={act(() => {
                     A.replies.create({ message: target()!, channel: channel(), shouldMention: !own(), showMentionToggle: !own() });
                     box();
@@ -97,7 +95,7 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
                     box();
                 })}>Edit</button>
             </Show>
-            <Show when={(target()!.type === 0 || target()!.type === 19) && can(PIN_MESSAGES) && can(READ_MESSAGE_HISTORY)}>
+            <Show when={(target()!.type === 0 || target()!.type === 19) && can(PERMS.PIN_MESSAGES) && can(PERMS.READ_MESSAGE_HISTORY)}>
                 <button data-mc="menu:pin" onClick={act(() => {
                     const url = A.endpoints.PIN(channel().id, target()!.id);
                     if (target()!.pinned) A.rest.del({ url, oldFormErrors: true, rejectWithError: true });
@@ -108,7 +106,7 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
             <button data-mc="menu:copy" onClick={act(() => navigator.clipboard.writeText(target()!.content))}>Copy text</button>
             <button data-mc="menu:link" onClick={act(() => navigator.clipboard.writeText(
                 `https://discord.com/channels/${channel().guild_id ?? "@me"}/${channel().id}/${target()!.id}`))}>Copy link</button>
-            <Show when={own() || can(MANAGE_MESSAGES)}>
+            <Show when={own() || can(PERMS.MANAGE_MESSAGES)}>
                 <button data-mc="menu:delete" class="danger" onClick={() => sure()
                     ? act(() => A.messages.deleteMessage(channel().id, target()!.id))()
                     : setSure(true)}>{sure() ? "Delete: click again" : "Delete"}</button>

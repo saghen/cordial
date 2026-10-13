@@ -7,7 +7,7 @@ import { createEffect, createMemo, createSignal, For, Show, untrack } from "soli
 import { A } from "../adapter/core";
 import type { Id } from "../adapter/discord";
 import { renderAST } from "./content";
-import { type Attachment, authorOf, contentAST, dayOf, type Message, type Reaction, startsGroup, when } from "./model";
+import { type Attachment, authorOf, contentAST, dayOf, type Message, nameOf, type Reaction, startsGroup, when } from "./model";
 import { MessageMenu } from "./menu";
 import { createScroller } from "./scroller";
 import { $ } from "./store";
@@ -50,7 +50,7 @@ const react = (m: Message) => (r: Reaction) => {
         if (!hovered()) return undefined;
         const users = [...$.MessageReactions.getReactions(m.channel_id, m.id, r.emoji, 3, 0).values()];
         const more = r.count - users.length;
-        return users.map(u => u.globalName ?? u.username).join(", ") + (more > 0 ? ` and ${more} more` : "");
+        return users.map(u => nameOf(u)).join(", ") + (more > 0 ? ` and ${more} more` : "");
     };
     return <button data-mc={`reaction:${r.emoji.id ?? r.emoji.name}`} class={{ me: r.me }} title={title()}
         onPointerEnter={() => setHovered(true)}

@@ -6,6 +6,7 @@ import { createEffect, createMemo, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
+import { nameOf } from "./model";
 import { $ } from "./store";
 
 const ROW = 44;
@@ -36,7 +37,7 @@ export function Members() {
                 ? <h3>{r.title} — {count(r.id)}</h3>
                 : <a data-mc={r && `member:${r.userId}`} data-status={r?.status} style={r && {
                     "--icon": `url(${r.user.getAvatarURL(r.guildId, 64)})`, color: r.colorString ?? undefined
-                }}>{r && (r.nick ?? r.user.globalName ?? r.user.username)}</a>
+                }}>{r && nameOf(r.user, r.nick)}</a>
             }</For>
         </section>
     </Show>;

@@ -6,10 +6,10 @@ import { createEffect, createMemo, createSignal, For } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Rec } from "../adapter/discord";
+import { nameOf, PERMS } from "./model";
 
 interface Item { text: string; label: string; icon?: string; }
 
-const MENTION_EVERYONE = 131072n;
 const TOKEN = /(?:^|\s)([@#:])([^\s@#:]*)$/;
 
 export function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec | undefined) {
@@ -22,10 +22,10 @@ export function createAutocomplete(box: () => HTMLTextAreaElement, channel: () =
         if (!t || !c) return [];
         if (t.kind === "@") {
             // as stock's box: @everyone, @here and every role with the permission to mention everyone
-            const everyone = !c.isPrivate() && S.Permission.can(MENTION_EVERYONE, c);
+            const everyone = !c.isPrivate() && S.Permission.can(PERMS.MENTION_EVERYONE, c);
             const r = A.autocomplete.queryMentionResults({ query: t.query, channel: c, canMentionEveryone: everyone, request: true });
             return [
-                ...r.users.map((u: Rec) => ({ text: `@${u.user.username}`, label: u.nick ?? u.user.globalName ?? u.user.username, icon: u.user.getAvatarURL(c.guild_id, 32) })),
+                ...r.users.map((u: Rec) => ({ text: `@${u.user.username}`, label: nameOf(u.user, u.nick), icon: u.user.getAvatarURL(c.guild_id, 32) })),
                 ...r.roles.map((role: Rec) => ({ text: `@${role.name}`, label: `@${role.name}` })),
                 ...r.globals.filter((g: Rec) => g.text === "@everyone" || g.text === "@here").map((g: Rec) => ({ text: g.text, label: g.text }))
             ].slice(0, 10);

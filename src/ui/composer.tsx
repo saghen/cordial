@@ -7,16 +7,15 @@ import { createEffect, createMemo, For, Show } from "solid-js";
 import { A, S } from "../adapter/core";
 import { startTyping, stopTyping } from "../adapter/triggers";
 import { createAutocomplete } from "./autocomplete";
-import { authorOf, type Message } from "./model";
+import { authorOf, can as allowed, type Message, PERMS } from "./model";
 import { $ } from "./store";
 
 export function Composer() {
     const channelId = createMemo(() => $.SelectedChannel.getChannelId());
     const editing = createMemo(() => channelId() ? $.EditMessage.getEditingMessageId(channelId()!) : undefined);
-    // stock's rule: anyone in a DM, SEND_MESSAGES elsewhere
     const can = createMemo(() => {
         const c = channelId() && $.Channel.getChannel(channelId()!);
-        return !!c && (c.isPrivate() || $.Permission.can(2048n, c));
+        return !!c && allowed(PERMS.SEND_MESSAGES, c);
     });
     const reply = createMemo(() => channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined);
     const uploads = createMemo(() => channelId() ? $.UploadAttachment.getUploads(channelId()!, 0) : []);

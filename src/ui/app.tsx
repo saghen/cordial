@@ -10,6 +10,7 @@ import { Members, MembersToggle } from "./members";
 import { ServerMenu } from "./menu";
 import { AudioButtons, useChannelInfo, VoicePanel, VoiceRow } from "./voice";
 import { Messages } from "./messages";
+import { nameOf } from "./model";
 import { $ } from "./store";
 import { CSS } from "./style";
 
@@ -137,10 +138,10 @@ function Me() {
     };
     return <>
         <button data-mc="me" popovertarget="mc-account" style={url(me()?.getAvatarURL(undefined, 64))} data-status={status()}>
-            {me()?.globalName ?? me()?.username}<small>{STATUSES[status()] ?? status()}</small>
+            {nameOf(me())}<small>{STATUSES[status()] ?? status()}</small>
         </button>
         <menu ref={menu} id="mc-account" data-mc="account" popover>
-            <b style={url(me()?.getAvatarURL(undefined, 128))}>{me()?.globalName ?? me()?.username}<small>{me()?.username}</small></b>
+            <b style={url(me()?.getAvatarURL(undefined, 128))}>{nameOf(me())}<small>{me()?.username}</small></b>
             {Object.entries(STATUSES).map(([value, label]) =>
                 <button value={value} data-mc={`status:${value}`} class={{ sel: status() === value }} onClick={() => pick(value)}>{label}</button>)}
         </menu>
