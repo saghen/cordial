@@ -6,6 +6,7 @@ import { createEffect, createMemo, createSignal, For, Show, untrack } from "soli
 
 import { A, S } from "../adapter/core";
 import type { Id } from "../adapter/discord";
+import { embed } from "./embeds";
 import { renderAST } from "./lib/content";
 import { type Attachment, authorOf, can as allowed, contentAST, dayOf, type Message, nameOf, PERMS, type Reaction, startsGroup, when } from "./lib/model";
 import { popAt } from "./lib/popover";
@@ -27,6 +28,9 @@ function content(m: Message, channelId: Id) {
             ? renderAST(contentAST(m, channelId), document.createDocumentFragment())
             : document.createTextNode(m.content || `(message type ${m.type})`);
         built.set(m, nodes = f instanceof DocumentFragment ? [...f.childNodes] : [f]);
+        // as stock: emoji alone (up to 30) show large
+        const shown = nodes.filter(n => n.nodeType !== 3 || n.textContent!.trim());
+        if (shown.length <= 30 && shown.every(n => n.nodeName === "IMG")) for (const n of shown) (n as Element).classList.add("jumbo");
     }
     return nodes;
 }
@@ -91,13 +95,14 @@ export function Chat(p: { root: HTMLElement; }) {
             style={author() ? { "--av": `url(${author()!.avatar})` } : undefined}
         >
             <Show when={ref()}>{r => <q data-mc="reply-to" onClick={() => view.querySelector(`[data-id="${r().message?.id}"]`)?.scrollIntoView({ block: "center" })}>
-                {r().message ? `${authorOf(r().message as Message, channel()?.guild_id).name}: ${r().message!.content}` : "Original message was deleted or isn't loaded"}
+                {r().message ? `${authorOf(r().message as Message, channel()?.guild_id).name}: ${r().message!.content || "Click to see attachment"}` : "Original message was deleted or isn't loaded"}
             </q>}</Show>
             <Show when={author()}>{a => <b data-mc={`author:${a().id}`} data-ts={when(m.timestamp)} data-day={day()} style={{ color: a().color ?? undefined }}>
                 {a().name}<Show when={a().bot}><i>APP</i></Show>
             </b>}</Show>
             {nodes}
             {m.attachments?.map(attachment)}
+            {m.embeds?.map(embed)}
             <Show when={m.reactions?.length}>
                 <p data-mc="reactions">{m.reactions.map(react(m))}</p>
             </Show>

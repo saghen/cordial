@@ -23,6 +23,8 @@ export interface Stores {
     // getState: CONNECTING, AUTHENTICATING, AWAITING_ENDPOINT, RTC_CONNECTING, RTC_CONNECTED, NO_ROUTE, DISCONNECTED...
     RTCConnection: FluxStore & { getState(): string; getChannelId(): Id | null; };
     ChannelStatus: FluxStore & { hasRequestedStatuses(guildId: Id): boolean; getChannelStatus(channel: Rec): string | undefined; };
+    // when a voice channel's call started (ms), from the same channel info request as the statuses
+    VoiceChannelStartTime: FluxStore & { getStartTime(channel: Rec): number | undefined; };
     // devices by id: { id, name, disabled }
     MediaEngine: FluxStore & {
         isSelfMute(): boolean; isSelfDeaf(): boolean; getInputDevices(): Record<string, Rec>; getOutputDevices(): Record<string, Rec>;
@@ -47,9 +49,12 @@ export interface Stores {
         getMentionCount(channelId: Id): number;
         getOldestUnreadMessageId(channelId: Id): Id | null;
     };
-    GuildReadState: FluxStore & { hasUnread(guildId: Id): boolean; getMentionCount(guildId: Id): number; getPrivateChannelMentionCount(): number; getGuildHasUnreadIgnoreMuted(guildId: Id): boolean; };
+    GuildReadState: FluxStore & { hasUnread(guildId: Id): boolean; getMentionCount(guildId: Id): number; getGuildHasUnreadIgnoreMuted(guildId: Id): boolean; };
     PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[]; };
-    Presence: FluxStore & { getStatus(userId: Id): string; };
+    // activities: { type, name, state }; type 4 is the custom status
+    Presence: FluxStore & { getStatus(userId: Id): string; getActivities(userId: Id): Rec[]; };
+    // friend nicknames
+    Relationship: FluxStore & { getNickname(userId: Id): string | undefined; };
     Permission: FluxStore & { can(permission: bigint, context: Rec): boolean; };
     UserGuildSettings: FluxStore & { isMuted(guildId: Id): boolean; isChannelMuted(guildId: Id, channelId: Id): boolean; };
     GuildMember: FluxStore & { getMember(guildId: Id, userId: Id): Rec | null; };
@@ -149,4 +154,6 @@ export interface Actions {
     // density and font size; the argument is only a label
     pages: { size(label?: string): number; };
     markdown: { parseToAST(text: string, inline?: boolean, state?: Rec): Rec[]; };
+    // a group DM's icon, its default one when it has none
+    icons: { getChannelIconURL(o: { id: Id; icon?: string | null; applicationId?: Id; size?: number; }): string; getGuildIconURL: unknown; };
 }

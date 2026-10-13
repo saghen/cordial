@@ -7,6 +7,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { A, S } from "../adapter/core";
 import { startTyping, stopTyping } from "../adapter/triggers";
 import type { Rec } from "../adapter/discord";
+import { dmName } from "./channels";
 import { authorOf, can as allowed, type Message, nameOf, PERMS } from "./lib/model";
 import { $ } from "./lib/store";
 
@@ -37,11 +38,17 @@ export function MessageInput() {
     };
 
     // a switch saves the text left behind (empty included); the box then shows the new channel's draft, or the
-    // message being edited
+    // message being edited, and takes the focus
     createEffect(() => [channelId(), editing()] as const, ([id, edit], prev) => {
         if (prev?.[0] && prev[0] !== id) save(prev[0]);
         box.value = !id ? "" : edit ? A.parser.unparse(S.EditMessage.getEditingTextValue(id) ?? "", id) : S.Draft.getDraft(id, 0);
+        if (id) box.focus();
     });
+    // as stock: "Message #channel", "Message @user"
+    const target = () => {
+        const c = channelId() && $.Channel.getChannel(channelId()!);
+        return !c ? "" : c.guild_id ? ` #${c.name}` : c.type === 1 ? ` @${dmName(c)}` : ` ${dmName(c)}`;
+    };
 
     const input = () => {
         const id = channelId()!, text = box.value;
@@ -115,7 +122,7 @@ export function MessageInput() {
             files.value = "";
         }} />
         <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} hidden={!channelId()} disabled={!can()}
-        placeholder={editing() ? "Editing: Enter saves, Escape cancels" : can() ? "Message" : "You can't send messages here"}
+        placeholder={editing() ? "Editing: Enter saves, Escape cancels" : can() ? `Message${target()}` : "You can't send messages here"}
         onInput={input} onKeyDown={key} />
         {complete.view}
     </>;

@@ -45,5 +45,5 @@ export function MembersList() {
 
 export const MembersToggle = () => <Show when={$.SelectedGuild.getGuildId()}>
     <button data-mc="members-toggle" class={{ on: membersOpen() }} title="Member list"
-        onClick={() => A.channelSections.toggleMembersSection()}>Members</button>
+        onClick={() => A.channelSections.toggleMembersSection()} />
 </Show>;

@@ -4,7 +4,7 @@ import { createSignal, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Rec } from "../adapter/discord";
-import { Channels, dmIcon, dmName, dmStatus, url } from "./channels";
+import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from "./channels";
 import { Chat } from "./chat";
 import { $, selected, selectedGuild } from "./lib/store";
 import { MembersList, MembersToggle } from "./members_list";
@@ -61,8 +61,9 @@ export function App(p: { root: HTMLElement; }) {
         <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : "Direct Messages"}</h1>
         <Channels />
         <UserPanel />
-        <header style={channel()?.guild_id ? undefined : url(dmIcon(channel()))} data-status={channel()?.guild_id ? undefined : dmStatus(channel())}>
-            <Show when={channel()}>{c => <>{c().guild_id ? `# ${c().name}` : dmName(c())}<small>{c().topic}</small></>}</Show>
+        <header style={channel()?.guild_id ? undefined : url(dmIcon(channel()))} data-status={channel()?.guild_id ? undefined : dmStatus(channel())}
+            class={channel()?.guild_id ? ["channel", kindOf(channel()!)] : undefined}>
+            <Show when={channel()}>{c => <>{c().guild_id ? c().name : dmName(c())}<small>{c().topic}</small></>}</Show>
             <MembersToggle />
         </header>
         <Chat root={p.root} />

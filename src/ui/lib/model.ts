@@ -68,18 +68,23 @@ export function authorOf(m: Message, guildId: Id | null): Author {
     };
 }
 
-const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
-const date = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "2-digit", day: "2-digit" });
-const longDate = new Intl.DateTimeFormat(undefined, { dateStyle: "long" });
+// in Discord's language (the page's lang, set once its locale loads), as stock: "10:59 PM", "5/31/24, 11:15 AM"
+const formats = new Map<string, Intl.DateTimeFormat>();
+const format = (d: Date, o: Intl.DateTimeFormatOptions) => {
+    const key = document.documentElement.lang + JSON.stringify(o);
+    let f = formats.get(key);
+    if (!f) formats.set(key, f = new Intl.DateTimeFormat(document.documentElement.lang || undefined, o));
+    return f.format(d);
+};
 
 export function when(d: Date) {
-    const today = new Date();
-    return d.toDateString() === today.toDateString() ? time.format(d) : `${date.format(d)} ${time.format(d)}`;
+    const today = d.toDateString() === new Date().toDateString();
+    return format(d, today ? { timeStyle: "short" } : { dateStyle: "short", timeStyle: "short" });
 }
 
 // the date divider above a message, when it's the first loaded of its day
 export function dayOf(prev: Message | undefined, m: Message) {
-    return prev && prev.timestamp.toDateString() !== m.timestamp.toDateString() ? longDate.format(m.timestamp) : undefined;
+    return prev && prev.timestamp.toDateString() !== m.timestamp.toDateString() ? format(m.timestamp, { dateStyle: "long" }) : undefined;
 }
 
 // message content as Discord's markdown AST (what its React output is built from), with message-content options

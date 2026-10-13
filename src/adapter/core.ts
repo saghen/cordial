@@ -93,10 +93,10 @@ storeNeed("SelectedGuild", "SelectedGuildStore", "getGuildId");
 storeNeed("SelectedChannel", "SelectedChannelStore", "getChannelId");
 storeNeed("Message", "MessageStore", "getMessages", "getMessage", "getLastEditableMessage");
 storeNeed("ReadState", "ReadStateStore", "hasUnread", "getMentionCount", "getOldestUnreadMessageId");
-storeNeed("GuildReadState", "GuildReadStateStore", "hasUnread", "getMentionCount", "getPrivateChannelMentionCount",
-    "getGuildHasUnreadIgnoreMuted");
+storeNeed("GuildReadState", "GuildReadStateStore", "hasUnread", "getMentionCount", "getGuildHasUnreadIgnoreMuted");
 storeNeed("PrivateChannelReadState", "PrivateChannelReadStateStore", "getUnreadPrivateChannelIds");
-storeNeed("Presence", "PresenceStore", "getStatus");
+storeNeed("Presence", "PresenceStore", "getStatus", "getActivities");
+storeNeed("Relationship", "RelationshipStore", "getNickname");
 storeNeed("Permission", "PermissionStore", "can");
 storeNeed("UserGuildSettings", "UserGuildSettingsStore", "isMuted", "isChannelMuted");
 storeNeed("GuildMember", "GuildMemberStore", "getMember");
@@ -114,6 +114,7 @@ storeNeed("VoiceState", "VoiceStateStore", "getVoiceStatesForChannel");
 storeNeed("Speaking", "SpeakingStore", "isSpeaking");
 storeNeed("RTCConnection", "RTCConnectionStore", "getState", "getChannelId");
 storeNeed("ChannelStatus", "ChannelStatusStore", "hasRequestedStatuses", "getChannelStatus");
+storeNeed("VoiceChannelStartTime", "VoiceChannelStartTimeStore", "getStartTime");
 storeNeed("MediaEngine", "MediaEngineStore", "isSelfMute", "isSelfDeaf", "getInputDevices", "getOutputDevices",
     "getInputDeviceId", "getOutputDeviceId");
 storeNeed("GuildNSFWAgree", "GuildNSFWAgreeStore", "didAgree");
@@ -169,6 +170,7 @@ mangled("reactions", "REMOVE_EMOJI_REACTIONS(", {
 });
 mangled("pages", "windowSize().height-145", { size: ".getSetting()," });
 byProps("markdown", "parseToAST");
+byProps("icons", "getChannelIconURL", "getGuildIconURL");
 
 dispatched("TYPING_START_LOCAL", "typing: TypingStore throttles and POSTs /typing");
 dispatched("TYPING_STOP_LOCAL", "typing stops when the composer empties");
