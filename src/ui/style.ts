@@ -24,7 +24,7 @@ export const CSS = `
   }
   & > h1 { grid-area: side; }
   & > header { grid-area: head; }
-  small { font-size: 14px; font-weight: 400; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+  small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
 
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
@@ -82,16 +82,18 @@ export const CSS = `
   nav {
     grid-area: nav; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px; padding: 8px;
   }
-  /* scrollbars: a thumb, no arrows (the standard scrollbar-* properties would turn these off), shown on hover */
+  /* scrollbars: a thumb, no arrows (the standard scrollbar-* properties would turn these off), shown while the scroller
+     is hovered. Through a custom property: Chromium restyles a scrollbar's parts on a change to the scroller's own
+     style, not on :hover alone (a :not(:hover) thumb rule painted only on the next scroll) */
   ::-webkit-scrollbar { width: 12px; height: 12px; }
-  ::-webkit-scrollbar-thumb { border: 2px solid #0000; border-radius: 6px; background: var(--bg-floating) padding-box; }
+  ::-webkit-scrollbar-thumb { border: 2px solid #0000; border-radius: 6px; background: var(--thumb, #0000) padding-box; }
   ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: none; }
-  :not(:hover)::-webkit-scrollbar-thumb { background: none; }
+  :hover { --thumb: var(--bg-floating); }
   /* a row reaches the list's edge with a clear left border, where the unread pill goes; its colour stays in the padding box */
   nav > a {
     grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: 8px;
     min-height: 32px; margin-left: -8px; padding: 0 8px; border-left: 8px solid #0000; border-radius: 16px 8px 8px 16px / 8px;
-    background-clip: padding-box; color: var(--text-muted); font-size: 15px; white-space: nowrap; overflow: hidden;
+    background-clip: padding-box; color: var(--text-muted); font-size: 16px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden;
   }
   nav > a:not([style])::before { width: 18px; height: 18px; }
   nav > a.unread {
@@ -135,7 +137,7 @@ export const CSS = `
   }
   & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
   /* a category: its name and a chevron, lit on hover (no background) */
-  nav > a.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; font-weight: 500; }
+  nav > a.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 14px; line-height: 18px; font-weight: 500; }
   nav > a.cat:hover { background: none; }
   nav > a.cat::before { display: none; }
   nav > a.cat::after { width: 12px; height: 12px; }
@@ -144,8 +146,8 @@ export const CSS = `
   nav > a[style]::before, & > header[style]::before, & > button[data-mc=me]::before {
     content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
   }
-  nav > a[data-mc^=dm] { min-height: 42px; font-size: 16px; line-height: 20px; }
-  nav > a > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 14px; }
+  nav > a[data-mc^=dm] { min-height: 42px; }
+  nav > a > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
   nav > a:has(> small) { align-content: center; }
   nav > a:has(> small)::before { grid-row: span 2; }
   & > header[style]::before { width: 24px; height: 24px; }
@@ -341,7 +343,7 @@ export const CSS = `
   section > h3 { padding: 24px 8px 4px; font-size: 14px; font-weight: 500; color: var(--text-muted); }
   section > a {
     display: flex; align-items: center; gap: 12px; height: 44px;
-    padding: 0 8px; border-radius: 4px; color: var(--text-muted); white-space: nowrap; overflow: hidden;
+    padding: 0 8px; border-radius: 4px; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden;
   }
   section > a:hover { background: var(--bg-raised); }
   /* as stock: offline members dimmed, bots badged as in messages */
@@ -398,7 +400,7 @@ export const CSS = `
   /* content (lib/content.ts) */
   article h1, article h2, article h3 { margin: 8px 0 0; line-height: 1.25; color: var(--text-strong); }
   article h1 { font-size: 24px; } article h2 { font-size: 20px; } article h3 { font-size: 16px; }
-  article small { display: block; font-size: 12px; }
+  article small { display: block; font-size: 12px; font-weight: 400; }
   article code, article pre { font: 14px/1.3 "gg mono", ui-monospace, monospace; background: var(--bg-raised); border-radius: 4px; }
   article code { padding: 0 3px; }
   article pre { display: block; padding: 8px; margin: 4px 0; }

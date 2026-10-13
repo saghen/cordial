@@ -81,6 +81,14 @@ export function MessageInput() {
         }
     };
 
+    // pasted files (a screenshot, a copied image) join the uploads, through stock's prompt as + does
+    const paste = (e: ClipboardEvent) => {
+        const pasted = [...e.clipboardData?.files ?? []];
+        if (!pasted.length || !can()) return;
+        e.preventDefault();
+        A.promptToUpload.prompt(pasted, channel()!, 0);
+    };
+
     const key = (e: KeyboardEvent) => {
         const id = channelId()!;
         if (complete.key(e)) return;
@@ -122,7 +130,7 @@ export function MessageInput() {
         }} />
         <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} hidden={!channelId()} disabled={!can()}
         placeholder={editing() ? "Editing: Enter saves, Escape cancels" : can() ? `Message${target()}` : "You can't send messages here"}
-        onInput={input} onKeyDown={key} />
+        onInput={input} onKeyDown={key} onPaste={paste} />
         {complete.view}
     </>;
 }
