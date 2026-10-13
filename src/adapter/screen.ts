@@ -10,7 +10,7 @@ import { G } from './anchor'
 import { A, check, S } from './core'
 import { patch } from './webpack'
 
-const codecs = patch(screen.codecPatch.find, screen.codecPatch.replace)
+const codecs = patch(screen.codecPatch.find, ...screen.codecPatch.replace)
 
 screen.host.discord = {
   currentUser: () => S.User.getCurrentUser() as { id: string } | undefined,

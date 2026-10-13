@@ -20,7 +20,7 @@ export { captureCodecs, castSessionFor, currentCast, probeCaptureCodecs, setPend
 export type { CastPick, CastSource, CastStart } from './cast'
 export { host } from './host'
 export { settings } from './settings'
-export { codecPatch, orderCodecs } from './streamCodec'
+export { codecConnection, codecOrders, codecPatch, orderCodecs } from './streamCodec'
 export { allowedQualities, autoQuality, currentStreamQuality, encodableCodecs } from './streamQuality'
 export { zeroCopyStats } from './zeroCopy'
 
