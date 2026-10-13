@@ -7,7 +7,6 @@ export type Rec = Record<string, any>;
 export interface FluxStore {
     getName(): string;
     addChangeListener(fn: () => void): void;
-    removeChangeListener(fn: () => void): void;
 }
 
 export interface Stores {
@@ -103,7 +102,7 @@ export interface Actions {
         deleteMessage(channelId: Id, messageId: Id, local?: boolean): Promise<unknown>;
         // sendMessage's options for a pending reply: messageReference, allowedMentions
         getSendMessageOptionsForReply(reply: Rec | undefined): Rec;
-        fetchMessages(options: { channelId: Id; limit?: number; before?: Id; after?: Id; jump?: Rec; truncate?: boolean; }): Promise<unknown>;
+        fetchMessages(options: { channelId: Id; limit?: number; before?: Id; after?: Id; truncate?: boolean; }): Promise<unknown>;
         jumpToPresent(channelId: Id, limit: number): void;
         // edit mode, kept in EditMessageStore. startEditMessageRecord is what stock's Up and its menu's Edit call
         startEditMessageRecord(channelId: Id, message: Rec): void;
@@ -119,7 +118,6 @@ export interface Actions {
         saveDraft(channelId: Id, draft: string, draftType: number): void;
         changeDraft(channelId: Id, draft: string, draftType: number): void;
     };
-    // stock's status picker: writes the status user setting (it syncs to every client)
     // the composer's reply state (PendingReplyStore)
     replies: {
         create(options: { message: Rec; channel: Rec; shouldMention: boolean; showMentionToggle: boolean; }): void;
@@ -153,15 +151,16 @@ export interface Actions {
     markGuildsRead(guildIds: Id[], source: string): void;
     channelSections: { toggleMembersSection(): void; toggleUserProfileSidebarSection(): void; };
     memberSubscriptions: { range(o: { guildId: Id; channelId: Id; y: number; height: number; rowHeight: number; }): void; };
+    // stock's status picker: writes the status user setting (it syncs to every client)
     setStatus(options: { nextStatus: string; prevStatus?: string; durationMillis?: number; }): Promise<void>;
     nav: { transitionTo(path: string, state?: Rec): void; transitionToGuild(guildId: Id, channelId?: Id): void; replaceWith(path: string): void; };
     // stock's page size: the messages that fit the window's height (at least 10, at most 30), from its window size,
     // density and font size; the argument is only a label
     pages: { size(label?: string): number; };
     markdown: { parseToAST(text: string, inline?: boolean, state?: Rec): Rec[]; };
-    // a group DM's icon, its default one when it has none
     frecencySettings: { loadIfNecessary(): Promise<void>; };
     // a unicode emoji's image (Discord's SVG)
     emojis: { getURL(surrogate: string): string; sanitizeEmojiName: unknown; };
+    // a group DM's icon, its default one when it has none
     icons: { getChannelIconURL(o: { id: Id; icon?: string | null; applicationId?: Id; size?: number; }): string; getGuildIconURL: unknown; };
 }

@@ -10,6 +10,8 @@ import { $, selectedGuild } from "./lib/store";
 
 // as stock's click: the channel Discord remembers for the server (persisted across restarts), else its default
 const channel = (id: Id) => S.SelectedChannel.getChannelId(id) ?? undefined;
+// the DM last open, as stock's DMs button
+const lastDm = () => S.SelectedChannel.getChannelId("@me");
 const acronym = (id: Id) => $.Guild.getGuild(id)?.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3);
 
 function Guild(p: { id: Id; }) {
@@ -43,11 +45,8 @@ function Folder(p: { folder: ReturnType<typeof S.SortedGuild.getGuildFolders>[nu
 export function ServerBar() {
     let bar!: HTMLElement;
     return <aside ref={bar}>
-        <Item mc="dms" title="Direct Messages" sel={!selectedGuild()} go={() => {
-            // the DM last open, as stock
-            const last = S.SelectedChannel.getChannelId("@me");
-            A.nav.transitionTo(`/channels/@me${last ? `/${last}` : ""}`);
-        }} pre={() => S.SelectedChannel.getChannelId("@me")} />
+        <Item mc="dms" title="Direct Messages" sel={!selectedGuild()} pre={lastDm}
+            go={() => A.nav.transitionTo(`/channels/@me${lastDm() ? `/${lastDm()}` : ""}`)} />
         <For each={$.PrivateChannelReadState.getUnreadPrivateChannelIds()}>{id => <Dm id={id} bar />}</For>
         <hr />
         <For each={$.SortedGuild.getGuildFolders()}>{f => f.folderId == null ? <Guild id={f.guildIds[0]} /> : <Folder folder={f} />}</For>

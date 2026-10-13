@@ -11,11 +11,11 @@ type Embed = Record<string, any> & { type: string; url?: string; thumbnail?: Med
 const TYPES = new Set(["link", "article", "video", "rich", "image", "gifv"]);
 
 // scaled to fit, from the media proxy at that size (Discord's transform drops media without a size)
-const fit = (m: Media, w: number, h: number) => {
+export const fit = (m: Media, w: number, h: number) => {
     const s = Math.min(1, w / m.width, h / m.height);
     return { width: Math.round(m.width * s), height: Math.round(m.height * s) };
 };
-const img = (m: Media, w: number, h: number, cls: string, open?: string) => {
+export const img = (m: Media, w: number, h: number, cls: string, open?: string) => {
     const { width, height } = fit(m, w, h);
     const src = m.proxyURL ? `${m.proxyURL}${m.proxyURL.includes("?") ? "&" : "?"}width=${width}&height=${height}` : m.url;
     return <img class={cls} alt="" width={width} height={height} loading="lazy" {...(m.proxyURL && /\.gif(\?|$)/i.test(m.url) ? gif(src) : { src })}

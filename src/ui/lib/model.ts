@@ -92,6 +92,11 @@ export function dayOf(prev: Message | undefined, m: Message) {
     return prev && prev.timestamp.toDateString() !== m.timestamp.toDateString() ? format(m.timestamp, { dateStyle: "long" }) : undefined;
 }
 
+// Discord's emoji images: custom ones from its CDN, unicode ones from its own SVGs (as stock, not the system font)
+export const emojiSrc = (e: Rec) => e.id
+    ? `https://cdn.discordapp.com/emojis/${e.id}.${e.animated ? "gif" : "webp"}?size=48`
+    : A.emojis.getURL(e.surrogates ?? e.name);
+
 // message content as Discord's markdown AST (what its React output is built from), with message-content options
 export function contentAST(m: Message, channelId: Id): any[] {
     return A.markdown.parseToAST(m.content, true, {

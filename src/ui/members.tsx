@@ -11,7 +11,7 @@ import { $ } from "./lib/store";
 
 const ROW = 44;
 
-export const membersOpen = () => !!$.SelectedGuild.getGuildId() && $.ChannelSection.getSection($.SelectedChannel.getChannelId()!, false) === "MEMBERS";
+const membersOpen = () => !!$.SelectedGuild.getGuildId() && $.ChannelSection.getSection($.SelectedChannel.getChannelId()!, false) === "MEMBERS";
 
 export function MembersList() {
     let list!: HTMLElement;

@@ -35,7 +35,7 @@ function Me() {
         </button>
         <menu ref={menu} id="mc-account" data-mc="account" popover>
             {Object.entries(STATUSES).map(([value, label]) =>
-                <button value={value} data-mc={`status:${value}`} class={{ sel: status() === value }} onClick={() => pick(value)}>{label}</button>)}
+                <button data-status={value} data-mc={`status:${value}`} class={{ sel: status() === value }} onClick={() => pick(value)}>{label}</button>)}
         </menu>
     </>;
 }

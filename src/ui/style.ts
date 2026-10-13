@@ -9,6 +9,7 @@ export const CSS = `
   --text: #efeff1; --text-strong: #fbfbfb; --text-muted: #96979e; --text-faint: #4f505a;
   --mention-bg: #5f8cfb3d; --mention-fg: #a9bbff; --danger: #da3e44; --positive: #3d9e60; --warning: #fdb833;
   ${ICONS}
+  --i: var(--i-hash);
   position: fixed; inset: 0; z-index: 1; display: grid;
   grid: "notice notice notice notice" auto "servers side head head" 48px "servers nav main members" 1fr
     "servers nav uploads members" auto "servers nav reply members" auto "servers nav compose members" auto
@@ -25,10 +26,11 @@ export const CSS = `
   & > header { grid-area: head; }
   small { font-size: 14px; font-weight: 400; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
 
-  /* Discord's icons (icons.ts): a mask over the text colour */
-  nav > a:not([style])::before, & > header.channel::before, & > header > button::before,
-  & > footer > button::before, & > button:is([data-mc=mute], [data-mc=deafen], [data-mc=attach])::before, div.open > a.folder::before {
-    content: ""; width: 20px; height: 20px; background: currentColor; mask: var(--i-hash) center / contain no-repeat;
+  /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
+  nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
+  & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before,
+  menu[data-mc=message-menu] > button::before, menu > button[data-mc="menu:react"]::after, article > p > button[data-mc="reaction:add"]::before {
+    content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
 
   /* rows: server icons, channels, categories, DMs */
@@ -36,8 +38,7 @@ export const CSS = `
   aside, nav { display: grid; align-content: start; overflow-y: auto; }
   aside { scrollbar-width: none; }
   /* the server bar: stock's squircles (its BlobMask path, within 0.1 px), the pill on the left for unread, hovered and
-     selected */
-  /* its first button in the header row, as stock */
+     selected. The top padding centres the DMs button on the header row */
   aside { grid-area: servers; justify-items: center; gap: 8px; padding: 4px 0 12px; border-right: 1px solid var(--bg-raised); }
   aside a {
     width: 40px; height: 40px; border-radius: 13px; corner-shape: superellipse(1.3); display: grid; place-items: center; position: relative;
@@ -67,7 +68,7 @@ export const CSS = `
   aside a.folder::before { left: -12px; }
   aside > div.open > a.folder { width: 40px; height: 40px; border-radius: 12px; grid: auto / auto; place-items: center; background: none; color: var(--folder); }
   aside > div.open > a.folder:hover { background-color: #97979f33; }
-  aside > div.open > a.folder::before { position: static; width: 20px; height: 20px; mask-image: var(--i-folder); transition: none; }
+  aside > div.open > a.folder::before { position: static; --i: var(--i-folder); transition: none; }
   aside a.folder > i {
     width: 19px; height: 19px; border-radius: 4px; display: grid; place-items: center; overflow: hidden;
     background: var(--icon, none) center / cover, var(--bg); font: 500 8px/1 "gg sans", sans-serif;
@@ -93,16 +94,17 @@ export const CSS = `
     background-clip: padding-box; color: var(--text-muted); font-size: 15px; white-space: nowrap; overflow: hidden;
   }
   nav > a:not([style])::before { width: 18px; height: 18px; }
-  nav > a.unread { background: radial-gradient(circle at 0 50%, var(--text-strong) 3.5px, #0000 4px) 0 50% / 4px 8px no-repeat border-box, none padding-box; }
-  nav > a.news::before { mask-image: var(--i-announce); }
-  nav > a.nsfw::before, & > header.nsfw::before { mask-image: var(--i-hash-nsfw); }
-  nav > a.lock::before, & > header.lock::before { mask-image: var(--i-hash-lock); }
+  nav > a.unread {
+    background: radial-gradient(circle at 0 50%, var(--text-strong) 3.5px, #0000 4px) 0 50% / 4px 8px no-repeat border-box, none padding-box;
+    color: var(--text-strong); font-weight: 600;
+  }
+  :is(nav > a, & > header).news { --i: var(--i-announce); }
+  :is(nav > a, & > header).nsfw { --i: var(--i-hash-nsfw); }
+  :is(nav > a, & > header).lock { --i: var(--i-hash-lock); }
   nav > a:hover, nav > a.sel { background-color: var(--bg-raised); color: var(--text-strong); }
   nav > a.sel { background-color: var(--bg-selected); }
-  nav > a.unread { color: var(--text-strong); font-weight: 600; }
   nav > a.muted { color: var(--text-faint); }
-  nav > a.voice::before { mask-image: var(--i-voice); }
-  nav > a.voice > small { grid-column: 2; font-size: 12px; }
+  nav > a.voice { --i: var(--i-voice); }
   /* someone in it: the icon green, how long the call has gone on at the end */
   nav > a.live::before { color: var(--positive); }
   nav > a.voice[data-time]::after { content: attr(data-time); grid-column: 3; font: 12px "gg mono", ui-monospace, monospace; color: var(--positive); }
@@ -115,11 +117,9 @@ export const CSS = `
   nav > a[data-mc^=voice-user] > b {
     margin-left: auto; padding: 0 6px; border-radius: 8px; background: var(--danger); font: 700 11px/16px "gg sans", sans-serif; color: #fff;
   }
-  nav > a.mute[data-mc^=voice-user]::after {
-    content: ""; flex: none; width: 16px; height: 16px; background: currentColor; mask: var(--i-mic-off) center / contain no-repeat;
-  }
-  nav > a.deaf[data-mc^=voice-user]::after { width: 36px; mask: var(--i-mic-off) left / 16px no-repeat, var(--i-deaf) right / 16px no-repeat; }
-  nav > a.forced[data-mc^=voice-user]::after { background: var(--danger); }
+  nav > a.mute::after { --i: var(--i-mic-off); width: 16px; height: 16px; }
+  nav > a.deaf::after { width: 36px; mask: var(--i-mic-off) left / 16px no-repeat, var(--i-deaf) right / 16px no-repeat; }
+  nav > a.forced::after { background: var(--danger); }
   nav > a[data-mc^=voice-user]:not(:has(> b))::after { margin-left: auto; }
   /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size */
   &:has(> footer) > nav { padding-bottom: 64px; }
@@ -130,20 +130,19 @@ export const CSS = `
   & > footer[data-state=RTC_CONNECTED] { color: var(--positive); }
   & > footer > small { grid-column: 1; font-weight: 400; font-size: 12px; color: var(--text-muted); }
   & > footer > button {
-    grid-area: 1 / 2 / 3; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
-    color: var(--text-muted); font-size: 18px;
+    --i: var(--i-hangup); grid-area: 1 / 2 / 3; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
+    color: var(--text-muted);
   }
-  & > footer > button::before { mask-image: var(--i-hangup); }
   & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
   /* a category: its name and a chevron, lit on hover (no background) */
-  nav > a.cat { display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; font-weight: 500; }
+  nav > a.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; font-weight: 500; }
   nav > a.cat:hover { background: none; }
   nav > a.cat::before { display: none; }
-  nav > a.cat::after { content: ""; width: 12px; height: 12px; background: currentColor; mask: var(--i-chevron) center / contain no-repeat; }
+  nav > a.cat::after { width: 12px; height: 12px; }
   nav > a.cat.collapsed::after { rotate: -90deg; }
   /* avatars (DMs, the user panel) are round, with the status as a ring; a DM's second line is its status or size */
   nav > a[style]::before, & > header[style]::before, & > button[data-mc=me]::before {
-    content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover; mask: none;
+    content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
   }
   nav > a[data-mc^=dm] { min-height: 42px; font-size: 16px; line-height: 20px; }
   nav > a > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
@@ -168,11 +167,8 @@ export const CSS = `
   aside a[data-n]::after { position: absolute; right: -4px; bottom: -4px; box-shadow: 0 0 0 3px var(--bg); }
   /* the user panel (a button: it opens the account popout) */
   & > button {
-    display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; text-align: left;
-    font: inherit; font-weight: 500; color: var(--text-strong);
-  }
-  & > button {
-    grid-area: me; padding: 0 8px; border: 0; border-top: 1px solid var(--bg-raised); background: none; cursor: pointer;
+    grid-area: me; display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; padding: 0 8px; border: 0;
+    border-top: 1px solid var(--bg-raised); background: none; text-align: left; font: inherit; font-weight: 500; color: var(--text-strong); cursor: pointer;
   }
   & > button[data-mc=me]::before { grid-row: span 2; align-self: center; }
   & > button > small { font-size: 12px; }
@@ -180,16 +176,14 @@ export const CSS = `
   & > button[data-mc=me] { padding-right: 88px; }
   & > button:is([data-mc=mute], [data-mc=deafen]) {
     justify-self: end; align-self: center; width: 32px; height: 32px; margin-right: 8px; padding: 0; border: 0; border-radius: 4px;
-    grid: auto / auto; place-content: center;
+    grid: auto / auto; place-content: center; color: var(--text-muted);
   }
-  & > button[data-mc=mute] { margin-right: 44px; }
   & > button:is([data-mc=mute], [data-mc=deafen]):hover { background: var(--bg-raised); }
-  & > button:is([data-mc=mute], [data-mc=deafen]) { color: var(--text-muted); }
   & > button:is([data-mc=mute], [data-mc=deafen]).on { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
-  & > button[data-mc=mute]::before { mask-image: var(--i-mic); }
-  & > button[data-mc=mute].on::before { mask-image: var(--i-mic-off); }
-  & > button[data-mc=deafen]::before { mask-image: var(--i-headphones); }
-  & > button[data-mc=deafen].on::before { mask-image: var(--i-deaf); }
+  & > button[data-mc=mute] { --i: var(--i-mic); margin-right: 44px; }
+  & > button[data-mc=mute].on { --i: var(--i-mic-off); }
+  & > button[data-mc=deafen] { --i: var(--i-headphones); }
+  & > button[data-mc=deafen].on { --i: var(--i-deaf); }
 
   /* the account popout, above the panel (popovertarget makes the panel its anchor) */
   menu {
@@ -202,10 +196,7 @@ export const CSS = `
     color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer;
   }
   menu > button:hover, menu > button.sel { background: var(--bg-raised); color: var(--text-strong); }
-  menu > button[value]::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
-  menu > button[value=online]::before { background: var(--positive); }
-  menu > button[value=idle]::before { background: var(--warning); }
-  menu > button[value=dnd]::before { background: var(--danger); }
+  menu > button[data-status]::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--status); }
 
   /* messages: column-reverse keeps the view at the bottom (scroller.ts); scroll anchoring keeps it still when rows
      arrive while scrolled up */
@@ -230,7 +221,7 @@ export const CSS = `
   /* the author line: the name (only it underlines on hover), its time, a line break */
   article > b { font-weight: 500; color: var(--text-strong); white-space: normal; cursor: pointer; }
   article > b::before { pointer-events: none; }
-  article > time[data-mc=ts] { margin-left: 8px; padding: 0; background: none; font-size: 12px; color: var(--text-muted); }
+  article > time[data-mc=ts] { margin-left: 8px; font-size: 12px; color: var(--text-muted); }
   article > b:hover { text-decoration: underline 1px; }
   /* The date divider and the first unread's red line with stock's NEW tag: inside the row (content-visibility clips
      what's outside it), in a clear top border, so a mention or reply's background starts below them (the last layer
@@ -299,17 +290,16 @@ export const CSS = `
   article > figure > a { font-size: 16px; font-weight: 600; }
   article > figure > .media { grid-column: 1 / -1; display: block; max-width: 100%; height: auto; margin-top: 16px; border-radius: 4px; cursor: pointer; }
   article > figure > .thumb { grid-area: 1 / 2 / span 4; margin-top: 8px; cursor: auto; }
-  /* reactions: a chip per emoji under the content, mine ringed */
+  /* reactions as stock: a chip per emoji (Discord's images), mine ringed, then a chip to add one */
   article > p { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; white-space: normal; }
-  /* reactions as stock: chips with Discord's emoji images, then a chip to add one */
   article > p > button {
     display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 6px; border: 1px solid transparent; border-radius: 8px;
     background: var(--bg-raised); color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
   }
   article > p > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
   article > p > button:hover { border-color: var(--text-faint); }
-  article > p > button > img { width: 16px; height: 16px; }
-  article > p > button[data-mc="reaction:add"]::before { content: ""; width: 18px; height: 18px; background: currentColor; mask: var(--i-reaction) center / contain no-repeat; }
+  article > p > button > img:not(.media) { width: 16px; height: 16px; }
+  article > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); width: 18px; height: 18px; }
   /* the age gate (app.tsx): over the messages and the composer */
   & > figure {
     grid-area: main / main / compose / main; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 16px;
@@ -323,12 +313,10 @@ export const CSS = `
   menu > button:disabled { opacity: 0.5; cursor: default; }
   /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
   menu > hr { margin: 4px 8px; border: 0; border-top: 1px solid var(--bg-raised); }
-  menu > button[data-mc^="menu:"] { padding: 8px; font-weight: 500; }
-  menu > button[data-mc^="menu:"]::before {
-    content: ""; flex: none; width: 18px; height: 18px; background: currentColor; mask: var(--i) center / contain no-repeat;
-  }
+  menu[data-mc=message-menu] > button { padding: 8px; font-weight: 500; }
+  menu[data-mc=message-menu] > button::before { width: 18px; height: 18px; }
   menu > button[data-mc="menu:react"] { --i: var(--i-reaction); }
-  menu > button[data-mc="menu:react"]::after { content: ""; width: 16px; height: 16px; margin-left: auto; background: currentColor; mask: var(--i-chevron-right) center / contain no-repeat; }
+  menu > button[data-mc="menu:react"]::after { --i: var(--i-chevron-right); width: 16px; height: 16px; margin-left: auto; }
   menu > button[data-mc="menu:edit"] { --i: var(--i-pencil); }
   menu > button[data-mc="menu:reply"] { --i: var(--i-reply); }
   menu > button[data-mc="menu:copy"] { --i: var(--i-copy); }
@@ -340,32 +328,28 @@ export const CSS = `
   menu[data-mc=message-menu] > p:first-child > button { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); }
   menu > input { padding: 6px 8px; border: 0; border-radius: 4px; outline: 0; background: var(--bg-deep); color: inherit; font: inherit; }
   menu > p { display: grid; grid-template-columns: repeat(6, 1fr); }
-  menu > p > button { padding: 4px; border: 0; border-radius: 4px; background: none; font-size: 22px; line-height: 1; cursor: pointer; }
+  menu > p > button { padding: 4px; border: 0; border-radius: 4px; background: none; cursor: pointer; }
   menu > p > button:hover { background: var(--bg-raised); }
   menu > p > button > img { width: 24px; height: 24px; }
 
   /* the member list (members.tsx), and its toggle at the header's end */
-  & > header.channel::before { flex: none; width: 24px; height: 24px; color: var(--text-muted); }
-  & > header > button { display: grid; margin-left: auto; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; }
-  & > header > button::before { width: 20px; height: 20px; mask-image: var(--i-members); }
+  & > header.channel::before { width: 24px; height: 24px; color: var(--text-muted); }
+  & > header > button { --i: var(--i-members); display: grid; margin-left: auto; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; }
   & > header > button:hover, & > header > button.on { color: var(--text-strong); }
-  section {
-    grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised);
-    display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; overflow-x: hidden;
-  }
-  section > h3 { grid-column: 1 / -1; padding: 24px 8px 4px; font-size: 14px; font-weight: 500; color: var(--text-muted); }
+  section { grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised); }
+  section > h3 { padding: 24px 8px 4px; font-size: 14px; font-weight: 500; color: var(--text-muted); }
   section > a {
-    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; height: 44px;
+    display: flex; align-items: center; gap: 12px; height: 44px;
     padding: 0 8px; border-radius: 4px; color: var(--text-muted); white-space: nowrap; overflow: hidden;
   }
   section > a:hover { background: var(--bg-raised); }
   /* as stock: offline members dimmed, bots badged as in messages */
   section > a[data-status=offline] { opacity: 0.3; }
-  section > a > i { margin-left: -8px; }
   section > a > i, article > b > i {
     display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; background: var(--accent); color: #fff;
     font: 600 10px/15px "gg sans", sans-serif; font-style: normal; vertical-align: 2px;
   }
+  section > a > i { margin-left: -8px; }
   section > a::before { content: ""; flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--icon, var(--bg-raised)) center / cover; }
 
   /* the message input (message_input.tsx): grows with its text, up to half the window */
@@ -373,6 +357,7 @@ export const CSS = `
     grid-area: compose; margin: 0 16px 16px; min-height: 56px; max-height: 50vh; padding: 16px 16px 16px 56px; resize: none;
     field-sizing: content; anchor-name: --box; border: 0; border-radius: 8px; outline: 0; background: var(--bg-raised); color: inherit; font: inherit;
   }
+  textarea::placeholder { color: var(--text-faint); }
   textarea.editing { box-shadow: 0 0 0 2px var(--accent); }
   &:has(> label) > textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
   /* autocomplete (message_input.tsx): a list over the messages, as wide as the box, just above it */
@@ -380,22 +365,19 @@ export const CSS = `
   menu[data-mc=autocomplete] > button > img { width: 24px; height: 24px; border-radius: 50%; }
   /* the attach button over the box's left edge, the files waiting to go as chips above it */
   & > button[data-mc=attach] {
-    grid-area: compose; align-self: start; justify-self: start; z-index: 1; width: 24px; height: 24px; margin: 16px 0 0 32px;
+    --i: var(--i-plus); grid-area: compose; align-self: start; justify-self: start; z-index: 1; width: 24px; height: 24px; margin: 16px 0 0 32px;
     padding: 0; border: 0; background: none; color: var(--text-muted); place-content: center; cursor: pointer;
   }
   & > button[data-mc=attach]:hover { color: var(--text-strong); }
-  & > button[data-mc=attach]::before { mask-image: var(--i-plus); }
   & > button[data-mc=attach][hidden] { display: none; }
   & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
   & > ul > button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
-  textarea::placeholder { color: var(--text-faint); }
   /* back to the present, at the messages' bottom left */
   & > button[data-mc=jump] {
-    grid-area: main; align-self: end; justify-self: start; z-index: 2; display: grid; width: 32px; height: 32px; margin: 0 0 32px 16px;
+    --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: start; z-index: 2; display: grid; width: 32px; height: 32px; margin: 0 0 32px 16px;
     padding: 0; border: 0; border-radius: 50%; background: var(--bg-floating); color: var(--text-strong); place-content: center;
     box-shadow: 0 4px 8px #0006; cursor: pointer;
   }
-  & > button[data-mc=jump]::before { content: ""; width: 20px; height: 20px; background: currentColor; mask: var(--i-chevron) center / contain no-repeat; }
   /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
      on the background with a fade above, over what scrolls under it */
   & > output {
@@ -428,7 +410,7 @@ export const CSS = `
   article mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
   article del { text-decoration: none; background: var(--bg-deep); color: transparent; border-radius: 4px; cursor: pointer; }
   article del[open] { background: var(--bg-raised); color: inherit; }
-  article time { background: var(--bg-raised); border-radius: 3px; padding: 0 2px; }
+  article time:not([data-mc]) { background: var(--bg-raised); border-radius: 3px; padding: 0 2px; }
 }
 @keyframes mc-typing { to { mask-position: 0; } }
 `;

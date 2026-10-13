@@ -25,4 +25,5 @@ function track(store: FluxStore) {
 export const $ = new Proxy(S, { get: (s, k) => track(s[k as keyof typeof S]) }) as typeof S;
 
 export const selected = () => $.SelectedChannel.getChannelId();
+export const selectedChannel = () => $.Channel.getChannel(selected()!);
 export const selectedGuild = () => $.SelectedGuild.getGuildId();

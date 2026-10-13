@@ -1,6 +1,8 @@
 // Discord's markdown AST (model.ts contentAST) to plain DOM: content never changes, so it needs no reactivity. An
 // unknown node type renders its text.
 
+import { emojiSrc } from "./model";
+
 type Node = Record<string, any> & { type: string; };
 
 const TAGS: Record<string, string> = {
@@ -34,7 +36,7 @@ function node(n: Node): globalThis.Node | string {
         case "emoji": case "customEmoji": {
             const img = el("img", null);
             img.alt = n.name ?? n.surrogate ?? "";
-            img.src = n.src ?? `https://cdn.discordapp.com/emojis/${n.emojiId}.${n.animated ? "gif" : "webp"}?size=48`;
+            img.src = n.src ?? emojiSrc({ id: n.emojiId, animated: n.animated });
             return img;
         }
         case "mention": case "channelMention": case "roleMention": {

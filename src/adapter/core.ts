@@ -128,7 +128,7 @@ needs.push({
     resolve: () => typeof S.DefaultRoute?.defaultRoute === "string" ? null : "not a path"
 });
 
-byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "getSendMessageOptionsForReply",
+byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "jumpToPresent", "getSendMessageOptionsForReply",
     "startEditMessageRecord", "updateEditMessage", "endEditMessage");
 byProps("parser", "parse", "unparse");
 byProps("drafts", "saveDraft", "changeDraft");

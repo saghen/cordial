@@ -7,7 +7,7 @@ import type { Rec } from "../adapter/discord";
 import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from "./channels";
 import { Chat } from "./chat";
 import { warm } from "./lib/preload";
-import { $, selected, selectedGuild } from "./lib/store";
+import { $, selectedChannel, selectedGuild } from "./lib/store";
 import { MembersList, MembersToggle } from "./members";
 import { MessageInput } from "./message_input";
 import { ServerBar } from "./server_bar";
@@ -37,10 +37,7 @@ function Connection() {
 function Gate(p: { channel: Rec; }) {
     const allowed = () => $.User.getCurrentUser()?.nsfwAllowed !== false;
     // stock's rule reads its stores itself: reading them through $ first subscribes to them
-    const gated = () => {
-        void $.GuildNSFWAgree, void $.Guild;
-        return allowed() !== undefined && A.ageGate.gated(p.channel);
-    };
+    const gated = () => (void $.GuildNSFWAgree, void $.Guild, void $.User, A.ageGate.gated(p.channel));
     return <Show when={gated()}>
         <figure data-mc="gate">
             <h2>Age-Restricted Channel</h2>
@@ -54,7 +51,8 @@ function Gate(p: { channel: Rec; }) {
 }
 
 export function App(p: { root: HTMLElement; }) {
-    const channel = () => $.Channel.getChannel(selected()!);
+    const channel = selectedChannel;
+    const dm = () => channel() && !channel()!.guild_id;
     warm();
     return <>
         <style>{CSS}</style>
@@ -63,8 +61,8 @@ export function App(p: { root: HTMLElement; }) {
         <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : "Direct Messages"}</h1>
         <Channels />
         <UserPanel />
-        <header style={channel()?.guild_id ? undefined : url(dmIcon(channel()))} data-status={channel()?.guild_id ? undefined : dmStatus(channel())}
-            class={channel()?.guild_id ? ["channel", kindOf(channel()!)] : undefined}>
+        <header style={dm() ? url(dmIcon(channel())) : undefined} data-status={dm() ? dmStatus(channel()) : undefined}
+            class={channel() && !dm() ? ["channel", kindOf(channel()!)] : undefined}>
             <Show when={channel()}>{c => <>{c().guild_id ? c().name : dmName(c())}<small>{c().topic}</small></>}</Show>
             <MembersToggle />
         </header>

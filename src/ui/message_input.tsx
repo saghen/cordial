@@ -9,19 +9,17 @@ import { startTyping, stopTyping } from "../adapter/triggers";
 import type { Rec } from "../adapter/discord";
 import { dmName } from "./channels";
 import { authorOf, can as allowed, type Message, nameOf, PERMS } from "./lib/model";
-import { $, selected } from "./lib/store";
+import { $, selected, selectedChannel } from "./lib/store";
 
 export function MessageInput() {
-    const channelId = createMemo(() => $.SelectedChannel.getChannelId());
+    const channelId = selected;
+    const channel = createMemo(selectedChannel);
     const editing = createMemo(() => channelId() ? $.EditMessage.getEditingMessageId(channelId()!) : undefined);
-    const can = createMemo(() => {
-        const c = channelId() && $.Channel.getChannel(channelId()!);
-        return !!c && allowed(PERMS.SEND_MESSAGES, c);
-    });
+    const can = createMemo(() => !!channel() && allowed(PERMS.SEND_MESSAGES, channel()!));
     const reply = createMemo(() => channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined);
     const uploads = createMemo(() => channelId() ? $.UploadAttachment.getUploads(channelId()!, 0) : []);
     let box!: HTMLTextAreaElement, files!: HTMLInputElement;
-    const complete = createAutocomplete(() => box, () => channelId() ? S.Channel.getChannel(channelId()!) : undefined);
+    const complete = createAutocomplete(() => box, channel);
 
     // as stock: the draft is saved at most every 500 ms while it changes (first and last change included), and on a switch
     let last = 0, timer: ReturnType<typeof setTimeout> | undefined;
@@ -46,7 +44,7 @@ export function MessageInput() {
     });
     // as stock: "Message #channel", "Message @user"
     const target = () => {
-        const c = channelId() && $.Channel.getChannel(channelId()!);
+        const c = channel();
         return !c ? "" : c.guild_id ? ` #${c.name}` : c.type === 1 ? ` @${dmName(c)}` : ` ${dmName(c)}`;
     };
 
@@ -61,17 +59,17 @@ export function MessageInput() {
     };
 
     const send = () => {
-        const id = channelId()!, channel = S.Channel.getChannel(id)!, text = box.value.trim(), edit = editing();
+        const id = channelId()!, c = channel()!, text = box.value.trim(), edit = editing();
         if (edit) {
             // an unchanged or emptied message just leaves edit mode (stock asks to delete an emptied one)
-            const content = A.parser.parse(channel, text).content;
+            const content = A.parser.parse(c, text).content;
             if (text && content !== S.Message.getMessage(id, edit)?.content) A.messages.editMessage(id, edit, { content, components: undefined });
             A.messages.endEditMessage(id);
         } else if (text || uploads().length) {
             const options = A.messages.getSendMessageOptionsForReply(S.PendingReply.getPendingReply(id));
             // with files, as stock: no optimistic row (eagerDispatch), the message shows once uploaded
             const attachmentsToUpload = uploads().length ? uploads() : undefined;
-            A.messages.sendMessage(id, A.parser.parse(channel, text), undefined,
+            A.messages.sendMessage(id, A.parser.parse(c, text), undefined,
                 { ...options, attachmentsToUpload, eagerDispatch: attachmentsToUpload ? false : undefined, location: "chat_input" });
             if (reply()) A.replies.remove(id);
             if (attachmentsToUpload) A.uploads.clearAll(id, 0);
@@ -119,7 +117,7 @@ export function MessageInput() {
         </Show>
         <button data-mc="attach" title="Upload a file" hidden={!channelId() || !can()} onClick={() => files.click()} />
         <input ref={files} type="file" multiple hidden onChange={() => {
-            A.promptToUpload.prompt([...files.files!], S.Channel.getChannel(channelId()!)!, 0);
+            A.promptToUpload.prompt([...files.files!], channel()!, 0);
             files.value = "";
         }} />
         <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} hidden={!channelId()} disabled={!can()}
@@ -145,9 +143,8 @@ function Typing() {
     </Show>;
 }
 
-// autocomplete: `@` users and roles, `#` channels, `:` emoji (two letters at least, as stock), from
-// stock's own queries. One list above the box; Up and Down move, Tab or Enter put the pick in the box as text the
-// parser turns back into a mention, Escape closes
+// autocomplete from stock's own queries: `@` users and roles, `#` channels, `:` emoji (two letters at least, as stock).
+// A pick goes in as text the parser turns back into a mention
 
 interface Item { text: string; label: string; icon?: string; }
 

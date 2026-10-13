@@ -1,14 +1,7 @@
 // The bundle's entry, injected by shell/preload.js: mounts the shell (app.tsx) where the anchor puts our root.
 //
-// Lab conventions (ai/lab/budgets.py, conformance.py and the scenarios rely on them):
-//   data-mc="guild:ID" | "channel:ID" | "dm:ID"   the element a click on navigates there
-//   #mincord-root[data-view="channel:ID"]          set in the task that puts that channel's messages in the DOM
-//   data-mc="messages"                              the message list's scroller
-//   data-mc="author:ID"                             an author's name in the list
-//   data-mc="category:ID"                           a category row; a click collapses or expands it
-//   data-mc="composer"                              the composer's textarea
-//   data-mc="me" | "account" | "status:NAME"      the user panel, its popout, a status in it (online, idle, dnd, invisible)
-//   data-mc="notice"                                the notice bar, shown while the gateway is down
+// For the lab (ai/lab): data-mc marks what its scripts click and read; #mincord-root[data-view="channel:ID"] is set in
+// the task that puts that channel's messages in the DOM.
 
 import { render } from "@solidjs/web";
 

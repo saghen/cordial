@@ -128,7 +128,7 @@ function VoiceRow(p: { channel: Rec; }) {
             const user = () => $.User.getUser(v.userId);
             // as stock: you, connected from another client, dimmed
             const elsewhere = () => v.userId === $.User.getCurrentUser()?.id && $.RTCConnection.getChannelId() !== p.channel.id;
-            return <a data-mc={`voice-user:${v.userId}`} style={{ "--icon": `url(${user()?.getAvatarURL(p.channel.guild_id, 32)})` }}
+            return <a data-mc={`voice-user:${v.userId}`} style={url(user()?.getAvatarURL(p.channel.guild_id, 32))}
                 class={{ speaking: $.Speaking.isSpeaking(v.userId), mute: v.selfMute || v.mute, deaf: v.selfDeaf || v.deaf, forced: v.mute || v.deaf, elsewhere: elsewhere() }}>
                 {nameOf(user(), $.GuildMember.getMember(p.channel.guild_id, v.userId)?.nick)}<Show when={v.selfStream}><b>LIVE</b></Show>
             </a>;
