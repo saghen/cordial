@@ -92,8 +92,9 @@ export const CSS = `
     a.unread::before { height: 8px; }
     a:hover::before { height: 20px; }
     a.sel::before { height: 40px; }
-    a[data-mc=dms] { background: var(--img-chat) center / 24px no-repeat, var(--bg-raised); }
-    a[data-mc=dms]:is(:hover, .sel) { background-image: var(--img-chat-on); }
+    /* the DMs button: a bare bubble (Liam's design), grey, lavender while hovered or open */
+    a[data-mc=dms] { background: var(--img-chat) center / 24px no-repeat; }
+    a[data-mc=dms]:is(:hover, .sel) { background: var(--img-chat-on) center / 24px no-repeat; }
     a[data-n]::after { position: absolute; right: -4px; bottom: -4px; box-shadow: 0 0 0 3px var(--bg); }
     /* folders, as stock measures them: closed, a 48 px tile of four; open, the folder icon in its colour over its
        servers, on one column */

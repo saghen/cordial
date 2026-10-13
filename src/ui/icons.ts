@@ -147,13 +147,13 @@ const svg = (ds: string[], fill = 'black', box = 24) =>
   `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${box} ${box}' fill='${fill}'>${ds.map((d) => `<path fill-rule='evenodd' d='${d}'/>`).join('')}</svg>`
 const uri = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 
-// images: the idle status's bite (a mask: stock's, kept inside the dot), the DMs button's bubble, white on its accent (its ::before is the pill), the unread line's NEW tag (a row's ::after is "(edited)"), the pickers' search field's magnifier
+// images: the idle status's bite (a mask: stock's, kept inside the dot), the DMs button's bubble, in the colour of its state (its ::before is the pill), the unread line's NEW tag (a row's ::after is "(edited)"), the pickers' search field's magnifier
 export const ICONS =
   Object.entries(PATHS)
     .filter(([name]) => name !== 'chat')
     .map(([name, ds]) => `--i-${name}: ${uri(svg(ds))};`)
     .join(' ') +
-  ` --img-chat: ${uri(svg(PATHS.chat, '#b5bfe7'))}; --img-chat-on: ${uri(svg(PATHS.chat, '#fbfbfb'))};` +
+  ` --img-chat: ${uri(svg(PATHS.chat, '#96979e'))}; --img-chat-on: ${uri(svg(PATHS.chat, '#b5bfe7'))};` +
   ` --img-search: ${uri(svg(PATHS.search, '#96979e'))};` +
   ` --i-call-joined: ${uri(svg(CALLS.joined, 'black', 18))}; --i-call-missed: ${uri(svg(CALLS.missed, 'black', 18))};` +
   ` --idle-cut: ${uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'><clipPath id='d'><circle cx='.5' cy='.5' r='.5'/></clipPath><circle cx='.25' cy='.25' r='.375' clip-path='url(#d)'/></svg>")};` +
