@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -94,6 +94,24 @@ app.whenReady().then(() => {
     event.preventDefault()
     win.webContents.setZoomFactor(zoom)
     fs.writeFile(zoomFile, String(zoom), () => {})
+  })
+  // right click in a text field (our own menus take theirs before it gets here): Electron's spellchecker's suggestions
+  // for a misspelt word and Add to Dictionary, then the edit actions, as stock's composer menu
+  win.webContents.on('context-menu', (_, p) => {
+    if (!p.isEditable) return
+    const wc = win.webContents
+    const spelling = p.misspelledWord
+      ? [
+          ...p.dictionarySuggestions.map((word) => ({ label: word, click: () => wc.replaceMisspelling(word) })),
+          {
+            label: 'Add to Dictionary',
+            click: () => wc.session.addWordToSpellCheckerDictionary(p.misspelledWord),
+          },
+          { type: 'separator' },
+        ]
+      : []
+    const edit = ['cut', 'copy', 'paste', 'selectAll'].map((role) => ({ role }))
+    Menu.buildFromTemplate([...spelling, ...edit]).popup({ window: win })
   })
   // the badge from the title our UI writes (app.tsx): "(N) Discord" is N (Unity launchers and macOS show it)
   win.on('page-title-updated', (_, title) => app.setBadgeCount(+(title.match(/^\((\d+)\) /)?.[1] ?? 0)))
