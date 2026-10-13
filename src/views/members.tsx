@@ -10,6 +10,7 @@ import type { Id, Rec } from '../adapter/discord'
 import { nameOf } from '../api/model'
 import { $, selectedChannel } from '../api/store'
 import { Toggle } from '../primitives/button'
+import { Badge } from '../primitives/badge'
 
 const ROW = 44
 const GROUP_DM = 3
@@ -72,7 +73,7 @@ export function MembersList() {
               >
                 {r && nameOf(r.user, r.nick)}
                 <Show when={r?.user.bot}>
-                  <i>APP</i>
+                  <Badge kind="app">APP</Badge>
                 </Show>
               </a>
             )

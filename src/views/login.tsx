@@ -9,6 +9,7 @@ import { G } from '../adapter/anchor'
 import { A, S } from '../adapter/needs'
 import { $ } from '../api/store'
 import { TextField } from '../primitives/fields'
+import { Button } from '../primitives/button'
 
 // the steps stock's own screen takes over (AuthenticationStore's login status)
 const DISCORDS = [
@@ -94,25 +95,26 @@ export function Login() {
             autofocus
           />
           <Show when={kinds().length > 1}>
-            <button
+            <Button
               type="button"
+              variant="link"
               class="login-kind"
               onClick={() => setKind(mfaType() === 'backup' ? 'totp' : 'backup')}
             >
               {mfaType() === 'backup' ? 'Use your authenticator app' : 'Use a backup code'}
-            </button>
+            </Button>
           </Show>
         </Show>
       </Show>
       <Show when={error() || DISCORDS.includes(status())}>
         <p role="alert">{error() || "Discord's login screen continues from here."}</p>
       </Show>
-      <button class="login-submit" disabled={busy() || (mfa() && !mfaType())}>
+      <Button variant="primary" class="login-submit" disabled={busy() || (mfa() && !mfaType())}>
         {busy() ? 'Logging in…' : 'Log In'}
-      </button>
-      <button type="button" class="login-discord" onClick={() => G.discordLogin()}>
+      </Button>
+      <Button type="button" variant="link" class="login-discord" onClick={() => G.discordLogin()}>
         Use Discord's login screen
-      </button>
+      </Button>
     </form>
   )
 }

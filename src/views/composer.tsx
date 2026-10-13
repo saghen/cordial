@@ -12,7 +12,7 @@ import { useFileDrop } from '../api/hooks'
 import { authorOf, can as allowed, emojiSrc, type Message, nameOf, PERMS } from '../api/model'
 import { $, selected, selectedChannel } from '../api/store'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
-import { IconButton } from '../primitives/button'
+import { Button, IconButton } from '../primitives/button'
 
 export function MessageInput() {
   const channelId = selected
@@ -181,16 +181,21 @@ export function MessageInput() {
           <label class="reply">
             Replying to <b>{authorOf(r().message as Message, r().channel.guild_id).name}</b>
             <Show when={r().showMentionToggle}>
-              <button
+              <Button
+                variant="link"
                 class={['reply-mention', { on: r().shouldMention }]}
+                aria-pressed={r().shouldMention ? 'true' : 'false'}
                 onClick={() => A.replies.mention(channelId()!, !r().shouldMention)}
               >
                 @ {r().shouldMention ? 'on' : 'off'}
-              </button>
+              </Button>
             </Show>
-            <button class="reply-cancel" onClick={() => A.replies.remove(channelId()!)}>
-              ✕
-            </button>
+            <IconButton
+              class="reply-cancel"
+              icon="close"
+              title="Cancel Reply"
+              onClick={() => A.replies.remove(channelId()!)}
+            />
           </label>
         )}
       </Show>

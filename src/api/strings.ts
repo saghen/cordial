@@ -18,7 +18,9 @@ export function text(name: (typeof STOCK)[number], values?: Record<string, unkno
 }
 
 // DateUtils, in the user's 12/24 h setting: a message's timestamp ("10:59 PM", "Yesterday at 10:59 PM",
-// "5/31/24, 11:15 AM"), the clock ("10:59 PM") and the date divider ("May 31, 2024")
+// "5/31/24, 11:15 AM"), the clock ("10:59 PM"), the date divider ("May 31, 2024") and the timestamp's tooltip
+// ("Friday, May 31, 2024 10:59 PM")
 export const when = (d: Date) => A.dates.calendar(d, true)
 export const clock = (d: Date) => A.dates.format(d, 'LT')
 export const day = (d: Date) => A.dates.format(d, 'LL')
+export const full = (d: Date) => A.dates.format(d, 'LLLL')

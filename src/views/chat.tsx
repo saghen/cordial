@@ -23,11 +23,13 @@ import {
   USER_MESSAGE,
   hiddenAs,
 } from '../api/model'
-import { clock, when } from '../api/strings'
+import { clock } from '../api/strings'
+import { Time } from '../components/time'
+import { Badge } from '../primitives/badge'
 import { contextMenu, Items } from '../primitives/menu'
 import { createScroller } from './scroller'
 import { $, selected, selectedChannel } from '../api/store'
-import { IconButton } from '../primitives/button'
+import { Button, IconButton } from '../primitives/button'
 import { modal } from '../primitives/modal'
 import { SearchInput } from '../primitives/search'
 
@@ -54,7 +56,7 @@ const callMessage = (m: Message): globalThis.Node[] => {
   const text = missed(m) ? ['You missed a call from ', who, `${lasted}.`] : [who, ` started a call${lasted}.`]
   return [
     ...text.map((n) => (typeof n === 'string' ? document.createTextNode(n) : n)),
-    (<time class="ts">{when(m.timestamp)}</time>) as HTMLElement,
+    (<Time at={m.timestamp} />) as HTMLElement,
   ]
 }
 
@@ -279,10 +281,10 @@ export function Chat(p: { root: HTMLElement }) {
                 <b class="author" data-id={a().id} data-day={day()} style={{ color: a().color ?? undefined }}>
                   {a().name}
                   <Show when={a().bot}>
-                    <i>APP</i>
+                    <Badge kind="app">APP</Badge>
                   </Show>
                 </b>
-                <time class="ts">{when(m.timestamp)}</time>
+                <Time at={m.timestamp} />
                 {'\n'}
               </>
             )}
@@ -317,12 +319,16 @@ export function Chat(p: { root: HTMLElement }) {
           <Show when={m.state === 'SEND_FAILED'}>
             <p class="failed">
               Not sent.
-              <button class="retry" onClick={() => resend(m.channel_id, m)}>
+              <Button variant="link" class="retry" onClick={() => resend(m.channel_id, m)}>
                 Retry
-              </button>
-              <button class="discard" onClick={() => A.messages.deleteMessage(m.channel_id, m.id, true)}>
+              </Button>
+              <Button
+                variant="link"
+                class="discard"
+                onClick={() => A.messages.deleteMessage(m.channel_id, m.id, true)}
+              >
                 Delete
-              </button>
+              </Button>
             </p>
           </Show>
         </Show>
@@ -416,7 +422,8 @@ function NewMessages(p: { channelId: () => Id | null }) {
     <Show when={bar()}>
       {(text) => (
         <div class="new-messages">
-          <button
+          <Button
+            variant="link"
             class="new-messages-jump"
             onClick={() => {
               const id = p.channelId()!
@@ -429,8 +436,9 @@ function NewMessages(p: { channelId: () => Id | null }) {
             }}
           >
             {text()}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="link"
             class="new-messages-read"
             onClick={() =>
               A.acks.ack(p.channelId()!, {
@@ -441,7 +449,7 @@ function NewMessages(p: { channelId: () => Id | null }) {
             }
           >
             Mark As Read
-          </button>
+          </Button>
         </div>
       )}
     </Show>

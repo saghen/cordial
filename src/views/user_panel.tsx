@@ -11,7 +11,7 @@ import { dmName, url } from './channels'
 import { emojiSrc, nameOf } from '../api/model'
 import { contextMenu, Items } from '../primitives/menu'
 import { $ } from '../api/store'
-import { IconButton, Toggle } from '../primitives/button'
+import { Button, IconButton, Toggle } from '../primitives/button'
 import { modal } from '../primitives/modal'
 import { Popout } from '../primitives/popout'
 import { Check, Radios, Range, Select } from '../primitives/fields'
@@ -312,12 +312,12 @@ function ScreenPicker() {
         <h2>Share Your Screen</h2>
         <For each={a().sources}>
           {(s) => (
-            <button class={['source', s.kind]} data-id={s.id} onClick={() => pick(a(), s)}>
+            <Button class={['source', s.kind]} data-id={s.id} onClick={() => pick(a(), s)}>
               {s.name}
               <small>
                 {s.detail} · {s.width}×{s.height}
               </small>
-            </button>
+            </Button>
           )}
         </For>
         <Select
@@ -326,9 +326,9 @@ function ScreenPicker() {
           value={screen.settings.priority}
           onChange={(v) => (screen.settings.priority = v)}
         />
-        <button class="screen-cancel" onClick={picker.close}>
+        <Button variant="link" class="screen-cancel" onClick={picker.close}>
           Cancel
-        </button>
+        </Button>
       </>
     ),
   })

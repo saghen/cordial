@@ -9,7 +9,7 @@ import type { FluxStore, Id, Rec } from '../adapter/discord'
 import { url } from './channels'
 import { nameOf } from '../api/model'
 import { $, selectedChannel } from '../api/store'
-import { IconButton } from '../primitives/button'
+import { Button, IconButton } from '../primitives/button'
 
 // a DM's call with someone in it (a call record can outlive its last participant)
 const going = (id: Id) => !!$.Call.getCall(id) && Object.keys($.VoiceState.getVoiceStatesForChannel(id)).length > 0
@@ -64,9 +64,9 @@ export function CallView() {
                 <Show
                   when={!c().guild_id}
                   fallback={
-                    <button class="call-join" onClick={() => A.voice.selectVoiceChannel(c().id)}>
+                    <Button variant="positive" class="call-join" onClick={() => A.voice.selectVoiceChannel(c().id)}>
                       Join Voice
-                    </button>
+                    </Button>
                   }
                 >
                   <IconButton
@@ -108,9 +108,9 @@ function StreamTile(p: { ownerId: Id; guildId: Id | null; name: string }) {
     <figure class={{ stream: true, watching: !!watching() }} data-id={p.ownerId}>
       <Show when={video()}>{(id) => <Video id={id()} />}</Show>
       <span>{p.name}</span>
-      <button class="stream-watch" onClick={toggle}>
+      <Button class="stream-watch" onClick={toggle}>
         {watching() ? 'Stop Watching' : 'Watch Stream'}
-      </button>
+      </Button>
     </figure>
   )
 }

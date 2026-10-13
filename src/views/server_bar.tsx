@@ -8,7 +8,7 @@ import { Dm, Item, url } from './channels'
 import { contextMenu, Items } from '../primitives/menu'
 import { $, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
-import { IconButton } from '../primitives/button'
+import { Button, IconButton } from '../primitives/button'
 import { Popout } from '../primitives/popout'
 import { TextField } from '../primitives/fields'
 
@@ -157,7 +157,9 @@ function AddServer() {
             )}
           </Show>
         </Show>
-        <button disabled={!invite()}>Join Server</button>
+        <Button variant="primary" disabled={!invite()}>
+          Join Server
+        </Button>
       </Popout>
     </>
   )

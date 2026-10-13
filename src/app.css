@@ -116,10 +116,6 @@ aside {
   > button.add-server { width: 40px; height: 40px; border-radius: 12px; background: var(--bg-raised); color: var(--positive); }
   > button.add-server:hover { background: var(--positive); color: #fff; }
 }
-form:is(.join, .login) {
-  > button { padding: 8px; border-radius: 4px; background: var(--accent); color: #fff; font: inherit; font-weight: 500; }
-  > button:disabled { opacity: .5; cursor: default; }
-}
 form.join {
   position: fixed; inset: 48px auto auto 80px; width: 360px; padding: 16px; font-size: 14px;
   &:popover-open { display: grid; gap: 12px; }
@@ -133,7 +129,7 @@ form.login {
   border-radius: 8px; background: var(--bg-floating); font-size: 14px;
   > h2 { font-size: 24px; text-align: center; color: var(--text-strong); }
   > p[role=alert] { color: var(--danger); }
-  > button[type=button] { justify-self: start; padding: 0; background: none; color: var(--link); }
+  > .link { justify-self: start; }
 }
 
 /* the channel list and the DMs. A row reaches the list's edge with a clear left border, where the unread pill goes;
@@ -162,13 +158,11 @@ nav > a {
   &.speaking::before { box-shadow: 0 0 0 2px var(--positive); }
   &.elsewhere { opacity: 0.5; }
   /* muted: the mic off; deafened: the mic and headphones off; by the server: in red */
-  &.voice-user > b {
-    margin-left: auto; padding: 0 6px; border-radius: 8px; background: var(--danger); font: 700 11px/16px "gg sans", sans-serif; color: #fff;
-  }
+  &.voice-user > .badge { margin-left: auto; }
   &.mute::after { --i: var(--i-mic-off); width: 16px; height: 16px; }
   &.deaf::after { width: 36px; mask: var(--i-mic-off) left / 16px no-repeat, var(--i-deaf) right / 16px no-repeat; }
   &.forced::after { background: var(--danger); }
-  &.voice-user:not(:has(> b))::after { margin-left: auto; }
+  &.voice-user:not(:has(> .badge))::after { margin-left: auto; }
   /* a category: its name and a chevron, lit on hover (no background) */
   &.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; line-height: 16px; font-weight: 500; }
   &.cat:first-child { margin-top: 0; }
@@ -210,9 +204,8 @@ dialog.screen-picker {
   &[open] { display: grid; gap: 8px; }
   &::backdrop { background: #000a; }
   > h2 { font-size: 20px; color: var(--text-strong); }
-  > button { display: grid; justify-items: start; padding: 8px 12px; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-weight: 600; }
-  > button:hover { background: var(--bg-selected); }
-  > button.screen-cancel { justify-self: end; background: none; color: var(--text-muted); font-weight: 500; }
+  > .source { display: grid; justify-items: start; padding: 8px 12px; font-weight: 600; }
+  > .screen-cancel { justify-self: end; color: var(--text-muted); }
 }
 /* the soundboard: each server's sounds as tiles, over the panel */
 menu.soundboard {
@@ -328,7 +321,7 @@ article {
   &.sending { color: var(--text-muted); }
   &.failed { color: var(--danger); }
   > p.failed { font-size: 14px; }
-  > p.failed > button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; }
+  > p.failed > .button { margin-left: 8px; }
   /* a reply: the replied-to message above the author line, with the spine from the avatar's column to it */
   > q {
     position: relative; display: block; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; quotes: none;
@@ -370,21 +363,22 @@ article {
   }
   /* reactions as stock: a chip per emoji (Discord's images), mine ringed, then a chip to add one */
   > p { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; white-space: normal; }
-  > p > button {
+  > p.reactions > button {
     display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border: 1px solid transparent; border-radius: 8px;
     background: var(--bg-raised); color: var(--text-muted); font: inherit; font-size: 15px; font-weight: 600;
   }
-  > p > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
-  > p > button:hover { border-color: var(--text-faint); }
-  > p > button > img:not(.media) { width: 20px; height: 20px; object-fit: contain; }
+  > p.reactions > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
+  > p.reactions > button:hover { border-color: var(--text-faint); }
+  > p.reactions > button > img:not(.media) { width: 20px; height: 20px; object-fit: contain; }
 }
 /* the reply bar above the composer */
 & > label {
   grid-area: reply; display: flex; align-items: center; gap: 8px; margin: 0 16px; padding: 6px 12px;
   border-radius: 8px 8px 0 0; background: var(--bg-floating); font-size: 14px; color: var(--text-muted);
   > b { color: var(--text-strong); font-weight: 600; margin-right: auto; }
-  > button { color: inherit; font: inherit; }
-  > button.on { color: var(--accent); font-weight: 700; }
+  > .reply-mention { color: inherit; }
+  > .reply-mention.on { color: var(--accent); font-weight: 700; }
+  > .reply-cancel { --icon-size: 16px; }
 }
 
 /* the header: the channel's name and topic; its buttons, the member list's toggle last */
@@ -424,7 +418,7 @@ div:is(.pins-list, .search-results) {
   > article.head { margin: 0 8px 8px; padding-top: 8px; padding-bottom: 8px; border-radius: 4px; background: var(--bg); }
   > article > button { position: absolute; top: 8px; right: 8px; display: none; }
   > article:hover > button { display: block; }
-  button { padding: 2px 8px; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-size: 12px; }
+  .button { padding: 2px 8px; font-size: 12px; }
 }
 div.pins-list {
   inset: auto; margin: 8px 0 0; position-area: bottom span-left; width: 420px; max-height: 70vh;
@@ -435,7 +429,7 @@ div.search-results {
   inset: 48px 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
   color: var(--text);
   > h2 { display: flex; }
-  > h2 > button { margin-left: auto; padding: 0; background: none; color: var(--text-muted); }
+  > h2 > button { margin-left: auto; }
   > :is(p, nav) { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 16px; color: var(--text-muted); }
   > article > small { margin-left: 8px; color: var(--text-muted); font-size: 12px; }
   button:disabled { opacity: 0.5; cursor: default; }
@@ -454,11 +448,8 @@ section.members {
   > a[data-status=offline] { opacity: 0.3; }
   > a::before { content: ""; flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--icon, var(--bg-raised)) center / cover; }
 }
-section.members > a > i, article > b > i {
-  display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; background: var(--accent); color: #fff;
-  font: 600 10px/15px "gg sans", sans-serif; font-style: normal; vertical-align: 2px;
-}
-section.members > a > i { margin-left: -8px; }
+article > b > .badge { margin-left: 4px; vertical-align: 2px; }
+section.members > a > .badge { margin-left: -8px; vertical-align: 2px; }
 
 /* the message box (views/composer.tsx): a grid of the attach button, the text, then the pickers (pickers.tsx) in
    stock's order, GIF, sticker, emoji, each in a column of its own, so the text never runs under them. The text grows
@@ -575,7 +566,7 @@ section.call {
   > figure.stream.watching { width: 480px; height: 270px; place-items: end start; align-content: stretch; background: #000; }
   > figure.stream > video { object-fit: contain; }
   > figure.stream > span::after { content: " · LIVE"; color: var(--danger); font-weight: 700; }
-  > figure.stream > button { padding: 4px 12px; border-radius: 4px; background: var(--bg-selected); color: var(--text-strong); font: inherit; }
+  > figure.stream > button { padding: 4px 12px; }
   > figure.stream.watching > button { position: absolute; inset: 6px 8px auto auto; opacity: .8; }
   > figure.speaking { outline-color: var(--positive); }
   > figure.mute { --i: var(--i-mic-off); }
@@ -588,11 +579,9 @@ section.call {
   &.dm:not(:has(video, figure.stream)) > figure:is(.mute, .deaf)::after { place-self: end end; width: 20px; height: 20px; }
 }
 /* Join on a row of its own below the tiles; a DM's are icons */
-section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; }
-section.call > footer > button[title] { width: 56px; height: 40px; padding: 0; }
-section.call > footer > button, dialog.incoming > button {
-  padding: 8px 16px; border-radius: 4px; background: var(--positive); color: #fff; font: inherit; font-size: 14px; font-weight: 500;
-}
+section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; font-size: 14px; }
+section.call > footer > .icon-button { width: 56px; height: 40px; }
+section.call > footer > .icon-button, dialog.incoming > button { border-radius: 4px; background: var(--positive); color: #fff; }
 /* a call ringing for you, at the top of the window */
 dialog.incoming {
   position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; width: 280px;
@@ -605,7 +594,7 @@ dialog.incoming {
 & > div.new-messages {
   grid-area: main; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
   color: #fff; font-size: 14px; font-weight: 500; line-height: 24px;
-  > button { padding: 0 12px; color: inherit; font: inherit; }
+  > button { padding: 0 12px; color: inherit; }
   > button:first-child { flex: 1; text-align: left; }
 }
 /* the media viewer (chat.tsx): the whole window, so a click outside the image lands on the dialog itself */

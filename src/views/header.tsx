@@ -7,9 +7,9 @@ import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { renderAST } from '../components/markdown'
 import { authorOf, contentAST, type Message } from '../api/model'
-import { when } from '../api/strings'
+import { Time } from '../components/time'
 import { $ } from '../api/store'
-import { IconButton } from '../primitives/button'
+import { Button, IconButton } from '../primitives/button'
 import { Popout } from '../primitives/popout'
 import { SearchInput } from '../primitives/search'
 
@@ -161,7 +161,7 @@ function Card(p: { m: Message; guildId?: Id; jump: string; onJump?: () => void; 
   return (
     <article data-id={p.m.id} class="head" style={{ '--av': `url(${a.avatar})` }}>
       <b style={{ color: a.color ?? undefined }}>{a.name}</b>
-      <time class="ts">{when(p.m.timestamp)}</time>
+      <Time at={p.m.timestamp} />
       <Show when={p.where}>
         <small>#{p.where}</small>
       </Show>
@@ -172,7 +172,7 @@ function Card(p: { m: Message; guildId?: Id; jump: string; onJump?: () => void; 
           {f.filename}
         </a>
       ))}
-      <button
+      <Button
         class={`${p.jump}-jump`}
         data-id={p.m.id}
         onClick={() => {
@@ -181,7 +181,7 @@ function Card(p: { m: Message; guildId?: Id; jump: string; onJump?: () => void; 
         }}
       >
         Jump
-      </button>
+      </Button>
     </article>
   )
 }
@@ -252,9 +252,9 @@ export function Pins(p: { channel: Rec }) {
           {({ message: m }) => <Card m={m} guildId={p.channel.guild_id} jump="pins" onJump={() => pop.hidePopover()} />}
         </For>
         <Show when={pins()?.state === 'LOADED_HAS_MORE'}>
-          <button class="pins-more" onClick={() => fetchPins(id(), items().at(-1)?.pinnedAt)}>
+          <Button class="pins-more" onClick={() => fetchPins(id(), items().at(-1)?.pinnedAt)}>
             Load More
-          </button>
+          </Button>
         </Show>
       </Popout>
     </>
@@ -332,13 +332,13 @@ export function Search(p: { channel: Rec }) {
         </For>
         <Show when={total() > PAGE}>
           <nav>
-            <button class="search-prev" disabled={offset() === 0} onClick={() => run(offset() - PAGE)}>
+            <Button class="search-prev" disabled={offset() === 0} onClick={() => run(offset() - PAGE)}>
               Back
-            </button>
+            </Button>
             {offset() / PAGE + 1} / {Math.ceil(total() / PAGE)}
-            <button class="search-next" disabled={offset() + PAGE >= total()} onClick={() => run(offset() + PAGE)}>
+            <Button class="search-next" disabled={offset() + PAGE >= total()} onClick={() => run(offset() + PAGE)}>
               Next
-            </button>
+            </Button>
           </nav>
         </Show>
       </div>

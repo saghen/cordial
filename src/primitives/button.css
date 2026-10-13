@@ -3,3 +3,12 @@
 :where(.icon-button) { display: grid; place-content: center; padding: 0; color: var(--text-muted); }
 :where(.icon-button:hover, .icon-button.on) { color: var(--text-strong); }
 :where(.icon-button[hidden]) { display: none; }
+/* text: filled in its variant's colour, or a link; lighter while hovered */
+:where(.button) { padding: 8px 16px; border-radius: 4px; background: var(--bg-selected); color: var(--text-strong); font: inherit; font-weight: 500; }
+:where(.button.primary) { background: var(--accent); color: #fff; }
+:where(.button.positive) { background: var(--positive); color: #fff; }
+:where(.button.danger) { background: var(--danger); color: #fff; }
+:where(.button.link) { padding: 0; background: none; color: var(--link); font-weight: inherit; }
+:where(.button:not(.link, :disabled):hover) { filter: brightness(1.15); }
+:where(.button.link:not(:disabled):hover) { text-decoration: underline; }
+:where(.button:disabled) { opacity: .5; cursor: default; }

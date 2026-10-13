@@ -1,0 +1,6 @@
+:where(.badge) {
+  flex: none; display: inline-block; min-width: 16px; padding: 0 4px; border-radius: 8px; background: var(--danger);
+  font: 700 12px/16px "gg sans", sans-serif; color: #fff; text-align: center;
+}
+:where(.badge.live) { padding: 0 6px; font-size: 11px; }
+:where(.badge.app) { border-radius: 3px; background: var(--accent); font: 600 10px/15px "gg sans", sans-serif; }

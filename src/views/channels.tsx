@@ -9,6 +9,7 @@ import { useNow } from '../api/hooks'
 import { nameOf } from '../api/model'
 import { text } from '../api/strings'
 import { contextMenu, Items } from '../primitives/menu'
+import { Badge } from '../primitives/badge'
 import { preload } from '../api/preload'
 import { $, selected, selectedGuild } from '../api/store'
 
@@ -296,7 +297,7 @@ function VoiceRow(p: { channel: Rec }) {
             >
               {nameOf(user(), $.GuildMember.getMember(p.channel.guild_id, v.userId)?.nick)}
               <Show when={v.selfStream}>
-                <b>LIVE</b>
+                <Badge kind="live">LIVE</Badge>
               </Show>
             </a>
           )
