@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use anyhow::{bail, Result};
 
+use crate::bits::Bits;
 use crate::va::{sys, Buffer, Config, Context, Surfaces, Va};
 
 const VBV_MS: u64 = 500;
@@ -31,54 +32,21 @@ pub struct Frame {
     pub ms_encode: f64,
 }
 
-// ---------------------------------------------------------------- bit writer
-
-#[derive(Default)]
-struct Bits {
-    buf: Vec<u8>,
-    bits: usize,
-}
-
-impl Bits {
-    fn put(&mut self, v: u32, n: u32) {
-        for i in (0..n).rev() {
-            if self.bits.is_multiple_of(8) {
-                self.buf.push(0);
-            }
-            if (v >> i) & 1 != 0 {
-                self.buf[self.bits / 8] |= 0x80 >> (self.bits % 8);
-            }
-            self.bits += 1;
+/// the OBU around b: header without extension, has_size_field, leb128 size
+fn obu(mut b: Bits, kind: u8) -> Vec<u8> {
+    b.trailing();
+    let mut out = vec![kind << 3 | 1 << 1];
+    let mut size = b.buf.len();
+    loop {
+        let byte = (size & 0x7f) as u8;
+        size >>= 7;
+        out.push(byte | if size > 0 { 0x80 } else { 0 });
+        if size == 0 {
+            break;
         }
     }
-
-    fn flag(&mut self, b: bool) {
-        self.put(b as u32, 1)
-    }
-
-    fn trailing(&mut self) {
-        self.put(1, 1);
-        while !self.bits.is_multiple_of(8) {
-            self.put(0, 1);
-        }
-    }
-
-    /// the OBU around it: header without extension, has_size_field, leb128 size
-    fn obu(mut self, kind: u8) -> Vec<u8> {
-        self.trailing();
-        let mut out = vec![kind << 3 | 1 << 1];
-        let mut size = self.buf.len();
-        loop {
-            let byte = (size & 0x7f) as u8;
-            size >>= 7;
-            out.push(byte | if size > 0 { 0x80 } else { 0 });
-            if size == 0 {
-                break;
-            }
-        }
-        out.extend_from_slice(&self.buf);
-        out
-    }
+    out.extend_from_slice(&b.buf);
+    out
 }
 
 pub fn supported(va: &Va) -> bool {
@@ -257,7 +225,7 @@ impl Av1Enc {
         b.put(0, 2); // chroma_sample_position: unknown
         b.put(0, 1); // separate_uv_delta_q
         b.put(0, 1); // film_grain_params_present
-        b.obu(OBU_SEQUENCE_HEADER)
+        obu(b, OBU_SEQUENCE_HEADER)
     }
 
     /// the frame header as far as Mesa parses it (through uniform_tile_spacing_flag)
@@ -289,7 +257,7 @@ impl Av1Enc {
         }
         b.put(0, 1); // disable_frame_end_update_cdf
         b.flag(true); // uniform_tile_spacing_flag (radeonsi lays out the tiles itself)
-        b.obu(OBU_FRAME_HEADER)
+        obu(b, OBU_FRAME_HEADER)
     }
 
     fn misc<T>(&self, kind: sys::VAEncMiscParameterType::Type, data: &T) -> Result<Buffer> {

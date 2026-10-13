@@ -1,15 +1,15 @@
 // capture: a niri cast of a window or an output (--window, --output; the Mutter ScreenCast D-Bus API, mutter.rs), the
 // desktop's ScreenCast portal (--portal, portal.rs), a PipeWire node (--node) or the clip (--clip), with its protocol
-// (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1 encoder, the frame dropper and the
-// repeats. It is the Rust port of the C build (castscale renamed; P3 chose Rust and removed the C, whose capture.c,
-// last at f59ff8c, has the design); it follows the C function by function.
+// (stdin commands, stdout frames, previews, info and stats), the VPP, the encoder (AV1, or H.264 with --codec h264),
+// the frame dropper and the repeats. It is the Rust port of the C build (castscale renamed; P3 chose Rust and removed
+// the C, whose capture.c, last at f59ff8c, has the design); it follows the C function by function.
 //
 //   mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID
 //                    | --clip F.i420 --clip-size WxH) [--size WxH]
 //                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
-//                   [--av1-refs 1|2] [--av1-min-q 10]
+//                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--h264-min-qp 0]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
-//                   [--encode-out F.ivf]
+//                   [--encode-out F.ivf|F.h264]
 //   stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop
 //
 // Threads: the PipeWire thread (cast.rs) dequeues the newest buffer, submits the VPP into a free slot of the encode
@@ -21,7 +21,9 @@
 // --fps, uploads it and runs the VPPs itself.
 
 mod av1enc;
+mod bits;
 mod cast;
+mod h264enc;
 mod mutter;
 mod out;
 mod portal;
@@ -58,8 +60,10 @@ struct Opts {
     fps: u32,
     device: String,
     kbps: u32,
+    h264: bool, // --codec h264
     refs: u32,
     min_qindex: u32,
+    min_qp: u32, // H.264's quantizer floor
     drop_ms: f64,
     repeat_ms: f64,
     prev_box: (u32, u32),
@@ -74,9 +78,9 @@ fn usage() -> ! {
         "usage: mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
          \x20                       | --clip FILE.i420 --clip-size WxH)\n\
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
-         \x20                      [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 10]\n\
+         \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--h264-min-qp 0]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
-         \x20                      [--start] [--encode-out FILE.ivf]\n\
+         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264]\n\
          stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop; stdout: see out.rs"
     );
     std::process::exit(2)
@@ -105,8 +109,10 @@ fn opts() -> Opts {
         fps: 60,
         device: "auto".into(),
         kbps: 6000,
+        h264: false,
         refs: 2,
         min_qindex: 10,
+        min_qp: 0,
         drop_ms: 300.0,
         repeat_ms: 1000.0,
         prev_box: (640, 360),
@@ -134,8 +140,16 @@ fn opts() -> Opts {
             "--fps" => o.fps = num(v()),
             "--device" => o.device = v(),
             "--kbps" => o.kbps = num(v()),
+            "--codec" => {
+                o.h264 = match v().as_str() {
+                    "av1" => false,
+                    "h264" => true,
+                    _ => usage(),
+                }
+            }
             "--av1-refs" => o.refs = num(v()),
             "--av1-min-q" => o.min_qindex = num(v()),
+            "--h264-min-qp" => o.min_qp = num(v()),
             "--drop-ms" => o.drop_ms = num(v()),
             "--repeat-ms" => o.repeat_ms = num(v()),
             "--preview" => o.prev_box = parse_size(&v(), 0),
@@ -709,6 +723,56 @@ fn ivf_header(f: &mut File, w: u32, h: u32, fps: u32, frames: u32) -> Result<()>
 
 // ---------------------------------------------------------------- the worker: encode, preview
 
+enum Enc {
+    Av1(av1enc::Av1Enc),
+    H264(h264enc::H264Enc),
+}
+
+impl Enc {
+    fn open(va: &Va, o: &Opts, (width, height): (u32, u32), kbps: u32) -> Result<Enc> {
+        Ok(if o.h264 {
+            let min_qp = o.min_qp;
+            Enc::H264(h264enc::H264Enc::open(
+                va,
+                h264enc::Cfg {
+                    width,
+                    height,
+                    fps: o.fps,
+                    kbps,
+                    min_qp,
+                },
+            )?)
+        } else {
+            let (min_qindex, refs) = (o.min_qindex, o.refs);
+            Enc::Av1(av1enc::Av1Enc::open(
+                va,
+                av1enc::Cfg {
+                    width,
+                    height,
+                    fps: o.fps,
+                    kbps,
+                    min_qindex,
+                    refs,
+                },
+            )?)
+        })
+    }
+
+    fn set_kbps(&mut self, kbps: u32) {
+        match self {
+            Enc::Av1(e) => e.set_kbps(kbps),
+            Enc::H264(e) => e.set_kbps(kbps),
+        }
+    }
+
+    fn encode(&mut self, src: u32, key: bool) -> Result<(&[u8], av1enc::Frame)> {
+        match self {
+            Enc::Av1(e) => e.encode(src, key),
+            Enc::H264(e) => e.encode(src, key),
+        }
+    }
+}
+
 type Guard<'a> = MutexGuard<'a, State>;
 
 struct Worker<'a> {
@@ -716,8 +780,8 @@ struct Worker<'a> {
     o: &'a Opts,
     va: &'a Va,
     vpp_cfg: &'a va::Config,
-    enc: Option<av1enc::Av1Enc>, // with the ring
-    last_enc_t: f64,             // frame dropper: bits sent over the target
+    enc: Option<Enc>, // with the ring
+    last_enc_t: f64,  // frame dropper: bits sent over the target
     debt: f64,
     ivf: Option<File>,
     ivf_frames: u32,
@@ -791,23 +855,18 @@ impl<'a> Worker<'a> {
             }
         }
         if want && g.ring.is_none() {
-            let cfg = av1enc::Cfg {
-                width: g.want.0,
-                height: g.want.1,
-                fps: self.o.fps,
-                kbps: g.kbps(self.o),
-                min_qindex: self.o.min_qindex,
-                refs: self.o.refs,
-            };
-            let created =
-                Ring::create(self.va, self.vpp_cfg, g.want).and_then(|r| Ok((r, av1enc::Av1Enc::open(self.va, cfg)?)));
+            let kbps = g.kbps(self.o);
+            let created = Ring::create(self.va, self.vpp_cfg, g.want)
+                .and_then(|r| Ok((r, Enc::open(self.va, self.o, g.want, kbps)?)));
             match created {
                 Ok((r, enc)) => {
                     g.want_key = true;
                     stage("encoder");
                     info(&format!(
-                        "{{\"type\":\"started\",\"width\":{},\"height\":{}}}",
-                        r.w, r.h
+                        "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"{}\"}}",
+                        r.w,
+                        r.h,
+                        if self.o.h264 { "H264" } else { "AV1" }
                     ));
                     g.ring = Some(r);
                     self.enc = Some(enc);
@@ -870,8 +929,11 @@ impl<'a> Worker<'a> {
                 Ok((data, fi)) => {
                     self.debt += data.len() as f64 * 8.0;
                     if let Some(f) = self.ivf.as_mut() {
-                        let _ = f.write_all(&(data.len() as u32).to_le_bytes());
-                        let _ = f.write_all(&(self.ivf_frames as u64).to_le_bytes());
+                        // IVF for AV1; H.264 is Annex B as it comes
+                        if !self.o.h264 {
+                            let _ = f.write_all(&(data.len() as u32).to_le_bytes());
+                            let _ = f.write_all(&(self.ivf_frames as u64).to_le_bytes());
+                        }
                         let _ = f.write_all(data);
                         self.ivf_frames += 1;
                     }
@@ -1156,12 +1218,15 @@ fn run(o: Arc<Opts>) -> Result<()> {
         sys::VAEntrypoint::VAEntrypointVideoProc,
         &mut [],
     )?;
-    let supported = av1enc::supported(&va);
+    let (av1, h264) = (av1enc::supported(&va), h264enc::supported(&va));
+    let supported = if o.h264 { h264 } else { av1 };
+    let yes = |b| if b { "yes" } else { "no" };
     eprintln!(
-        "va: {}: {}, AV1 encode: {}",
+        "va: {}: {}, AV1 encode: {}, H.264 encode: {}",
         o.device,
         va.vendor(),
-        if supported { "yes" } else { "no" }
+        yes(av1),
+        yes(h264)
     );
     stage("va");
 
@@ -1175,10 +1240,12 @@ fn run(o: Arc<Opts>) -> Result<()> {
     let ivf = match &o.ivf {
         Some(p) if supported => {
             let mut f = File::create(p).with_context(|| format!("--encode-out {p}"))?;
-            f.seek(SeekFrom::Start(32))?;
+            if !o.h264 {
+                f.seek(SeekFrom::Start(32))?;
+            }
             Some(f)
         }
-        Some(_) => bail!("--encode-out: no AV1 encoder"),
+        Some(_) => bail!("--encode-out: no {} encoder", if o.h264 { "H.264" } else { "AV1" }),
         None => None,
     };
     let t_start = now();
@@ -1316,7 +1383,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         }
     );
     eprintln!("gpu: busy ms:{}", gpu_ms(st.total_sub));
-    if let (Some(f), Some(r)) = (w.ivf.as_mut(), g.ring.as_ref()) {
+    if let (Some(f), Some(r), false) = (w.ivf.as_mut(), g.ring.as_ref(), o.h264) {
         ivf_header(f, r.w, r.h, o.fps, w.ivf_frames)?;
     }
     // VA objects before the VPP config they were made with
