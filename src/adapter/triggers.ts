@@ -15,7 +15,7 @@ export function stopTyping(channelId: Id) {
 
 // The list's position, as stock's scroller reports it (scrollTop from the top). When a message arrives, MessageStore
 // trims the oldest loaded messages if the channel is at the bottom, the newest otherwise (or if never reported), so a
-// list that never reports loses the new message (ai/LOG.md, 0.6)
+// list that never reports loses the new message (ai/LOG.md, Key finds)
 export function channelDimensions(channelId: Id, scrollTop: number, scrollHeight: number, offsetHeight: number) {
     A.dispatcher.dispatch({ type: "UPDATE_CHANNEL_DIMENSIONS", channelId, scrollTop, scrollHeight, offsetHeight });
 }

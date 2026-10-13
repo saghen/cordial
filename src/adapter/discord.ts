@@ -31,7 +31,6 @@ export interface Stores {
         isSelfMute(): boolean; isSelfDeaf(): boolean; getInputDevices(): Record<string, Rec>; getOutputDevices(): Record<string, Rec>;
         getInputDeviceId(): string; getOutputDeviceId(): string;
     };
-    GuildNSFWAgree: FluxStore & { didAgree(guildId: Id): boolean; };
     ExpandedGuildFolder: FluxStore & { isFolderExpanded(folderId: number): boolean; };
     Channel: FluxStore & { getChannel(id: Id): Rec | undefined; };
     GuildChannel: FluxStore & { getChannels(guildId: Id): Rec; };
@@ -137,9 +136,7 @@ export interface Actions {
         queryChannelResults(o: { query: string; channel: Rec; }): { channels: Rec[]; };
         queryEmojiResults(o: { query: string; channel: Rec; intention: number; maxCount?: number; }): { emojis: { unlocked: Rec[]; }; };
     };
-    // nsfwAgree: the age gate's Continue (local: GUILD_NSFW_AGREE); nsfwReturnToSafety: its Go Back
-    guilds: { toggleGuildFolderExpand(folderId: number): void; nsfwAgree(guildId: Id): void; nsfwReturnToSafety(guildId: Id): void; };
-    ageGate: { gated(channel: Rec): boolean; };
+    guilds: { toggleGuildFolderExpand(folderId: number): void; };
     // reason: the analytics label stock passes ("muted", "unmuted")
     notifications: { updateGuildNotificationSettings(guildId: Id, settings: Rec, reason?: string): void; };
     voice: { selectVoiceChannel(channelId: Id | null): void; disconnect(): void; };

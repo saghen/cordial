@@ -208,7 +208,7 @@ export const CSS = `
   .messages > div { padding: 16px 0 24px; }
   article {
     position: relative; padding: 2px 16px 2px 72px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
-    /* offscreen rows skip style and layout until scrolled to (ai/LOG.md, 0.7) */
+    /* offscreen rows skip style and layout until scrolled to (ai/LOG.md, Key finds) */
     content-visibility: auto; contain-intrinsic-size: auto 26px;
   }
   article:not(.head):hover::before {
@@ -304,13 +304,6 @@ export const CSS = `
   article > p > button:hover { border-color: var(--text-faint); }
   article > p > button > img:not(.media) { width: 20px; height: 20px; }
   article > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); }
-  /* the age gate (app.tsx): over the messages and the composer */
-  & > figure {
-    grid-area: main / main / compose / main; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 16px;
-    background: var(--bg); text-align: center;
-  }
-  & > figure > h2 { font-size: 20px; color: var(--text-strong); }
-  & > figure > button { min-width: 120px; padding: 8px 16px; border: 0; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; cursor: pointer; }
   /* the context menus: popovers at the pointer */
   menu:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=devices]) { position: fixed; margin: 0; }
   menu > button.danger { color: var(--danger); }
