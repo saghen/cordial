@@ -43,7 +43,7 @@ export const CSS = `
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
   & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after, section[data-mc=call] > footer > button[title]::before,
   menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, article > p > button[data-mc="reaction:add"]::before,
-  div[data-mc=search-results] > h2 > button::before, article.call::before {
+  div[data-mc=search-results] > h2 > button::before, article.call::before, menu > nav > button[style]::before, menu > h3 > button::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
   /* avatars (DMs, the user panel) are round, with the status as a ring */
@@ -236,7 +236,7 @@ export const CSS = `
     > p > button { display: flex; gap: 6px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg-raised); color: var(--text); font: inherit; font-size: 13px; text-align: left; overflow: hidden; }
     > p > button.on { outline: 2px solid var(--positive); }
     > p > button:disabled { opacity: 0.4; cursor: default; }
-    > p > button > img { width: 20px; height: 20px; }
+    > p > button > img { width: 20px; height: 20px; object-fit: contain; }
   }
   /* the voice settings: a column of labelled controls over the panel */
   form[data-mc=voice-settings] {
@@ -289,7 +289,7 @@ export const CSS = `
     > p { display: grid; grid-template-columns: repeat(6, 1fr); }
     > p > button { padding: 4px; border-radius: 4px; }
     > p > button:hover { background: var(--bg-raised); }
-    > p > button > img { width: 24px; height: 24px; }
+    > p > button > img { width: 24px; height: 24px; object-fit: contain; }
     &:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=channel-menu], [data-mc=devices]) { position: fixed; margin: 0; }
   }
   /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
@@ -402,7 +402,7 @@ export const CSS = `
     }
     > p > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
     > p > button:hover { border-color: var(--text-faint); }
-    > p > button > img:not(.media) { width: 20px; height: 20px; }
+    > p > button > img:not(.media) { width: 20px; height: 20px; object-fit: contain; }
     > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); }
   }
   /* the reply bar above the composer */
@@ -421,7 +421,7 @@ export const CSS = `
     &.channel::before { width: 24px; height: 24px; color: var(--text-muted); }
     > button { --i: var(--i-members); display: grid; padding: 0; color: var(--text-muted); }
     > button:first-of-type { margin-left: auto; }
-    > button + button { margin-left: 8px; }
+    > button + button { margin-left: 16px; }
     > button:hover, > button.on { color: var(--text-strong); }
     > button[data-mc="call:start"] { --i: var(--i-call); }
     > button[data-mc="call:video"] { --i: var(--i-video); }
@@ -430,7 +430,7 @@ export const CSS = `
     > button[data-mc=notifications].muted { --i: var(--i-bell-slash); }
     /* pins: a dot while there are new ones */
     > button[data-mc=pins] { --i: var(--i-pin); position: relative; }
-    > button[data-mc=pins].unread::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    > button[data-mc=pins].unread::after { content: ""; position: absolute; right: 0; bottom: 1px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
     /* search: a box at the header's end, wider while in use */
     > input[data-mc=search] {
       width: 160px; height: 28px; margin-left: 16px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
@@ -509,7 +509,7 @@ export const CSS = `
     > hr { margin: 8px 0; }
     > button { padding: 8px; border-radius: 3px; color: var(--text-strong); font-size: 16px; line-height: 20px; }
     > button:has(> img) { min-height: 31px; padding: 4px 8px; }
-    > button > img { width: 20px; height: 20px; }
+    > button > img { width: 20px; height: 20px; object-fit: contain; }
     > button[data-status]::before { content: ""; flex: none; width: 24px; height: 24px; }
     > button.ch::before { width: 16px; height: 16px; color: var(--text-muted); }
     > button > small { margin-left: auto; padding-left: 16px; font-size: 12px; font-weight: 400; line-height: 16px; white-space: nowrap; }
@@ -522,35 +522,64 @@ export const CSS = `
     &[hidden] { display: none; }
   }
   & > button[data-mc=attach] { --i: var(--i-plus); justify-self: start; margin: 16px 0 0 32px; }
-  /* GIF as a word in a box, as stock's button */
-  & > button[data-mc=gif] { width: auto; height: 20px; margin: 18px 64px 0 0; padding: 0 3px; border: 2px solid currentColor; border-radius: 4px; font: 800 10px/1 sans-serif; }
-  & > button[data-mc=gif]::before { display: none; }
-  & > button[data-mc=sticker] { --i: var(--i-sticker); margin-right: 104px; }
+  /* stock's order: GIF, sticker, emoji */
+  & > button[data-mc=gif] { --i: var(--i-gif); margin-right: 112px; }
+  & > button[data-mc=sticker] { --i: var(--i-sticker); margin-right: 72px; }
+  /* the pickers, as stock's: a search field with its magnifier; emoji and stickers as sections under sticky names,
+     a rail of them on the left, the hovered one named below; GIFs as darkened tiles, then results in two columns */
   menu:is([data-mc=emoji-picker], [data-mc=gif-picker], [data-mc=sticker-picker]) {
-    position-area: top span-left; width: 352px;
-    > p { max-height: 400px; overflow-y: auto; }
-    > nav { grid-area: auto; display: flex; flex-wrap: wrap; gap: 2px; padding: 0; }
-    > nav > button { padding: 4px; border-radius: 4px; }
-    > nav > button:is(:hover, .on) { background: var(--bg-raised); }
-    > nav > button > img { width: 20px; height: 20px; }
+    position-area: top span-left; width: 480px; padding: 0; gap: 0; overflow: hidden;
+    > input {
+      margin: 12px; padding: 8px 8px 8px 36px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--bg-raised);
+      background: var(--img-search) 10px center / 18px no-repeat, var(--bg-deep);
+    }
+    > input:focus { box-shadow: inset 0 0 0 1px var(--accent); }
+  }
+  menu:is([data-mc=emoji-picker], [data-mc=sticker-picker]):popover-open {
+    display: grid; grid: "search search" auto "rail list" 380px "foot foot" auto / 48px minmax(0, 1fr);
+    > input { grid-area: search; }
+    > nav { grid-area: rail; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-y: auto; padding: 4px 0 8px; scrollbar-width: none; }
+    > nav > button { display: grid; place-content: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; color: var(--text-muted); font: 600 11px/1 sans-serif; }
+    > nav > button:hover { background: var(--bg-raised); color: var(--text-strong); }
+    > nav > button > img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+    > div { grid-area: list; overflow-y: auto; padding: 0 8px 8px 4px; }
+    > div > h3 { position: sticky; top: 0; z-index: 1; padding: 8px 4px; background: var(--bg-floating); font-size: 13px; font-weight: 600; color: var(--text-muted); }
+    /* a section not built yet: as tall as its rows (--n items, --cols to a row of --row) */
+    > div > p { display: grid; grid-template-columns: repeat(var(--cols), 1fr); margin: 0; }
+    > div > p:empty { height: calc(round(up, var(--n) / var(--cols), 1) * var(--row)); }
+    > div > p > button { display: grid; place-content: center; padding: 4px; border-radius: 6px; }
+    > div > p > button:hover { background: var(--bg-raised); }
+    > footer { grid-area: foot; display: grid; grid: auto auto / 28px 1fr; column-gap: 10px; align-items: center; min-height: 52px; padding: 8px 16px; background: var(--bg-deep); }
+    > footer > img { grid-row: span 2; width: 28px; height: 28px; object-fit: contain; }
+    > footer > b { grid-column: 2; font-size: 14px; font-weight: 600; color: var(--text-strong); }
+    > footer > small { grid-column: 2; font-size: 12px; color: var(--text-muted); }
   }
   menu[data-mc=emoji-picker] {
-    > p { grid-template-columns: repeat(8, 1fr); max-height: 320px; }
-    > p > button > img { width: 28px; height: 28px; }
+    --cols: 9; --row: 40px;
+    > div > p > button > img { width: 32px; height: 32px; object-fit: contain; }
+  }
+  /* a Lottie sticker by its name, as the chat shows one */
+  menu[data-mc=sticker-picker] {
+    --cols: 4; --row: 100px;
+    > div > p { gap: 4px; }
+    > div > p > button { aspect-ratio: 1; color: var(--text-muted); font: inherit; font-size: 13px; }
+    > div > p > button > img { width: 88px; height: 88px; }
   }
   menu[data-mc=gif-picker] {
-    width: 424px;
-    > p { grid-template-columns: 1fr 1fr; gap: 8px; }
-    > p > button { display: grid; place-content: center; min-height: 100px; padding: 0; border-radius: 4px; overflow: hidden; background: center / cover var(--bg-raised); color: #fff; font-weight: 700; text-shadow: 0 1px 4px #000; }
-    > p > button > :is(img, video) { width: 100%; height: auto; }
-  }
-  /* a Lottie sticker (or a pack of them) by its name, as the chat shows one */
-  menu[data-mc=sticker-picker] {
-    width: 424px;
-    > p { grid-template-columns: repeat(4, 1fr); max-height: 360px; }
-    > p > button > img { width: 88px; height: 88px; }
-    > p > button { min-height: 88px; color: var(--text-muted); font: inherit; font-size: 13px; }
-    > nav > button { min-width: 28px; color: var(--text-muted); font: 700 11px/1 sans-serif; }
+    > h3 { display: flex; align-items: center; gap: 12px; margin: 12px; min-height: 36px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
+    > h3 > button { --i: var(--i-back); display: grid; padding: 0; color: var(--text-muted); }
+    > h3 > button:hover { color: var(--text-strong); }
+    > :is(p, div) { height: 400px; overflow-y: auto; padding: 0 12px 12px; }
+    > p { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 110px; gap: 8px; align-content: start; }
+    > p > button {
+      display: grid; place-content: center; padding: 0; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 700;
+      background: linear-gradient(#0000008c 0 0), var(--img, linear-gradient(var(--accent) 0 0)) center / cover;
+    }
+    > p > button:hover { background: linear-gradient(#00000059 0 0), var(--img, linear-gradient(var(--accent) 0 0)) center / cover; }
+    /* results in two columns inside the scroller (a column box of fixed height would overflow into more columns) */
+    > div > div { columns: 2; column-gap: 8px; }
+    > div > div > button { display: block; width: 100%; margin-bottom: 8px; padding: 0; border-radius: 8px; overflow: hidden; break-inside: avoid; }
+    > div > div > button > :is(img, video) { display: block; width: 100%; height: auto; }
   }
   & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; align-items: start; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
   & > ul > button { padding: 8px 12px; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; }

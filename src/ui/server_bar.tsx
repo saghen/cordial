@@ -36,7 +36,7 @@ function Guild(p: { id: Id }) {
     />
   )
 }
-const guildIcon = (id: Id) => {
+export const guildIcon = (id: Id) => {
   const icon = $.Guild.getGuild(id)?.icon
   return icon && `https://cdn.discordapp.com/icons/${id}/${icon}.webp?size=96`
 }

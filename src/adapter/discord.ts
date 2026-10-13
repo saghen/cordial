@@ -136,7 +136,12 @@ export interface Stores {
   // the GIF picker's results ({ id, url, src, width, height }) and trending categories ({ type, name, src })
   GIFPickerView: FluxStore & { getResultItems(): Rec[]; getTrendingCategories(): Rec[] }
   // stickers by server id; Discord's packs once fetched ({ id, name, stickers })
-  Stickers: FluxStore & { getAllGuildStickers(): Map<Id, Rec[]>; getPremiumPacks(): Rec[] }
+  Stickers: FluxStore & {
+    getAllGuildStickers(): Map<Id, Rec[]>
+    getPremiumPacks(): Rec[]
+    getStickerById(id: Id): Rec | undefined
+    getStickerPack(id: Id): Rec | undefined
+  }
   // a user's camera in a call: its stream id for the web engine (guildId null in DMs)
   // context: "default" (a camera) or "stream" (a Go Live)
   VideoStream: FluxStore & {
@@ -204,6 +209,20 @@ export interface Stores {
     readonly emojiReactionFrecencyWithoutFetchingLatest: { frequently: Rec[] }
     readonly emojiFrecencyWithoutFetchingLatest: { frequently: Rec[] }
     getUsableGuildEmoji(guildId: Id): Rec[]
+    // the picker's: favorites, the most used, every server's custom emoji by server
+    getDisambiguatedEmojiContext(guildId?: Id): {
+      readonly favoriteEmojisWithoutFetchingLatest: Rec[]
+      getFrequentlyUsedEmojisWithoutFetchingLatest(): Rec[]
+      getGroupedCustomEmoji(): Map<Id, Rec[]>
+    }
+  }
+  // the frecency settings proto: { favoriteGifs: { gifs: { [url]: { src, width, height, format, order } } },
+  // favoriteStickers?: { stickerIds } }
+  UserSettingsProto: FluxStore & { readonly frecencyWithoutFetchingLatest: Rec; getFullState(): Rec }
+  // the most used stickers
+  StickersPersisted: FluxStore & {
+    readonly stickerFrecencyWithoutFetchingLatest: { frequently: Rec[] }
+    hasPendingUsage(): boolean
   }
   // files staged for the next message (draft type 0: the channel's composer); { id, filename, ... }
   UploadAttachment: FluxStore & { getUploads(channelId: Id, draftType: number): Rec[] }

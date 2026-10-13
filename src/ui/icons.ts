@@ -121,18 +121,31 @@ const PATHS: Record<string, string[]> = {
   'bell-slash': [
     'M1.3 21.3a1 1 0 1 0 1.4 1.4l20-20a1 1 0 0 0-1.4-1.4l-20 20ZM3.13 16.13c.11.27.46.28.66.08L15.73 4.27a.47.47 0 0 0-.07-.74 6.97 6.97 0 0 0-1.35-.64.62.62 0 0 1-.38-.43 2 2 0 0 0-3.86 0 .62.62 0 0 1-.38.43A7 7 0 0 0 5 9.5v2.09a.5.5 0 0 1-.13.33l-1.1 1.22A3 3 0 0 0 3 15.15v.28c0 .24.04.48.13.7ZM18.64 9.36c.13-.13.36-.05.36.14v2.09c0 .12.05.24.13.33l1.1 1.22a3 3 0 0 1 .77 2.01v.28c0 .67-.34 1.29-.95 1.56-1.31.6-4 1.51-8.05 1.51-.46 0-.9-.01-1.33-.03a.48.48 0 0 1-.3-.83l8.27-8.28ZM9.18 19.84A.16.16 0 0 0 9 20a3 3 0 1 0 6 0c0-.1-.09-.17-.18-.16a24.84 24.84 0 0 1-5.64 0Z',
   ],
+  star: [
+    'M10.81 2.86c.38-1.15 2-1.15 2.38 0l1.89 5.83h6.12c1.2 0 1.71 1.54.73 2.25l-4.95 3.6 1.9 5.82a1.25 1.25 0 0 1-1.93 1.4L12 18.16l-4.95 3.6c-.98.7-2.3-.25-1.92-1.4l1.89-5.82-4.95-3.6a1.25 1.25 0 0 1 .73-2.25h6.12l1.9-5.83Z',
+  ],
+  clock: [
+    'M12 23a11 11 0 1 0 0-22 11 11 0 0 0 0 22Zm1-18a1 1 0 1 0-2 0v7c0 .27.1.52.3.7l3 3a1 1 0 0 0 1.4-1.4L13 11.58V5Z',
+  ],
+  back: [
+    'M3.3 11.3a1 1 0 0 0 0 1.4l5 5a1 1 0 0 0 1.4-1.4L6.42 13H20a1 1 0 1 0 0-2H6.41l3.3-3.3a1 1 0 0 0-1.42-1.4l-5 5Z',
+  ],
+  gif: [
+    'M5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V5a3 3 0 0 0-3-3H5Zm2.18 13.87a2.9 2.9 0 0 1-1.66-.49 3.18 3.18 0 0 1-1.12-1.35A4.88 4.88 0 0 1 4 12c0-.75.14-1.42.42-2 .29-.59.7-1.04 1.24-1.37a3.7 3.7 0 0 1 1.95-.5c.64 0 1.21.14 1.72.4.5.28.89.67 1.15 1.16l-1.22.88a1.76 1.76 0 0 0-1.64-1.02c-.66 0-1.17.22-1.52.65a2.74 2.74 0 0 0-.53 1.8c0 .78.18 1.39.53 1.81.35.42.86.64 1.52.64.3 0 .57-.06.81-.16.25-.12.45-.27.58-.47v-.93H7.3v-1.4h3.24v4.23H9.27l-.2-.71c-.43.57-1.06.86-1.89.86Zm6.34-.15h-1.57V8.28h1.57v7.44Zm1.51 0h1.57v-2.83h2.76v-1.42H16.6V9.7H20V8.28h-4.97v7.44Z',
+  ],
 }
 
 const svg = (ds: string[], fill = 'black') =>
   `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='${fill}'>${ds.map((d) => `<path fill-rule='evenodd' d='${d}'/>`).join('')}</svg>`
 const uri = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 
-// images: the idle status's bite (a mask: stock's, kept inside the dot), the DMs button's logo (its ::before is the pill), the unread line's NEW tag (a row's ::after is "(edited)")
+// images: the idle status's bite (a mask: stock's, kept inside the dot), the DMs button's logo (its ::before is the pill), the unread line's NEW tag (a row's ::after is "(edited)"), the pickers' search field's magnifier
 export const ICONS =
   Object.entries(PATHS)
     .filter(([name]) => name !== 'discord')
     .map(([name, ds]) => `--i-${name}: ${uri(svg(ds))};`)
     .join(' ') +
   ` --img-discord: ${uri(svg(PATHS.discord, '#fbfbfb'))};` +
+  ` --img-search: ${uri(svg(PATHS.search, '#96979e'))};` +
   ` --idle-cut: ${uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'><clipPath id='d'><circle cx='.5' cy='.5' r='.5'/></clipPath><circle cx='.25' cy='.25' r='.375' clip-path='url(#d)'/></svg>")};` +
   ` --new: ${uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 14'><path fill='#da3e44' d='M0 7 5.6 1.2Q6.8 0 8.4 0H33a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8.4q-1.6 0-2.8-1.2Z'/><text x='21.5' y='10.6' fill='#fff' font-family='sans-serif' font-size='9.5' font-weight='700' text-anchor='middle'>NEW</text></svg>")};`
