@@ -24,9 +24,10 @@ Nearly all of the cost of an interaction is the UI. The core with no UI attached
 same data (same guilds, DMs, friends and presences).
 
 Targets for the renderer: cached switches in 1-2 frames (15-25 ms at 144 Hz), popouts and menus in one frame, typing
-painted in the same frame, ~1 ms/s idle, 70-90 MB heap. The whole app only shrinks 10-20 %: Electron's other
-processes (~700 MB, summed RSS; to be re-measured as PSS) stay. Phase 3 trims them; Tauri was ruled out
-(`ai/atlas/tauri.md`: no Discord voice in WebKitGTK yet, no CDP for the lab, no memory gain).
+painted in the same frame, ~1 ms/s idle, 70-90 MB heap. The whole app only shrinks 5-20 %: on the test account our
+shell is ~515 MB (PSS with its swapped share, `ai/lab/pss.py`) against stock Equibop's ~620, of which arRPC is 94;
+Electron's other processes (~280 MB) stay. Phase 3 trims them; Tauri was ruled out (`ai/atlas/tauri.md`: no Discord
+voice in WebKitGTK yet, no CDP for the lab, no memory gain).
 
 ## How it fits together
 
