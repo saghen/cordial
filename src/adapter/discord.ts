@@ -486,9 +486,11 @@ export interface Actions {
   messageKey: { runtimeHashMessageKey(name: string): string }
   // moment-style formats in the user's locale and 12/24 h setting; calendar(d, true) is a message's timestamp
   dates: { calendar(date: Date, short?: boolean): string; format(date: Date, format: string): string }
+  names: { acronym(name: string | null | undefined): string }
   // a group DM's icon, its default one when it has none
   icons: {
     getChannelIconURL(o: { id: Id; icon?: string | null; applicationId?: Id; size?: number }): string
-    getGuildIconURL: unknown
+    // undefined when the guild has none
+    getGuildIconURL(o: { id: Id; icon: string | null; size: number; canAnimate?: boolean }): string | undefined
   }
 }

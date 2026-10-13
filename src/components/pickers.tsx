@@ -10,7 +10,7 @@ import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { emojiSrc } from '../api/model'
 import { $ } from '../api/store'
-import { guildIcon } from '../views/server_bar'
+import * as guilds from '../api/guilds'
 import { IconButton } from '../primitives/button'
 import { Popout } from '../primitives/popout'
 import { SearchInput } from '../primitives/search'
@@ -29,10 +29,10 @@ type Info = { src?: string; name: string; from?: string }
 const chunks = (items: Rec[]) =>
   Array.from({ length: Math.ceil(items.length / 36) }, (_, i) => items.slice(i * 36, i * 36 + 36))
 
-const guildSection = (id: Id, items: Rec[]): Section => ({
+const guildSection = (id: Id, items: Rec[], g = guilds.get(id)): Section => ({
   id,
-  name: S.Guild.getGuild(id)?.name ?? '',
-  img: guildIcon(id) || undefined,
+  name: g?.name ?? '',
+  img: (g && guilds.icon(g, 32)) || undefined,
   items,
 })
 

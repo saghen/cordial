@@ -39,7 +39,7 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 
 /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
 nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
-div.open > a.folder::before, section.call > figure:is(.mute, .deaf)::after, menu.autocomplete > button.ch::before, article.call::before, menu > nav > button[style]::before {
+section.call > figure:is(.mute, .deaf)::after, menu.autocomplete > button.ch::before, article.call::before, menu > nav > button[style]::before {
   content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
 }
 /* avatars (DMs, the user panel) are round, with the status as a ring */
@@ -68,61 +68,6 @@ a[data-n]::after {
   &.lock { --i: var(--i-hash-lock); }
 }
 
-/* the server bar: stock's squircles (its BlobMask path, within 0.1 px), the pill on the left for unread, hovered and
-   selected. The top padding centres the DMs button on the header row */
-aside {
-  grid-area: servers; display: grid; align-content: start; justify-items: center; gap: 8px; overflow-y: auto; padding: 4px 0 12px;
-  border-right: 1px solid var(--bg-raised); scrollbar-width: none;
-  a {
-    width: 40px; height: 40px; border-radius: 13px; corner-shape: superellipse(1.3); display: grid; place-items: center; position: relative;
-    background: var(--icon, none) center / cover, var(--bg-raised); font-size: 16px; font-weight: 500; color: var(--text-strong);
-    transition: background-color 0.15s;
-  }
-  a[style] { background-color: transparent; }
-  a:not([style]):is(:hover, .sel) { background-color: var(--accent); }
-  a.dm { border-radius: 50%; corner-shape: round; }
-  a::before {
-    content: ""; position: absolute; left: -16px; width: 4px; height: 0; border-radius: 0 4px 4px 0;
-    background: var(--text-strong); transition: height 0.15s;
-  }
-  a.unread::before { height: 8px; }
-  a:hover::before { height: 20px; }
-  a.sel::before { height: 40px; }
-  /* the DMs button: a bare bubble (Liam's design), grey, lavender while hovered or open */
-  a.dms { background: var(--img-chat) center / 24px no-repeat; }
-  a.dms:is(:hover, .sel) { background: var(--img-chat-on) center / 24px no-repeat; }
-  a[data-n]::after { position: absolute; right: -4px; bottom: -4px; box-shadow: 0 0 0 3px var(--bg); }
-  /* folders, as stock measures them: closed, a 48 px tile of four; open, the folder icon in its colour over its
-     servers, on one column */
-  > div { display: grid; gap: 8px; justify-items: center; width: 48px; border-radius: 16px; }
-  > div.open { padding: 4px 0 8px; background: #97979f1f; }
-  a.folder {
-    width: 48px; height: 48px; grid: 1fr 1fr / 1fr 1fr; gap: 2px; padding: 4px; border-radius: 16px; corner-shape: round;
-    background: #97979f1f;
-  }
-  a.folder:hover { background-color: #97979f33; }
-  a.folder::before { left: -12px; }
-  > div.open > a.folder { width: 40px; height: 40px; border-radius: 12px; grid: auto / auto; place-items: center; background: none; color: var(--folder); }
-  > div.open > a.folder:hover { background-color: #97979f33; }
-  > div.open > a.folder::before { position: static; --i: var(--i-folder); transition: none; }
-  a.folder > i {
-    width: 19px; height: 19px; border-radius: 4px; display: grid; place-items: center; overflow: hidden;
-    background: var(--icon, none) center / cover, var(--bg); font: 500 8px/1 "gg sans", sans-serif;
-    &:nth-child(1) { border-top-left-radius: 13px; } &:nth-child(2) { border-top-right-radius: 13px; }
-    &:nth-child(3) { border-bottom-left-radius: 13px; } &:nth-child(4) { border-bottom-right-radius: 13px; }
-  }
-  > hr { width: 32px; margin-top: -5px; border: 0; border-top: 1px solid var(--bg-raised); }
-  /* Add a Server: a + tile at the bar's end, its form beside the bar */
-  > button.add-server { width: 40px; height: 40px; border-radius: 12px; background: var(--bg-raised); color: var(--positive); }
-  > button.add-server:hover { background: var(--positive); color: #fff; }
-}
-form.join {
-  position: fixed; inset: 48px auto auto 80px; width: 360px; padding: 16px; font-size: 14px;
-  &:popover-open { display: grid; gap: 12px; }
-  > p { display: grid; grid-template-columns: 48px 1fr; column-gap: 12px; align-items: center; font-weight: 600; }
-  > p[style]::before { content: ""; grid-row: 1 / 3; width: 48px; height: 48px; border-radius: 16px; background: var(--icon) center / cover; }
-  > p > small { grid-column: 2; font-weight: 400; color: var(--text-muted); }
-}
 
 /* the channel list and the DMs. A row reaches the list's edge with a clear left border, where the unread pill goes;
    its colour stays in the padding box */

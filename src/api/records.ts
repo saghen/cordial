@@ -160,3 +160,12 @@ export interface Message {
   interactionMetadata?: Record<string, any> | null
   isCommandType(): boolean
 }
+
+// a resolved invite (the API's shape: snake case)
+export interface Invite {
+  code: string
+  guild?: Pick<Guild, 'id' | 'name' | 'icon'>
+  channel?: { id: Id; name?: string }
+  approximate_presence_count?: number
+  approximate_member_count?: number
+}

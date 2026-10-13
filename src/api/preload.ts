@@ -14,6 +14,15 @@ export const preload = (id?: Id | null) => {
     A.messages.fetchMessages({ channelId: id!, limit: 2 * A.pages.size() })
 }
 
+// pointer handlers for a row that opens a channel: preloaded when the pointer stays 100 ms
+export function onHover(channel: () => Id | null | undefined) {
+  let t = 0
+  return {
+    onPointerEnter: () => (t = setTimeout(() => preload(channel()), 100)),
+    onPointerLeave: () => clearTimeout(t),
+  }
+}
+
 const readable = (c: Rec) =>
   typeof c.isPrivate === 'function' && !c.isGuildVocal() && can(PERMS.READ_MESSAGE_HISTORY, c)
 

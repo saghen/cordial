@@ -15,7 +15,6 @@ const ALLOWED = new Set([
   'components/embeds.tsx -> adapter/needs',
   'components/pickers.tsx -> adapter/discord',
   'components/pickers.tsx -> adapter/needs',
-  'components/pickers.tsx -> views/server_bar',
   'views/call.tsx -> adapter/discord',
   'views/call.tsx -> adapter/needs',
   'views/channels.tsx -> adapter/discord',
