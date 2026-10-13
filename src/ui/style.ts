@@ -1,4 +1,4 @@
-import { ICONS } from "./icons";
+import { ICONS } from './icons'
 
 // All of the renderer's CSS. The root is one grid; list rows are subgrids of their list (icon, label, badge). Elements
 // are styled by tag, nested under the root so Discord's own layers never see these rules.
@@ -423,4 +423,4 @@ export const CSS = `
   article time:not([data-mc]) { background: var(--bg-raised); border-radius: 3px; padding: 0 2px; }
 }
 @keyframes mc-typing { to { mask-position: 0; } }
-`;
+`

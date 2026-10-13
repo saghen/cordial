@@ -1,0 +1,6 @@
+*.css
+.prettierignore
+ai/
+design/
+README.md
+package-lock.json

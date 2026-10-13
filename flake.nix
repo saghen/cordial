@@ -27,6 +27,6 @@
         inherit (pkgs) electron;
       };
 
-      devShells.x86_64-linux.default = pkgs.mkShell { packages = [ pkgs.nodejs pkgs.electron ]; };
+      devShells.x86_64-linux.default = pkgs.mkShell { packages = [ pkgs.nodejs pkgs.electron pkgs.prettier ]; };
     };
 }
