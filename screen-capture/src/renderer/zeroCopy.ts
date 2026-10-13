@@ -23,7 +23,7 @@
 // it works the same with or without DAVE. Audio senders get their streams untouched.
 //
 // H.264: capture's access units are Annex B, as Chromium's encoder hands them to this stage (its packetizer splits
-// the NAL units itself); SPS and PPS come with each IDR. The steady wire rate's stuffing is AV1-only (stuffing.ts).
+// the NAL units itself); SPS and PPS come with each IDR. The steady wire rate stuffs it with filler NAL units.
 //
 // When capture goes (cast.ts falls back to a normal capture into the same track) or the stream is neither AV1 nor
 // H.264, Chromium's own frames go out again, from a keyframe of its re-initialised encoder (see Swap.stop).
@@ -212,7 +212,7 @@ class Swap implements CastConsumer {
       fast: null,
       lastFastDelay: 0,
       stuffPaused: false,
-      stuffing: settings.steadyWireRate && codec === 'av1',
+      stuffing: settings.steadyWireRate,
     })
     this.session = session
     this.sender = sender
@@ -230,7 +230,6 @@ class Swap implements CastConsumer {
   setCodec(codec: SwapCodec) {
     if (this.state !== 'active' || !this.session || this.session.codec === codec) return
     this.session.setCodec(codec)
-    this.stuffing = settings.steadyWireRate && codec === 'av1'
     this.session.send({ type: 'start', kbps: this.lastKbps, codec })
     this.needKey = true
     this.needTemplates()
@@ -442,7 +441,7 @@ class Swap implements CastConsumer {
       const f = fill(this.filled, data.byteLength, tUs / 1000, this.stuffPaused ? 0 : target)
       this.filled = f.state
       if (f.pad) {
-        const stuffed = stuff(new Uint8Array(data), f.pad)
+        const stuffed = stuff(new Uint8Array(data), f.pad, this.session?.codec)
         pad = stuffed.byteLength - data.byteLength
         if (pad) data = stuffed.buffer as ArrayBuffer
       }
