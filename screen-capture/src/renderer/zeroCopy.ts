@@ -574,6 +574,10 @@ export type SwapCodec = 'av1' | 'h264'
 const SWAP_CODECS: Record<string, SwapCodec> = { 'video/av1': 'av1', 'video/h264': 'h264' }
 const CODEC_NAMES: Record<SwapCodec, string> = { av1: 'AV1', h264: 'H.264' }
 const swapCodec = (sender: RTCRtpSender): SwapCodec | undefined => SWAP_CODECS[sendCodec(sender) ?? '']
+// capture's height limit for a codec (0: the stream's size): 1440p30 is for capture's AV1 only (streamQuality.ts
+// GPU_AV1), H.264 (a stock viewer's call) gets 1080p
+const heightFor = (session: CastSession, codec: SwapCodec) =>
+  session.quality.gpuOnly && codec !== 'av1' ? Math.min(1080, session.height) : 0
 
 /**
  * Until the sender is negotiated to send (Discord puts the track on a recvonly transceiver, sets it sendrecv and
@@ -627,6 +631,9 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   }
   if (sender.track !== track || session.state !== 'cast') return active.delete(sender)
   const max = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
+  // (before start: capture keeps the last height it was given)
+  let lastHeight = heightFor(session, codec) // then a scale Discord set before the session is sent at once
+  if (lastHeight) session.send({ type: 'height', height: lastHeight })
   swap.start(session, sender, kbps ?? Math.min(6000, (max * 0.7) / 1000), codec)
   logger.info(`Streaming capture's ${CODEC_NAMES[codec]} (zero-copy)`)
   // capture was started again (cast.ts' recast): the same sender, the rate it had
@@ -635,7 +642,6 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
     active.delete(sender)
     startZeroCopy(sender, track, swap.kbps)
   }
-  let lastHeight = 0 // capture starts at its --size (0); a scale Discord set before the session is sent at once
   let prev: { at: number; bytes: number; packets: number; delay: number } | null = null
   const timer = setInterval(async () => {
     if (swap.state !== 'active' || sender.track !== track) {
@@ -673,7 +679,8 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
       swap.updateRate(bwe, enc?.maxBitrate ?? 9e6, wire, sendDelay)
       // the encoding's scale is only ever ours (streamQuality.ts drops Discord's, the viewers'): capture's size limit
       const scale = enc?.scaleResolutionDownBy ?? 1
-      const height = scale > 1 ? Math.round(session.height / scale) : 0
+      const cap = heightFor(session, now)
+      const height = scale > 1 ? Math.round((cap || session.height) / scale) : cap
       if (height !== lastHeight) {
         swap.setHeight(height)
         lastHeight = height

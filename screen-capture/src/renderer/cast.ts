@@ -462,8 +462,8 @@ export class CastSession {
     await track
       .applyConstraints({
         frameRate: { ideal: fps, max: fps },
-        width: { max: this.quality.width },
-        height: { max: this.quality.height },
+        width: { max: this.quality.gpuOnly ? 1920 : this.quality.width },
+        height: { max: this.quality.gpuOnly ? 1080 : this.quality.height },
       })
       .catch((e) => logger.error('Fallback constraints failed', e))
     this.fallbackTrack = track
@@ -511,6 +511,8 @@ export class CastSession {
       rawWaiter = resolve
       this.rawFailed = () => resolve(null)
       setTimeout(() => resolve(null), RAW_TIMEOUT_MS)
+      // (1440p30 is for capture's AV1: Chromium's encoders get 1080p, streamQuality.ts GPU_AV1)
+      if (this.quality.gpuOnly) this.send({ type: 'height', height: 1080 })
       this.send({ type: 'raw' })
     })
     rawWaiter = null
@@ -532,6 +534,10 @@ export class CastSession {
     port.onmessage = ({ data }) => {
       const frame: VideoFrame = data.frame
       if (this.state !== 'fallback' || this.rawPort !== port || pending > 2) return frame.close()
+      // the track's settings say the size Chromium encodes (1080p under a 1440p30 quality; streamQuality.ts' motion
+      // scaler reads it)
+      this.width = frame.displayWidth
+      this.height = frame.displayHeight
       pending++
       this.feed(frame, warmUntil).finally(() => pending--)
     }
@@ -658,6 +664,7 @@ export async function castDisplayMedia(
   const quality = autoQuality(
     pick.width && pick.height ? { width: pick.width, height: pick.height } : undefined,
     effectiveCodec(pick.codec),
+    captureEncodes('av1'),
   )
   const session = (latest = new CastSession(pick, quality, displayMedia, !!opts?.audio))
   tuneStreamTrack(session.track, pick.priority)

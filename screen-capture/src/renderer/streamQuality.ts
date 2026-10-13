@@ -73,13 +73,19 @@ export interface QualityChoice {
 // an account without Nitro (720p30), at Discord's bitrate for that account (3.5 Mbps). At 3.5 Mbps, 1080p30 beat
 // 720p30 for AV1 on every lab clip and for VP9 on still content, even on games (LOG Key finds, "What 3.5 Mbps buys").
 const ALWAYS: QualityChoice = { resolution: '1080', frameRate: '30' }
-const always = (r: StreamResolution, f: StreamFps) => r === ALWAYS.resolution && f === ALWAYS.frameRate
+// And 1440p30 when capture encodes AV1 on the GPU (Liam, 2026-10-13: "Use 1440p30 for AV1, since we're only encoding
+// on the GPU"): at 3.5 Mbps text is the source itself (SSIM 0.9994, 0.943 at 1080p30) and games are no worse
+// (Deadlock 0.938 / 0.937, Witcher 0.809 / 0.798), below AV1_MIN_BPP, which is libaom's. When Chromium encodes
+// instead (raw, cast.ts) capture's frames go back to 1080p.
+const GPU_AV1: QualityChoice = { resolution: '1440', frameRate: '30' }
+const isPair = (q: QualityChoice, r: StreamResolution, f: StreamFps) => r === q.resolution && f === q.frameRate
 
-/** Every allowed pair, by resolution: Discord's, and 1080p30. */
-export function allowedQualities(): Map<StreamResolution, StreamFps[]> {
+/** Every allowed pair, by resolution: Discord's, 1080p30, and 1440p30 when capture encodes AV1 (`gpuAv1`). */
+export function allowedQualities(gpuAv1 = false): Map<StreamResolution, StreamFps[]> {
+  const extra = gpuAv1 ? [ALWAYS, GPU_AV1] : [ALWAYS]
   const out = new Map<StreamResolution, StreamFps[]>()
   for (const r of StreamResolutions) {
-    const fps = StreamFps.filter((f) => canStream(r, f) || always(r, f))
+    const fps = StreamFps.filter((f) => canStream(r, f) || extra.some((q) => isPair(q, r, f)))
     if (fps.length) out.set(r, fps)
   }
   return out
@@ -162,6 +168,8 @@ export interface AutoQuality extends QualityChoice {
   maxBitrate: number
   /** the pair is past Discord's rules for the account (1080p30 without Nitro): its maxBitrate is a ceiling too */
   pastDiscord: boolean
+  /** 1440p30 past AV1's floor, for capture's AV1 only: Chromium's own encoder gets 1080p (cast.ts) */
+  gpuOnly: boolean
   /** Bits per encoded pixel per frame at that cap. */
   bitsPerPixel: number
 }
@@ -185,12 +193,13 @@ function encodedPixels(box: Size, source: Size): number {
 /**
  * Picks the resolution and frame rate for a stream: among the pairs the account may stream, 60 fps
  * at the highest resolution whose bits per pixel at Discord's cap clear the codec's floor, never
- * above the source; else the same at 30 fps; else the lowest allowed pair.
+ * above the source; else the same at 30 fps; else the lowest allowed pair. `gpuAv1`: capture encodes AV1 (GPU_AV1).
  */
 export function autoQuality(
   source: Size | undefined,
   codec: StreamCodec,
-  allowed: Map<StreamResolution, StreamFps[]> = allowedQualities(),
+  gpuAv1 = false,
+  allowed: Map<StreamResolution, StreamFps[]> = allowedQualities(gpuAv1 && codec === 'AV1'),
 ): AutoQuality {
   const src = source?.width && source.height ? source : UNKNOWN_SOURCE
   // The source's height rounded down to a tier; anything below 480 still streams at the 480 tier.
@@ -198,10 +207,13 @@ export function autoQuality(
 
   const describe = (resolution: StreamResolution, frameRate: StreamFps): AutoQuality => {
     const box = captureBox(resolution, src)
-    const pastDiscord = always(resolution, frameRate) && !canStream(resolution, frameRate)
+    const pastDiscord =
+      (isPair(ALWAYS, resolution, frameRate) || isPair(GPU_AV1, resolution, frameRate)) &&
+      !canStream(resolution, frameRate)
     const maxBitrate = pastDiscord ? LOW_MAX_BITRATE : discordMaxBitrate(resolution, frameRate)
     const bitsPerPixel = maxBitrate / (encodedPixels(box, src) * Number(frameRate))
-    return { resolution, frameRate, codec, ...box, maxBitrate, bitsPerPixel, pastDiscord }
+    const gpuOnly = codec === 'AV1' && isPair(GPU_AV1, resolution, frameRate) && bitsPerPixel < AV1_MIN_BPP
+    return { resolution, frameRate, codec, ...box, maxBitrate, bitsPerPixel, pastDiscord, gpuOnly }
   }
 
   const pairs = [...allowed]
@@ -211,7 +223,7 @@ export function autoQuality(
 
   for (const fps of ['60', '30'] as const) {
     const best = pairs
-      .filter((p) => p.frameRate === fps && p.bitsPerPixel >= MinBitsPerPixel[codec])
+      .filter((p) => p.frameRate === fps && (p.gpuOnly || p.bitsPerPixel >= MinBitsPerPixel[codec]))
       .sort(byResolution)
       .at(-1)
     if (best) return best
