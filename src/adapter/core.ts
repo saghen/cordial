@@ -135,6 +135,12 @@ byProps("notifications", "updateGuildNotificationSettings");
 // stock's Mark As Read for servers: every channel, thread and event read state up to its last message, as BULK_ACK
 byCode("markGuildsRead", "getActiveJoinedThreadsForGuild", "GUILD_ONBOARDING_QUESTION");
 byProps("voice", "selectVoiceChannel", "disconnect");
+// Discord's REST client and its endpoint paths: pins and Mark Unread are stock requests from its menu's chunk, which
+// isn't loaded without its UI
+moduleNeed("rest", "the REST client: del, get, patch, post, put", () => find(e => Object.keys(e).sort().join() === "del,get,patch,post,put")?.[0]);
+byProps("endpoints", "PIN", "MESSAGE_ACK");
+// whether a message counts towards a channel's mentions (suppress settings; every message in a DM)
+mangled("readStates", '"ReadStateStore"', { countsAsMention: "isSuppressRolesEnabled" });
 byProps("audio", "toggleSelfMute", "toggleSelfDeaf", "setInputDevice", "setOutputDevice");
 // stock's voice rows: FETCH_CHANNEL_INFO and op 43 for a server's voice channel statuses, once until a resume
 byCode("channelInfo", 'type:"FETCH_CHANNEL_INFO"', "requestChannelInfo");

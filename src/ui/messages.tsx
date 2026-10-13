@@ -62,6 +62,14 @@ const react = (m: Message) => (r: Reaction) => {
     </button>;
 };
 
+// stock's Resend (its menu's chunk, not loaded without it): the failed copy goes, the same message is sent again with
+// its nonce. Stock adds the options SendMessageOptionsStore kept for it, also not loaded: a reply's mention setting
+function resend(channelId: Id, m: Message) {
+    A.messages.deleteMessage(channelId, m.id, true);
+    A.messages.sendMessage(channelId, { content: m.content, tts: m.tts, invalidEmojis: [], validNonShortcutEmojis: [] }, undefined,
+        { nonce: m.nonce, flags: m.flags, messageReference: m.messageReference ?? undefined, location: "explicit_retry" });
+}
+
 export function Messages(p: { root: HTMLElement; }) {
     const channelId = createMemo(() => $.SelectedChannel.getChannelId());
     const channel = createMemo(() => $.Channel.getChannel(channelId()!));
@@ -79,7 +87,7 @@ export function Messages(p: { root: HTMLElement; }) {
         const ref = createMemo(() => m.type === 19 ? $.ReferencedMessage.getMessageByReference(m.messageReference) : null);
         const nodes = content(m, untrack(channelId)!);
         return <article data-id={m.id}
-            class={{ head: head(), system: m.type !== 0 && m.type !== 19, new: unread() === m.id, edited: !!m.editedTimestamp, day: !!day(), reply: !!ref() }}
+            class={{ sending: m.state === "SENDING", failed: m.state === "SEND_FAILED", head: head(), system: m.type !== 0 && m.type !== 19, new: unread() === m.id, edited: !!m.editedTimestamp, day: !!day(), reply: !!ref() }}
             style={author() ? { "--av": `url(${author()!.avatar})` } : undefined}
         >
             <Show when={ref()}>{r => <q data-mc="reply-to" onClick={() => view.querySelector(`[data-id="${r().message?.id}"]`)?.scrollIntoView({ block: "center" })}>
@@ -92,6 +100,12 @@ export function Messages(p: { root: HTMLElement; }) {
             {m.attachments?.map(attachment)}
             <Show when={m.reactions?.length}>
                 <p data-mc="reactions">{m.reactions.map(react(m))}</p>
+            </Show>
+            <Show when={m.state === "SEND_FAILED"}>
+                <p data-mc="failed">Not sent.
+                    <button data-mc="retry" onClick={() => resend(m.channel_id, m)}>Retry</button>
+                    <button data-mc="discard" onClick={() => A.messages.deleteMessage(m.channel_id, m.id, true)}>Delete</button>
+                </p>
             </Show>
         </article>;
     };

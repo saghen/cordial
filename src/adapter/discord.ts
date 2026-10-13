@@ -89,7 +89,8 @@ export interface Actions {
     messages: {
         sendMessage(channelId: Id, message: Rec, waitForReady?: boolean, options?: Rec): Promise<unknown>;
         editMessage(channelId: Id, messageId: Id, message: Rec): Promise<unknown>;
-        deleteMessage(channelId: Id, messageId: Id): Promise<unknown>;
+        // local: only the client's copy (a failed send)
+        deleteMessage(channelId: Id, messageId: Id, local?: boolean): Promise<unknown>;
         // sendMessage's options for a pending reply: messageReference, allowedMentions
         getSendMessageOptionsForReply(reply: Rec | undefined): Rec;
         fetchMessages(options: { channelId: Id; limit?: number; before?: Id; after?: Id; jump?: Rec; truncate?: boolean; }): Promise<unknown>;
@@ -132,6 +133,9 @@ export interface Actions {
     notifications: { updateGuildNotificationSettings(guildId: Id, settings: Rec, reason?: string): void; };
     voice: { selectVoiceChannel(channelId: Id | null): void; disconnect(): void; };
     channelInfo(guildId: Id): void;
+    rest: Record<"del" | "get" | "patch" | "post" | "put", (o: { url: string; body?: Rec; oldFormErrors?: boolean; rejectWithError?: boolean; }) => Promise<Rec>>;
+    endpoints: { PIN(channelId: Id, messageId: Id): string; MESSAGE_ACK(channelId: Id, messageId: Id): string; };
+    readStates: { countsAsMention(message: Rec, user: Rec): boolean; };
     audio: { toggleSelfMute(): Promise<void>; toggleSelfDeaf(): void; setInputDevice(id: string): void; setOutputDevice(id: string): void; };
     markGuildsRead(guildIds: Id[], source: string): void;
     channelSections: { toggleMembersSection(): void; toggleUserProfileSidebarSection(): void; };

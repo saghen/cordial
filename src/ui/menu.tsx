@@ -24,7 +24,16 @@ export function popAt(menu: HTMLElement, e: MouseEvent) {
     else show();
 }
 
-const MANAGE_MESSAGES = 8192n, SEND_MESSAGES = 2048n, ADD_REACTIONS = 64n;
+const MANAGE_MESSAGES = 8192n, SEND_MESSAGES = 2048n, ADD_REACTIONS = 64n, READ_MESSAGE_HISTORY = 65536n, PIN_MESSAGES = 1n << 51n;
+
+// stock's Mark Unread: a manual ack of the message before this one (or of the millisecond before it), with the
+// mentions after it as the count
+function markUnread(channelId: Id, messageId: Id) {
+    const me = S.User.getCurrentUser()!, all = S.Message.getMessages(channelId).toArray() as Message[];
+    const before = all.filter(m => BigInt(m.id) < BigInt(messageId)).at(-1)?.id ?? String(((BigInt(messageId) >> 22n) - 1n) << 22n);
+    const mentions = all.filter(m => BigInt(m.id) > BigInt(before) && A.readStates.countsAsMention(m, me)).length;
+    A.rest.post({ url: A.endpoints.MESSAGE_ACK(channelId, before), body: { manual: true, mention_count: mentions }, oldFormErrors: true, rejectWithError: true });
+}
 
 export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; }) {
     const [target, setTarget] = createSignal<Message | null>(null);
@@ -65,7 +74,7 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
     }</For></p>;
     const box = () => document.querySelector<HTMLTextAreaElement>("[data-mc=composer]")?.focus();
 
-    return <menu ref={menu} data-mc="message-menu" popover>
+    return <menu ref={menu} data-mc="message-menu" popover onToggle={e => e.newState === "closed" && setQuery(null)}>
         <Show when={target() && query() != null}>
             <input data-mc="react:search" placeholder="Find an emoji" ref={i => queueMicrotask(() => i.focus())}
                 onInput={e => setQuery(e.currentTarget.value)}
@@ -89,6 +98,15 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
                     box();
                 })}>Edit</button>
             </Show>
+            <Show when={(target()!.type === 0 || target()!.type === 19) && (channel().isPrivate()
+                || S.Permission.can(PIN_MESSAGES, channel()) && S.Permission.can(READ_MESSAGE_HISTORY, channel()))}>
+                <button data-mc="menu:pin" onClick={act(() => target()!.pinned
+                    ? A.rest.del({ url: A.endpoints.PIN(channel().id, target()!.id), oldFormErrors: true, rejectWithError: true })
+                    : A.rest.put({ url: A.endpoints.PIN(channel().id, target()!.id), rejectWithError: true }))}>
+                    {target()!.pinned ? "Unpin" : "Pin"}
+                </button>
+            </Show>
+            <button data-mc="menu:unread" onClick={act(() => markUnread(channel().id, target()!.id))}>Mark Unread</button>
             <button data-mc="menu:copy" onClick={act(() => navigator.clipboard.writeText(target()!.content))}>Copy text</button>
             <button data-mc="menu:link" onClick={act(() => navigator.clipboard.writeText(
                 `https://discord.com/channels/${channel().guild_id ?? "@me"}/${channel().id}/${target()!.id}`))}>Copy link</button>
