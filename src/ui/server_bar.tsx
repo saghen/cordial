@@ -23,7 +23,8 @@ function Guild(p: { id: Id }) {
   const g = () => $.Guild.getGuild(p.id)
   return (
     <Item
-      mc={`guild:${p.id}`}
+      name="guild"
+      id={p.id}
       title={g()?.name}
       sel={selectedGuild() === p.id}
       label={g()?.icon ? '' : acronym(p.id)}
@@ -53,7 +54,7 @@ function Folder(p: { folder: ReturnType<typeof S.SortedGuild.getGuildFolders>[nu
       style={{ '--folder': `#${(p.folder.folderColor ?? 0x5865f2).toString(16).padStart(6, '0')}` }}
     >
       <a
-        data-mc={`folder:${id}`}
+        data-id={id}
         title={
           p.folder.folderName ??
           ids()
@@ -83,7 +84,7 @@ export function ServerBar() {
   return (
     <aside ref={bar}>
       <Item
-        mc="dms"
+        name="dms"
         title="Direct Messages"
         sel={!selectedGuild()}
         pre={lastDm}
@@ -114,11 +115,11 @@ function AddServer() {
   }
   return (
     <>
-      <button data-mc="add-server" title="Add a Server" popovertarget="mc-join" />
+      <button class="add-server" title="Add a Server" popovertarget="mc-join" />
       <form
         ref={form}
         id="mc-join"
-        data-mc="join"
+        class="join"
         popover
         onSubmit={(e) => {
           e.preventDefault()
@@ -158,25 +159,23 @@ function AddServer() {
 }
 
 function ServerMenu(p: { bar: HTMLElement }) {
-  const menu = contextMenu((e) =>
-    (e.target as Element).closest<HTMLElement>("[data-mc^='guild:']")?.dataset.mc!.slice(6),
-  )
+  const menu = contextMenu((e) => (e.target as Element).closest<HTMLElement>('.guild')?.dataset.id)
   p.bar.addEventListener('contextmenu', menu.open)
   const muted = (id: Id) => $.UserGuildSettings.isMuted(id)
   return (
-    <menu ref={menu.ref} data-mc="server-menu" popover>
+    <menu ref={menu.ref} class="server-menu" popover>
       <Show when={menu.target()}>
         {(id) => (
           <Items
             items={[
               {
-                mc: 'menu:read',
+                name: 'menu-read',
                 label: 'Mark As Read',
                 disabled: !$.GuildReadState.getGuildHasUnreadIgnoreMuted(id()),
                 run: () => A.markGuildsRead([id()], 'Guild List'),
               },
               {
-                mc: 'menu:mute',
+                name: 'menu-mute',
                 label: muted(id()) ? 'Unmute Server' : 'Mute Server',
                 run: () =>
                   A.notifications.updateGuildNotificationSettings(
@@ -185,7 +184,7 @@ function ServerMenu(p: { bar: HTMLElement }) {
                     muted(id()) ? 'unmuted' : 'muted',
                   ),
               },
-              { mc: 'menu:copy-id', label: 'Copy Server ID', run: () => navigator.clipboard.writeText(id()) },
+              { name: 'menu-copy-id', label: 'Copy Server ID', run: () => navigator.clipboard.writeText(id()) },
             ]}
           />
         )}

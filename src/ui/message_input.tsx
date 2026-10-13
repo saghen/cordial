@@ -181,25 +181,24 @@ export function MessageInput() {
       <Typing />
       <Show when={reply()}>
         {(r) => (
-          <label data-mc="reply">
+          <label class="reply">
             Replying to <b>{authorOf(r().message as Message, r().channel.guild_id).name}</b>
             <Show when={r().showMentionToggle}>
               <button
-                data-mc="reply:mention"
-                class={{ on: r().shouldMention }}
+                class={['reply-mention', { on: r().shouldMention }]}
                 onClick={() => A.replies.mention(channelId()!, !r().shouldMention)}
               >
                 @ {r().shouldMention ? 'on' : 'off'}
               </button>
             </Show>
-            <button data-mc="reply:cancel" onClick={() => A.replies.remove(channelId()!)}>
+            <button class="reply-cancel" onClick={() => A.replies.remove(channelId()!)}>
               ✕
             </button>
           </label>
         )}
       </Show>
       <Show when={uploads().length}>
-        <ul data-mc="uploads">
+        <ul class="uploads">
           <For each={uploads()}>
             {(u) => {
               // an image shows itself, as stock's card, from the picked file
@@ -208,7 +207,8 @@ export function MessageInput() {
               onCleanup(() => preview && URL.revokeObjectURL(preview))
               return (
                 <button
-                  data-mc={`upload:${u.filename}`}
+                  class="upload"
+                  data-id={u.filename}
                   title="Remove"
                   style={preview ? { '--preview': `url(${preview})` } : undefined}
                   onClick={() => A.uploads.remove(channelId()!, u.id, 0)}
@@ -230,11 +230,11 @@ export function MessageInput() {
           files.value = ''
         }}
       />
-      <div data-mc="box" hidden={!channelId()}>
-        <button data-mc="attach" title="Upload a file" hidden={!can()} onClick={() => files.click()} />
+      <div class="box" hidden={!channelId()}>
+        <button class="attach" title="Upload a file" hidden={!can()} onClick={() => files.click()} />
         <textarea
           ref={box}
-          data-mc="composer"
+          id="mc-composer"
           class={{ editing: !!editing() }}
           rows={1}
           disabled={!can()}
@@ -273,7 +273,7 @@ function Typing() {
   })
   return (
     <Show when={names().length}>
-      <output data-mc="typing">
+      <output class="typing">
         {names().length > 3 ? (
           'Several people are typing…'
         ) : (
@@ -415,13 +415,13 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec |
   }
 
   const view = (
-    <menu ref={menu} data-mc="autocomplete" popover="manual">
+    <menu ref={menu} class="autocomplete" popover="manual">
       <For each={items()}>
         {(item, i) => (
           <>
             {item.head ? <h3>{item.head}</h3> : item.div ? <hr /> : null}
             <button
-              data-mc={`complete:${item.text}`}
+              data-id={item.text}
               class={[item.kind, { sel: i() === sel(), ch: item.kind !== undefined }]}
               data-status={item.status}
               style={

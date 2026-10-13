@@ -55,7 +55,7 @@ export function Login() {
   return (
     <>
       <style>{CSS}</style>
-      <form data-mc="login" onSubmit={submit}>
+      <form class="login" onSubmit={submit}>
         <h2>{mfa() ? 'Multi-Factor Authentication' : 'Welcome back!'}</h2>
         <Show
           when={mfa()}
@@ -63,12 +63,12 @@ export function Login() {
             <>
               <label>
                 Email or Phone Number
-                <input data-mc="login:email" name="email" type="text" autocomplete="username" required autofocus />
+                <input class="login-email" name="email" type="text" autocomplete="username" required autofocus />
               </label>
               <label>
                 Password
                 <input
-                  data-mc="login:password"
+                  class="login-password"
                   name="password"
                   type="password"
                   autocomplete="current-password"
@@ -84,7 +84,7 @@ export function Login() {
                 ? 'Enter one of your 8-digit backup codes'
                 : 'Enter the code from your authenticator app'}
               <input
-                data-mc="login:code"
+                class="login-code"
                 name="code"
                 inputmode="numeric"
                 autocomplete="one-time-code"
@@ -95,7 +95,7 @@ export function Login() {
             <Show when={kinds().length > 1}>
               <button
                 type="button"
-                data-mc="login:kind"
+                class="login-kind"
                 onClick={() => setKind(mfaType() === 'backup' ? 'totp' : 'backup')}
               >
                 {mfaType() === 'backup' ? 'Use your authenticator app' : 'Use a backup code'}
@@ -106,10 +106,10 @@ export function Login() {
         <Show when={error() || DISCORDS.includes(status())}>
           <p role="alert">{error() || "Discord's login screen continues from here."}</p>
         </Show>
-        <button data-mc="login:submit" disabled={busy() || (mfa() && !mfaType())}>
+        <button class="login-submit" disabled={busy() || (mfa() && !mfaType())}>
           {busy() ? 'Logging in…' : 'Log In'}
         </button>
-        <button type="button" data-mc="login:discord" onClick={() => G.discordLogin()}>
+        <button type="button" class="login-discord" onClick={() => G.discordLogin()}>
           Use Discord's login screen
         </button>
       </form>

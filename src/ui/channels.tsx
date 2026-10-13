@@ -23,8 +23,10 @@ export const kindOf = (c: Rec) =>
         ? 'lock'
         : undefined
 
+// a row: a channel, a DM, a server or the DMs button, by its class (name) and data-id
 export function Item(p: {
-  mc?: string
+  name: string
+  id?: Id
   label?: string
   sub?: string
   title?: string
@@ -42,12 +44,12 @@ export function Item(p: {
   let t = 0
   return (
     <a
-      data-mc={p.mc}
+      data-id={p.id}
       title={p.title}
       style={url(p.icon)}
       data-status={p.status}
       data-n={p.mentions || undefined}
-      class={[p.kind, { sel: !!p.sel, unread: !!p.unread && !p.muted, muted: !!p.muted }]}
+      class={[p.name, p.kind, { sel: !!p.sel, unread: !!p.unread && !p.muted, muted: !!p.muted }]}
       onClick={p.go}
       onPointerEnter={() => p.pre && (t = setTimeout(() => preload(p.pre!()), 100))}
       onPointerLeave={() => clearTimeout(t)}
@@ -95,7 +97,8 @@ export function Dm(p: { id: Id; bar?: boolean }) {
   const name = () => dmName(c())
   return (
     <Item
-      mc={`dm:${p.id}`}
+      name="dm"
+      id={p.id}
       title={name()}
       label={p.bar ? '' : name()}
       sub={p.bar ? undefined : dmSub(c())}
@@ -150,8 +153,8 @@ export function Channels() {
                 <VoiceRow channel={c} />
               ) : c.type === 4 ? (
                 <a
-                  data-mc={`category:${c.id}`}
                   class={['cat', { collapsed: $.CategoryCollapse.isCollapsed(c.id) }]}
+                  data-id={c.id}
                   onClick={() =>
                     A.dispatcher.dispatch({
                       type: S.CategoryCollapse.isCollapsed(c.id) ? 'CATEGORY_EXPAND' : 'CATEGORY_COLLAPSE',
@@ -163,7 +166,8 @@ export function Channels() {
                 </a>
               ) : (
                 <Item
-                  mc={`channel:${c.id}`}
+                  name="channel"
+                  id={c.id}
                   label={c.name}
                   kind={kindOf(c)}
                   sel={selected() === c.id}
@@ -186,25 +190,25 @@ export function Channels() {
 // a right click on a channel or a category: stock's Mark As Read, Mute, Copy Link and Copy Channel ID
 function channelMenu() {
   const menu = contextMenu((e) => {
-    const row = (e.target as Element).closest<HTMLElement>("[data-mc^='channel:'], [data-mc^='category:']")
-    return row && (S.Channel.getChannel(row.dataset.mc!.split(':')[1]) as Rec | undefined)
+    const row = (e.target as Element).closest<HTMLElement>('nav > .channel, nav > .cat')
+    return row && (S.Channel.getChannel(row.dataset.id!) as Rec | undefined)
   })
   const muted = (c: Rec) => $.UserGuildSettings.isChannelMuted(c.guild_id, c.id)
   const what = (c: Rec) => (c.type === 4 ? 'Category' : 'Channel')
   const view = (
-    <menu ref={menu.ref} data-mc="channel-menu" popover>
+    <menu ref={menu.ref} class="channel-menu" popover>
       <Show when={menu.target()}>
         {(c) => (
           <Items
             items={[
               {
-                mc: 'menu:read',
+                name: 'menu-read',
                 label: 'Mark As Read',
                 disabled: c().type !== 4 && !$.ReadState.hasUnread(c().id),
                 run: () => A.acks.markRead(c()),
               },
               {
-                mc: 'menu:mute',
+                name: 'menu-mute',
                 label: `${muted(c()) ? 'Unmute' : 'Mute'} ${what(c())}`,
                 run: () =>
                   A.notifications.updateChannelOverrideSettings({
@@ -215,11 +219,11 @@ function channelMenu() {
                   }),
               },
               {
-                mc: 'menu:copy-link',
+                name: 'menu-copy-link',
                 label: 'Copy Link',
                 run: () => navigator.clipboard.writeText(`https://discord.com/channels/${c().guild_id}/${c().id}`),
               },
-              { mc: 'menu:copy-id', label: 'Copy Channel ID', run: () => navigator.clipboard.writeText(c().id) },
+              { name: 'menu-copy-id', label: 'Copy Channel ID', run: () => navigator.clipboard.writeText(c().id) },
             ]}
           />
         )}
@@ -263,7 +267,7 @@ function VoiceRow(p: { channel: Rec }) {
   return (
     <>
       <a
-        data-mc={`voice:${p.channel.id}`}
+        data-id={p.channel.id}
         class={{
           voice: true,
           lock: kindOf(p.channel) === 'lock',
@@ -284,15 +288,18 @@ function VoiceRow(p: { channel: Rec }) {
             v.userId === $.User.getCurrentUser()?.id && $.RTCConnection.getChannelId() !== p.channel.id
           return (
             <a
-              data-mc={`voice-user:${v.userId}`}
+              class={[
+                'voice-user',
+                {
+                  speaking: $.Speaking.isSpeaking(v.userId),
+                  mute: v.selfMute || v.mute,
+                  deaf: v.selfDeaf || v.deaf,
+                  forced: v.mute || v.deaf,
+                  elsewhere: elsewhere(),
+                },
+              ]}
+              data-id={v.userId}
               style={url(user()?.getAvatarURL(p.channel.guild_id, 32))}
-              class={{
-                speaking: $.Speaking.isSpeaking(v.userId),
-                mute: v.selfMute || v.mute,
-                deaf: v.selfDeaf || v.deaf,
-                forced: v.mute || v.deaf,
-                elsewhere: elsewhere(),
-              }}
             >
               {nameOf(user(), $.GuildMember.getMember(p.channel.guild_id, v.userId)?.nick)}
               <Show when={v.selfStream}>

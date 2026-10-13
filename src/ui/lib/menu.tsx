@@ -1,6 +1,6 @@
-// Menus as data. An item is a button (its data-mc, label and state); a click closes the popover around it, unless it
-// keeps it open, then runs it. '-' is a divider; false or null leaves an item out. A context menu's target is what the
-// right click was on, the menu shown at the pointer.
+// Menus as data. An item is a button (its class, the id of what it's for, label and state); a click closes the
+// popover around it, unless it keeps it open, then runs it. '-' is a divider; false or null leaves an item out. A
+// context menu's target is what the right click was on, the menu shown at the pointer.
 
 import { createSignal, For } from 'solid-js'
 import type { JSX } from '@solidjs/web'
@@ -8,7 +8,8 @@ import type { JSX } from '@solidjs/web'
 import { popAt } from './popover'
 
 export type Item = {
-  mc: string
+  name: string
+  id?: string
   label: JSX.Element
   run(e: MouseEvent): void
   class?: string | Record<string, boolean>
@@ -25,8 +26,8 @@ export const Items = (p: { items: (Item | '-' | false | null | undefined)[] }) =
         <hr />
       ) : (
         <button
-          data-mc={i.mc}
-          class={i.class}
+          class={[i.name, i.class]}
+          data-id={i.id}
           disabled={i.disabled}
           title={i.title}
           data-status={i.status}

@@ -71,7 +71,7 @@ function Sections(p: {
         <For each={p.all}>
           {(s) => (
             <button
-              data-mc={`section:${s.id}`}
+              data-id={s.id}
               title={s.name}
               style={s.icon ? { '--i': `var(--i-${s.icon})` } : undefined}
               onClick={() => list.querySelector(`[data-section="${s.id}"]`)?.scrollIntoView()}
@@ -138,14 +138,14 @@ function Sections(p: {
 }
 
 const searchInput = (
-  mc: string,
+  name: string,
   placeholder: string,
   query: () => string,
   set: (q: string) => void,
   enter?: () => void,
 ) => (
   <input
-    data-mc={`${mc}:search`}
+    class={`${name}-search`}
     type="search"
     placeholder={placeholder}
     value={query()}
@@ -201,11 +201,11 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
   }
   return (
     <>
-      <button data-mc="emoji" title="Select emoji" popovertarget="mc-emoji" hidden={!p.channel()} />
+      <button class="emoji-button" title="Select emoji" popovertarget="mc-emoji" hidden={!p.channel()} />
       <menu
         ref={menu}
         id="mc-emoji"
-        data-mc="emoji-picker"
+        class="emoji-picker"
         popover
         onToggle={(e) => {
           if (e.newState === 'open') {
@@ -231,7 +231,7 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
           })}
           item={(e) => (
             <button
-              data-mc={`emoji:${e.id ?? e.name}`}
+              data-id={e.id ?? e.name}
               // shift keeps the picker open for more, as stock
               onClick={(ev) => (pick(e), ev.shiftKey || menu.hidePopover())}
             >
@@ -285,17 +285,17 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
     A.gifs.clear()
   }
   const tile = (name: string, img: string | undefined, run: () => void) => (
-    <button data-mc={`gif:category:${name}`} style={img ? { '--img': `url(${img})` } : undefined} onClick={run}>
+    <button class="gif-category" data-id={name} style={img ? { '--img': `url(${img})` } : undefined} onClick={run}>
       {name}
     </button>
   )
   return (
     <>
-      <button data-mc="gif" title="Open GIF picker" popovertarget="mc-gif" hidden={!p.channel()} />
+      <button class="gif-button" title="Open GIF picker" popovertarget="mc-gif" hidden={!p.channel()} />
       <menu
         ref={menu}
         id="mc-gif"
-        data-mc="gif-picker"
+        class="gif-picker"
         popover
         onToggle={(e) => {
           if (e.newState === 'open') {
@@ -309,7 +309,7 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
         <Show when={view()} fallback={searchInput('gif', 'Search Klipy', query, (q) => search(q, 'Search'))}>
           {(v) => (
             <h3>
-              <button data-mc="gif:back" title="Back" onClick={back} />
+              <button class="gif-back" title="Back" onClick={back} />
               {v().name}
             </h3>
           )}
@@ -344,7 +344,7 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
             <div>
               <For each={items()}>
                 {(g, i) => (
-                  <button data-mc={`gif:${g.id ?? g.url}`} onClick={() => pick(g, i())}>
+                  <button data-id={g.id ?? g.url} onClick={() => pick(g, i())}>
                     {/\.(mp4|webm)(\?|$)/.test(g.src) ? (
                       <video src={g.src} width={g.width} height={g.height} autoplay loop muted />
                     ) : (
@@ -401,11 +401,11 @@ export function StickerPicker(p: { channel: () => Rec | undefined; send: (sticke
     st.guild_id ? S.Guild.getGuild(st.guild_id)?.name : S.Stickers.getStickerPack(st.pack_id)?.name
   return (
     <>
-      <button data-mc="sticker" title="Open sticker picker" popovertarget="mc-sticker" hidden={!p.channel()} />
+      <button class="sticker-button" title="Open sticker picker" popovertarget="mc-sticker" hidden={!p.channel()} />
       <menu
         ref={menu}
         id="mc-sticker"
-        data-mc="sticker-picker"
+        class="sticker-picker"
         popover
         onToggle={(e) => {
           if (e.newState !== 'open') return setQuery('')
@@ -424,7 +424,7 @@ export function StickerPicker(p: { channel: () => Rec | undefined; send: (sticke
             from: from(st) && `from ${from(st)}`,
           })}
           item={(st) => (
-            <button data-mc={`sticker:${st.id}`} onClick={() => (p.send(st.id), menu.hidePopover())}>
+            <button data-id={st.id} onClick={() => (p.send(st.id), menu.hidePopover())}>
               {/* a Lottie sticker by its name, as the chat shows one */}
               {st.format_type === 3 ? st.name : <img alt={st.name} src={src(st)} loading="lazy" />}
             </button>

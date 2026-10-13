@@ -43,12 +43,16 @@ const CALL = 3
 const missed = (m: Message) => !((m as any).call?.participants ?? []).includes(S.Auth.getId())
 const callMessage = (m: Message): globalThis.Node[] => {
   const duration = (m as any).call?.duration,
-    who = (<b data-mc={`author:${m.author.id}`}>{nameOf(m.author)}</b>) as HTMLElement,
+    who = (
+      <b class="author" data-id={m.author.id}>
+        {nameOf(m.author)}
+      </b>
+    ) as HTMLElement,
     lasted = duration ? ` that lasted ${duration.humanize()}` : ''
   const text = missed(m) ? ['You missed a call from ', who, `${lasted}.`] : [who, ` started a call${lasted}.`]
   return [
     ...text.map((n) => (typeof n === 'string' ? document.createTextNode(n) : n)),
-    (<time data-mc="ts">{when(m.timestamp)}</time>) as HTMLElement,
+    (<time class="ts">{when(m.timestamp)}</time>) as HTMLElement,
   ]
 }
 
@@ -113,8 +117,8 @@ const react = (m: Message) => (r: Reaction) => {
   }
   return (
     <button
-      data-mc={`reaction:${r.emoji.id ?? r.emoji.name}`}
-      class={{ me: r.me }}
+      class={['reaction', { me: r.me }]}
+      data-id={r.emoji.id ?? r.emoji.name}
       title={title()}
       onPointerEnter={() => setHovered(true)}
       onClick={() =>
@@ -213,7 +217,7 @@ export function Chat(p: { root: HTMLElement }) {
       >
         <Show when={count()}>
           {(n) => (
-            <button data-mc={`${hid}:show`} onClick={() => setShown((s) => ({ ...s, [m.id]: !s[m.id] }))}>
+            <button class={`${hid}-show`} onClick={() => setShown((s) => ({ ...s, [m.id]: !s[m.id] }))}>
               {n()} {hid} message{n() > 1 ? 's' : ''} — {collapsed() ? 'Show' : 'Collapse'} message{n() > 1 ? 's' : ''}
             </button>
           )}
@@ -222,7 +226,7 @@ export function Chat(p: { root: HTMLElement }) {
           <Show when={ref()}>
             {(r) => (
               <q
-                data-mc="reply-to"
+                class="reply-to"
                 // as stock: a jump (a fetch around it when it isn't loaded), the list scrolls to it below
                 onClick={() =>
                   A.messages.jumpToMessage({
@@ -260,7 +264,7 @@ export function Chat(p: { root: HTMLElement }) {
             {(i) => {
               const user = i().user && $.User.getUser(i().user.id)
               return (
-                <q data-mc="command">
+                <q class="command">
                   <img src={user?.getAvatarURL(channel()?.guild_id, 32)} />
                   <b>{nameOf(user ?? i().user)}</b> used <span>/{i().displayName ?? i().name}</span>
                 </q>
@@ -270,13 +274,13 @@ export function Chat(p: { root: HTMLElement }) {
           <Show when={author()}>
             {(a) => (
               <>
-                <b data-mc={`author:${a().id}`} data-day={day()} style={{ color: a().color ?? undefined }}>
+                <b class="author" data-id={a().id} data-day={day()} style={{ color: a().color ?? undefined }}>
                   {a().name}
                   <Show when={a().bot}>
                     <i>APP</i>
                   </Show>
                 </b>
-                <time data-mc="ts">{when(m.timestamp)}</time>
+                <time class="ts">{when(m.timestamp)}</time>
                 {'\n'}
               </>
             )}
@@ -284,7 +288,7 @@ export function Chat(p: { root: HTMLElement }) {
           {nodes}
           {m.messageSnapshots?.map((f: { message: Message }) => (
             // a forward: the message as it was, under stock's "Forwarded" line
-            <blockquote data-mc="forward">
+            <blockquote class="forward">
               <span ref={(s) => renderAST(contentAST(f.message, m.channel_id), s)} />
               {f.message.attachments?.map(attachment)}
               {f.message.embeds?.map(embed)}
@@ -294,10 +298,10 @@ export function Chat(p: { root: HTMLElement }) {
           {m.stickerItems?.map(sticker)}
           {m.embeds?.map(embed)}
           <Show when={m.reactions?.length}>
-            <p data-mc="reactions">
+            <p class="reactions">
               {m.reactions.map(react(m))}
               <button
-                data-mc="reaction:add"
+                class="reaction-add"
                 title="Add Reaction"
                 onClick={(e) =>
                   e.currentTarget.dispatchEvent(
@@ -308,12 +312,12 @@ export function Chat(p: { root: HTMLElement }) {
             </p>
           </Show>
           <Show when={m.state === 'SEND_FAILED'}>
-            <p data-mc="failed">
+            <p class="failed">
               Not sent.
-              <button data-mc="retry" onClick={() => resend(m.channel_id, m)}>
+              <button class="retry" onClick={() => resend(m.channel_id, m)}>
                 Retry
               </button>
-              <button data-mc="discard" onClick={() => A.messages.deleteMessage(m.channel_id, m.id, true)}>
+              <button class="discard" onClick={() => A.messages.deleteMessage(m.channel_id, m.id, true)}>
                 Delete
               </button>
             </p>
@@ -329,7 +333,6 @@ export function Chat(p: { root: HTMLElement }) {
   const view = (
     <div
       class="messages"
-      data-mc="messages"
       onScroll={() => {
         setUp(view.scrollTop < -view.clientHeight)
         view.classList.toggle('up', view.scrollTop < -1)
@@ -386,7 +389,7 @@ export function Chat(p: { root: HTMLElement }) {
       {view}
       <NewMessages channelId={channelId} />
       <Show when={up() || messages()?.hasMoreAfter}>
-        <button data-mc="jump" title="Jump to Present" onClick={present} />
+        <button class="jump" title="Jump to Present" onClick={present} />
       </Show>
       <MessageMenu list={view} channelId={channelId} />
       <Viewer list={view} />
@@ -409,9 +412,9 @@ function NewMessages(p: { channelId: () => Id | null }) {
   return (
     <Show when={bar()}>
       {(text) => (
-        <div data-mc="new-messages">
+        <div class="new-messages">
           <button
-            data-mc="new-messages:jump"
+            class="new-messages-jump"
             onClick={() => {
               const id = p.channelId()!
               A.messages.jumpToMessage({
@@ -425,7 +428,7 @@ function NewMessages(p: { channelId: () => Id | null }) {
             {text()}
           </button>
           <button
-            data-mc="new-messages:read"
+            class="new-messages-read"
             onClick={() =>
               A.acks.ack(p.channelId()!, {
                 section: 'New Messages Banner',
@@ -454,7 +457,7 @@ function Viewer(p: { list: HTMLElement }) {
     dialog.showModal()
   })
   return (
-    <dialog ref={dialog} data-mc="viewer" onClick={(e) => e.target === dialog && dialog.close()}>
+    <dialog ref={dialog} class="viewer" onClick={(e) => e.target === dialog && dialog.close()}>
       <Show when={shown()}>
         {(s) => (
           <>
@@ -499,7 +502,7 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
     if (!m) return
     setSure(false)
     // the add-reaction chip opens the emoji search
-    setQuery((e.target as Element).closest("[data-mc='reaction:add']") ? '' : null)
+    setQuery((e.target as Element).closest('.reaction-add') ? '' : null)
     return m
   })
   p.list.addEventListener('contextmenu', menu.open)
@@ -525,7 +528,8 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
     <p>
       <Items
         items={p.each.map((e) => ({
-          mc: `react:${e.id ?? e.name}`,
+          name: 'react',
+          id: e.id ?? e.name,
           title: `:${e.name}:`,
           label: <img alt={e.name} src={emojiSrc(e)} />,
           run: () => react(e),
@@ -533,7 +537,7 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
       />
     </p>
   )
-  const box = () => document.querySelector<HTMLTextAreaElement>('[data-mc=composer]')?.focus()
+  const box = () => document.querySelector<HTMLTextAreaElement>('#mc-composer')?.focus()
   const pinnable = () =>
     (target().type === 0 || target().type === 19) && can(PERMS.PIN_MESSAGES) && can(PERMS.READ_MESSAGE_HISTORY)
   const pin = () => {
@@ -545,10 +549,10 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
   const deletable = () => own() || can(PERMS.MANAGE_MESSAGES)
 
   return (
-    <menu ref={menu.ref} data-mc="message-menu" popover onToggle={(e) => e.newState === 'closed' && setQuery(null)}>
+    <menu ref={menu.ref} class="message-menu" popover onToggle={(e) => e.newState === 'closed' && setQuery(null)}>
       <Show when={menu.target() && query() != null}>
         <input
-          data-mc="react:search"
+          class="react-search"
           placeholder="Find an emoji"
           ref={(i) => queueMicrotask(() => i.focus())}
           onInput={(e) => setQuery(e.currentTarget.value)}
@@ -567,19 +571,19 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
         <Items
           items={[
             can(PERMS.ADD_REACTIONS) && {
-              mc: 'menu:react',
+              name: 'menu-react',
               label: 'Add Reaction',
               keep: true,
               run: () => setQuery(''),
             },
             can(PERMS.ADD_REACTIONS) && '-',
             own() && {
-              mc: 'menu:edit',
+              name: 'menu-edit',
               label: 'Edit Message',
               run: () => (A.messages.startEditMessageRecord(channel().id, target()), box()),
             },
             can(PERMS.SEND_MESSAGES) && {
-              mc: 'menu:reply',
+              name: 'menu-reply',
               label: 'Reply',
               run: () => {
                 A.replies.create({
@@ -592,13 +596,13 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
               },
             },
             '-',
-            { mc: 'menu:copy', label: 'Copy Text', run: () => navigator.clipboard.writeText(target().content) },
-            pinnable() && { mc: 'menu:pin', label: target().pinned ? 'Unpin Message' : 'Pin Message', run: pin },
-            { mc: 'menu:unread', label: 'Mark Unread', run: () => markUnread(channel().id, target().id) },
-            { mc: 'menu:link', label: 'Copy Message Link', run: () => navigator.clipboard.writeText(link()) },
+            { name: 'menu-copy', label: 'Copy Text', run: () => navigator.clipboard.writeText(target().content) },
+            pinnable() && { name: 'menu-pin', label: target().pinned ? 'Unpin Message' : 'Pin Message', run: pin },
+            { name: 'menu-unread', label: 'Mark Unread', run: () => markUnread(channel().id, target().id) },
+            { name: 'menu-link', label: 'Copy Message Link', run: () => navigator.clipboard.writeText(link()) },
             deletable() && '-',
             deletable() && {
-              mc: 'menu:delete',
+              name: 'menu-delete',
               class: 'danger',
               label: sure() ? 'Click again to delete' : 'Delete Message',
               keep: !sure(),

@@ -1,8 +1,9 @@
 // The bundle's entry, injected by shell/preload.js: mounts the shell (app.tsx), or logged out the login form
 // (login.tsx), where the anchor puts our root.
 //
-// For the lab (ai/lab): data-mc marks what its scripts click and read; #mincord-root[data-view="channel:ID"] is set in
-// the task that puts that channel's messages in the DOM.
+// For the lab (ai/lab), as for the stylesheet: a class names what an element is, data-id which one (a channel, a
+// user, a message), an id the few elements looked up by it (popovers, the composer); #mincord-root[data-view=
+// "channel:ID"] is set in the task that puts that channel's messages in the DOM.
 
 import { render } from '@solidjs/web'
 import { Show } from 'solid-js'

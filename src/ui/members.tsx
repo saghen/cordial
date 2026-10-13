@@ -52,14 +52,15 @@ export function MembersList() {
 
   return (
     <Show when={membersOpen()}>
-      <section ref={list} data-mc="members" onScroll={subscribe}>
+      <section ref={list} class="members" onScroll={subscribe}>
         <For each={rows()}>
           {(r) =>
             r?.type === 'GROUP' ? (
               <h3>{r.label ?? `${r.title} — ${count(r.id)}`}</h3>
             ) : (
               <a
-                data-mc={r && `member:${r.userId}`}
+                class={r && 'member'}
+                data-id={r?.userId}
                 data-status={r?.status}
                 style={
                   r && {
@@ -84,8 +85,7 @@ export function MembersList() {
 export const MembersToggle = () => (
   <Show when={listed()}>
     <button
-      data-mc="members-toggle"
-      class={{ on: membersOpen() }}
+      class={['members-toggle', { on: membersOpen() }]}
       title="Member list"
       onClick={() => A.channelSections.toggleMembersSection()}
     />

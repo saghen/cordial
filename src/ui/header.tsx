@@ -75,8 +75,7 @@ export function NotificationBell(p: { channel: Rec }) {
   return (
     <>
       <button
-        data-mc="notifications"
-        class={{ muted: muted() }}
+        class={['notifications', { muted: muted() }]}
         title="Notification Settings"
         popovertarget="mc-notifications"
         // as stock: shift+click mutes or unmutes
@@ -86,19 +85,20 @@ export function NotificationBell(p: { channel: Rec }) {
           mute(!muted())
         }}
       />
-      <menu ref={menu} id="mc-notifications" data-mc="notifications-menu" popover>
+      <menu ref={menu} id="mc-notifications" class="notifications-menu" popover>
         <Show
           when={muted()}
           fallback={
             <>
-              <button data-mc="notifications:mute" onClick={() => (mute(true), menu.hidePopover())}>
+              <button class="notifications-mute" onClick={() => (mute(true), menu.hidePopover())}>
                 Mute Channel
               </button>
               <menu>
                 <For each={MUTE}>
                   {([secs, label]) => (
                     <button
-                      data-mc={`notifications:mute:${secs}`}
+                      class="notifications-mute-for"
+                      data-id={secs}
                       onClick={() => {
                         const end = secs > 0 ? new Date(Date.now() + secs * 1000).toISOString() : null
                         update({ muted: true, mute_config: { selected_time_window: secs, end_time: end } }, 'muted')
@@ -113,7 +113,7 @@ export function NotificationBell(p: { channel: Rec }) {
             </>
           }
         >
-          <button data-mc="notifications:unmute" onClick={() => (mute(false), menu.hidePopover())}>
+          <button class="notifications-unmute" onClick={() => (mute(false), menu.hidePopover())}>
             Unmute Channel
             <small>{until()}</small>
           </button>
@@ -124,14 +124,17 @@ export function NotificationBell(p: { channel: Rec }) {
         <For each={items()}>
           {(i) => (
             <button
-              data-mc={`notifications:${i.level}${i.unreads ? ':unreads' : ''}`}
-              class={{
-                on: i.unreads
-                  ? level() === 1 && unreadAll()
-                  : fresh() && i.level === 1
-                    ? level() === 1 && !unreadAll()
-                    : i.level === level(),
-              }}
+              class={[
+                'notifications-level',
+                {
+                  on: i.unreads
+                    ? level() === 1 && unreadAll()
+                    : fresh() && i.level === 1
+                      ? level() === 1 && !unreadAll()
+                      : i.level === level(),
+                },
+              ]}
+              data-id={`${i.level}${i.unreads ? ':unreads' : ''}`}
               // as stock, the menu stays open
               onClick={() => set(i.level, i.unreads)}
             >
@@ -153,7 +156,7 @@ function Card(p: { m: Message; guildId?: Id; jump: string; onJump?: () => void; 
   return (
     <article data-id={p.m.id} class="head" style={{ '--av': `url(${a.avatar})` }}>
       <b style={{ color: a.color ?? undefined }}>{a.name}</b>
-      <time data-mc="ts">{when(p.m.timestamp)}</time>
+      <time class="ts">{when(p.m.timestamp)}</time>
       <Show when={p.where}>
         <small>#{p.where}</small>
       </Show>
@@ -165,7 +168,8 @@ function Card(p: { m: Message; guildId?: Id; jump: string; onJump?: () => void; 
         </a>
       ))}
       <button
-        data-mc={`${p.jump}:jump:${p.m.id}`}
+        class={`${p.jump}-jump`}
+        data-id={p.m.id}
         onClick={() => {
           A.nav.transitionTo(`/channels/${p.guildId ?? '@me'}/${p.m.channel_id}/${p.m.id}`)
           p.onJump?.()
@@ -216,15 +220,14 @@ export function Pins(p: { channel: Rec }) {
   return (
     <>
       <button
-        data-mc="pins"
-        class={{ unread: $.ReadState.hasUnreadPins(id()) }}
+        class={['pins', { unread: $.ReadState.hasUnreadPins(id()) }]}
         title="Pinned Messages"
         popovertarget="mc-pins"
       />
       <div
         ref={pop}
         id="mc-pins"
-        data-mc="pins-list"
+        class="pins-list"
         popover
         onToggle={(e) => {
           if (e.newState !== 'open') return
@@ -244,7 +247,7 @@ export function Pins(p: { channel: Rec }) {
           {({ message: m }) => <Card m={m} guildId={p.channel.guild_id} jump="pins" onJump={() => pop.hidePopover()} />}
         </For>
         <Show when={pins()?.state === 'LOADED_HAS_MORE'}>
-          <button data-mc="pins:more" onClick={() => fetchPins(id(), items().at(-1)?.pinnedAt)}>
+          <button class="pins-more" onClick={() => fetchPins(id(), items().at(-1)?.pinnedAt)}>
             Load More
           </button>
         </Show>
@@ -287,7 +290,7 @@ export function Search(p: { channel: Rec }) {
   return (
     <>
       <input
-        data-mc="search"
+        class="search"
         type="search"
         placeholder={guildId() ? `Search ${$.Guild.getGuild(guildId()!)?.name}` : 'Search'}
         onKeyDown={(e) => {
@@ -300,7 +303,7 @@ export function Search(p: { channel: Rec }) {
       <div
         ref={pop}
         id="mc-search"
-        data-mc="search-results"
+        class="search-results"
         popover="manual"
         onToggle={(e) => {
           if (e.newState === 'closed') A.search.load().then((s) => s.clearSearchMessages(id()))
@@ -308,7 +311,7 @@ export function Search(p: { channel: Rec }) {
       >
         <h2>
           {$.Search.getIsFetching(id()) ? 'Searching…' : `${total().toLocaleString()} Results`}
-          <button data-mc="search:close" title="Close" onClick={() => pop.hidePopover()} />
+          <button class="search-close" title="Close" onClick={() => pop.hidePopover()} />
         </h2>
         <Show when={$.Search.getError(id())}>
           <p>Something went wrong. Try again.</p>
@@ -325,11 +328,11 @@ export function Search(p: { channel: Rec }) {
         </For>
         <Show when={total() > PAGE}>
           <nav>
-            <button data-mc="search:prev" disabled={offset() === 0} onClick={() => run(offset() - PAGE)}>
+            <button class="search-prev" disabled={offset() === 0} onClick={() => run(offset() - PAGE)}>
               Back
             </button>
             {offset() / PAGE + 1} / {Math.ceil(total() / PAGE)}
-            <button data-mc="search:next" disabled={offset() + PAGE >= total()} onClick={() => run(offset() + PAGE)}>
+            <button class="search-next" disabled={offset() + PAGE >= total()} onClick={() => run(offset() + PAGE)}>
               Next
             </button>
           </nav>

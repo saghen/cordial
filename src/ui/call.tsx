@@ -11,8 +11,7 @@ import { nameOf } from './lib/model'
 import { $, selectedChannel } from './lib/store'
 
 // a DM's call with someone in it (a call record can outlive its last participant)
-const going = (id: Id) =>
-  !!$.Call.getCall(id) && Object.keys($.VoiceState.getVoiceStatesForChannel(id)).length > 0
+const going = (id: Id) => !!$.Call.getCall(id) && Object.keys($.VoiceState.getVoiceStatesForChannel(id)).length > 0
 
 // voice and stage channels, and DMs with a call going
 const callOf = () => {
@@ -26,7 +25,7 @@ export function CallView() {
       {(c) => {
         const states = () => Object.values($.VoiceState.getVoiceStatesForChannel(c().id)) as Rec[]
         return (
-          <section data-mc="call" class={{ dm: !c().guild_id }}>
+          <section class={['call', { dm: !c().guild_id }]}>
             <For each={states()}>
               {(v) => {
                 const user = () => $.User.getUser(v.userId)
@@ -34,14 +33,17 @@ export function CallView() {
                 return (
                   <>
                     <figure
-                      data-mc={`tile:${v.userId}`}
+                      data-id={v.userId}
                       title={name()}
                       style={url(user()?.getAvatarURL(c().guild_id, 128))}
-                      class={{
-                        speaking: $.Speaking.isSpeaking(v.userId),
-                        mute: v.selfMute || v.mute,
-                        deaf: v.selfDeaf || v.deaf,
-                      }}
+                      class={[
+                        'tile',
+                        {
+                          speaking: $.Speaking.isSpeaking(v.userId),
+                          mute: v.selfMute || v.mute,
+                          deaf: v.selfDeaf || v.deaf,
+                        },
+                      ]}
                     >
                       <Show when={$.VideoStream.getStreamId(v.userId, c().guild_id ?? null)}>
                         {(id) => <Video id={id()} />}
@@ -61,17 +63,17 @@ export function CallView() {
                 <Show
                   when={!c().guild_id}
                   fallback={
-                    <button data-mc="call:join" onClick={() => A.voice.selectVoiceChannel(c().id)}>
+                    <button class="call-join" onClick={() => A.voice.selectVoiceChannel(c().id)}>
                       Join Voice
                     </button>
                   }
                 >
                   <button
-                    data-mc="call:join-video"
+                    class="call-join-video"
                     title="Join Call with Video"
                     onClick={() => A.calls.call(c().id, true, false)}
                   />
-                  <button data-mc="call:join" title="Join Call" onClick={() => A.calls.call(c().id, false, false)} />
+                  <button class="call-join" title="Join Call" onClick={() => A.calls.call(c().id, false, false)} />
                 </Show>
               </footer>
             </Show>
@@ -96,10 +98,10 @@ function StreamTile(p: { ownerId: Id; guildId: Id | null; name: string }) {
     if (s) A.streams.watch(s, { noFocus: true })
   }
   return (
-    <figure data-mc={`stream:${p.ownerId}`} class={{ stream: true, watching: !!watching() }}>
+    <figure class={{ stream: true, watching: !!watching() }} data-id={p.ownerId}>
       <Show when={video()}>{(id) => <Video id={id()} />}</Show>
       <span>{p.name}</span>
-      <button data-mc={`stream:${p.ownerId}:watch`} onClick={toggle}>
+      <button class="stream-watch" onClick={toggle}>
         {watching() ? 'Stop Watching' : 'Watch Stream'}
       </button>
     </figure>
@@ -135,8 +137,8 @@ export function CallButtons(p: { channel: Rec }) {
     )
   return (
     <Show when={$.RTCConnection.getChannelId() !== p.channel.id}>
-      <button data-mc="call:start" title="Start Voice Call" onClick={() => call(false)} />
-      <button data-mc="call:video" title="Start Video Call" onClick={() => call(true)} />
+      <button class="call-start" title="Start Voice Call" onClick={() => call(false)} />
+      <button class="call-video" title="Start Video Call" onClick={() => call(true)} />
     </Show>
   )
 }
@@ -156,21 +158,22 @@ export function IncomingCalls() {
     <For each={$.IncomingCall.getIncomingCalls() as Rec[]}>
       {(call) => (
         <dialog
-          data-mc={`incoming:${call.channel.id}`}
+          class="incoming"
+          data-id={call.channel.id}
           open
           style={url($.User.getUser(call.senderId)?.getAvatarURL(undefined, 80))}
         >
           {nameOf($.User.getUser(call.senderId))}
           <small>Incoming Call…</small>
           <button
-            data-mc="incoming:accept"
+            class="incoming-accept"
             title="Accept"
             onClick={() => {
               A.voice.selectVoiceChannel(call.channel.id)
               A.nav.transitionTo(`/channels/@me/${call.channel.id}`)
             }}
           />
-          <button data-mc="incoming:decline" title="Decline" onClick={() => A.calls.stopRinging(call.channel.id)} />
+          <button class="incoming-decline" title="Decline" onClick={() => A.calls.stopRinging(call.channel.id)} />
         </dialog>
       )}
     </For>

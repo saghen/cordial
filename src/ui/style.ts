@@ -21,7 +21,7 @@ export const CSS = `
   /* the base (no specificity of its own): buttons are bare, fields sunk, floating panels raised */
   :where(button) { border: 0; background: none; cursor: pointer; }
   :where(input:not([type=range], [type=checkbox], [type=radio], [type=file]), select) { border: 0; border-radius: 4px; background: var(--bg-deep); color: var(--text); font: inherit; }
-  :where(menu, [popover]:not([data-mc=search-results]), dialog[data-mc^=incoming]) { border: 0; border-radius: 8px; background: var(--bg-floating); color: var(--text); box-shadow: 0 8px 16px #0006; }
+  :where(menu, [popover]:not(.search-results), dialog.incoming) { border: 0; border-radius: 8px; background: var(--bg-floating); color: var(--text); box-shadow: 0 8px 16px #0006; }
   a { cursor: pointer; color: inherit; text-decoration: none; }
   small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
   /* scrollbars: a thumb, no arrows (the standard scrollbar-* properties would turn these off), shown while the scroller
@@ -41,13 +41,13 @@ export const CSS = `
 
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
-  & > header > button::before, section[data-mc=side] > footer > button::before, & > button:not([data-mc=me])::before, section[data-mc=side] > button:not([data-mc=me])::before, div[data-mc=box] > button::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after, section[data-mc=call] > footer > button[title]::before,
-  menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, article > p > button[data-mc="reaction:add"]::before,
-  div[data-mc=search-results] > h2 > button::before, article.call::before, menu > nav > button[style]::before, menu > h3 > button::before {
+  & > header > button::before, section.side > footer > button::before, & > button:not(.user-panel)::before, section.side > button:not(.user-panel)::before, div.box > button::before, div.open > a.folder::before, aside > button.add-server::before, dialog.incoming > button::before, section.call > figure:is(.mute, .deaf)::after, section.call > footer > button[title]::before,
+  menu.message-menu > button::before, menu.autocomplete > button.ch::before, article > p > button.reaction-add::before,
+  div.search-results > h2 > button::before, article.call::before, menu > nav > button[style]::before, menu > h3 > button::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
   /* avatars (DMs, the user panel) are round, with the status as a ring */
-  nav > a[style]::before, & > header[style]::before, button[data-mc=me]::before {
+  nav > a[style]::before, & > header[style]::before, button.user-panel::before {
     content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
   }
   /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
@@ -84,7 +84,7 @@ export const CSS = `
     }
     a[style] { background-color: transparent; }
     a:not([style]):is(:hover, .sel) { background-color: var(--accent); }
-    a[data-mc^="dm:"] { border-radius: 50%; corner-shape: round; }
+    a.dm { border-radius: 50%; corner-shape: round; }
     a::before {
       content: ""; position: absolute; left: -16px; width: 4px; height: 0; border-radius: 0 4px 4px 0;
       background: var(--text-strong); transition: height 0.15s;
@@ -93,8 +93,8 @@ export const CSS = `
     a:hover::before { height: 20px; }
     a.sel::before { height: 40px; }
     /* the DMs button: a bare bubble (Liam's design), grey, lavender while hovered or open */
-    a[data-mc=dms] { background: var(--img-chat) center / 24px no-repeat; }
-    a[data-mc=dms]:is(:hover, .sel) { background: var(--img-chat-on) center / 24px no-repeat; }
+    a.dms { background: var(--img-chat) center / 24px no-repeat; }
+    a.dms:is(:hover, .sel) { background: var(--img-chat-on) center / 24px no-repeat; }
     a[data-n]::after { position: absolute; right: -4px; bottom: -4px; box-shadow: 0 0 0 3px var(--bg); }
     /* folders, as stock measures them: closed, a 48 px tile of four; open, the folder icon in its colour over its
        servers, on one column */
@@ -117,20 +117,20 @@ export const CSS = `
     }
     > hr { width: 32px; margin-top: -5px; border: 0; border-top: 1px solid var(--bg-raised); }
     /* Add a Server: a + tile at the bar's end, its form beside the bar */
-    > button[data-mc=add-server] {
+    > button.add-server {
       --i: var(--i-plus); display: grid; place-content: center; width: 40px; height: 40px; border-radius: 12px; background: var(--bg-raised);
       color: var(--positive);
     }
-    > button[data-mc=add-server]::before { width: 20px; height: 20px; }
-    > button[data-mc=add-server]:hover { background: var(--positive); color: #fff; }
+    > button.add-server::before { width: 20px; height: 20px; }
+    > button.add-server:hover { background: var(--positive); color: #fff; }
   }
-  form:is([data-mc=join], [data-mc=login]) {
+  form:is(.join, .login) {
     > label { display: grid; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
     input { padding: 8px; text-transform: none; }
     > button { padding: 8px; border-radius: 4px; background: var(--accent); color: #fff; font: inherit; font-weight: 500; }
     > button:disabled { opacity: .5; cursor: default; }
   }
-  form[data-mc=join] {
+  form.join {
     position: fixed; inset: 48px auto auto 80px; width: 360px; padding: 16px; font-size: 14px;
     &:popover-open { display: grid; gap: 12px; }
     > p { display: grid; grid-template-columns: 48px 1fr; column-gap: 12px; align-items: center; font-weight: 600; }
@@ -138,7 +138,7 @@ export const CSS = `
     > p > small { grid-column: 2; font-weight: 400; color: var(--text-muted); }
   }
   /* logged out (login.tsx): the form alone, centred */
-  form[data-mc=login] {
+  form.login {
     grid-area: 1 / 1 / -1 / -1; place-self: center; display: grid; gap: 16px; width: min(480px, 100% - 32px); padding: 32px;
     border-radius: 8px; background: var(--bg-floating); font-size: 14px;
     > h2 { font-size: 24px; text-align: center; color: var(--text-strong); }
@@ -167,18 +167,18 @@ export const CSS = `
     &.live::before { color: var(--positive); }
     &.voice[data-time]::after { content: attr(data-time); grid-column: 3; font: 12px "gg mono", ui-monospace, monospace; color: var(--positive); }
     /* who's in it: the avatar under the channel's name */
-    &[data-mc^=voice-user] { display: flex; gap: 8px; min-height: 30px; padding-left: 36px; font-size: 14px; }
-    &[style][data-mc^=voice-user]::before { flex: none; width: 24px; height: 24px; }
+    &.voice-user { display: flex; gap: 8px; min-height: 30px; padding-left: 36px; font-size: 14px; }
+    &[style].voice-user::before { flex: none; width: 24px; height: 24px; }
     &.speaking::before { box-shadow: 0 0 0 2px var(--positive); }
     &.elsewhere { opacity: 0.5; }
     /* muted: the mic off; deafened: the mic and headphones off; by the server: in red */
-    &[data-mc^=voice-user] > b {
+    &.voice-user > b {
       margin-left: auto; padding: 0 6px; border-radius: 8px; background: var(--danger); font: 700 11px/16px "gg sans", sans-serif; color: #fff;
     }
     &.mute::after { --i: var(--i-mic-off); width: 16px; height: 16px; }
     &.deaf::after { width: 36px; mask: var(--i-mic-off) left / 16px no-repeat, var(--i-deaf) right / 16px no-repeat; }
     &.forced::after { background: var(--danger); }
-    &[data-mc^=voice-user]:not(:has(> b))::after { margin-left: auto; }
+    &.voice-user:not(:has(> b))::after { margin-left: auto; }
     /* a category: its name and a chevron, lit on hover (no background) */
     &.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; line-height: 16px; font-weight: 500; }
     &.cat:first-child { margin-top: 0; }
@@ -187,7 +187,7 @@ export const CSS = `
     &.cat::after { width: 12px; height: 12px; }
     &.cat.collapsed::after { rotate: -90deg; }
     /* a DM's second line is its status or size */
-    &[data-mc^=dm] { min-height: 42px; }
+    &.dm { min-height: 42px; }
     > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
     &:has(> small) { align-content: center; }
     &:has(> small)::before { grid-row: span 2; }
@@ -195,10 +195,10 @@ export const CSS = `
 
   /* the side column: the channel list or the DMs, then the voice panel and the user panel, each in its own row, so
      neither panel covers the list */
-  section[data-mc=side] { grid-area: panels; display: grid; grid: "nav" minmax(0, 1fr) "voice" auto "me" 60px / minmax(0, 1fr); }
+  section.side { grid-area: panels; display: grid; grid: "nav" minmax(0, 1fr) "voice" auto "me" 60px / minmax(0, 1fr); }
   /* the voice panel. Rows: the voice settings when open, the status, the channel; the buttons a column each beside
      the last two */
-  section[data-mc=side] > footer {
+  section.side > footer {
     grid-area: voice; display: grid; background: var(--bg); grid: auto auto auto / 1fr repeat(5, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
     font-size: 14px;
     > b { grid-area: 2 / 1; font-weight: 600; color: var(--warning); }
@@ -206,22 +206,22 @@ export const CSS = `
     > small { grid-area: 3 / 1; font-size: 12px; color: var(--text-muted); }
     > button:nth-of-type(2) { grid-column: 3; } > button:nth-of-type(3) { grid-column: 4; }
     > button:nth-of-type(4) { grid-column: 5; } > button:nth-of-type(5) { grid-column: 6; }
-    > button[data-mc="voice:camera"] { --i: var(--i-video-slash); }
-    > button[data-mc="voice:camera"].on { --i: var(--i-video); color: var(--positive); }
-    > button[data-mc="voice:camera"]:hover { color: var(--text-strong); }
+    > button.voice-camera { --i: var(--i-video-slash); }
+    > button.voice-camera.on { --i: var(--i-video); color: var(--positive); }
+    > button.voice-camera:hover { color: var(--text-strong); }
     > button {
       --i: var(--i-hangup); grid-area: 2 / 2 / 4; display: grid; place-content: center; width: 32px; height: 32px; border-radius: 4px;
       color: var(--text-muted);
     }
     > button:hover { background: var(--bg-raised); color: var(--danger); }
-    > button[data-mc="voice:settings"] { --i: var(--i-settings); }
-    > button[data-mc="voice:soundboard"] { --i: var(--i-soundboard); }
-    > button[data-mc="voice:screen"] { --i: var(--i-screen); }
-    > button[data-mc="voice:screen"].on { --i: var(--i-screen-x); color: var(--positive); }
-    > button:is([data-mc="voice:screen"], [data-mc="voice:soundboard"], [data-mc="voice:settings"]):hover, > button[data-mc="voice:settings"].on { color: var(--text-strong); }
+    > button.voice-settings-button { --i: var(--i-settings); }
+    > button.voice-soundboard { --i: var(--i-soundboard); }
+    > button.voice-screen { --i: var(--i-screen); }
+    > button.voice-screen.on { --i: var(--i-screen-x); color: var(--positive); }
+    > button:is(.voice-screen, .voice-soundboard, .voice-settings-button):hover, > button.voice-settings-button.on { color: var(--text-strong); }
   }
   /* Go Live's picker: a list of the sources, modal */
-  dialog[data-mc=screen-picker] {
+  dialog.screen-picker {
     width: min(480px, 100% - 32px); max-height: 80vh; padding: 16px; border: 0; border-radius: 8px; background: var(--bg-floating);
     color: var(--text); font-size: 14px; box-shadow: 0 8px 16px #0006;
     &[open] { display: grid; gap: 8px; }
@@ -229,12 +229,12 @@ export const CSS = `
     > h2 { font-size: 20px; color: var(--text-strong); }
     > button { display: grid; justify-items: start; padding: 8px 12px; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-weight: 600; }
     > button:hover { background: var(--bg-selected); }
-    > button[data-mc="screen:cancel"] { justify-self: end; background: none; color: var(--text-muted); font-weight: 500; }
+    > button.screen-cancel { justify-self: end; background: none; color: var(--text-muted); font-weight: 500; }
     > label { display: flex; gap: 8px; align-items: center; color: var(--text-muted); }
     select { padding: 4px; }
   }
   /* the soundboard: each server's sounds as tiles, over the panel */
-  menu[data-mc=soundboard] {
+  menu.soundboard {
     inset: auto auto 72px 80px; width: 420px; max-height: 60vh; overflow-y: auto;
     > h3 { padding: 8px 4px 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
     > p { grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -244,7 +244,7 @@ export const CSS = `
     > p > button > img { width: 20px; height: 20px; object-fit: contain; }
   }
   /* the voice settings: a column of labelled controls, a section of the voice panel above its line */
-  form[data-mc=voice-settings] {
+  form.voice-settings {
     grid-area: 1 / 1 / 2 / -1; display: grid; gap: 12px; max-height: 60vh; overflow-y: auto; margin: 0 -8px 8px; padding: 4px 8px 12px;
     border-bottom: 1px solid var(--bg-raised); font-weight: 500;
     :is(label:has(> select), label:has(> [type=range]), fieldset) { display: grid; gap: 4px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
@@ -256,22 +256,22 @@ export const CSS = `
   }
 
   /* the user panel (a button: it opens the account popout), and mute and deafen over its end (user_panel.tsx) */
-  section[data-mc=side] > button {
+  section.side > button {
     grid-area: me; display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; padding: 0 8px;
     border-top: 1px solid var(--bg-raised); text-align: left; font: inherit; font-weight: 500; color: var(--text-strong);
-    &[data-mc=me]::before { grid-row: span 2; align-self: center; }
+    &.user-panel::before { grid-row: span 2; align-self: center; }
     > small { font-size: 12px; }
-    &[data-mc=me] { padding-right: 88px; }
-    &:is([data-mc=mute], [data-mc=deafen]) {
+    &.user-panel { padding-right: 88px; }
+    &:is(.self-mute, .self-deafen) {
       justify-self: end; align-self: center; width: 32px; height: 32px; margin-right: 8px; padding: 0; border: 0; border-radius: 4px;
       grid: auto / auto; place-content: center; color: var(--text-muted);
       &:hover { background: var(--bg-raised); }
       &.on { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
     }
-    &[data-mc=mute] { --i: var(--i-mic); margin-right: 44px; }
-    &[data-mc=mute].on { --i: var(--i-mic-off); }
-    &[data-mc=deafen] { --i: var(--i-headphones); }
-    &[data-mc=deafen].on { --i: var(--i-deaf); }
+    &.self-mute { --i: var(--i-mic); margin-right: 44px; }
+    &.self-mute.on { --i: var(--i-mic-off); }
+    &.self-deafen { --i: var(--i-headphones); }
+    &.self-deafen.on { --i: var(--i-deaf); }
   }
 
   /* menus: the account popout above the panel (popovertarget makes the panel its anchor), the context menus at the
@@ -285,20 +285,20 @@ export const CSS = `
     > button.danger { color: var(--danger); }
     > button:disabled { opacity: 0.5; cursor: default; }
     > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
-    > button[data-mc="menu:react"] { --i: var(--i-reaction); }
-    > button[data-mc="menu:edit"] { --i: var(--i-pencil); } > button[data-mc="menu:reply"] { --i: var(--i-reply); }
-    > button[data-mc="menu:copy"] { --i: var(--i-copy); } > button[data-mc="menu:pin"] { --i: var(--i-pin); }
-    > button[data-mc="menu:unread"] { --i: var(--i-unread); } > button[data-mc="menu:link"] { --i: var(--i-link); }
-    > button[data-mc="menu:delete"] { --i: var(--i-trash); }
+    > button.menu-react { --i: var(--i-reaction); }
+    > button.menu-edit { --i: var(--i-pencil); } > button.menu-reply { --i: var(--i-reply); }
+    > button.menu-copy { --i: var(--i-copy); } > button.menu-pin { --i: var(--i-pin); }
+    > button.menu-unread { --i: var(--i-unread); } > button.menu-link { --i: var(--i-link); }
+    > button.menu-delete { --i: var(--i-trash); }
     > input { padding: 6px 8px; outline: 0; color: inherit; }
     > p { display: grid; grid-template-columns: repeat(6, 1fr); }
     > p > button { padding: 4px; border-radius: 4px; }
     > p > button:hover { background: var(--bg-raised); }
     > p > button > img { width: 24px; height: 24px; object-fit: contain; }
-    &:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=channel-menu], [data-mc=devices]) { position: fixed; margin: 0; }
+    &:is(.message-menu, .server-menu, .channel-menu, .devices) { position: fixed; margin: 0; }
   }
   /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
-  menu[data-mc=message-menu] {
+  menu.message-menu {
     > button { padding: 8px; font-weight: 500; }
     > button::before { width: 18px; height: 18px; }
     > p:first-child { grid-template-columns: repeat(4, 1fr); gap: 6px; padding-bottom: 4px; }
@@ -330,14 +330,14 @@ export const CSS = `
     &.call.missed::before { --i: var(--i-call-missed); background: var(--text-muted); }
     /* a collapsed run of blocked or ignored messages: one line on its first row, stock's "N blocked messages" */
     &.gone { display: none; }
-    > button[data-mc$=":show"] { padding: 0; color: var(--text-muted); font: inherit; font-size: 14px; }
-    > button[data-mc$=":show"]:hover { text-decoration: underline; }
+    > button:is(.blocked-show, .ignored-show) { padding: 0; color: var(--text-muted); font: inherit; font-size: 14px; }
+    > button:is(.blocked-show, .ignored-show):hover { text-decoration: underline; }
     &.edited::after { content: " (edited)"; font-size: 10px; color: var(--text-muted); }
     /* the author line: the name (only it underlines on hover), its time, a line break */
     > b { font-weight: 500; color: var(--text-strong); white-space: normal; cursor: pointer; }
     > b::before { pointer-events: none; }
-    > time[data-mc=ts] { margin-left: 8px; font-size: 12px; color: var(--text-muted); }
-    &.system > time[data-mc=ts] { margin-left: 4px; }
+    > time.ts { margin-left: 8px; font-size: 12px; color: var(--text-muted); }
+    &.system > time.ts { margin-left: 4px; }
     > b:hover { text-decoration: underline 1px; }
     /* The date divider and the first unread's red line with stock's NEW tag: inside the row (content-visibility clips
        what's outside it), in a clear top border, so a mention or reply's background starts below them (the last layer
@@ -361,8 +361,8 @@ export const CSS = `
     /* sending, then failed with Retry and Delete */
     &.sending { color: var(--text-muted); }
     &.failed { color: var(--danger); }
-    > p[data-mc=failed] { font-size: 14px; }
-    > p[data-mc=failed] > button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; }
+    > p.failed { font-size: 14px; }
+    > p.failed > button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; }
     /* a reply: the replied-to message above the author line, with the spine from the avatar's column to it */
     > q {
       position: relative; display: block; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; quotes: none;
@@ -378,11 +378,11 @@ export const CSS = `
     }
     &.reply { --q: 22px; }
     /* a command's line: not a link; the command in the link colour */
-    > q[data-mc=command] { cursor: auto; }
-    > q[data-mc=command] > span { color: var(--link); }
+    > q.command { cursor: auto; }
+    > q.command > span { color: var(--link); }
     /* a forward: stock's "Forwarded" line, then the message inside a bar */
-    > blockquote[data-mc=forward] { display: block; margin: 4px 0; padding-left: 12px; border-left: 4px solid var(--bg-raised); }
-    > blockquote[data-mc=forward]::before { content: "Forwarded"; display: block; font-size: 14px; font-style: italic; color: var(--text-muted); }
+    > blockquote.forward { display: block; margin: 4px 0; padding-left: 12px; border-left: 4px solid var(--bg-raised); }
+    > blockquote.forward::before { content: "Forwarded"; display: block; font-size: 14px; font-style: italic; color: var(--text-muted); }
     /* attachments: media at its scaled size (width and height attributes), other files as a link with the size */
     > .media { display: block; max-width: 100%; height: auto; margin-top: 4px; border-radius: 8px; background: var(--bg-raised); }
     > a.file {
@@ -411,7 +411,7 @@ export const CSS = `
     > p > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
     > p > button:hover { border-color: var(--text-faint); }
     > p > button > img:not(.media) { width: 20px; height: 20px; object-fit: contain; }
-    > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); }
+    > p > button.reaction-add::before { --i: var(--i-reaction); }
   }
   /* the reply bar above the composer */
   & > label {
@@ -431,25 +431,25 @@ export const CSS = `
     > button:first-of-type { margin-left: auto; }
     > button + button { margin-left: 16px; }
     > button:hover, > button.on { color: var(--text-strong); }
-    > button[data-mc="call:start"] { --i: var(--i-call); }
-    > button[data-mc="call:video"] { --i: var(--i-video); }
+    > button.call-start { --i: var(--i-call); }
+    > button.call-video { --i: var(--i-video); }
     /* notification settings (header.tsx): mute with its durations on hover, then the levels as radios */
-    > button[data-mc=notifications] { --i: var(--i-bell); }
-    > button[data-mc=notifications].muted { --i: var(--i-bell-slash); }
+    > button.notifications { --i: var(--i-bell); }
+    > button.notifications.muted { --i: var(--i-bell-slash); }
     /* pins: a dot while there are new ones, cut out of the icon by a ring of the header's background */
-    > button[data-mc=pins] { --i: var(--i-pin); position: relative; }
-    > button[data-mc=pins].unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
+    > button.pins { --i: var(--i-pin); position: relative; }
+    > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
     /* search: a box at the header's end, wider while in use */
-    > input[data-mc=search] {
+    > input.search {
       width: 160px; height: 28px; margin-left: 16px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
       &:focus { width: 240px; }
     }
   }
-  menu[data-mc=notifications-menu] {
+  menu.notifications-menu {
     margin: 8px 0 0; position-area: bottom span-left; overflow: visible;
     > button { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; }
     > button > small { grid-column: 1; font-size: 12px; }
-    > button.on::after, > button[data-mc^="notifications:"]:not([data-mc*=mute])::after {
+    > button.on::after, > button.notifications-level::after {
       content: ""; grid-area: 1 / 2 / span 2; align-self: center; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%;
     }
     > button.on::after { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
@@ -458,7 +458,7 @@ export const CSS = `
   }
   /* the pins under their button, the search results down the right side under the header: messages as cards, Jump on
      hover */
-  div:is([data-mc=pins-list], [data-mc=search-results]) {
+  div:is(.pins-list, .search-results) {
     overflow-y: auto; padding: 0 0 16px; font-weight: 400;
     > h2 { padding: 16px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
     > article.head { margin: 0 8px 8px; padding-top: 8px; padding-bottom: 8px; border-radius: 4px; background: var(--bg); }
@@ -466,12 +466,12 @@ export const CSS = `
     > article:hover > button { display: block; }
     button { padding: 2px 8px; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-size: 12px; }
   }
-  div[data-mc=pins-list] {
+  div.pins-list {
     inset: auto; margin: 8px 0 0; position-area: bottom span-left; width: 420px; max-height: 70vh;
     > p { padding: 16px; color: var(--text-muted); text-align: center; }
     > button { display: block; margin: 0 auto; }
   }
-  div[data-mc=search-results] {
+  div.search-results {
     inset: 48px 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
     color: var(--text);
     > h2 { display: flex; }
@@ -482,7 +482,7 @@ export const CSS = `
   }
 
   /* the member list (members.tsx): as stock, offline members dimmed, bots badged as in messages */
-  section[data-mc=members] {
+  section.members {
     grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised);
     > h3 { padding: 16px 8px 4px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
     > h3:first-child { padding-top: 0; }
@@ -494,16 +494,16 @@ export const CSS = `
     > a[data-status=offline] { opacity: 0.3; }
     > a::before { content: ""; flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--icon, var(--bg-raised)) center / cover; }
   }
-  section[data-mc=members] > a > i, article > b > i {
+  section.members > a > i, article > b > i {
     display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; background: var(--accent); color: #fff;
     font: 600 10px/15px "gg sans", sans-serif; font-style: normal; vertical-align: 2px;
   }
-  section[data-mc=members] > a > i { margin-left: -8px; }
+  section.members > a > i { margin-left: -8px; }
 
   /* the message box (message_input.tsx): a grid of the attach button, the text, then the pickers (pickers.tsx) in
      stock's order, GIF, sticker, emoji, each in a column of its own, so the text never runs under them. The text grows
      with its lines, up to half the window; the buttons stay on the first line; the pickers open above */
-  div[data-mc=box] {
+  div.box {
     grid-area: compose; display: grid; grid: "attach text gif sticker emoji" auto / auto minmax(0, 1fr) auto auto auto;
     column-gap: 16px; align-items: start; margin: 0 16px 16px; padding: 0 16px; anchor-name: --box; border-radius: 8px;
     background: var(--bg-raised);
@@ -517,15 +517,15 @@ export const CSS = `
     > button { --i: var(--i-reaction); grid-area: emoji; display: grid; place-content: center; width: 24px; height: 24px; margin-top: 16px; padding: 0; border: 0; color: var(--text-muted); }
     > button:hover { color: var(--text-strong); }
     > button[hidden] { display: none; }
-    > button[data-mc=attach] { --i: var(--i-plus); grid-area: attach; }
-    > button[data-mc=gif] { --i: var(--i-gif); grid-area: gif; }
-    > button[data-mc=sticker] { --i: var(--i-sticker); grid-area: sticker; }
+    > button.attach { --i: var(--i-plus); grid-area: attach; }
+    > button.gif-button { --i: var(--i-gif); grid-area: gif; }
+    > button.sticker-button { --i: var(--i-sticker); grid-area: sticker; }
   }
-  &:has(> label) > div[data-mc=box] { border-top-left-radius: 0; border-top-right-radius: 0; }
+  &:has(> label) > div.box { border-top-left-radius: 0; border-top-right-radius: 0; }
   /* autocomplete: a list over the messages, as wide as the box, just above it; stock's sizes: headings 12/600 caps,
      rows 16 px with the hint at 12 px on the right, 24 px avatars (with the status), 20 px emoji, 16 px channel icons,
      dividers between the @ list's sections */
-  menu[data-mc=autocomplete] {
+  menu.autocomplete {
     position-anchor: --box; width: anchor-size(width); margin: 0 0 8px; border-radius: 5px; gap: 0;
     > h3 { margin: 0 0 8px; padding: 4px 0; font-size: 12px; font-weight: 600; line-height: 16px; text-transform: uppercase; color: var(--text-muted); }
     > hr { margin: 8px 0; }
@@ -538,7 +538,7 @@ export const CSS = `
   }
   /* the pickers, as stock's: a search field with its magnifier; emoji and stickers as sections under sticky names,
      a rail of them on the left, the hovered one named below; GIFs as darkened tiles, then results in two columns */
-  menu:is([data-mc=emoji-picker], [data-mc=gif-picker], [data-mc=sticker-picker]) {
+  menu:is(.emoji-picker, .gif-picker, .sticker-picker) {
     position-area: top span-left; width: 480px; padding: 0; gap: 0; overflow: hidden;
     > input {
       margin: 12px; padding: 8px 8px 8px 36px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--bg-raised);
@@ -546,7 +546,7 @@ export const CSS = `
     }
     > input:focus { box-shadow: inset 0 0 0 1px var(--accent); }
   }
-  menu:is([data-mc=emoji-picker], [data-mc=sticker-picker]):popover-open {
+  menu:is(.emoji-picker, .sticker-picker):popover-open {
     display: grid; grid: "search search" auto "rail list" 380px "foot foot" auto / 48px minmax(0, 1fr);
     > input { grid-area: search; }
     > nav { grid-area: rail; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-y: auto; padding: 4px 0 8px; scrollbar-width: none; }
@@ -565,18 +565,18 @@ export const CSS = `
     > footer > b { grid-column: 2; font-size: 14px; font-weight: 600; color: var(--text-strong); }
     > footer > small { grid-column: 2; font-size: 12px; color: var(--text-muted); }
   }
-  menu[data-mc=emoji-picker] {
+  menu.emoji-picker {
     --cols: 9; --row: 40px;
     > div > p > button > img { width: 32px; height: 32px; object-fit: contain; }
   }
   /* a Lottie sticker by its name, as the chat shows one */
-  menu[data-mc=sticker-picker] {
+  menu.sticker-picker {
     --cols: 4; --row: 100px;
     > div > p { gap: 4px; }
     > div > p > button { aspect-ratio: 1; color: var(--text-muted); font: inherit; font-size: 13px; }
     > div > p > button > img { width: 88px; height: 88px; }
   }
-  menu[data-mc=gif-picker] {
+  menu.gif-picker {
     > h3 { display: flex; align-items: center; gap: 12px; margin: 12px; min-height: 36px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
     > h3 > button { --i: var(--i-back); display: grid; padding: 0; color: var(--text-muted); }
     > h3 > button:hover { color: var(--text-strong); }
@@ -598,7 +598,7 @@ export const CSS = `
   & > ul > button[style] { display: grid; gap: 8px; width: 216px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
   & > ul > button[style]::before { content: ""; height: 168px; background: var(--preview) center / contain no-repeat; }
   /* back to the present, at the messages' bottom right */
-  & > button[data-mc=jump] {
+  & > button.jump {
     --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: end; z-index: 2; display: grid; grid: auto / auto; width: 48px; height: 48px;
     margin: 0 28px 40px 0; padding: 0; border: 0; border-radius: 50%; background: var(--bg-floating); color: var(--text-muted);
     place-content: center; box-shadow: 0 4px 8px #0006;
@@ -608,10 +608,10 @@ export const CSS = `
 
   /* the call view: a tile per person (avatar, name, a ring while speaking), Join below them; a camera fills its tile,
      under the name; someone's Go Live: Watch Stream until watched, then the stream, larger and letterboxed */
-  & > section[data-mc=call] {
+  & > section.call {
     grid-area: call; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 16px; background: var(--bg-deep);
   }
-  section[data-mc=call] {
+  section.call {
     > figure {
       display: grid; place-items: end start; width: 160px; height: 90px; padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 500;
       background: var(--icon, none) center / 48px no-repeat, var(--bg-raised); outline: 2px solid transparent; outline-offset: -2px;
@@ -635,29 +635,29 @@ export const CSS = `
     &.dm:not(:has(video, figure.stream)) > figure:is(.mute, .deaf)::after { place-self: end end; width: 20px; height: 20px; }
   }
   /* Join on a row of its own below the tiles; a DM's are icons */
-  section[data-mc=call] > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; }
-  section[data-mc=call] > footer > button[title] { display: grid; place-content: center; width: 56px; height: 40px; padding: 0; --i: var(--i-call); }
-  section[data-mc=call] > footer > button[data-mc="call:join-video"] { --i: var(--i-video); }
-  section[data-mc=call] > footer > button, dialog[data-mc^=incoming] > button {
+  section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; }
+  section.call > footer > button[title] { display: grid; place-content: center; width: 56px; height: 40px; padding: 0; --i: var(--i-call); }
+  section.call > footer > button.call-join-video { --i: var(--i-video); }
+  section.call > footer > button, dialog.incoming > button {
     padding: 8px 16px; border-radius: 4px; background: var(--positive); color: #fff; font: inherit; font-size: 14px; font-weight: 500;
   }
   /* a call ringing for you, at the top of the window */
-  dialog[data-mc^=incoming] {
+  dialog.incoming {
     position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; width: 280px;
     padding: 16px 16px 16px 80px; background: var(--icon) 16px center / 48px no-repeat, var(--bg-floating);
     > small { grid-column: 1; color: var(--text-muted); }
     > button { --i: var(--i-voice); display: grid; place-content: center; grid-row: 1 / 3; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
-    > button[data-mc="incoming:decline"] { --i: var(--i-hangup); background: var(--danger); }
+    > button.incoming-decline { --i: var(--i-hangup); background: var(--danger); }
   }
   /* the new messages bar, across the messages' top */
-  & > div[data-mc=new-messages] {
+  & > div.new-messages {
     grid-area: main; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
     color: #fff; font-size: 14px; font-weight: 500; line-height: 24px;
     > button { padding: 0 12px; color: inherit; font: inherit; }
     > button:first-child { flex: 1; text-align: left; }
   }
   /* the media viewer (chat.tsx): the whole window, so a click outside the image lands on the dialog itself */
-  dialog[data-mc=viewer] {
+  dialog.viewer {
     width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: none;
     &[open] { display: grid; place-content: center; justify-items: center; gap: 8px; }
     &::backdrop { background: #000c; }
@@ -699,7 +699,7 @@ export const CSS = `
     mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
     del { text-decoration: none; background: var(--bg-deep); color: transparent; border-radius: 4px; cursor: pointer; }
     del[open] { background: var(--bg-raised); color: inherit; }
-    time:not([data-mc]) { background: var(--bg-raised); border-radius: 3px; padding: 0 2px; }
+    time:not(.ts) { background: var(--bg-raised); border-radius: 3px; padding: 0 2px; }
   }
 }
 @keyframes mc-typing { to { mask-position: 0; } }

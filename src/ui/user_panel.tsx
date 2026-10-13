@@ -44,7 +44,7 @@ function Me() {
   return (
     <>
       <button
-        data-mc="me"
+        class="user-panel"
         popovertarget="mc-account"
         style={url(me()?.getAvatarURL(undefined, 64))}
         data-status={status()}
@@ -52,10 +52,10 @@ function Me() {
         {nameOf(me())}
         <small>{playing() ?? STATUSES[status()] ?? status()}</small>
       </button>
-      <menu id="mc-account" data-mc="account" popover>
+      <menu id="mc-account" class="account" popover>
         <Items
           items={Object.entries(STATUSES).map(([value, label]) => ({
-            mc: `status:${value}`,
+            name: 'status',
             label,
             status: value,
             class: { sel: status() === value },
@@ -80,21 +80,19 @@ function VoicePanel() {
   return (
     <Show when={channel()}>
       {(c) => (
-        <footer data-mc="voice-panel" data-state={$.RTCConnection.getState()}>
+        <footer class="voice-panel" data-state={$.RTCConnection.getState()}>
           <Show when={settings()}>
             <VoiceSettings />
           </Show>
           <b>{STATES[$.RTCConnection.getState()] ?? 'Connecting…'}</b>
           <small>{c().guild_id ? `${c().name} / ${$.Guild.getGuild(c().guild_id)?.name}` : dmName(c())}</small>
           <button
-            data-mc="voice:camera"
-            class={{ on: $.MediaEngine.isVideoEnabled() }}
+            class={['voice-camera', { on: $.MediaEngine.isVideoEnabled() }]}
             title={$.MediaEngine.isVideoEnabled() ? 'Turn Off Camera' : 'Turn On Camera'}
             onClick={() => A.audio.setVideoEnabled(!S.MediaEngine.isVideoEnabled())}
           />
           <button
-            data-mc="voice:screen"
-            class={{ on: !!$.ApplicationStreaming.getCurrentUserActiveStream() }}
+            class={['voice-screen', { on: !!$.ApplicationStreaming.getCurrentUserActiveStream() }]}
             title={$.ApplicationStreaming.getCurrentUserActiveStream() ? 'Stop Streaming' : 'Share Your Screen'}
             onClick={() =>
               S.ApplicationStreaming.getCurrentUserActiveStream()
@@ -102,14 +100,13 @@ function VoicePanel() {
                 : A.goLive.start(c().guild_id ?? null, c().id, [])
             }
           />
-          <button data-mc="voice:soundboard" title="Open Soundboard" popovertarget="mc-soundboard" />
+          <button class="voice-soundboard" title="Open Soundboard" popovertarget="mc-soundboard" />
           <button
-            data-mc="voice:settings"
-            class={{ on: settings() }}
+            class={['voice-settings-button', { on: settings() }]}
             title="Voice Settings"
             onClick={() => setSettings((on) => !on)}
           />
-          <button data-mc="voice:disconnect" title="Disconnect" onClick={() => A.voice.disconnect()} />
+          <button class="voice-disconnect" title="Disconnect" onClick={() => A.voice.disconnect()} />
           <Soundboard channel={c()} />
           <ScreenPicker />
         </footer>
@@ -133,7 +130,7 @@ function Soundboard(p: { channel: Rec }) {
   return (
     <menu
       id="mc-soundboard"
-      data-mc="soundboard"
+      class="soundboard"
       popover
       onToggle={(e) => e.newState === 'open' && A.soundboardSounds.fetch()}
     >
@@ -145,8 +142,8 @@ function Soundboard(p: { channel: Rec }) {
               <For each={sounds}>
                 {(sound) => (
                   <button
-                    data-mc={`soundboard:${sound.soundId}`}
-                    class={{ on: $.Soundboard.isPlayingSound(sound.soundId) }}
+                    class={['sound', { on: $.Soundboard.isPlayingSound(sound.soundId) }]}
+                    data-id={sound.soundId}
                     disabled={!usable(sound)}
                     onClick={() => A.soundboard.canPlay(p.channel) && A.soundboard.play(sound, p.channel.id, [])}
                   >
@@ -183,7 +180,7 @@ function VoiceSettings() {
     </label>
   )
   return (
-    <form data-mc="voice-settings" onSubmit={(e) => e.preventDefault()}>
+    <form class="voice-settings" onSubmit={(e) => e.preventDefault()}>
       <label>
         Input Device
         <select onChange={(e) => A.audio.setInputDevice(e.currentTarget.value)}>
@@ -257,7 +254,7 @@ function VoiceSettings() {
 // the user panel's mute and deafen, in or out of a call (stock's: a local setting, and the voice state while in one);
 // a right click picks the input or the output device, as on stock's
 function AudioButtons() {
-  const menu = contextMenu((e) => !!(e.target as Element).closest('[data-mc=deafen]'))
+  const menu = contextMenu((e) => !!(e.target as Element).closest('.self-deafen'))
   const M = () => $.MediaEngine
   const output = () => !!menu.target()
   const devices = () => Object.values(output() ? M().getOutputDevices() : M().getInputDevices()) as Rec[]
@@ -265,23 +262,22 @@ function AudioButtons() {
   return (
     <>
       <button
-        data-mc="mute"
+        class={['self-mute', { on: M().isSelfMute() }]}
         title="Mute"
-        class={{ on: M().isSelfMute() }}
         onClick={() => A.audio.toggleSelfMute()}
         onContextMenu={menu.open}
       />
       <button
-        data-mc="deafen"
+        class={['self-deafen', { on: M().isSelfDeaf() }]}
         title="Deafen"
-        class={{ on: M().isSelfDeaf() }}
         onClick={() => A.audio.toggleSelfDeaf()}
         onContextMenu={menu.open}
       />
-      <menu ref={menu.ref} data-mc="devices" popover>
+      <menu ref={menu.ref} class="devices" popover>
         <Items
           items={devices().map((d) => ({
-            mc: `device:${d.id}`,
+            name: 'device',
+            id: d.id,
             label: d.name,
             class: { sel: current() === d.id },
             disabled: d.disabled,
@@ -325,7 +321,7 @@ function ScreenPicker() {
   return (
     <dialog
       ref={dialog}
-      data-mc="screen-picker"
+      class="screen-picker"
       // closed without a pick (Escape, Cancel)
       onClose={() => {
         ask()?.reject(new Error('cancelled'))
@@ -335,7 +331,7 @@ function ScreenPicker() {
       <h2>Share Your Screen</h2>
       <For each={ask()?.sources}>
         {(s) => (
-          <button data-mc={`screen:${s.id}`} class={s.kind} onClick={() => pick(s)}>
+          <button class={['source', s.kind]} data-id={s.id} onClick={() => pick(s)}>
             {s.name}
             <small>
               {s.detail} · {s.width}×{s.height}
@@ -355,7 +351,7 @@ function ScreenPicker() {
           </For>
         </select>
       </label>
-      <button data-mc="screen:cancel" onClick={() => dialog.close()}>
+      <button class="screen-cancel" onClick={() => dialog.close()}>
         Cancel
       </button>
     </dialog>

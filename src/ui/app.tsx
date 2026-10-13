@@ -31,7 +31,7 @@ function Connection() {
   on('CONNECTION_CLOSED', false)
   return (
     <Show when={!connected()}>
-      <p data-mc="notice">{!S.Gateway.isTryingToConnect() ? 'Disconnected' : once ? 'Reconnecting…' : 'Connecting…'}</p>
+      <p class="notice">{!S.Gateway.isTryingToConnect() ? 'Disconnected' : once ? 'Reconnecting…' : 'Connecting…'}</p>
     </Show>
   )
 }
@@ -58,7 +58,7 @@ export function App(p: { root: HTMLElement }) {
       <Connection />
       <ServerBar />
       <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : 'Direct Messages'}</h1>
-      <section data-mc="side">
+      <section class="side">
         <Channels />
         <UserPanel />
       </section>
