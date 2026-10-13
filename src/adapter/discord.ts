@@ -11,7 +11,7 @@ export interface FluxStore {
 
 export interface Stores {
   Gateway: FluxStore & { isConnected(): boolean; isTryingToConnect(): boolean }
-  Auth: FluxStore & { isAuthenticated(): boolean }
+  Auth: FluxStore & { isAuthenticated(): boolean; getId(): Id }
   User: FluxStore & { getCurrentUser(): Rec | undefined; getUser(id: Id): Rec | undefined }
   Guild: FluxStore & { getGuild(id: Id): Rec | undefined }
   // the server bar: single servers are folders without a folderId
@@ -19,12 +19,33 @@ export interface Stores {
     getGuildFolders(): { folderId?: number; folderName?: string; folderColor?: number; guildIds: Id[] }[]
   }
   // voice states by user id
-  VoiceState: FluxStore & { getVoiceStatesForChannel(channelId: Id): Record<Id, Rec> }
-  Speaking: FluxStore & { isSpeaking(userId: Id): boolean }
+  // userHasBeenMovedVersion: bumped when someone moves you to another channel
+  VoiceState: FluxStore & {
+    getVoiceStatesForChannel(channelId: Id): Record<Id, Rec>
+    isInChannel(channelId: Id): boolean
+    userHasBeenMovedVersion: number
+  }
+  SortedVoiceState: FluxStore & { countVoiceStatesForChannel(channelId: Id): number }
+  Speaking: FluxStore & {
+    isSpeaking(userId: Id): boolean
+    isCurrentUserPTTActive(): boolean
+    isCurrentUserPrioritySpeaker(): boolean
+  }
+  // Go Live streams: { streamType, guildId, channelId, ownerId, state }; viewers by stream key
+  ApplicationStreaming: FluxStore & {
+    getAllActiveStreams(): Rec[]
+    getAllApplicationStreamsForChannel(channelId: Id): Rec[]
+    getCurrentUserActiveStream(): Rec | null
+    getViewerIds(streamKey: string): Id[]
+  }
+  // voice handed to a console (Xbox, PlayStation)
+  GameConsole: FluxStore & { getAwaitingRemoteSessionInfo(): Rec | null; getRemoteSessionId(): Id | null }
   // getState: CONNECTING, AUTHENTICATING, AWAITING_ENDPOINT, RTC_CONNECTING, RTC_CONNECTED, NO_ROUTE, DISCONNECTED...
   RTCConnection: FluxStore & {
     getState(): string
     getChannelId(): Id | null
+    getWasEverRtcConnected(): boolean
+    getUserIds(): Id[] | undefined
   }
   // a DM's call: { channelId, ringing, ... }, null without one
   Call: FluxStore & { getCall(channelId: Id): Rec | null }
@@ -42,6 +63,11 @@ export interface Stores {
   MediaEngine: FluxStore & {
     isSelfMute(): boolean
     isSelfDeaf(): boolean
+    isSelfMutedTemporarily(): boolean
+    isVideoEnabled(): boolean
+    isNativeAudioPermissionReady(): boolean
+    shouldSkipMuteUnmuteSound(): boolean
+    notifyMuteUnmuteSoundWasSkipped(): void
     getInputDevices(): Record<string, Rec>
     getOutputDevices(): Record<string, Rec>
     getInputDeviceId(): string
@@ -62,7 +88,7 @@ export interface Stores {
   // getSortedChannels: [pinned (Discord's DM favorites), the rest], newest first
   PrivateChannelSort: FluxStore & { getSortedChannels(): [Rec[], Rec[]] }
   SelectedGuild: FluxStore & { getGuildId(): Id | null }
-  SelectedChannel: FluxStore & { getChannelId(guildId?: Id): Id | null }
+  SelectedChannel: FluxStore & { getChannelId(guildId?: Id): Id | null; getVoiceChannelId(): Id | null }
   Message: FluxStore & {
     getMessages(channelId: Id): Rec & { ready: boolean }
     getMessage(channelId: Id, messageId: Id): Rec | undefined
@@ -235,7 +261,11 @@ export interface Actions {
   // location: where stock's menu says the ack came from
   acks: { markRead(channel: Rec, location?: string): void; ack(channelId: Id, location?: Rec | string): void }
   voice: { selectVoiceChannel(channelId: Id | null): void; disconnect(): void }
-  sounds: { forPack(name: string, soundpack: string): { play(): void; loop(): void; stop(): void } }
+  // play: a sound of the user's soundpack at a volume (stock's UI sounds at 0.4)
+  sounds: {
+    forPack(name: string, soundpack: string): { play(): void; loop(): void; stop(): void }
+    play(name: string, volume: number): void
+  }
   calls: {
     // video, ring; recipientId: a 1:1 DM's user (stock checks the call is allowed first)
     call(channelId: Id, video: boolean, ring: boolean, recipientId?: Id): void

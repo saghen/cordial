@@ -82,7 +82,7 @@ byProps('flux', 'connectStores', 'Store')
 byProps('react', 'createElement', 'useEffect')
 
 storeNeed('Gateway', 'GatewayConnectionStore', 'isConnected', 'isTryingToConnect')
-storeNeed('Auth', 'AuthenticationStore', 'isAuthenticated')
+storeNeed('Auth', 'AuthenticationStore', 'isAuthenticated', 'getId')
 storeNeed('User', 'UserStore', 'getCurrentUser', 'getUser')
 storeNeed('Guild', 'GuildStore', 'getGuild')
 storeNeed('SortedGuild', 'SortedGuildStore', 'getGuildFolders')
@@ -91,7 +91,7 @@ storeNeed('Channel', 'ChannelStore', 'getChannel')
 storeNeed('GuildChannel', 'GuildChannelStore', 'getChannels')
 storeNeed('PrivateChannelSort', 'PrivateChannelSortStore', 'getSortedChannels')
 storeNeed('SelectedGuild', 'SelectedGuildStore', 'getGuildId')
-storeNeed('SelectedChannel', 'SelectedChannelStore', 'getChannelId')
+storeNeed('SelectedChannel', 'SelectedChannelStore', 'getChannelId', 'getVoiceChannelId')
 storeNeed('Message', 'MessageStore', 'getMessages', 'getMessage', 'getLastEditableMessage')
 storeNeed(
   'ReadState',
@@ -133,9 +133,19 @@ storeNeed('Emoji', 'EmojiStore', 'searchWithoutFetchingLatest')
 storeNeed('UploadAttachment', 'UploadAttachmentStore', 'getUploads')
 storeNeed('ChannelSection', 'ChannelSectionStore', 'getSection')
 storeNeed('ChannelMember', 'ChannelMemberStore', 'getProps')
-storeNeed('VoiceState', 'VoiceStateStore', 'getVoiceStatesForChannel')
-storeNeed('Speaking', 'SpeakingStore', 'isSpeaking')
-storeNeed('RTCConnection', 'RTCConnectionStore', 'getState', 'getChannelId')
+storeNeed('VoiceState', 'VoiceStateStore', 'getVoiceStatesForChannel', 'isInChannel')
+storeNeed('SortedVoiceState', 'SortedVoiceStateStore', 'countVoiceStatesForChannel')
+storeNeed('Speaking', 'SpeakingStore', 'isSpeaking', 'isCurrentUserPTTActive', 'isCurrentUserPrioritySpeaker')
+storeNeed(
+  'ApplicationStreaming',
+  'ApplicationStreamingStore',
+  'getAllActiveStreams',
+  'getAllApplicationStreamsForChannel',
+  'getCurrentUserActiveStream',
+  'getViewerIds',
+)
+storeNeed('GameConsole', 'GameConsoleStore', 'getAwaitingRemoteSessionInfo', 'getRemoteSessionId')
+storeNeed('RTCConnection', 'RTCConnectionStore', 'getState', 'getChannelId', 'getWasEverRtcConnected', 'getUserIds')
 storeNeed('Call', 'CallStore', 'getCall')
 storeNeed('IncomingCall', 'IncomingCallStore', 'getIncomingCalls')
 storeNeed('ChannelStatus', 'ChannelStatusStore', 'hasRequestedStatuses', 'getChannelStatus')
@@ -146,6 +156,11 @@ storeNeed(
   'MediaEngineStore',
   'isSelfMute',
   'isSelfDeaf',
+  'isSelfMutedTemporarily',
+  'isVideoEnabled',
+  'isNativeAudioPermissionReady',
+  'shouldSkipMuteUnmuteSound',
+  'notifyMuteUnmuteSoundWasSkipped',
   'getInputDevices',
   'getOutputDevices',
   'getInputDeviceId',
@@ -196,8 +211,8 @@ byCode('markGuildsRead', 'getActiveJoinedThreadsForGuild', 'GUILD_ONBOARDING_QUE
 byProps('voice', 'selectVoiceChannel', 'disconnect')
 // DM calls: call selects the DM's voice and rings, stopRinging declines
 byProps('calls', 'call', 'ring', 'stopRinging')
-// stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone)
-mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e' })
+// stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone); play plays one
+mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e', play: 'disableSounds)return' })
 byProps('invites', 'resolveInvite', 'acceptInviteAndTransitionToInviteChannel')
 // Discord's REST client and its endpoint paths: pins and Mark Unread are stock requests from its menu's chunk, which
 // isn't loaded without its UI

@@ -4,7 +4,7 @@ import { createEffect, createMemo, createSignal, Show } from 'solid-js'
 
 import { A, S } from '../adapter/core'
 import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from './channels'
-import { CallButton, CallView, IncomingCalls } from './call'
+import { CallButton, CallView, IncomingCalls, voiceSounds } from './call'
 import { Chat } from './chat'
 import { warm } from './lib/preload'
 import { $, selectedChannel, selectedGuild } from './lib/store'
@@ -50,6 +50,7 @@ export function App(p: { root: HTMLElement }) {
     document.title = `${b}Discord`
   })
   warm()
+  voiceSounds()
   return (
     <>
       <style>{CSS}</style>
