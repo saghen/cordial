@@ -29,7 +29,8 @@ export const CSS = `
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
   & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after,
-  menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, menu > button[data-mc="menu:react"]::after, article > p > button[data-mc="reaction:add"]::before {
+  menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, menu > button[data-mc="menu:react"]::after, article > p > button[data-mc="reaction:add"]::before,
+  div[data-mc=search-results] > h2 > button::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
 
@@ -367,16 +368,31 @@ export const CSS = `
   /* the header's pins (header.tsx): a popover under the button with the channel's pinned messages as rows, Jump on hover */
   & > header > button[data-mc=pins] { --i: var(--i-pin); position: relative; }
   & > header > button[data-mc=pins].unread::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+  /* search (header.tsx): a box at the header's end, wider while in use; the results down the right side under the header */
+  & > header > input[data-mc=search] {
+    width: 160px; height: 28px; margin-left: 16px; padding: 0 8px; border: 0; border-radius: 4px; outline: 0;
+    background: var(--bg-deep); color: var(--text); font: inherit; font-size: 14px; transition: width 0.2s;
+  }
+  & > header > input[data-mc=search]:focus { width: 240px; }
+  div[data-mc=search-results] {
+    inset: 48px 0 0 auto; width: 420px; height: auto; margin: 0; overflow-y: auto; padding: 0 0 16px;
+    border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep); color: var(--text); font-weight: 400;
+  }
+  div[data-mc=search-results] > h2 { display: flex; padding: 16px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
+  div[data-mc=search-results] > h2 > button { --i: var(--i-close); margin-left: auto; padding: 0; background: none; color: var(--text-muted); }
+  div[data-mc=search-results] > :is(p, nav) { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 16px; color: var(--text-muted); }
+  div[data-mc=search-results] > article > small { margin-left: 8px; color: var(--text-muted); font-size: 12px; }
+  :is(div[data-mc=pins-list], div[data-mc=search-results]) > article.head { margin: 0 8px 8px; padding-top: 8px; padding-bottom: 8px; border-radius: 4px; background: var(--bg); }
+  :is(div[data-mc=pins-list], div[data-mc=search-results]) > article > button { position: absolute; top: 8px; right: 8px; display: none; }
+  :is(div[data-mc=pins-list], div[data-mc=search-results]) > article:hover > button { display: block; }
+  :is(div[data-mc=pins-list], div[data-mc=search-results]) button { padding: 2px 8px; border: 0; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-size: 12px; cursor: pointer; }
+  div[data-mc=search-results] button:disabled { opacity: 0.5; cursor: default; }
   div[data-mc=pins-list] {
     inset: auto; margin: 8px 0 0; position-area: bottom span-left; width: 420px; max-height: 70vh; overflow-y: auto; padding: 0 0 16px;
-    border: 0; border-radius: 8px; background: var(--bg-floating); color: var(--text); box-shadow: 0 8px 16px #0006;
+    border: 0; border-radius: 8px; background: var(--bg-floating); color: var(--text); font-weight: 400; box-shadow: 0 8px 16px #0006;
   }
   div[data-mc=pins-list] > h2 { padding: 16px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
   div[data-mc=pins-list] > p { padding: 16px; color: var(--text-muted); text-align: center; }
-  div[data-mc=pins-list] > article.head { margin: 0 8px 8px; padding-top: 8px; padding-bottom: 8px; border-radius: 4px; background: var(--bg); }
-  div[data-mc=pins-list] > article > button { position: absolute; top: 8px; right: 8px; display: none; }
-  div[data-mc=pins-list] > article:hover > button { display: block; }
-  div[data-mc=pins-list] button { padding: 2px 8px; border: 0; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-size: 12px; cursor: pointer; }
   div[data-mc=pins-list] > button { display: block; margin: 0 auto; }
   /* the context menus: popovers at the pointer */
   menu:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=channel-menu], [data-mc=devices]) { position: fixed; margin: 0; }

@@ -22,10 +22,11 @@ function storeNeed<K extends keyof Stores>(key: K, name: string, ...methods: (ke
     name: `S.${key}`,
     what: `${name} { ${methods.join(', ')} }`,
     resolve() {
-      const s: any = A.flux.Store.getAll().find((s) => s.getName() === name)
-      if (!s) return 'no store by that name'
-      const gone = methods.filter((m) => typeof s[m] !== 'function')
-      if (gone.length) return `methods gone: ${gone.join(', ')}`
+      // two stores can share a name (stock has two SearchMessageStores): the one with the methods
+      const all: any[] = A.flux.Store.getAll().filter((s) => s.getName() === name)
+      if (!all.length) return 'no store by that name'
+      const s = all.find((s) => methods.every((m) => typeof s[m] === 'function'))
+      if (!s) return `methods gone: ${methods.filter((m) => typeof all[0][m] !== 'function').join(', ')}`
       S[key] = s
       return null
     },
@@ -116,6 +117,7 @@ storeNeed(
 )
 storeNeed('NotificationSettings', 'NotificationSettingsStore', 'getDisableUnreadBadge', 'isSoundDisabled')
 storeNeed('Soundpack', 'SoundpackStore', 'getSoundpack')
+storeNeed('Search', 'SearchMessageStore', 'getMessages', 'getTotalCount', 'getIsFetching', 'getError')
 storeNeed('ChannelPins', 'ChannelPinsStore', 'getPins')
 storeNeed('Stickers', 'StickersStore', 'getAllGuildStickers', 'getPremiumPacks')
 storeNeed('GIFPickerView', 'GIFPickerViewStore', 'getResultItems', 'getTrendingCategories')
@@ -257,6 +259,23 @@ mangled('gifs', 'type:"GIF_PICKER_INITIALIZE"', {
   search: 'GIF_PICKER_QUERY",query:e',
   clear: 'GIF_PICKER_QUERY",query:""',
   select: 'GIFS_SELECT',
+})
+// stock's message search: its actions are in the chunks of the lazy "Search" component (its header's search bar),
+// loaded as stock loads them, the first time
+moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
+  const id = findModuleId('name:"Search",render')
+  if (id == null) return null
+  const src = String(wreq.m[id]),
+    end = src.indexOf('name:"Search",render')
+  const chunks = [...src.slice(src.lastIndexOf('Promise.all([', end), end).matchAll(/\.e\("(\w+)"\)/g)].map((m) => m[1])
+  if (!chunks.length) return null
+  let actions: any
+  const load = async () => {
+    await Promise.all(chunks.map((c) => wreq.e(c)))
+    const mod = wreq(findModuleId('type:"SEARCH_MESSAGES_START"')!)
+    return Object.values(mod).find((e: any) => typeof e?.fetchMessages === 'function')
+  }
+  return { load: () => (actions ??= load()) }
 })
 // stock's text for a system message (joins, pins, boosts, calls...), as its notifications and reply previews use
 moduleNeed('systemMessages', 'the system message formatter { stringify }', () => {

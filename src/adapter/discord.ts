@@ -123,6 +123,13 @@ export interface Stores {
   GIFPickerView: FluxStore & { getResultItems(): Rec[]; getTrendingCategories(): Rec[] }
   // stickers by server id; Discord's packs once fetched ({ id, name, stickers })
   Stickers: FluxStore & { getAllGuildStickers(): Map<Id, Rec[]>; getPremiumPacks(): Rec[] }
+  // a search's results by its id (the server's id, or the channel's): the matching messages, 25 a page
+  Search: FluxStore & {
+    getMessages(id: Id): Rec[] | null
+    getTotalCount(id: Id): number | null
+    getIsFetching(id: Id): boolean
+    getError(id: Id): Rec | null
+  }
   ChannelPins: FluxStore & { getPins(channelId: Id): { state: string; items: Rec[] } | undefined }
   PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[] }
   // activities: { type, name, state }; type 4 is the custom status
@@ -297,8 +304,6 @@ export interface Actions {
     ring(channelId: Id, recipients?: Id[]): void
     stopRinging(channelId: Id, recipients?: Id[]): Promise<unknown>
   }
-  // an invite by code: resolve (no write) gives { invite: { code, guild, channel, approximate_*_count } }; accepting
-  // joins and opens the channel it points to
   // sendability: 0 sendable, 1 with Nitro, 2 not, 3 with a boosted server
   stickers: { fetchPacks(): void; sendability(sticker: Rec, user: Rec | undefined, channel: Rec | undefined): number }
   // the unicode emoji by category: people, nature, food, activity, travel, objects, symbols, flags
@@ -312,8 +317,26 @@ export interface Actions {
     clear(): void
     select(o: Rec): void
   }
+  // stock's message search, from its lazy chunks (loaded the first time): fetchMessages runs a search (stock's parser
+  // reads from:, in:, has: and the rest out of searchQueryString) into SearchMessageStore under the context's id
+  search: {
+    load(): Promise<{
+      fetchMessages(o: {
+        searchContext: Rec
+        searchQueryString: string
+        pagination: { offset: number }
+        searchMode: string
+        searchEverywhere: boolean
+        searchAnalyticsIds: null
+        onFetchStart?: () => void
+      }): void
+      clearSearchMessages(id: Id): void
+    }>
+  }
   // undefined for a type it has no text for
   systemMessages: { stringify(message: Rec): string | undefined }
+  // an invite by code: resolve (no write) gives { invite: { code, guild, channel, approximate_*_count } }; accepting
+  // joins and opens the channel it points to
   invites: {
     resolveInvite(code: string, location?: string): Promise<{ invite?: Rec; code: string }>
     acceptInviteAndTransitionToInviteChannel(o: { inviteKey: string; context?: Rec }): Promise<unknown>

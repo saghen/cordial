@@ -5,7 +5,7 @@ import { createEffect, createMemo, createSignal, Show } from 'solid-js'
 import { A, S } from '../adapter/core'
 import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from './channels'
 import { CallButton, CallView, IncomingCalls, voiceSounds } from './call'
-import { NotificationBell, Pins } from './header'
+import { NotificationBell, Pins, Search } from './header'
 import { Chat } from './chat'
 import { warm } from './lib/preload'
 import { $, selectedChannel, selectedGuild } from './lib/store'
@@ -79,6 +79,7 @@ export function App(p: { root: HTMLElement }) {
         <Show when={channel()?.guild_id && channel()}>{(c) => <NotificationBell channel={c()} />}</Show>
         <Show when={channel()}>{(c) => <Pins channel={c()} />}</Show>
         <MembersToggle />
+        <Show when={channel()}>{(c) => <Search channel={c()} />}</Show>
       </header>
       <CallView />
       <Chat root={p.root} />
