@@ -284,9 +284,12 @@ class Swap implements CastConsumer {
     if (this.state === 'active') this.state = 'warmup'
   }
 
-  private setBitrate(bps: number) {
+  // changes under 4 % wait while the target moves; once it holds still it is sent whatever the step (a climb in small
+  // steps otherwise left capture short of it for good: 3233 of 3325 kbps for 13 minutes, lab watch-long)
+  private setBitrate(bps: number, settled: boolean) {
     const kbps = Math.round(bps / 1000)
-    if (this.state !== 'active' || !kbps || Math.abs(kbps - this.lastKbps) < this.lastKbps * 0.04) return
+    if (this.state !== 'active' || !kbps || kbps === this.lastKbps) return
+    if (!settled && Math.abs(kbps - this.lastKbps) < this.lastKbps * 0.04) return
     this.lastKbps = kbps
     this.session?.send({ type: 'bitrate', kbps })
   }
@@ -302,7 +305,7 @@ class Swap implements CastConsumer {
   private setRate(next: RateState, wire?: number, sendDelay?: number) {
     const prev = this.rate
     this.rate = next
-    this.setBitrate(next.target)
+    this.setBitrate(next.target, next.target === prev.target)
     // the stream log: every change of the controller's state, and every probe asked for
     if ((next.reason !== prev.reason || next.probe) && traceLog())
       this.traceOut.push({
