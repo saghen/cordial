@@ -8,6 +8,7 @@ import { A, S } from '../adapter/needs'
 import { startTyping, stopTyping } from '../api/triggers'
 import type { Rec } from '../adapter/discord'
 import { dmName, kindOf } from './channels'
+import { useFileDrop } from '../api/hooks'
 import { authorOf, can as allowed, emojiSrc, type Message, nameOf, PERMS } from '../api/model'
 import { $, selected, selectedChannel } from '../api/store'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
@@ -150,12 +151,7 @@ export function MessageInput() {
     A.promptToUpload.prompt(pasted, channel()!, 0)
   }
   // files dropped anywhere on the window join them too (left to the browser, a drop would navigate to the file)
-  addEventListener('dragover', (e) => e.dataTransfer?.types.includes('Files') && e.preventDefault())
-  addEventListener('drop', (e) => {
-    if (!e.dataTransfer?.files.length) return
-    e.preventDefault()
-    if (can()) A.promptToUpload.prompt([...e.dataTransfer.files], channel()!, 0)
-  })
+  useFileDrop((dropped) => can() && A.promptToUpload.prompt(dropped, channel()!, 0))
 
   const key = (e: KeyboardEvent) => {
     const id = channelId()!

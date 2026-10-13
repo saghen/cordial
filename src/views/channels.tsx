@@ -1,11 +1,13 @@
 // The channel list: a server's channels and voice channels, or the DMs. Server icons, channels, categories and DMs
 // are all the same <a> (Item): its state is classes, its icon and badge the CSS's ::before and ::after.
 
-import { createEffect, createSignal, For, Show } from 'solid-js'
+import { createEffect, For, Show } from 'solid-js'
 
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
+import { useNow } from '../api/hooks'
 import { nameOf } from '../api/model'
+import { text } from '../api/strings'
 import { contextMenu, Items } from '../primitives/menu'
 import { preload } from '../api/preload'
 import { $, selected, selectedGuild } from '../api/store'
@@ -203,7 +205,7 @@ function channelMenu() {
             items={[
               {
                 name: 'menu-read',
-                label: 'Mark As Read',
+                label: text('MARK_AS_READ'),
                 disabled: c().type !== 4 && !$.ReadState.hasUnread(c().id),
                 run: () => A.acks.markRead(c()),
               },
@@ -258,12 +260,7 @@ function elapsed(ms: number) {
 function VoiceRow(p: { channel: Rec }) {
   const users = () => Object.values($.VoiceState.getVoiceStatesForChannel(p.channel.id)) as Rec[]
   const start = () => (users().length ? $.VoiceChannelStartTime.getStartTime(p.channel) : undefined)
-  const [now, setNow] = createSignal(Date.now())
-  createEffect(start, (s) => {
-    if (!s) return
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
-  })
+  const now = useNow(() => !!start())
   return (
     <>
       <a

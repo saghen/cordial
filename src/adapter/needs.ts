@@ -78,7 +78,7 @@ function dispatched(type: string, why: string) {
 }
 
 // first: the store needs look stores up through Flux, the dispatch needs through the dispatcher
-byProps('dispatcher', 'dispatch', 'subscribe', '_actionHandlers')
+byProps('dispatcher', 'dispatch', 'subscribe', 'unsubscribe', '_actionHandlers')
 byProps('flux', 'connectStores', 'Store')
 byProps('react', 'createElement', 'useEffect')
 
@@ -385,6 +385,11 @@ mangled('pages', 'windowSize().height-145', { size: '.getSetting(),' })
 byProps('markdown', 'parseToAST')
 byProps('icons', 'getChannelIconURL', 'getGuildIconURL')
 byProps('emojis', 'getURL', 'sanitizeEmojiName')
+// stock's text (api/strings.ts): its messages by key, and the hash that makes a key from a message's name
+byProps('intl', 'intl', 't', 'international')
+byProps('messageKey', 'runtimeHashMessageKey')
+// stock's date formats (api/strings.ts), its exports all minified
+mangled('dates', '"DateUtils"', { calendar: '"L LT"', format: 'longFormatters' })
 // the frecency user settings (proto type 2), which FrecencyStore ranks from: stock loads them when a picker opens
 moduleNeed(
   'frecencySettings',
@@ -406,6 +411,19 @@ needs.push({
   what: 'window.__DISCORD_WINDOW_ID, the window acks are enabled for',
   resolve: () => (typeof (window as any).__DISCORD_WINDOW_ID === 'string' ? null : 'not set'),
 })
+
+// stock's messages that api/strings.ts names: an unknown name gives empty text instead of failing, so check them all
+export function textNeed(names: readonly string[]) {
+  needs.push({
+    name: 'text',
+    what: `${names.length} stock messages by name`,
+    resolve() {
+      const messages = A.intl.t.$$loader.messages[A.intl.intl.currentLocale]
+      const gone = names.filter((n) => !(A.messageKey.runtimeHashMessageKey(n) in messages))
+      return gone.length ? `gone: ${gone.join(', ')}` : null
+    },
+  })
+}
 
 let report: {
   ok: boolean

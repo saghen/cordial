@@ -7,6 +7,7 @@ import type { Id, Rec } from '../adapter/discord'
 import { Dm, Item, url } from './channels'
 import { contextMenu, Items } from '../primitives/menu'
 import { $, selectedGuild } from '../api/store'
+import { text } from '../api/strings'
 
 // as stock's click: the channel Discord remembers for the server (persisted across restarts), else its default
 const channel = (id: Id) => S.SelectedChannel.getChannelId(id) ?? undefined
@@ -170,7 +171,7 @@ function ServerMenu(p: { bar: HTMLElement }) {
             items={[
               {
                 name: 'menu-read',
-                label: 'Mark As Read',
+                label: text('MARK_AS_READ'),
                 disabled: !$.GuildReadState.getGuildHasUnreadIgnoreMuted(id()),
                 run: () => A.markGuildsRead([id()], 'Guild List'),
               },

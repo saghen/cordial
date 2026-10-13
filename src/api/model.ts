@@ -3,6 +3,7 @@
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { $ } from './store'
+import { day } from './strings'
 
 export type Message = Record<string, any> & { id: Id; content: string; timestamp: Date; author: Record<string, any> }
 export interface Attachment {
@@ -98,32 +99,9 @@ export function authorOf(m: Message, guildId: Id | null): Author {
   }
 }
 
-// in Discord's language (the page's lang, set once its locale loads), as stock: "10:59 PM", "5/31/24, 11:15 AM"
-const formats = new Map<string, Intl.DateTimeFormat>()
-const format = (d: Date, o: Intl.DateTimeFormatOptions) => {
-  const key = document.documentElement.lang + JSON.stringify(o)
-  let f = formats.get(key)
-  if (!f) formats.set(key, (f = new Intl.DateTimeFormat(document.documentElement.lang || undefined, o)))
-  return f.format(d)
-}
-
-export const clock = (d: Date) => format(d, { timeStyle: 'short' })
-
-// as stock: "10:59 PM", "Yesterday at 10:59 PM", "5/31/24, 11:15 AM"
-export function when(d: Date) {
-  const day = new Date()
-  if (d.toDateString() === day.toDateString()) return clock(d)
-  day.setDate(day.getDate() - 1)
-  return d.toDateString() === day.toDateString()
-    ? `Yesterday at ${clock(d)}`
-    : format(d, { dateStyle: 'short', timeStyle: 'short' })
-}
-
 // the date divider above a message, when it's the first loaded of its day
 export function dayOf(prev: Message | undefined, m: Message) {
-  return prev && prev.timestamp.toDateString() !== m.timestamp.toDateString()
-    ? format(m.timestamp, { dateStyle: 'long' })
-    : undefined
+  return prev && prev.timestamp.toDateString() !== m.timestamp.toDateString() ? day(m.timestamp) : undefined
 }
 
 // Discord's emoji images: custom ones from its CDN, unicode ones from its own SVGs (as stock, not the system font)

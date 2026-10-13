@@ -12,7 +12,6 @@ import {
   type Attachment,
   authorOf,
   can as allowed,
-  clock,
   contentAST,
   dayOf,
   emojiSrc,
@@ -23,8 +22,8 @@ import {
   startsGroup,
   USER_MESSAGE,
   hiddenAs,
-  when,
 } from '../api/model'
+import { clock, when } from '../api/strings'
 import { contextMenu, Items } from '../primitives/menu'
 import { createScroller } from './scroller'
 import { $, selected, selectedChannel } from '../api/store'

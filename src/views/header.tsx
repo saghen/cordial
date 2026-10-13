@@ -6,7 +6,8 @@ import { createEffect, createSignal, For, Show } from 'solid-js'
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { renderAST } from '../components/markdown'
-import { authorOf, contentAST, type Message, when } from '../api/model'
+import { authorOf, contentAST, type Message } from '../api/model'
+import { when } from '../api/strings'
 import { $ } from '../api/store'
 
 // message_notifications: ALL_MESSAGES 0, ONLY_MENTIONS 1, NO_MESSAGES 2, NULL 3 (the category's or server's)

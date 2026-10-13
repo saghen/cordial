@@ -8,6 +8,7 @@ import { CallButtons, CallView, IncomingCalls, voiceSounds } from './views/call'
 import { NotificationBell, Pins, Search } from './views/header'
 import { Chat } from './views/chat'
 import { warm } from './api/preload'
+import { onAction } from './api/hooks'
 import { $, selectedChannel, selectedGuild } from './api/store'
 import { MembersList, MembersToggle } from './views/members'
 import { MessageInput } from './views/composer'
@@ -35,7 +36,7 @@ function Connection() {
   const [connected, setConnected] = createSignal(S.Gateway.isConnected())
   let once = connected()
   const on = (type: string, now: boolean) =>
-    A.dispatcher.subscribe(type, () => {
+    onAction(type, () => {
       once ||= now
       setConnected(now)
     })

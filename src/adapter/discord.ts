@@ -244,6 +244,7 @@ export interface Actions {
   dispatcher: {
     dispatch(action: Rec & { type: string }): void
     subscribe(type: string, fn: (action: Rec) => void): void
+    unsubscribe(type: string, fn: (action: Rec) => void): void
     _actionHandlers: Rec
   }
   flux: { connectStores: unknown; Store: { getAll(): FluxStore[] } }
@@ -471,6 +472,20 @@ export interface Actions {
   frecencySettings: { loadIfNecessary(): Promise<void> }
   // a unicode emoji's image (Discord's SVG)
   emojis: { getURL(surrogate: string): string; sanitizeEmojiName: unknown }
+  // stock's text: `t` maps a message's key to its message, in the current locale
+  intl: {
+    intl: {
+      currentLocale: string
+      string(message: unknown): string
+      formatToPlainString(message: unknown, values: Rec): string
+    }
+    t: Record<string, unknown> & { $$loader: { messages: Record<string, Record<string, unknown>> } }
+    international: unknown
+  }
+  // a message's key: xxhash64 of its name, the first 6 bytes in base64
+  messageKey: { runtimeHashMessageKey(name: string): string }
+  // moment-style formats in the user's locale and 12/24 h setting; calendar(d, true) is a message's timestamp
+  dates: { calendar(date: Date, short?: boolean): string; format(date: Date, format: string): string }
   // a group DM's icon, its default one when it has none
   icons: {
     getChannelIconURL(o: { id: Id; icon?: string | null; applicationId?: Id; size?: number }): string
