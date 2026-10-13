@@ -145,7 +145,11 @@ class Swap implements CastConsumer {
           logger.info("Chromium's frames go out again")
           return c.enqueue(f)
         }
-        this.rtpAt ??= { rtp: f.getMetadata().rtpTimestamp, ms: performance.now() }
+        const md = f.getMetadata()
+        this.rtpAt ??= { rtp: md.rtpTimestamp, ms: performance.now() }
+        // renegotiated to the other codec: Chromium's first frame in it says so, before startZeroCopy's poll would
+        const codec = SWAP_CODECS[(md as { mimeType?: string }).mimeType?.toLowerCase() ?? '']
+        if (codec && codec !== this.session?.codec && captureEncodes(codec)) this.setCodec(codec)
         if (f.type === 'key') {
           this.tpl.key = f
         } else {
