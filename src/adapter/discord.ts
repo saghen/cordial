@@ -25,6 +25,8 @@ export interface Stores {
     ChannelStatus: FluxStore & { hasRequestedStatuses(guildId: Id): boolean; getChannelStatus(channel: Rec): string | undefined; };
     // when a voice channel's call started (ms), from the same channel info request as the statuses
     VoiceChannelStartTime: FluxStore & { getStartTime(channel: Rec): number | undefined; };
+    // most used first: servers and channels (records) mixed
+    Frecency: FluxStore & { getFrequentlyWithoutFetchingLatest(): Rec[]; };
     // devices by id: { id, name, disabled }
     MediaEngine: FluxStore & {
         isSelfMute(): boolean; isSelfDeaf(): boolean; getInputDevices(): Record<string, Rec>; getOutputDevices(): Record<string, Rec>;
@@ -58,6 +60,8 @@ export interface Stores {
     Permission: FluxStore & { can(permission: bigint, context: Rec): boolean; };
     UserGuildSettings: FluxStore & { isMuted(guildId: Id): boolean; isChannelMuted(guildId: Id, channelId: Id): boolean; };
     GuildMember: FluxStore & { getMember(guildId: Id, userId: Id): Rec | null; };
+    // { userId: when they started typing }
+    Typing: FluxStore & { getTypingUsers(channelId: Id): Record<Id, number>; };
     // draftType 0: the channel's composer
     Draft: FluxStore & { getDraft(channelId: Id, draftType: number): string; };
     EditMessage: FluxStore & {
@@ -100,6 +104,7 @@ export interface Actions {
         // sendMessage's options for a pending reply: messageReference, allowedMentions
         getSendMessageOptionsForReply(reply: Rec | undefined): Rec;
         fetchMessages(options: { channelId: Id; limit?: number; before?: Id; after?: Id; jump?: Rec; truncate?: boolean; }): Promise<unknown>;
+        jumpToPresent(channelId: Id, limit: number): void;
         // edit mode, kept in EditMessageStore. startEditMessageRecord is what stock's Up and its menu's Edit call
         startEditMessageRecord(channelId: Id, message: Rec): void;
         updateEditMessage(channelId: Id, textValue: string): void;
@@ -155,5 +160,8 @@ export interface Actions {
     pages: { size(label?: string): number; };
     markdown: { parseToAST(text: string, inline?: boolean, state?: Rec): Rec[]; };
     // a group DM's icon, its default one when it has none
+    frecencySettings: { loadIfNecessary(): Promise<void>; };
+    // a unicode emoji's image (Discord's SVG)
+    emojis: { getURL(surrogate: string): string; sanitizeEmojiName: unknown; };
     icons: { getChannelIconURL(o: { id: Id; icon?: string | null; applicationId?: Id; size?: number; }): string; getGuildIconURL: unknown; };
 }

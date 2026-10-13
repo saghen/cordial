@@ -100,6 +100,7 @@ storeNeed("Relationship", "RelationshipStore", "getNickname");
 storeNeed("Permission", "PermissionStore", "can");
 storeNeed("UserGuildSettings", "UserGuildSettingsStore", "isMuted", "isChannelMuted");
 storeNeed("GuildMember", "GuildMemberStore", "getMember");
+storeNeed("Typing", "TypingStore", "getTypingUsers");
 storeNeed("Draft", "DraftStore", "getDraft");
 storeNeed("EditMessage", "EditMessageStore", "getEditingTextValue", "getEditingMessageId");
 storeNeed("CategoryCollapse", "CategoryCollapseStore", "isCollapsed");
@@ -115,6 +116,7 @@ storeNeed("Speaking", "SpeakingStore", "isSpeaking");
 storeNeed("RTCConnection", "RTCConnectionStore", "getState", "getChannelId");
 storeNeed("ChannelStatus", "ChannelStatusStore", "hasRequestedStatuses", "getChannelStatus");
 storeNeed("VoiceChannelStartTime", "VoiceChannelStartTimeStore", "getStartTime");
+storeNeed("Frecency", "FrecencyStore", "getFrequentlyWithoutFetchingLatest");
 storeNeed("MediaEngine", "MediaEngineStore", "isSelfMute", "isSelfDeaf", "getInputDevices", "getOutputDevices",
     "getInputDeviceId", "getOutputDeviceId");
 storeNeed("GuildNSFWAgree", "GuildNSFWAgreeStore", "didAgree");
@@ -171,6 +173,10 @@ mangled("reactions", "REMOVE_EMOJI_REACTIONS(", {
 mangled("pages", "windowSize().height-145", { size: ".getSetting()," });
 byProps("markdown", "parseToAST");
 byProps("icons", "getChannelIconURL", "getGuildIconURL");
+byProps("emojis", "getURL", "sanitizeEmojiName");
+// the frecency user settings (proto type 2), which FrecencyStore ranks from: stock loads them when a picker opens
+moduleNeed("frecencySettings", "the settings proto manager of type 2 { loadIfNecessary }",
+    () => find(m => m?.type === 2 && typeof m.loadIfNecessary === "function")?.[0]);
 
 dispatched("TYPING_START_LOCAL", "typing: TypingStore throttles and POSTs /typing");
 dispatched("TYPING_STOP_LOCAL", "typing stops when the composer empties");

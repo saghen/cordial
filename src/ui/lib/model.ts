@@ -77,9 +77,14 @@ const format = (d: Date, o: Intl.DateTimeFormatOptions) => {
     return f.format(d);
 };
 
+export const clock = (d: Date) => format(d, { timeStyle: "short" });
+
+// as stock: "10:59 PM", "Yesterday at 10:59 PM", "5/31/24, 11:15 AM"
 export function when(d: Date) {
-    const today = d.toDateString() === new Date().toDateString();
-    return format(d, today ? { timeStyle: "short" } : { dateStyle: "short", timeStyle: "short" });
+    const day = new Date();
+    if (d.toDateString() === day.toDateString()) return clock(d);
+    day.setDate(day.getDate() - 1);
+    return d.toDateString() === day.toDateString() ? `Yesterday at ${clock(d)}` : format(d, { dateStyle: "short", timeStyle: "short" });
 }
 
 // the date divider above a message, when it's the first loaded of its day

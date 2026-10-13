@@ -37,7 +37,7 @@ export function MembersList() {
                 ? <h3>{r.title} — {count(r.id)}</h3>
                 : <a data-mc={r && `member:${r.userId}`} data-status={r?.status} style={r && {
                     "--icon": `url(${r.user.getAvatarURL(r.guildId, 64)})`, color: r.colorString ?? undefined
-                }}>{r && nameOf(r.user, r.nick)}</a>
+                }}>{r && nameOf(r.user, r.nick)}<Show when={r?.user.bot}><i>APP</i></Show></a>
             }</For>
         </section>
     </Show>;

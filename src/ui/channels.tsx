@@ -6,19 +6,25 @@ import { createEffect, createSignal, For, Show } from "solid-js";
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
 import { nameOf } from "./lib/model";
+import { preload } from "./lib/preload";
 import { $, selected, selectedGuild } from "./lib/store";
 
 export const url = (src?: string | null) => src ? { "--icon": `url(${src})` } : undefined;
 
-// a text channel's icon (style.ts): announcements and age-restricted ones have their own
-export const kindOf = (c: Rec) => c.type === 5 ? "news" : c.nsfw ? "nsfw" : undefined;
+// a text channel's icon (style.ts): announcements, age-restricted and private ones (hidden from @everyone) have their own
+export const kindOf = (c: Rec) => c.type === 5 ? "news" : c.nsfw ? "nsfw"
+    : BigInt(c.permissionOverwrites?.[c.guild_id]?.deny ?? 0) & 1024n ? "lock" : undefined;
 
 export function Item(p: {
     mc?: string; label?: string; sub?: string; title?: string; icon?: string | null; status?: string; kind?: string;
     sel?: boolean; unread?: boolean; muted?: boolean; mentions?: number; go(): void;
+    // the channel a click opens, preloaded when the pointer stays (lib/preload.ts)
+    pre?(): Id | null | undefined;
 }) {
+    let t = 0;
     return <a data-mc={p.mc} title={p.title} style={url(p.icon)} data-status={p.status} data-n={p.mentions || undefined}
-        class={[p.kind, { sel: !!p.sel, unread: !!p.unread, muted: !!p.muted }]} onClick={p.go}>
+        class={[p.kind, { sel: !!p.sel, unread: !!p.unread, muted: !!p.muted }]} onClick={p.go}
+        onPointerEnter={() => p.pre && (t = setTimeout(() => preload(p.pre!()), 100))} onPointerLeave={() => clearTimeout(t)}>
         {p.label}<Show when={p.sub}><small>{p.sub}</small></Show>
     </a>;
 }
@@ -53,7 +59,7 @@ export function Dm(p: { id: Id; bar?: boolean; }) {
     const name = () => dmName(c());
     return <Item mc={`dm:${p.id}`} title={name()} label={p.bar ? "" : name()} sub={p.bar ? undefined : dmSub(c())} icon={dmIcon(c())} status={p.bar ? undefined : dmStatus(c())}
         sel={selected() === p.id} unread={$.ReadState.hasUnread(p.id)} mentions={$.ReadState.getMentionCount(p.id)}
-        go={() => A.nav.transitionTo(`/channels/@me/${p.id}`)} />;
+        go={() => A.nav.transitionTo(`/channels/@me/${p.id}`)} pre={() => p.id} />;
 }
 
 // text and announcement channels, then voice channels, under their categories (the uncategorized ones first, as
@@ -82,7 +88,7 @@ export function Channels() {
             </a>
             : <Item mc={`channel:${c.id}`} label={c.name} kind={kindOf(c)} sel={selected() === c.id} unread={$.ReadState.hasUnread(c.id)}
                 muted={$.UserGuildSettings.isChannelMuted(guildId, c.id)} mentions={$.ReadState.getMentionCount(c.id)}
-                go={() => A.nav.transitionTo(`/channels/${guildId}/${c.id}`)} />
+                go={() => A.nav.transitionTo(`/channels/${guildId}/${c.id}`)} pre={() => c.id} />
         }</For>}</Show>
     </nav>;
 }

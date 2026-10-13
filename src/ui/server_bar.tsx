@@ -8,13 +8,16 @@ import { Dm, Item, url } from "./channels";
 import { popAt } from "./lib/popover";
 import { $, selectedGuild } from "./lib/store";
 
+// as stock's click: the channel Discord remembers for the server (persisted across restarts), else its default
+const channel = (id: Id) => S.SelectedChannel.getChannelId(id) ?? undefined;
 const acronym = (id: Id) => $.Guild.getGuild(id)?.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3);
 
 function Guild(p: { id: Id; }) {
     const g = () => $.Guild.getGuild(p.id);
     return <Item mc={`guild:${p.id}`} title={g()?.name} sel={selectedGuild() === p.id}
         label={g()?.icon ? "" : acronym(p.id)} icon={guildIcon(p.id)} unread={$.GuildReadState.hasUnread(p.id)} muted={$.UserGuildSettings.isMuted(p.id)}
-        mentions={$.GuildReadState.getMentionCount(p.id)} go={() => A.nav.transitionToGuild(p.id)} />;
+        mentions={$.GuildReadState.getMentionCount(p.id)} go={() => A.nav.transitionToGuild(p.id, channel(p.id))}
+        pre={() => channel(p.id)} />;
 }
 const guildIcon = (id: Id) => {
     const icon = $.Guild.getGuild(id)?.icon;
@@ -44,7 +47,7 @@ export function ServerBar() {
             // the DM last open, as stock
             const last = S.SelectedChannel.getChannelId("@me");
             A.nav.transitionTo(`/channels/@me${last ? `/${last}` : ""}`);
-        }} />
+        }} pre={() => S.SelectedChannel.getChannelId("@me")} />
         <For each={$.PrivateChannelReadState.getUnreadPrivateChannelIds()}>{id => <Dm id={id} bar />}</For>
         <hr />
         <For each={$.SortedGuild.getGuildFolders()}>{f => f.folderId == null ? <Guild id={f.guildIds[0]} /> : <Folder folder={f} />}</For>

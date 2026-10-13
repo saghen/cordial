@@ -9,7 +9,7 @@ import { startTyping, stopTyping } from "../adapter/triggers";
 import type { Rec } from "../adapter/discord";
 import { dmName } from "./channels";
 import { authorOf, can as allowed, type Message, nameOf, PERMS } from "./lib/model";
-import { $ } from "./lib/store";
+import { $, selected } from "./lib/store";
 
 export function MessageInput() {
     const channelId = createMemo(() => $.SelectedChannel.getChannelId());
@@ -103,6 +103,7 @@ export function MessageInput() {
     };
 
     return <>
+        <Typing />
         <Show when={reply()}>{r => <label data-mc="reply">
             Replying to <b>{authorOf(r().message as Message, r().channel.guild_id).name}</b>
             <Show when={r().showMentionToggle}>
@@ -126,6 +127,22 @@ export function MessageInput() {
         onInput={input} onKeyDown={key} />
         {complete.view}
     </>;
+}
+
+// who else is typing, in stock's words: "A is typing…", "A and B are…", "A, B, and C are…", then "Several people are…"
+function Typing() {
+    const names = createMemo(() => {
+        const id = selected(), me = S.User.getCurrentUser()?.id;
+        const guild = id && S.Channel.getChannel(id)?.guild_id;
+        return !id ? [] : Object.keys($.Typing.getTypingUsers(id)).filter(u => u !== me)
+            .map(u => nameOf(S.User.getUser(u), guild ? S.GuildMember.getMember(guild, u)?.nick : null));
+    });
+    return <Show when={names().length}>
+        <output data-mc="typing">{names().length > 3 ? "Several people are typing…" : <>
+            {names().map((n, i) => <>{!i ? "" : i < names().length - 1 ? ", " : i > 1 ? ", and " : " and "}<b>{n}</b></>)}
+            {names().length > 1 ? " are" : " is"} typing…
+        </>}</output>
+    </Show>;
 }
 
 // autocomplete: `@` users and roles, `#` channels, `:` emoji (two letters at least, as stock), from

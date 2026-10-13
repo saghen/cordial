@@ -6,8 +6,9 @@ import { A, S } from "../adapter/core";
 import type { Rec } from "../adapter/discord";
 import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from "./channels";
 import { Chat } from "./chat";
+import { warm } from "./lib/preload";
 import { $, selected, selectedGuild } from "./lib/store";
-import { MembersList, MembersToggle } from "./members_list";
+import { MembersList, MembersToggle } from "./members";
 import { MessageInput } from "./message_input";
 import { ServerBar } from "./server_bar";
 import { CSS } from "./style";
@@ -54,6 +55,7 @@ function Gate(p: { channel: Rec; }) {
 
 export function App(p: { root: HTMLElement; }) {
     const channel = () => $.Channel.getChannel(selected()!);
+    warm();
     return <>
         <style>{CSS}</style>
         <Connection />

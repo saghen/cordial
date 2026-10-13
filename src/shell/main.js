@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -7,6 +7,15 @@ app.userAgentFallback = app.userAgentFallback.replace(/ (mincord|Electron)\/\S+/
 
 // Chrome's zoom steps between 0.5 and 3
 const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+
+// <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none)
+ipcMain.on("mincord:config", e => {
+    try {
+        e.returnValue = JSON.parse(fs.readFileSync(path.join(app.getPath("userData"), "config.json"), "utf8"));
+    } catch {
+        e.returnValue = {};
+    }
+});
 
 app.whenReady().then(() => {
     const zoomFile = path.join(app.getPath("userData"), "zoom");
