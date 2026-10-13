@@ -4,6 +4,8 @@ import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
 
 export type Message = Record<string, any> & { id: Id; content: string; timestamp: Date; author: Record<string, any>; };
+export interface Attachment { url: string; proxy_url: string; filename: string; size: number; content_type?: string; width?: number; height?: number; }
+export interface Reaction { emoji: { id: Id | null; name: string; animated?: boolean; }; count: number; me: boolean; }
 
 export interface Author {
     id: Id;

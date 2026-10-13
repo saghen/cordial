@@ -7,7 +7,7 @@ export const CSS = `
   --text: #efeff1; --text-strong: #fbfbfb; --text-muted: #96979e; --text-faint: #4f505a;
   --mention-bg: #5f8cfb3d; --mention-fg: #a9bbff; --danger: #da3e44; --positive: #3d9e60; --warning: #fdb833;
   position: fixed; inset: 0; z-index: 1; display: grid;
-  grid: "notice notice notice" auto "servers side head" 48px "servers nav main" 1fr "servers nav compose" auto
+  grid: "notice notice notice" auto "servers side head" 48px "servers nav main" 1fr "servers nav uploads" auto "servers nav reply" auto "servers nav compose" auto
     "servers me compose" 52px / 72px 240px minmax(0, 1fr);
   background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
 
@@ -80,7 +80,7 @@ export const CSS = `
     color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer;
   }
   menu > button:hover, menu > button.sel { background: var(--bg-raised); color: var(--text-strong); }
-  menu > button::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
+  menu > button[value]::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
   menu > button[value=online]::before { background: var(--positive); }
   menu > button[value=idle]::before { background: var(--warning); }
   menu > button[value=dnd]::before { background: var(--danger); }
@@ -117,12 +117,57 @@ export const CSS = `
   }
   article.new { border-top: 1px solid var(--danger); }
 
+  /* a reply: the replied-to message above the author line, the reply bar above the composer */
+  article > q {
+    display: block; font-size: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; cursor: pointer; quotes: none;
+  }
+  article > q::before { content: "↱ "; }
+  article.reply::before { top: 26px; }
+  & > label {
+    grid-area: reply; display: flex; align-items: center; gap: 8px; margin: 0 16px; padding: 6px 12px;
+    border-radius: 8px 8px 0 0; background: var(--bg-floating); font-size: 14px; color: var(--text-muted);
+  }
+  & > label > b { color: var(--text-strong); font-weight: 600; margin-right: auto; }
+  & > label > button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+  & > label > button.on { color: var(--accent); font-weight: 700; }
+  /* attachments: media at its scaled size (width and height attributes), other files as a link with the size */
+  article > .media { display: block; max-width: 100%; height: auto; margin-top: 4px; border-radius: 8px; background: var(--bg-raised); }
+  article > a.file {
+    display: flex; width: fit-content; max-width: 100%; gap: 8px; margin-top: 4px; padding: 10px 12px;
+    border: 1px solid var(--bg-raised); border-radius: 8px; background: var(--bg-deep); white-space: normal;
+  }
+  article > a.file::after { content: attr(data-size); color: var(--text-muted); font-size: 12px; align-self: center; }
+  /* reactions: a chip per emoji under the content, mine ringed */
+  article > p { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; white-space: normal; }
+  article > p > button {
+    display: flex; align-items: center; gap: 4px; padding: 2px 6px; border: 1px solid transparent; border-radius: 8px;
+    background: var(--bg-raised); color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  article > p > button.me { border-color: var(--accent); color: var(--text-strong); }
+  article > p > button > img { width: 16px; height: 16px; }
+  /* the message menu: a popover at the pointer */
+  menu[data-mc=message-menu] { position: fixed; margin: 0; }
+  menu > button.danger { color: var(--danger); }
+  menu > input { padding: 6px 8px; border: 0; border-radius: 4px; outline: 0; background: var(--bg-deep); color: inherit; font: inherit; }
+  menu > p { display: grid; grid-template-columns: repeat(6, 1fr); }
+  menu > p > button { padding: 4px; border: 0; border-radius: 4px; background: none; font-size: 22px; line-height: 1; cursor: pointer; }
+  menu > p > button:hover { background: var(--bg-raised); }
+  menu > p > button > img { width: 24px; height: 24px; }
+
   /* the composer (composer.tsx): grows with its text, up to half the window */
   textarea {
-    grid-area: compose; margin: 0 16px 16px; min-height: 56px; max-height: 50vh; padding: 16px; resize: none;
+    grid-area: compose; margin: 0 16px 16px; min-height: 56px; max-height: 50vh; padding: 16px 16px 16px 56px; resize: none;
     field-sizing: content; border: 0; border-radius: 8px; outline: 0; background: var(--bg-raised); color: inherit; font: inherit;
   }
   textarea.editing { box-shadow: 0 0 0 2px var(--accent); }
+  /* the attach button over the box's left edge, the files waiting to go as chips above it */
+  & > button[data-mc=attach] {
+    grid-area: compose; align-self: start; justify-self: start; z-index: 1; width: 24px; height: 24px; margin: 16px 0 0 32px;
+    padding: 0; border: 0; border-radius: 50%; overflow: hidden; background: var(--text-muted); color: var(--bg); font: 700 18px/24px sans-serif; cursor: pointer;
+  }
+  & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
+  & > ul > button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
   textarea::placeholder { color: var(--text-faint); }
 
   /* content (content.ts) */
@@ -138,7 +183,7 @@ export const CSS = `
   /* Discord's reset (its stylesheet stays loaded for the fonts) */
   article em { font-style: italic; } article strong { font-weight: 700; }
   article a { color: var(--link); } article a:hover { text-decoration: underline; }
-  article img { width: 22px; height: 22px; vertical-align: bottom; object-fit: contain; }
+  article img:not(.media) { width: 22px; height: 22px; vertical-align: bottom; object-fit: contain; }
   article mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
   article del { text-decoration: none; background: var(--bg-deep); color: transparent; border-radius: 4px; cursor: pointer; }
   article del[open] { background: var(--bg-raised); color: inherit; }

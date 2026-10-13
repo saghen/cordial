@@ -101,6 +101,11 @@ storeNeed("GuildMember", "GuildMemberStore", "getMember");
 storeNeed("Draft", "DraftStore", "getDraft");
 storeNeed("EditMessage", "EditMessageStore", "getEditingTextValue", "getEditingMessageId");
 storeNeed("CategoryCollapse", "CategoryCollapseStore", "isCollapsed");
+storeNeed("PendingReply", "PendingReplyStore", "getPendingReply");
+storeNeed("ReferencedMessage", "ReferencedMessageStore", "getMessageByReference");
+storeNeed("MessageReactions", "MessageReactionsStore", "getReactions");
+storeNeed("Emoji", "EmojiStore", "searchWithoutFetchingLatest");
+storeNeed("UploadAttachment", "UploadAttachmentStore", "getUploads");
 storeNeed("SelfPresence", "SelfPresenceStore", "getStatus");
 storeNeed("DefaultRoute", "DefaultRouteStore");
 needs.push({
@@ -109,14 +114,27 @@ needs.push({
     resolve: () => typeof S.DefaultRoute?.defaultRoute === "string" ? null : "not a path"
 });
 
-byProps("messages", "sendMessage", "editMessage", "fetchMessages", "startEditMessageRecord", "updateEditMessage", "endEditMessage");
+byProps("messages", "sendMessage", "editMessage", "deleteMessage", "fetchMessages", "getSendMessageOptionsForReply",
+    "startEditMessageRecord", "updateEditMessage", "endEditMessage");
 byProps("parser", "parse", "unparse");
 byProps("drafts", "saveDraft", "changeDraft");
+byProps("uploads", "addFiles", "remove", "clearAll");
+// stock's file chooser handler: size and count limits, then the files staged in UploadAttachmentStore
+mangled("promptToUpload", "Unexpected mismatch between files and file metadata", { prompt: "requireConfirm" });
 byCode("setStatus", "nextStatus:", "statusExpiresAtMs=");
 mangled("nav", "transitionTo - Transitioning to", {
     transitionTo: "transitionTo -",
     transitionToGuild: "transitionToGuild -",
     replaceWith: "Replacing route with"
+});
+mangled("replies", 'type:"CREATE_PENDING_REPLY"', {
+    create: 'type:"CREATE_PENDING_REPLY"',
+    remove: 'type:"DELETE_PENDING_REPLY"',
+    mention: 'type:"SET_PENDING_REPLY_SHOULD_MENTION"'
+});
+mangled("reactions", "REMOVE_EMOJI_REACTIONS(", {
+    add: "userHasReactedWithEmoji(",
+    remove: '??"@me"'
 });
 mangled("pages", "windowSize().height-145", { size: ".getSetting()," });
 byProps("markdown", "parseToAST");

@@ -1,10 +1,12 @@
 // The composer: one textarea calling stock's chat input actions in stock's order. Enter sends, Shift+Enter is a new
 // line, Up in an empty box edits the last own message in place (Enter saves, Escape leaves). Its text is the draft.
+// Files from + wait as chips above it and go with the next message.
 
-import { createEffect, createMemo } from "solid-js";
+import { createEffect, createMemo, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import { startTyping, stopTyping } from "../adapter/triggers";
+import { authorOf, type Message } from "./model";
 import { $ } from "./store";
 
 export function Composer() {
@@ -15,7 +17,9 @@ export function Composer() {
         const c = channelId() && $.Channel.getChannel(channelId()!);
         return !!c && (c.isPrivate() || $.Permission.can(2048n, c));
     });
-    let box!: HTMLTextAreaElement;
+    const reply = createMemo(() => channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined);
+    const uploads = createMemo(() => channelId() ? $.UploadAttachment.getUploads(channelId()!, 0) : []);
+    let box!: HTMLTextAreaElement, files!: HTMLInputElement;
 
     // as stock: the draft is saved at most every 500 ms while it changes (first and last change included), and on a switch
     let last = 0, timer: ReturnType<typeof setTimeout> | undefined;
@@ -54,8 +58,14 @@ export function Composer() {
             const content = A.parser.parse(channel, text).content;
             if (text && content !== S.Message.getMessage(id, edit)?.content) A.messages.editMessage(id, edit, { content, components: undefined });
             A.messages.endEditMessage(id);
-        } else if (text) {
-            A.messages.sendMessage(id, A.parser.parse(channel, text), undefined, { location: "chat_input" });
+        } else if (text || uploads().length) {
+            const options = A.messages.getSendMessageOptionsForReply(S.PendingReply.getPendingReply(id));
+            // with files, as stock: no optimistic row (eagerDispatch), the message shows once uploaded
+            const attachmentsToUpload = uploads().length ? uploads() : undefined;
+            A.messages.sendMessage(id, A.parser.parse(channel, text), undefined,
+                { ...options, attachmentsToUpload, eagerDispatch: attachmentsToUpload ? false : undefined, location: "chat_input" });
+            if (reply()) A.replies.remove(id);
+            if (attachmentsToUpload) A.uploads.clearAll(id, 0);
             // stock clears its box (a save of the empty draft), then hears its own change (a change, and a throttled save)
             box.value = "";
             A.drafts.saveDraft(id, "", 0);
@@ -71,6 +81,8 @@ export function Composer() {
             send();
         } else if (e.key === "Escape" && editing()) {
             A.messages.endEditMessage(id);
+        } else if (e.key === "Escape" && reply()) {
+            A.replies.remove(id);
         } else if (e.key === "ArrowUp" && !box.value && !editing()) {
             const last = S.Message.getLastEditableMessage(id);
             if (last) {
@@ -80,7 +92,27 @@ export function Composer() {
         }
     };
 
-    return <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} hidden={!channelId()} disabled={!can()}
+    return <>
+        <Show when={reply()}>{r => <label data-mc="reply">
+            Replying to <b>{authorOf(r().message as Message, r().channel.guild_id).name}</b>
+            <Show when={r().showMentionToggle}>
+                <button data-mc="reply:mention" class={{ on: r().shouldMention }}
+                    onClick={() => A.replies.mention(channelId()!, !r().shouldMention)}>@ {r().shouldMention ? "on" : "off"}</button>
+            </Show>
+            <button data-mc="reply:cancel" onClick={() => A.replies.remove(channelId()!)}>✕</button>
+        </label>}</Show>
+        <Show when={uploads().length}>
+            <ul data-mc="uploads"><For each={uploads()}>{u =>
+                <button data-mc={`upload:${u.filename}`} title="Remove" onClick={() => A.uploads.remove(channelId()!, u.id, 0)}>{u.filename} ✕</button>
+            }</For></ul>
+        </Show>
+        <button data-mc="attach" title="Upload a file" hidden={!channelId() || !can()} onClick={() => files.click()}>+</button>
+        <input ref={files} type="file" multiple hidden onChange={() => {
+            A.promptToUpload.prompt([...files.files!], S.Channel.getChannel(channelId()!)!, 0);
+            files.value = "";
+        }} />
+        <textarea ref={box} data-mc="composer" class={{ editing: !!editing() }} rows={1} hidden={!channelId()} disabled={!can()}
         placeholder={editing() ? "Editing: Enter saves, Escape cancels" : can() ? "Message" : "You can't send messages here"}
-        onInput={input} onKeyDown={key} />;
+        onInput={input} onKeyDown={key} />
+    </>;
 }

@@ -27,7 +27,8 @@ Object.assign(G, {
         get wreq() { return wreq; },
         store: (name: string) => A.flux.Store.getAll().find(s => s.getName() === name),
         findByProps: (...props: string[]) => find(byProps(...props))?.[0],
-        get rest() { return find(byProps("getAPIBaseURL", "get", "post"))?.[0]; }
+        // Discord's REST client: just these five (superagent, under it, has them too, among others)
+        get rest() { return find(e => Object.keys(e).sort().join() === "del,get,patch,post,put")?.[0]; }
     },
     model,
     list: { reset: resetContent }
