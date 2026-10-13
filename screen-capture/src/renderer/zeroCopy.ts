@@ -1,11 +1,11 @@
-// Zero-copy stream: capture encodes the Go Live video in VRAM (AV1 on the GPU that captures it, renderer/cast.ts)
-// and Chromium only sends it.
+// Zero-copy stream: capture encodes the Go Live video in VRAM (AV1 or H.264, the call's codec, on the GPU that
+// captures it, renderer/cast.ts) and Chromium only sends it.
 //
 // Chromium keeps packetization, pacing, congestion control, RTCP and Discord's DAVE encryption but encodes nothing
 // that is sent: the encoded-frame stage in front of DAVE writes capture's temporal units as frames of their own.
 // Chromium 150 lets a sender's encoded writable take any RTCEncodedVideoFrame, but a frame can only be made by
 // cloning one (`new RTCEncodedVideoFrame(frame, { metadata })`), and the clone keeps the original's type (key/delta,
-// which sets the AV1 aggregation header's N bit), payload type and SSRC. So:
+// which sets the AV1 aggregation header's N bit), payload type, SSRC and codec. So:
 // - the sender encodes the Go Live track (cast.ts: capture's 1 fps preview, at the stream's size) and its newest
 //   key and delta frame are the templates for ours; Chromium's own frames are dropped;
 // - each capture frame is a clone of the template of its type with its own rtpTimestamp, frameId and
@@ -22,8 +22,11 @@
 // senders on that second path; video senders' streams are made by us with the swap stage in front (attachSwap), so
 // it works the same with or without DAVE. Audio senders get their streams untouched.
 //
-// When capture goes (cast.ts falls back to a normal capture into the same track) or the stream isn't AV1,
-// Chromium's own frames go out again, from a keyframe of its re-initialised encoder (see Swap.stop).
+// H.264: capture's access units are Annex B, as Chromium's encoder hands them to this stage (its packetizer splits
+// the NAL units itself); SPS and PPS come with each IDR. The steady wire rate's stuffing is AV1-only (stuffing.ts).
+//
+// When capture goes (cast.ts falls back to a normal capture into the same track) or the stream is neither AV1 nor
+// H.264, Chromium's own frames go out again, from a keyframe of its re-initialised encoder (see Swap.stop).
 
 import { CastConsumer, CastMessage, CastSession, castSessionFor } from './cast'
 import { logger as makeLogger } from './log'
@@ -188,7 +191,7 @@ class Swap implements CastConsumer {
     this.poke()
   }
 
-  start(session: CastSession, sender: RTCRtpSender, kbps: number) {
+  start(session: CastSession, sender: RTCRtpSender, kbps: number, codec: SwapCodec) {
     Object.assign(this, {
       needKey: true,
       keyRequested: false,
@@ -205,17 +208,28 @@ class Swap implements CastConsumer {
       fast: null,
       lastFastDelay: 0,
       stuffPaused: false,
-      stuffing: settings.steadyWireRate,
+      stuffing: settings.steadyWireRate && codec === 'av1',
     })
     this.session = session
     this.sender = sender
     this.state = 'active'
     session.consumer = this
-    session.send({ type: 'start', kbps: Math.round(kbps) })
+    session.setCodec(codec)
+    session.send({ type: 'start', kbps: Math.round(kbps), codec })
     // capture starts on a key frame, which is dropped until Chromium's key template is out (see send)
     this.needTemplates()
     this.timers.push(setInterval(() => this.pollKeyRequests(), KEY_POLL_MS))
     this.timers.push(setInterval(() => this.traceTick(), TRACE_TICK_MS))
+  }
+
+  /** the call was renegotiated to the other codec: capture re-opens its encoder (a key frame), new templates */
+  setCodec(codec: SwapCodec) {
+    if (this.state !== 'active' || !this.session || this.session.codec === codec) return
+    this.session.setCodec(codec)
+    this.stuffing = settings.steadyWireRate && codec === 'av1'
+    this.session.send({ type: 'start', kbps: this.lastKbps, codec })
+    this.needKey = true
+    this.needTemplates()
   }
 
   private traceTick() {
@@ -544,6 +558,11 @@ export const zeroCopyRate = (sender: RTCRtpSender) => (active.has(sender) ? swap
 
 const sendCodec = (sender: RTCRtpSender) => sender.getParameters().codecs?.[0]?.mimeType?.toLowerCase()
 
+export type SwapCodec = 'av1' | 'h264'
+/** the codecs capture encodes, by the sender's negotiated mime type */
+const SWAP_CODECS: Record<string, SwapCodec> = { 'video/av1': 'av1', 'video/h264': 'h264' }
+const swapCodec = (sender: RTCRtpSender): SwapCodec | undefined => SWAP_CODECS[sendCodec(sender) ?? '']
+
 /**
  * Until the sender is negotiated to send (Discord puts the track on a recvonly transceiver, sets it sendrecv and
  * renegotiates; its codecs are there from the first negotiation already, so the direction tells): checked whenever its
@@ -568,7 +587,7 @@ async function negotiated(sender: RTCRtpSender) {
     })
 }
 
-/** A Go Live track is on `sender`: send capture's AV1 in place of Chromium's encode, if the track is a cast's. */
+/** A Go Live track is on `sender`: send capture's video in place of Chromium's encode, if the track is a cast's. */
 export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrack) {
   const session = castSessionFor(track)
   const swap = swaps.get(sender)
@@ -576,20 +595,21 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   if (session?.state === 'starting') await session.up
   if (!session || session.state !== 'cast' || session.consumer || active.has(sender) || sender.track !== track) return
   if (!swap || swap.state === 'active') {
-    logger.info("Not sending capture's AV1: no encoded-frame stage on this sender")
+    logger.info("Not sending capture's video: no encoded-frame stage on this sender")
     return session.fallback('no encoded-frame stage')
   }
   active.add(sender)
-  // only AV1 can be sent: wait for the negotiation
+  // only what capture encodes can be sent: wait for the negotiation
   await negotiated(sender)
-  if (sendCodec(sender) !== 'video/av1') {
+  const codec = swapCodec(sender)
+  if (!codec) {
     active.delete(sender)
-    return session.fallback(`the stream is ${sendCodec(sender) ?? 'not negotiated'}, not AV1`)
+    return session.fallback(`the stream is ${sendCodec(sender) ?? 'not negotiated'}, not AV1 or H.264`)
   }
   if (sender.track !== track || session.state !== 'cast') return active.delete(sender)
   const max = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
-  swap.start(session, sender, Math.min(6000, (max * 0.7) / 1000))
-  logger.info("Streaming capture's AV1 (zero-copy)")
+  swap.start(session, sender, Math.min(6000, (max * 0.7) / 1000), codec)
+  logger.info(`Streaming capture's ${codec === 'av1' ? 'AV1' : 'H.264'} (zero-copy)`)
   let lastHeight = 0 // capture starts at its --size (0); a scale Discord set before the session is sent at once
   let prev: { at: number; bytes: number; packets: number; delay: number } | null = null
   const timer = setInterval(async () => {
@@ -599,7 +619,9 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
       if (swap.state === 'active') swap.stop()
       return
     }
-    if (sendCodec(sender) !== 'video/av1') return session.fallback(`the codec is now ${sendCodec(sender)}`)
+    const now = swapCodec(sender)
+    if (!now) return session.fallback(`the codec is now ${sendCodec(sender)}`)
+    swap.setCodec(now)
     try {
       // capture's target (targetRate.ts): WebRTC's bandwidth estimate under Discord's cap, except where the
       // estimate only fell to our own app-limited rate (outbound-rtp's targetBitrate is the template encoder's)

@@ -15,7 +15,7 @@ const STALL_MS = 3000
  *   | { type: 'preview', t: number, w: number, h: number, data: ArrayBuffer }
  *   | { type: 'info', t: number, info: any }
  *   | { type: 'closed', why: string }} CaptureMessage
- * @typedef {{ type: 'start', kbps: number, height?: number } | { type: 'bitrate', kbps: number } | { type: 'key' }
+ * @typedef {{ type: 'start', kbps: number, height?: number, codec?: 'av1' | 'h264' } | { type: 'bitrate', kbps: number } | { type: 'key' }
  *   | { type: 'height', height: number } | { type: 'stop' }} CaptureCommand
  * @typedef {{ pid: number | undefined, send(c: CaptureCommand): void, kill(): void }} Capture
  */
@@ -23,7 +23,7 @@ const STALL_MS = 3000
 /** @param {CaptureCommand} c */
 const commandLine = (c) =>
   c.type === 'start'
-    ? `start kbps=${c.kbps | 0}${c.height ? ` height=${c.height | 0}` : ''}`
+    ? `start kbps=${c.kbps | 0}${c.height ? ` height=${c.height | 0}` : ''}${c.codec ? ` codec=${c.codec}` : ''}`
     : c.type === 'bitrate'
       ? `bitrate ${c.kbps | 0}`
       : c.type === 'height'

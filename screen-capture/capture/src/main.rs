@@ -10,7 +10,7 @@
 //                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--h264-min-qp 0]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
 //                   [--encode-out F.ivf|F.h264]
-//   stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop
+//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | bitrate N | key | height N | stop
 //
 // Threads: the PipeWire thread (cast.rs) dequeues the newest buffer, submits the VPP into a free slot of the encode
 // ring (and into the preview surface when one is due) and requeues the buffer at once; it never waits for the GPU. A
@@ -81,7 +81,7 @@ fn usage() -> ! {
          \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--h264-min-qp 0]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
          \x20                      [--start] [--encode-out FILE.ivf|FILE.h264]\n\
-         stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop; stdout: see out.rs"
+         stdin: start [kbps=N] [height=N] [codec=av1|h264] | bitrate N | key | height N | stop; stdout: see out.rs"
     );
     std::process::exit(2)
 }
@@ -419,6 +419,7 @@ struct State {
     active: bool,  // encoding ("start", --start)
     req_kbps: u32, // target (0: --kbps)
     req_h: u32,    // maximum height (0: --size's)
+    h264: bool,    // the codec: --codec, then "start codec=" (the call's codec is known only once negotiated)
     want_key: bool,
     failed: bool,         // the encoder broke: no encoding until the next "start"
     quit: Option<String>, // why
@@ -515,12 +516,13 @@ impl State {
     }
 
     /// one command line:
-    ///   start [kbps=N] [height=N]   encode (the preview runs regardless)
+    ///   start [kbps=N] [height=N] [codec=av1|h264]
+    ///                               encode (the preview runs regardless); a new codec re-opens the encoder
     ///   bitrate N                   new target (kbps), from the next frame
     ///   key                         the next frame a keyframe
     ///   height N                    maximum encode height (0: --size's); a new size starts with a keyframe
     ///   stop                        exit (as does EOF)
-    fn command(&mut self, line: &str, o: &Opts, supported: bool) {
+    fn command(&mut self, line: &str, o: &Opts, (av1, h264): (bool, bool)) {
         let kv = |key: &str, def: u32| {
             line.find(key).map_or(def, |i| {
                 let s = &line[i + key.len()..];
@@ -531,20 +533,30 @@ impl State {
         };
         let arg = |s: &str| s.trim().parse::<u64>().unwrap_or(0);
         if line.starts_with("start") {
-            if !supported {
+            let want = if line.contains("codec=h264") {
+                true
+            } else if line.contains("codec=av1") {
+                false
+            } else {
+                self.h264
+            };
+            if !(if want { h264 } else { av1 }) {
+                let name = if want { "H.264" } else { "AV1" };
                 info(&format!(
-                    "{{\"type\":\"error\",\"message\":\"no AV1 encoder on {}\"}}",
+                    "{{\"type\":\"error\",\"message\":\"no {name} encoder on {}\"}}",
                     o.device
                 ));
                 return;
             }
+            self.h264 = want;
             self.active = true;
             self.req_kbps = kv("kbps=", self.kbps(o));
             self.req_h = kv("height=", self.req_h);
             self.want_key = true;
             self.failed = false;
             self.update_sizes(o);
-            eprintln!("cmd: start {} kbps, height {}", self.req_kbps, self.req_h);
+            let codec = if self.h264 { "H.264" } else { "AV1" };
+            eprintln!("cmd: start {} kbps, height {}, {codec}", self.req_kbps, self.req_h);
             stage("start");
         } else if let Some(n) = line.strip_prefix("bitrate ") {
             self.req_kbps = arg(n).clamp(100, 100000) as u32;
@@ -560,7 +572,7 @@ impl State {
 }
 
 /// commands from a pipe (mincord); stdin from /dev/null or a terminal isn't watched (lab and cost runs)
-fn watch_stdin(sh: Arc<Shared>, o: Arc<Opts>, supported: bool) {
+fn watch_stdin(sh: Arc<Shared>, o: Arc<Opts>, supported: (bool, bool)) {
     let piped =
         std::fs::metadata("/proc/self/fd/0").is_ok_and(|m| m.file_type().is_fifo() || m.file_type().is_socket());
     if !piped {
@@ -729,8 +741,8 @@ enum Enc {
 }
 
 impl Enc {
-    fn open(va: &Va, o: &Opts, (width, height): (u32, u32), kbps: u32) -> Result<Enc> {
-        Ok(if o.h264 {
+    fn open(va: &Va, o: &Opts, h264: bool, (width, height): (u32, u32), kbps: u32) -> Result<Enc> {
+        Ok(if h264 {
             let min_qp = o.min_qp;
             Enc::H264(h264enc::H264Enc::open(
                 va,
@@ -756,6 +768,10 @@ impl Enc {
                 },
             )?)
         })
+    }
+
+    fn h264(&self) -> bool {
+        matches!(self, Enc::H264(_))
     }
 
     fn set_kbps(&mut self, kbps: u32) {
@@ -848,8 +864,10 @@ impl<'a> Worker<'a> {
     fn reconcile(&mut self, g: &mut State) {
         let want = g.active && g.want.0 > 0 && !g.failed;
         if let Some(r) = &g.ring {
-            if !want || (r.w, r.h) != g.want {
-                eprintln!("enc: {}x{} off{}", r.w, r.h, if want { " (resize)" } else { "" });
+            let recodec = self.enc.as_ref().is_some_and(|e| e.h264() != g.h264);
+            if !want || (r.w, r.h) != g.want || recodec {
+                let why = if !want { "" } else if recodec { " (codec)" } else { " (resize)" };
+                eprintln!("enc: {}x{} off{why}", r.w, r.h);
                 g.ring = None;
                 self.enc = None;
             }
@@ -857,7 +875,7 @@ impl<'a> Worker<'a> {
         if want && g.ring.is_none() {
             let kbps = g.kbps(self.o);
             let created = Ring::create(self.va, self.vpp_cfg, g.want)
-                .and_then(|r| Ok((r, Enc::open(self.va, self.o, g.want, kbps)?)));
+                .and_then(|r| Ok((r, Enc::open(self.va, self.o, g.h264, g.want, kbps)?)));
             match created {
                 Ok((r, enc)) => {
                     g.want_key = true;
@@ -866,7 +884,7 @@ impl<'a> Worker<'a> {
                         "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"{}\"}}",
                         r.w,
                         r.h,
-                        if self.o.h264 { "H264" } else { "AV1" }
+                        if g.h264 { "H264" } else { "AV1" }
                     ));
                     g.ring = Some(r);
                     self.enc = Some(enc);
@@ -1253,6 +1271,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
     let state = State {
         active,
         want_key: active,
+        h264: o.h264,
         input: (o.clip_w, o.clip_h),
         prev_box: o.prev_box,
         credit: 1.0,
@@ -1321,7 +1340,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         (g.st.t_start, g.st.t_tick, g.last_in) = (t, t, t);
     }
 
-    watch_stdin(sh.clone(), o.clone(), supported);
+    watch_stdin(sh.clone(), o.clone(), (av1, h264));
     let remote = portal.as_mut().and_then(|p| p.fd.take());
     let cast = o
         .node

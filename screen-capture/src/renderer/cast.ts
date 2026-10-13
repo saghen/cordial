@@ -106,6 +106,11 @@ export class CastSession {
   width: number
   height: number
   consumer: CastConsumer | null = null
+  /** what capture encodes (zeroCopy.ts sets it from the negotiated codec, setCodec) */
+  codec: 'av1' | 'h264' = 'av1'
+  private decoderCodec: 'av1' | 'h264' = 'av1'
+  /** the preview decoder's configuration for the codec: undefined while probing, null when there's none */
+  private decoderConfig: VideoDecoderConfig | null | undefined
   /** capture's last per-second stats (streamStats.ts) */
   stats: any = null
   /** the fallback capture has fed the track long enough for Chromium's encoder to see its frame rate */
@@ -262,13 +267,41 @@ export class CastSession {
     this.display.write(frame).catch(() => frame.close())
   }
 
+  /** capture encodes `codec` from now on: find the GPU decoder's configuration for it (before its first key frame) */
+  setCodec(codec: 'av1' | 'h264') {
+    this.codec = codec
+    this.decoderConfig = undefined
+    // H.264 is Annex B (no description); the levels are what capture picks up to 1440p60 and 4K
+    const tries =
+      codec === 'h264' ? ['avc1.640033', 'avc1.64002a', 'avc1.640028'] : ['av01.0.13M.08', 'av01.0.09M.08']
+    ;(async () => {
+      for (const c of tries) {
+        const config = { codec: c, hardwareAcceleration: 'prefer-hardware', optimizeForLatency: true } as const
+        if ((await VideoDecoder.isConfigSupported(config).catch(() => null))?.supported) return config
+      }
+      return null
+    })().then((config) => {
+      if (this.codec !== codec) return
+      this.decoderConfig = config
+      if (!config) logger.info(`No GPU decoder for ${codec}: Discord's track shows the preview`)
+    })
+  }
+
   // capture's frames into the GPU's decoder, from a key frame on: capture starts on one, and makes one for a new
   // size. A decoder that fails or falls behind is dropped until the next key frame, one that never decoded a frame
-  // (no hardware AV1 decode: software would cost cores) for good; Discord's track shows the preview meanwhile.
+  // (no hardware decode: software would cost cores) for good, until the codec changes; Discord's track shows the
+  // preview meanwhile.
   private decode(m: Extract<CastMessage, { type: 'frame' }>) {
+    if (this.decoderCodec !== this.codec) {
+      this.stopDecoder()
+      this.noDecoder = false
+      this.decoderCodec = this.codec
+    }
     if (this.decoder && this.decoder.decodeQueueSize > 30) this.stopDecoder('it fell behind')
     if (!this.decoder) {
-      if (!m.key || this.noDecoder) return
+      // (no configuration yet: the probe is still out, or found none)
+      const config = this.decoderConfig
+      if (!m.key || this.noDecoder || !config) return
       let decoded = false
       const decoder: VideoDecoder = new VideoDecoder({
         output: (f) => {
@@ -282,11 +315,7 @@ export class CastSession {
           this.stopDecoder(e.message)
         },
       })
-      decoder.configure({
-        codec: 'av01.0.13M.08',
-        hardwareAcceleration: 'prefer-hardware',
-        optimizeForLatency: true,
-      })
+      decoder.configure(config)
       this.decoder = decoder
     }
     try {
