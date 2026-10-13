@@ -25,7 +25,7 @@ import {
   hiddenAs,
   when,
 } from './lib/model'
-import { popAt } from './lib/popover'
+import { contextMenu, Items } from './lib/menu'
 import { createScroller } from './lib/scroller'
 import { $, selected, selectedChannel } from './lib/store'
 
@@ -485,33 +485,27 @@ function markUnread(channelId: Id, messageId: Id) {
 
 // the message menu (right click on a message)
 function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
-  const [target, setTarget] = createSignal<Message | null>(null)
   // deleting takes a second click
   const [sure, setSure] = createSignal(false)
   // the four most used reactions on top, as stock; React swaps the items for an emoji search: the most used, then
   // what the query matches
   const [query, setQuery] = createSignal<string | null>(null)
-  let menu!: HTMLMenuElement
-
-  p.list.addEventListener('contextmenu', (e) => {
+  const menu = contextMenu((e) => {
     const id = (e.target as Element).closest('article')?.dataset.id,
       channelId = p.channelId()
     const m = id && channelId ? (S.Message.getMessage(channelId, id) as Message | undefined) : undefined
     if (!m) return
-    setTarget(m)
     setSure(false)
     // the add-reaction chip opens the emoji search
     setQuery((e.target as Element).closest("[data-mc='reaction:add']") ? '' : null)
-    popAt(menu, e)
+    return m
   })
+  p.list.addEventListener('contextmenu', menu.open)
 
-  const channel = () => S.Channel.getChannel(target()!.channel_id)!
-  const own = () => target()!.author.id === S.User.getCurrentUser()?.id
+  const target = () => menu.target()!
+  const channel = () => S.Channel.getChannel(target().channel_id)!
+  const own = () => target().author.id === S.User.getCurrentUser()?.id
   const can = (permission: bigint) => allowed(permission, channel())
-  const act = (fn: () => void) => () => {
-    menu.hidePopover()
-    fn()
-  }
   const recent = () => S.Emoji.emojiReactionFrecencyWithoutFetchingLatest.frequently
   const emojis = () =>
     (query()
@@ -519,119 +513,97 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
       : recent()
     ).slice(0, 24)
   const react = (e: Record<string, any>) =>
-    act(() =>
-      A.reactions.add(
-        channel().id,
-        target()!.id,
-        e.id ? { id: e.id, name: e.name, animated: e.animated } : { id: null, name: e.surrogates },
-        'Message Context Menu',
-      ),
+    A.reactions.add(
+      channel().id,
+      target().id,
+      e.id ? { id: e.id, name: e.name, animated: e.animated } : { id: null, name: e.surrogates },
+      'Message Context Menu',
     )
   const Emojis = (p: { each: Record<string, any>[] }) => (
     <p>
-      <For each={p.each}>
-        {(e) => (
-          <button data-mc={`react:${e.id ?? e.name}`} title={`:${e.name}:`} onClick={react(e)}>
-            <img alt={e.name} src={emojiSrc(e)} />
-          </button>
-        )}
-      </For>
+      <Items
+        items={p.each.map((e) => ({
+          mc: `react:${e.id ?? e.name}`,
+          title: `:${e.name}:`,
+          label: <img alt={e.name} src={emojiSrc(e)} />,
+          run: () => react(e),
+        }))}
+      />
     </p>
   )
   const box = () => document.querySelector<HTMLTextAreaElement>('[data-mc=composer]')?.focus()
+  const pinnable = () =>
+    (target().type === 0 || target().type === 19) && can(PERMS.PIN_MESSAGES) && can(PERMS.READ_MESSAGE_HISTORY)
+  const pin = () => {
+    const url = A.endpoints.PIN(channel().id, target().id)
+    if (target().pinned) A.rest.del({ url, oldFormErrors: true, rejectWithError: true })
+    else A.rest.put({ url, rejectWithError: true })
+  }
+  const link = () => `https://discord.com/channels/${channel().guild_id ?? '@me'}/${channel().id}/${target().id}`
+  const deletable = () => own() || can(PERMS.MANAGE_MESSAGES)
 
   return (
-    <menu ref={menu} data-mc="message-menu" popover onToggle={(e) => e.newState === 'closed' && setQuery(null)}>
-      <Show when={target() && query() != null}>
+    <menu ref={menu.ref} data-mc="message-menu" popover onToggle={(e) => e.newState === 'closed' && setQuery(null)}>
+      <Show when={menu.target() && query() != null}>
         <input
           data-mc="react:search"
           placeholder="Find an emoji"
           ref={(i) => queueMicrotask(() => i.focus())}
           onInput={(e) => setQuery(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && emojis()[0] && react(emojis()[0])()}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !emojis()[0]) return
+            e.currentTarget.closest('menu')!.hidePopover()
+            react(emojis()[0])
+          }}
         />
         <Emojis each={emojis()} />
       </Show>
-      <Show when={target() && query() == null}>
+      <Show when={menu.target() && query() == null}>
         <Show when={can(PERMS.ADD_REACTIONS)}>
           <Emojis each={recent().slice(0, 4)} />
-          <button data-mc="menu:react" onClick={() => setQuery('')}>
-            Add Reaction
-          </button>
-          <hr />
         </Show>
-        <Show when={own()}>
-          <button
-            data-mc="menu:edit"
-            onClick={act(() => {
-              A.messages.startEditMessageRecord(channel().id, target()!)
-              box()
-            })}
-          >
-            Edit Message
-          </button>
-        </Show>
-        <Show when={can(PERMS.SEND_MESSAGES)}>
-          <button
-            data-mc="menu:reply"
-            onClick={act(() => {
-              A.replies.create({
-                message: target()!,
-                channel: channel(),
-                shouldMention: !own(),
-                showMentionToggle: !own(),
-              })
-              box()
-            })}
-          >
-            Reply
-          </button>
-        </Show>
-        <hr />
-        <button data-mc="menu:copy" onClick={act(() => navigator.clipboard.writeText(target()!.content))}>
-          Copy Text
-        </button>
-        <Show
-          when={
-            (target()!.type === 0 || target()!.type === 19) &&
-            can(PERMS.PIN_MESSAGES) &&
-            can(PERMS.READ_MESSAGE_HISTORY)
-          }
-        >
-          <button
-            data-mc="menu:pin"
-            onClick={act(() => {
-              const url = A.endpoints.PIN(channel().id, target()!.id)
-              if (target()!.pinned) A.rest.del({ url, oldFormErrors: true, rejectWithError: true })
-              else A.rest.put({ url, rejectWithError: true })
-            })}
-          >
-            {target()!.pinned ? 'Unpin Message' : 'Pin Message'}
-          </button>
-        </Show>
-        <button data-mc="menu:unread" onClick={act(() => markUnread(channel().id, target()!.id))}>
-          Mark Unread
-        </button>
-        <button
-          data-mc="menu:link"
-          onClick={act(() =>
-            navigator.clipboard.writeText(
-              `https://discord.com/channels/${channel().guild_id ?? '@me'}/${channel().id}/${target()!.id}`,
-            ),
-          )}
-        >
-          Copy Message Link
-        </button>
-        <Show when={own() || can(PERMS.MANAGE_MESSAGES)}>
-          <hr />
-          <button
-            data-mc="menu:delete"
-            class="danger"
-            onClick={() => (sure() ? act(() => A.messages.deleteMessage(channel().id, target()!.id))() : setSure(true))}
-          >
-            {sure() ? 'Click again to delete' : 'Delete Message'}
-          </button>
-        </Show>
+        <Items
+          items={[
+            can(PERMS.ADD_REACTIONS) && {
+              mc: 'menu:react',
+              label: 'Add Reaction',
+              keep: true,
+              run: () => setQuery(''),
+            },
+            can(PERMS.ADD_REACTIONS) && '-',
+            own() && {
+              mc: 'menu:edit',
+              label: 'Edit Message',
+              run: () => (A.messages.startEditMessageRecord(channel().id, target()), box()),
+            },
+            can(PERMS.SEND_MESSAGES) && {
+              mc: 'menu:reply',
+              label: 'Reply',
+              run: () => {
+                A.replies.create({
+                  message: target(),
+                  channel: channel(),
+                  shouldMention: !own(),
+                  showMentionToggle: !own(),
+                })
+                box()
+              },
+            },
+            '-',
+            { mc: 'menu:copy', label: 'Copy Text', run: () => navigator.clipboard.writeText(target().content) },
+            pinnable() && { mc: 'menu:pin', label: target().pinned ? 'Unpin Message' : 'Pin Message', run: pin },
+            { mc: 'menu:unread', label: 'Mark Unread', run: () => markUnread(channel().id, target().id) },
+            { mc: 'menu:link', label: 'Copy Message Link', run: () => navigator.clipboard.writeText(link()) },
+            deletable() && '-',
+            deletable() && {
+              mc: 'menu:delete',
+              class: 'danger',
+              label: sure() ? 'Click again to delete' : 'Delete Message',
+              keep: !sure(),
+              run: () => (sure() ? A.messages.deleteMessage(channel().id, target().id) : setSure(true)),
+            },
+          ]}
+        />
       </Show>
     </menu>
   )

@@ -5,7 +5,7 @@ import { createSignal, For, Show } from 'solid-js'
 import { A, S } from '../adapter/core'
 import type { Id, Rec } from '../adapter/discord'
 import { Dm, Item, url } from './channels'
-import { popAt } from './lib/popover'
+import { contextMenu, Items } from './lib/menu'
 import { $, selectedGuild } from './lib/store'
 
 // as stock's click: the channel Discord remembers for the server (persisted across restarts), else its default
@@ -158,41 +158,37 @@ function AddServer() {
 }
 
 function ServerMenu(p: { bar: HTMLElement }) {
-  const [guild, setGuild] = createSignal<Id | null>(null)
-  let menu!: HTMLMenuElement
-  p.bar.addEventListener('contextmenu', (e) => {
-    const id = (e.target as Element).closest<HTMLElement>("[data-mc^='guild:']")?.dataset.mc!.slice(6)
-    if (!id) return
-    setGuild(id)
-    popAt(menu, e)
-  })
-  const act = (fn: (id: Id) => void) => () => {
-    menu.hidePopover()
-    fn(guild()!)
-  }
-  const muted = () => $.UserGuildSettings.isMuted(guild()!)
-
+  const menu = contextMenu((e) =>
+    (e.target as Element).closest<HTMLElement>("[data-mc^='guild:']")?.dataset.mc!.slice(6),
+  )
+  p.bar.addEventListener('contextmenu', menu.open)
+  const muted = (id: Id) => $.UserGuildSettings.isMuted(id)
   return (
-    <menu ref={menu} data-mc="server-menu" popover>
-      <Show when={guild()}>
-        <button
-          data-mc="menu:read"
-          disabled={!$.GuildReadState.getGuildHasUnreadIgnoreMuted(guild()!)}
-          onClick={act((id) => A.markGuildsRead([id], 'Guild List'))}
-        >
-          Mark As Read
-        </button>
-        <button
-          data-mc="menu:mute"
-          onClick={act((id) =>
-            A.notifications.updateGuildNotificationSettings(id, { muted: !muted() }, muted() ? 'unmuted' : 'muted'),
-          )}
-        >
-          {muted() ? 'Unmute Server' : 'Mute Server'}
-        </button>
-        <button data-mc="menu:copy-id" onClick={act((id) => navigator.clipboard.writeText(id))}>
-          Copy Server ID
-        </button>
+    <menu ref={menu.ref} data-mc="server-menu" popover>
+      <Show when={menu.target()}>
+        {(id) => (
+          <Items
+            items={[
+              {
+                mc: 'menu:read',
+                label: 'Mark As Read',
+                disabled: !$.GuildReadState.getGuildHasUnreadIgnoreMuted(id()),
+                run: () => A.markGuildsRead([id()], 'Guild List'),
+              },
+              {
+                mc: 'menu:mute',
+                label: muted(id()) ? 'Unmute Server' : 'Mute Server',
+                run: () =>
+                  A.notifications.updateGuildNotificationSettings(
+                    id(),
+                    { muted: !muted(id()) },
+                    muted(id()) ? 'unmuted' : 'muted',
+                  ),
+              },
+              { mc: 'menu:copy-id', label: 'Copy Server ID', run: () => navigator.clipboard.writeText(id()) },
+            ]}
+          />
+        )}
       </Show>
     </menu>
   )

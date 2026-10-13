@@ -6,7 +6,7 @@ import { createEffect, createSignal, For, Show } from 'solid-js'
 import { A, S } from '../adapter/core'
 import type { Id, Rec } from '../adapter/discord'
 import { nameOf } from './lib/model'
-import { popAt } from './lib/popover'
+import { contextMenu, Items } from './lib/menu'
 import { preload } from './lib/preload'
 import { $, selected, selectedGuild } from './lib/store'
 
@@ -185,61 +185,48 @@ export function Channels() {
 
 // a right click on a channel or a category: stock's Mark As Read, Mute, Copy Link and Copy Channel ID
 function channelMenu() {
-  const [channel, setChannel] = createSignal<Rec>()
-  let menu!: HTMLMenuElement
-  const open = (e: MouseEvent) => {
+  const menu = contextMenu((e) => {
     const row = (e.target as Element).closest<HTMLElement>("[data-mc^='channel:'], [data-mc^='category:']")
-    const c = row && S.Channel.getChannel(row.dataset.mc!.split(':')[1])
-    if (!c) return
-    setChannel(c)
-    popAt(menu, e)
-  }
-  const act = (fn: (c: Rec) => void) => () => {
-    menu.hidePopover()
-    fn(channel()!)
-  }
-  const muted = () => $.UserGuildSettings.isChannelMuted(channel()!.guild_id, channel()!.id)
-  const what = () => (channel()!.type === 4 ? 'Category' : 'Channel')
+    return row && (S.Channel.getChannel(row.dataset.mc!.split(':')[1]) as Rec | undefined)
+  })
+  const muted = (c: Rec) => $.UserGuildSettings.isChannelMuted(c.guild_id, c.id)
+  const what = (c: Rec) => (c.type === 4 ? 'Category' : 'Channel')
   const view = (
-    <menu ref={menu} data-mc="channel-menu" popover>
-      <Show when={channel()}>
+    <menu ref={menu.ref} data-mc="channel-menu" popover>
+      <Show when={menu.target()}>
         {(c) => (
-          <>
-            <button
-              data-mc="menu:read"
-              disabled={c().type !== 4 && !$.ReadState.hasUnread(c().id)}
-              onClick={act((c) => A.acks.markRead(c))}
-            >
-              Mark As Read
-            </button>
-            <button
-              data-mc="menu:mute"
-              onClick={act((c) =>
-                A.notifications.updateChannelOverrideSettings({
-                  guildId: c.guild_id,
-                  channelId: c.id,
-                  settings: { muted: !muted() },
-                  label: muted() ? 'unmuted' : 'muted',
-                }),
-              )}
-            >
-              {muted() ? `Unmute ${what()}` : `Mute ${what()}`}
-            </button>
-            <button
-              data-mc="menu:copy-link"
-              onClick={act((c) => navigator.clipboard.writeText(`https://discord.com/channels/${c.guild_id}/${c.id}`))}
-            >
-              Copy Link
-            </button>
-            <button data-mc="menu:copy-id" onClick={act((c) => navigator.clipboard.writeText(c.id))}>
-              Copy Channel ID
-            </button>
-          </>
+          <Items
+            items={[
+              {
+                mc: 'menu:read',
+                label: 'Mark As Read',
+                disabled: c().type !== 4 && !$.ReadState.hasUnread(c().id),
+                run: () => A.acks.markRead(c()),
+              },
+              {
+                mc: 'menu:mute',
+                label: `${muted(c()) ? 'Unmute' : 'Mute'} ${what(c())}`,
+                run: () =>
+                  A.notifications.updateChannelOverrideSettings({
+                    guildId: c().guild_id,
+                    channelId: c().id,
+                    settings: { muted: !muted(c()) },
+                    label: muted(c()) ? 'unmuted' : 'muted',
+                  }),
+              },
+              {
+                mc: 'menu:copy-link',
+                label: 'Copy Link',
+                run: () => navigator.clipboard.writeText(`https://discord.com/channels/${c().guild_id}/${c().id}`),
+              },
+              { mc: 'menu:copy-id', label: 'Copy Channel ID', run: () => navigator.clipboard.writeText(c().id) },
+            ]}
+          />
         )}
       </Show>
     </menu>
   )
-  return { open, view }
+  return { open: menu.open, view }
 }
 
 // as stock's voice rows: a server's voice channel statuses, once until a resume clears them (op 43)

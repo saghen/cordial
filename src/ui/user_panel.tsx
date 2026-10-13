@@ -9,7 +9,7 @@ import { A, S } from '../adapter/core'
 import type { Rec } from '../adapter/discord'
 import { dmName, url } from './channels'
 import { emojiSrc, nameOf } from './lib/model'
-import { popAt } from './lib/popover'
+import { contextMenu, Items } from './lib/menu'
 import { $ } from './lib/store'
 
 export const UserPanel = () => (
@@ -37,9 +37,7 @@ function Me() {
     const a = $.LocalActivity.getPrimaryActivity()
     return a && a.type !== 4 && VERBS[a.type] ? `${VERBS[a.type]} ${a.name}` : undefined
   }
-  let menu!: HTMLMenuElement
   const pick = (next: string) => {
-    menu.hidePopover()
     const prevStatus = S.SelfPresence.getStatus()
     if (next !== prevStatus) A.setStatus({ nextStatus: next, prevStatus })
   }
@@ -54,17 +52,16 @@ function Me() {
         {nameOf(me())}
         <small>{playing() ?? STATUSES[status()] ?? status()}</small>
       </button>
-      <menu ref={menu} id="mc-account" data-mc="account" popover>
-        {Object.entries(STATUSES).map(([value, label]) => (
-          <button
-            data-status={value}
-            data-mc={`status:${value}`}
-            class={{ sel: status() === value }}
-            onClick={() => pick(value)}
-          >
-            {label}
-          </button>
-        ))}
+      <menu id="mc-account" data-mc="account" popover>
+        <Items
+          items={Object.entries(STATUSES).map(([value, label]) => ({
+            mc: `status:${value}`,
+            label,
+            status: value,
+            class: { sel: status() === value },
+            run: () => pick(value),
+          }))}
+        />
       </menu>
     </>
   )
@@ -251,15 +248,11 @@ function VoiceSettings() {
 // the user panel's mute and deafen, in or out of a call (stock's: a local setting, and the voice state while in one);
 // a right click picks the input or the output device, as on stock's
 function AudioButtons() {
-  const [output, setOutput] = createSignal(false)
-  let menu!: HTMLMenuElement
+  const menu = contextMenu((e) => !!(e.target as Element).closest('[data-mc=deafen]'))
   const M = () => $.MediaEngine
+  const output = () => !!menu.target()
   const devices = () => Object.values(output() ? M().getOutputDevices() : M().getInputDevices()) as Rec[]
   const current = () => (output() ? M().getOutputDeviceId() : M().getInputDeviceId())
-  const pick = (out: boolean) => (e: MouseEvent) => {
-    setOutput(out)
-    popAt(menu, e)
-  }
   return (
     <>
       <button
@@ -267,32 +260,25 @@ function AudioButtons() {
         title="Mute"
         class={{ on: M().isSelfMute() }}
         onClick={() => A.audio.toggleSelfMute()}
-        onContextMenu={pick(false)}
+        onContextMenu={menu.open}
       />
       <button
         data-mc="deafen"
         title="Deafen"
         class={{ on: M().isSelfDeaf() }}
         onClick={() => A.audio.toggleSelfDeaf()}
-        onContextMenu={pick(true)}
+        onContextMenu={menu.open}
       />
-      <menu ref={menu} data-mc="devices" popover>
-        <For each={devices()}>
-          {(d) => (
-            <button
-              data-mc={`device:${d.id}`}
-              class={{ sel: current() === d.id }}
-              disabled={d.disabled}
-              onClick={() => {
-                menu.hidePopover()
-                if (output()) A.audio.setOutputDevice(d.id)
-                else A.audio.setInputDevice(d.id)
-              }}
-            >
-              {d.name}
-            </button>
-          )}
-        </For>
+      <menu ref={menu.ref} data-mc="devices" popover>
+        <Items
+          items={devices().map((d) => ({
+            mc: `device:${d.id}`,
+            label: d.name,
+            class: { sel: current() === d.id },
+            disabled: d.disabled,
+            run: () => (output() ? A.audio.setOutputDevice(d.id) : A.audio.setInputDevice(d.id)),
+          }))}
+        />
       </menu>
     </>
   )
