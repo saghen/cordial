@@ -412,6 +412,9 @@ export interface Actions {
   setStatus(options: { nextStatus: string; prevStatus?: string; durationMillis?: number }): Promise<void>
   // which Go Live resolution and frame rate the user and the server's boost level allow (screen-capture)
   canStreamWithSettings(preset: number, resolution: number, fps: number, user: unknown, tier?: number): boolean
+  goLive: { start(guildId: Id | null, channelId: Id, analyticsLocations: string[]): void }
+  // feedback: stock's stream feedback prompt after it ends
+  streams: { stopOwn(feedback?: boolean): void }
   // stock's login actions: each dispatches its result (LOGIN_MFA_STEP, LOGIN_SUCCESS, LOGIN_FAILURE...) and rejects with
   // the request's error (its fields' messages) on a failure
   auth: {

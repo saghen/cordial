@@ -1,7 +1,9 @@
 // The user panel: the account and its status picker, mute and deafen with their device menus, and the voice panel
 // above it while connected (stock's selectVoiceChannel: Discord's own voice engine makes the call).
 
-import { createSignal, For, Show } from 'solid-js'
+import { createSignal, For, onCleanup, Show } from 'solid-js'
+
+import * as screen from '../../screen-capture/src/renderer'
 
 import { A, S } from '../adapter/core'
 import type { Rec } from '../adapter/discord'
@@ -90,11 +92,22 @@ function VoicePanel() {
             title={$.MediaEngine.isVideoEnabled() ? 'Turn Off Camera' : 'Turn On Camera'}
             onClick={() => A.audio.setVideoEnabled(!S.MediaEngine.isVideoEnabled())}
           />
+          <button
+            data-mc="voice:screen"
+            class={{ on: !!$.ApplicationStreaming.getCurrentUserActiveStream() }}
+            title={$.ApplicationStreaming.getCurrentUserActiveStream() ? 'Stop Streaming' : 'Share Your Screen'}
+            onClick={() =>
+              S.ApplicationStreaming.getCurrentUserActiveStream()
+                ? A.streams.stopOwn(false)
+                : A.goLive.start(c().guild_id ?? null, c().id, [])
+            }
+          />
           <button data-mc="voice:soundboard" title="Open Soundboard" popovertarget="mc-soundboard" />
           <button data-mc="voice:settings" title="Voice Settings" popovertarget="mc-voice-settings" />
           <button data-mc="voice:disconnect" title="Disconnect" onClick={() => A.voice.disconnect()} />
           <VoiceSettings />
           <Soundboard channel={c()} />
+          <ScreenPicker />
         </footer>
       )}
     </Show>
@@ -284,5 +297,74 @@ function AudioButtons() {
         </For>
       </menu>
     </>
+  )
+}
+
+// Go Live's picker (screen-capture's host.pick), which stock's start asks for through getDisplayMedia: niri's outputs
+// and windows, a click streams one; the priority is what to give up first when the encoder or network can't keep up
+// (resolution and frame rate follow the source and what the account allows). Escape or Cancel declines, as Chromium's
+// own picker
+const PRIORITIES = { balanced: 'Balanced', smoothness: 'Smoothness', clarity: 'Clarity' }
+
+function ScreenPicker() {
+  type Ask = { sources: screen.CastSource[]; resolve: (p: screen.CastPick) => void; reject: (e: Error) => void }
+  const [ask, setAsk] = createSignal<Ask>()
+  let dialog!: HTMLDialogElement
+  screen.host.pick = (sources) =>
+    new Promise((resolve, reject) => {
+      setAsk({ sources, resolve, reject })
+      dialog.showModal()
+    })
+  onCleanup(() => (screen.host.pick = null))
+  const pick = (s: screen.CastSource) => {
+    const a = ask()!
+    setAsk()
+    dialog.close()
+    a.resolve({
+      source: s.id,
+      name: s.name,
+      width: s.width,
+      height: s.height,
+      priority: screen.settings.priority,
+      codec: screen.settings.codec,
+    })
+  }
+  return (
+    <dialog
+      ref={dialog}
+      data-mc="screen-picker"
+      // closed without a pick (Escape, Cancel)
+      onClose={() => {
+        ask()?.reject(new Error('cancelled'))
+        setAsk()
+      }}
+    >
+      <h2>Share Your Screen</h2>
+      <For each={ask()?.sources}>
+        {(s) => (
+          <button data-mc={`screen:${s.id}`} class={s.kind} onClick={() => pick(s)}>
+            {s.name}
+            <small>
+              {s.detail} · {s.width}×{s.height}
+            </small>
+          </button>
+        )}
+      </For>
+      <label>
+        Priority
+        <select onChange={(e) => (screen.settings.priority = e.currentTarget.value as keyof typeof PRIORITIES)}>
+          <For each={Object.entries(PRIORITIES)}>
+            {([v, label]) => (
+              <option value={v} selected={v === screen.settings.priority}>
+                {label}
+              </option>
+            )}
+          </For>
+        </select>
+      </label>
+      <button data-mc="screen:cancel" onClick={() => dialog.close()}>
+        Cancel
+      </button>
+    </dialog>
   )
 }

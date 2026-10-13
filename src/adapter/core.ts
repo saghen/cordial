@@ -351,6 +351,10 @@ mangled('memberSubscriptions', 'GUILD_SUBSCRIPTIONS_MEMBERS_REMOVE",guildId', { 
 mangled('promptToUpload', 'Unexpected mismatch between files and file metadata', { prompt: 'requireConfirm' })
 byCode('setStatus', 'nextStatus:', 'statusExpiresAtMs=')
 byCode('canStreamWithSettings', 'location:"canStreamWithSettings"')
+// stock's Go Live on the web engine: the stream settings by its rule, then getDisplayMedia (screen-capture's picker,
+// ui/user_panel.tsx), then the stream; and ending your own stream
+mangled('goLive', '.getDesktopSource(', { start: 'getDesktopSource(' })
+mangled('streams', 'type:"STREAM_START"', { stopOwn: 'getCurrentUserActiveStream();null!=' })
 mangled('nav', 'transitionTo - Transitioning to', {
   transitionTo: 'transitionTo -',
   transitionToGuild: 'transitionToGuild -',

@@ -155,7 +155,7 @@ export const CSS = `
   /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size */
   &:has(> footer) > nav { padding-bottom: 64px; }
   & > footer {
-    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr repeat(4, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
+    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr repeat(5, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
     font-size: 14px; font-weight: 600; color: var(--warning);
   }
   & > footer[data-state=RTC_CONNECTED] { color: var(--positive); }
@@ -164,6 +164,7 @@ export const CSS = `
   & > footer > button:nth-of-type(2) { grid-column: 3; }
   & > footer > button:nth-of-type(3) { grid-column: 4; }
   & > footer > button:nth-of-type(4) { grid-column: 5; }
+  & > footer > button:nth-of-type(5) { grid-column: 6; }
   & > footer > button[data-mc="voice:camera"] { --i: var(--i-video-slash); }
   & > footer > button[data-mc="voice:camera"].on { --i: var(--i-video); color: var(--positive); }
   & > footer > button[data-mc="voice:camera"]:hover { color: var(--text-strong); }
@@ -174,6 +175,22 @@ export const CSS = `
   & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
   & > footer > button[data-mc="voice:settings"] { --i: var(--i-settings); }
   & > footer > button[data-mc="voice:soundboard"] { --i: var(--i-soundboard); }
+  & > footer > button[data-mc="voice:screen"] { --i: var(--i-screen); }
+  & > footer > button[data-mc="voice:screen"].on { --i: var(--i-screen-x); color: var(--positive); }
+  & > footer > button[data-mc="voice:screen"]:hover { color: var(--text-strong); }
+  /* Go Live's picker: a list of the sources, modal */
+  dialog[data-mc=screen-picker] {
+    width: min(480px, 100% - 32px); max-height: 80vh; padding: 16px; border: 0; border-radius: 8px; background: var(--bg-floating);
+    color: var(--text); font-size: 14px; box-shadow: 0 8px 16px #0006;
+  }
+  dialog[data-mc=screen-picker][open] { display: grid; gap: 8px; }
+  dialog[data-mc=screen-picker]::backdrop { background: #000a; }
+  dialog[data-mc=screen-picker] > h2 { font-size: 20px; color: var(--text-strong); }
+  dialog[data-mc=screen-picker] > button { display: grid; justify-items: start; padding: 8px 12px; border: 0; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-weight: 600; cursor: pointer; }
+  dialog[data-mc=screen-picker] > button:hover { background: var(--bg-selected); }
+  dialog[data-mc=screen-picker] > button[data-mc="screen:cancel"] { justify-self: end; background: none; color: var(--text-muted); font-weight: 500; }
+  dialog[data-mc=screen-picker] > label { display: flex; gap: 8px; align-items: center; color: var(--text-muted); }
+  dialog[data-mc=screen-picker] select { padding: 4px; border: 0; border-radius: 4px; background: var(--bg-deep); color: var(--text); font: inherit; }
   & > footer > button[data-mc="voice:soundboard"]:hover { color: var(--text-strong); }
   /* the soundboard: each server's sounds as tiles, over the panel */
   menu[data-mc=soundboard] { inset: auto auto 72px 80px; width: 420px; max-height: 60vh; overflow-y: auto; }
