@@ -1513,6 +1513,9 @@ int main(int argc, char **argv)
 	const char *ivf_path = NULL;
 	bool start = false;
 	int c;
+	// only stdio is ours: whatever else the parent left open (Electron's sockets, its CDP port among them) would stay
+	// open as long as capture runs
+	close_range(3, ~0U, 0);
 	while ((c = getopt_long(argc, argv, "", opts, NULL)) != -1) {
 		switch (c) {
 		case 'w': S.window_id = strtoull(optarg, NULL, 10); S.source = 'w'; break;
