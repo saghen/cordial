@@ -250,6 +250,9 @@ byProps('voice', 'selectVoiceChannel', 'disconnect')
 // DM calls: call selects the DM's voice and rings, stopRinging declines
 byProps('calls', 'call', 'ring', 'stopRinging')
 // stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone); play plays one
+// stock's push to talk: the state (PUSH_TO_TALK_STATE_CHANGE: SpeakingStore, the ptt sounds) and each voice
+// connection's forced input while active (its release delay is the connection's); the shell's global keybind holds it
+mangled('ptt', 'type:"PUSH_TO_TALK_STATE_CHANGE",isActive', { set: 'setForceAudioInput(' })
 mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e', play: 'disableSounds)return' })
 byProps('invites', 'resolveInvite', 'acceptInviteAndTransitionToInviteChannel')
 // stock's login: email and password, then a two-factor code (its request layer asks for a captcha when needed)

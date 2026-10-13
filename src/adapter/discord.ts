@@ -411,6 +411,8 @@ export interface Actions {
     setEchoCancellation(on: boolean): void
     setAutomaticGainControl(on: boolean): void
   }
+  // push to talk held (true) or released: with the media engine (MediaEngineStore.getMediaEngine())
+  ptt: { set(engine: unknown, active: boolean, priority?: boolean): void }
   markGuildsRead(guildIds: Id[], source: string): void
   channelSections: { toggleMembersSection(): void; toggleUserProfileSidebarSection(): void }
   memberSubscriptions: { range(o: { guildId: Id; channelId: Id; y: number; height: number; rowHeight: number }): void }

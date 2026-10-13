@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, Menu, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -14,14 +14,13 @@ app.commandLine.appendSwitch(
   'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication',
 )
 app.commandLine.appendSwitch('js-flags', '--heap-growing-percent=50')
-// global shortcuts through the desktop's portal on Wayland (Chrome's own, X11, elsewhere)
-app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
 
 // Chrome's zoom steps between 0.5 and 3
 const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]
 
 // <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none);
-// { "keybinds": { "Ctrl+Shift+M": "TOGGLE_MUTE", ... } } are global shortcuts (read at start)
+// { "keybinds": { "Ctrl+Shift+M": "TOGGLE_MUTE", ... } } are global shortcuts (read at start): TOGGLE_MUTE,
+// TOGGLE_DEAFEN, PUSH_TO_TALK
 const config = () => {
   try {
     return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8'))
@@ -31,10 +30,44 @@ const config = () => {
 }
 ipcMain.on('mincord:config', (e) => (e.returnValue = config()))
 
-// what a global shortcut does (stock's keybind actions): presses only, so no push to talk (ai/LOG.md question 8)
+// what a global shortcut does (stock's keybind actions) on its press and release. Push to talk is held while the
+// keys are down, in push to talk's input mode only (as stock's)
+const PTT = (on) =>
+  `(({ A, S }) => S.MediaEngine.getMode() === 'PUSH_TO_TALK' && A.ptt.set(S.MediaEngine.getMediaEngine(), ${on}))(mincord.adapter)`
 const KEYBINDS = {
-  TOGGLE_MUTE: 'mincord.adapter.A.audio.toggleSelfMute()',
-  TOGGLE_DEAFEN: 'mincord.adapter.A.audio.toggleSelfDeaf()',
+  TOGGLE_MUTE: { down: 'mincord.adapter.A.audio.toggleSelfMute()' },
+  TOGGLE_DEAFEN: { down: 'mincord.adapter.A.audio.toggleSelfDeaf()' },
+  PUSH_TO_TALK: { down: PTT(true), up: PTT(false) },
+}
+
+// global keybinds (ai/LOG.md question 8): global-keybinds/ binds config.json's through the desktop's GlobalShortcuts
+// portal and prints their presses and releases ("down Ctrl+Shift+M", "up ..."); Electron's globalShortcut reports
+// presses only. Off a desktop whose portal has GlobalShortcuts (wlroots, X11) there are none
+let keybinds = null
+function bindKeys(binds) {
+  const known = Object.entries(binds).filter(([keys, action]) => {
+    if (!KEYBINDS[action]) console.error(`[mincord] keybind ${keys}: no action ${action}`)
+    return KEYBINDS[action]
+  })
+  if (!known.length) return
+  const bin =
+    process.env.MINCORD_GLOBAL_KEYBINDS ?? path.join(__dirname, '../../global-keybinds/target/release/global-keybinds')
+  const p = (keybinds = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] }))
+  p.on('error', (err) => console.error('[mincord] no global keybinds:', err.message))
+  p.stdin.on('error', () => {})
+  p.stdin.end(known.map(([keys, action]) => `${keys}\tmincord: ${action}\n`).join(''))
+  let rest = ''
+  p.stdout.on('data', (d) => {
+    const lines = (rest + d).split('\n')
+    rest = lines.pop()
+    for (const l of lines) {
+      const [, what, keys] = l.match(/^(\w+) ([^\t]*)/) ?? []
+      const run = KEYBINDS[binds[keys]]?.[what]
+      if (run) win?.webContents.executeJavaScript(run).catch(() => {})
+      else if (what === 'bound') console.log(`[mincord] global keybind ${l.slice(6)}`)
+      else if (what !== 'down' && what !== 'up') console.error(`[mincord] global keybinds: ${l}`)
+    }
+  })
 }
 
 // game detection (adapter/games.ts): game-detection/ watches for Discord's list of games, one list at a time, and
@@ -131,12 +164,8 @@ app.whenReady().then(() => {
   // hidden rather than auto-hidden: Alt doesn't show it, its shortcuts (DevTools, reload) still work
   win.setMenuBarVisibility(false)
   win.loadURL(`https://discord.com${linkPath(process.argv) ?? '/app'}`)
-  for (const [keys, action] of Object.entries(config().keybinds ?? {})) {
-    const run = KEYBINDS[action]
-    if (!run || !globalShortcut.register(keys, () => win.webContents.executeJavaScript(run).catch(() => {})))
-      console.error(`[mincord] keybind ${keys} (${action}) not registered`)
-  }
+  bindKeys(config().keybinds ?? {})
 })
 
 app.on('window-all-closed', () => app.quit())
-app.on('will-quit', () => globalShortcut.unregisterAll())
+app.on('will-quit', () => keybinds?.kill())

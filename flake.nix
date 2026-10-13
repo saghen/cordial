@@ -22,6 +22,16 @@
         buildPhase = "$CC -O2 -Wall -static -mwindows -o bridge.exe bridge.c -lws2_32";
         installPhase = "install -D bridge.exe $out/bridge.exe";
       };
+      # global keybinds with releases (push to talk) through the desktop's GlobalShortcuts portal (src/shell/main.js)
+      global-keybinds = pkgs.rustPlatform.buildRustPackage {
+        pname = "global-keybinds";
+        version = "0";
+        src = fs.toSource {
+          root = ./global-keybinds;
+          fileset = fs.unions [ ./global-keybinds/src ./global-keybinds/Cargo.toml ./global-keybinds/Cargo.lock ];
+        };
+        cargoLock.lockFile = ./global-keybinds/Cargo.lock;
+      };
       # Go Live's capture and encoder (screen-capture/)
       capture = pkgs.callPackage ./screen-capture/capture { };
     in
@@ -57,11 +67,12 @@
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/mincord --add-flags $out/lib/mincord \
               --set-default MINCORD_GAME_DETECTION ${game-detection}/bin/game-detection \
               --set-default MINCORD_WINE_BRIDGE ${wine-bridge}/bridge.exe \
+              --set-default MINCORD_GLOBAL_KEYBINDS ${global-keybinds}/bin/global-keybinds \
               --set-default MINCORD_CAPTURE ${capture}/bin/mincord-capture
             runHook postInstall
           '';
         };
-        inherit game-detection wine-bridge capture;
+        inherit game-detection wine-bridge global-keybinds capture;
         # ai/lab/wine.py's stand-in for a Windows game
         lab-wine-client = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
           name = "mincord-lab-wine-client";
