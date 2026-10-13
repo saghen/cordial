@@ -41,7 +41,7 @@ export const CSS = `
 
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
-  & > header > button::before, section[data-mc=side] > footer > button::before, & > button:not([data-mc=me])::before, section[data-mc=side] > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after, section[data-mc=call] > footer > button[title]::before,
+  & > header > button::before, section[data-mc=side] > footer > button::before, & > button:not([data-mc=me])::before, section[data-mc=side] > button:not([data-mc=me])::before, div[data-mc=box] > button::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after, section[data-mc=call] > footer > button[title]::before,
   menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, article > p > button[data-mc="reaction:add"]::before,
   div[data-mc=search-results] > h2 > button::before, article.call::before, menu > nav > button[style]::before, menu > h3 > button::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
@@ -500,14 +500,28 @@ export const CSS = `
   }
   section[data-mc=members] > a > i { margin-left: -8px; }
 
-  /* the message input (message_input.tsx): grows with its text, up to half the window */
-  textarea {
-    grid-area: compose; margin: 0 16px 16px; min-height: 56px; max-height: 50vh; padding: 16px 16px 16px 56px; resize: none;
-    field-sizing: content; anchor-name: --box; border: 0; border-radius: 8px; outline: 0; background: var(--bg-raised); color: inherit; font: inherit;
-    &::placeholder { color: var(--text-faint); }
-    &.editing { box-shadow: 0 0 0 2px var(--accent); }
+  /* the message box (message_input.tsx): a grid of the attach button, the text, then the pickers (pickers.tsx) in
+     stock's order, GIF, sticker, emoji, each in a column of its own, so the text never runs under them. The text grows
+     with its lines, up to half the window; the buttons stay on the first line; the pickers open above */
+  div[data-mc=box] {
+    grid-area: compose; display: grid; grid: "attach text gif sticker emoji" auto / auto minmax(0, 1fr) auto auto auto;
+    column-gap: 16px; align-items: start; margin: 0 16px 16px; padding: 0 16px; anchor-name: --box; border-radius: 8px;
+    background: var(--bg-raised);
+    &[hidden] { display: none; }
+    &:has(> textarea.editing) { box-shadow: 0 0 0 2px var(--accent); }
+    > textarea {
+      grid-area: text; min-height: 56px; max-height: 50vh; padding: 16px 0; resize: none; field-sizing: content;
+      border: 0; outline: 0; background: none; color: inherit; font: inherit;
+    }
+    > textarea::placeholder { color: var(--text-faint); }
+    > button { --i: var(--i-reaction); grid-area: emoji; display: grid; place-content: center; width: 24px; height: 24px; margin-top: 16px; padding: 0; border: 0; color: var(--text-muted); }
+    > button:hover { color: var(--text-strong); }
+    > button[hidden] { display: none; }
+    > button[data-mc=attach] { --i: var(--i-plus); grid-area: attach; }
+    > button[data-mc=gif] { --i: var(--i-gif); grid-area: gif; }
+    > button[data-mc=sticker] { --i: var(--i-sticker); grid-area: sticker; }
   }
-  &:has(> label) > textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
+  &:has(> label) > div[data-mc=box] { border-top-left-radius: 0; border-top-right-radius: 0; }
   /* autocomplete: a list over the messages, as wide as the box, just above it; stock's sizes: headings 12/600 caps,
      rows 16 px with the hint at 12 px on the right, 24 px avatars (with the status), 20 px emoji, 16 px channel icons,
      dividers between the @ list's sections */
@@ -522,17 +536,6 @@ export const CSS = `
     > button.ch::before { width: 16px; height: 16px; color: var(--text-muted); }
     > button > small { margin-left: auto; padding-left: 16px; font-size: 12px; font-weight: 400; line-height: 16px; white-space: nowrap; }
   }
-  /* the attach button over the box's left edge, the pickers (pickers.tsx) over its right, each opening above it */
-  & > button:is([data-mc=attach], [data-mc=emoji], [data-mc=gif], [data-mc=sticker]) {
-    --i: var(--i-reaction); grid-area: compose; align-self: start; justify-self: end; z-index: 1; display: grid; width: 24px; height: 24px;
-    margin: 16px 32px 0 0; padding: 0; border: 0; color: var(--text-muted); place-content: center;
-    &:hover { color: var(--text-strong); }
-    &[hidden] { display: none; }
-  }
-  & > button[data-mc=attach] { --i: var(--i-plus); justify-self: start; margin: 16px 0 0 32px; }
-  /* stock's order: GIF, sticker, emoji */
-  & > button[data-mc=gif] { --i: var(--i-gif); margin-right: 112px; }
-  & > button[data-mc=sticker] { --i: var(--i-sticker); margin-right: 72px; }
   /* the pickers, as stock's: a search field with its magnifier; emoji and stickers as sections under sticky names,
      a rail of them on the left, the hovered one named below; GIFs as darkened tiles, then results in two columns */
   menu:is([data-mc=emoji-picker], [data-mc=gif-picker], [data-mc=sticker-picker]) {

@@ -220,7 +220,6 @@ export function MessageInput() {
           </For>
         </ul>
       </Show>
-      <button data-mc="attach" title="Upload a file" hidden={!channelId() || !can()} onClick={() => files.click()} />
       <input
         ref={files}
         type="file"
@@ -231,28 +230,30 @@ export function MessageInput() {
           files.value = ''
         }}
       />
-      <textarea
-        ref={box}
-        data-mc="composer"
-        class={{ editing: !!editing() }}
-        rows={1}
-        hidden={!channelId()}
-        disabled={!can()}
-        placeholder={
-          editing()
-            ? 'Editing: Enter saves, Escape cancels'
-            : (closed() ??
-              (cooldown()
-                ? `Slowmode: wait ${cooldown()} s`
-                : `Message${target()}${channel()?.rateLimitPerUser ? ' (slowmode)' : ''}`))
-        }
-        onInput={input}
-        onKeyDown={key}
-        onPaste={paste}
-      />
-      <StickerPicker channel={() => (can() ? channel() : undefined)} send={sendSticker} />
-      <GifPicker channel={() => (can() ? channel() : undefined)} send={sendLink} />
-      <EmojiPicker box={() => box} channel={() => (can() ? channel() : undefined)} />
+      <div data-mc="box" hidden={!channelId()}>
+        <button data-mc="attach" title="Upload a file" hidden={!can()} onClick={() => files.click()} />
+        <textarea
+          ref={box}
+          data-mc="composer"
+          class={{ editing: !!editing() }}
+          rows={1}
+          disabled={!can()}
+          placeholder={
+            editing()
+              ? 'Editing: Enter saves, Escape cancels'
+              : (closed() ??
+                (cooldown()
+                  ? `Slowmode: wait ${cooldown()} s`
+                  : `Message${target()}${channel()?.rateLimitPerUser ? ' (slowmode)' : ''}`))
+          }
+          onInput={input}
+          onKeyDown={key}
+          onPaste={paste}
+        />
+        <StickerPicker channel={() => (can() ? channel() : undefined)} send={sendSticker} />
+        <GifPicker channel={() => (can() ? channel() : undefined)} send={sendLink} />
+        <EmojiPicker box={() => box} channel={() => (can() ? channel() : undefined)} />
+      </div>
       {complete.view}
     </>
   )
