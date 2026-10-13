@@ -8,10 +8,14 @@
 // The lab: $MINCORD_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no niri
 // needed (screen-capture/lab/golive.py).
 //
+// getDisplayMedia (Chromium's own capture: Go Live without capture, and capture's fallback) gets the portal's source:
+// on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. The lab answers with the asking
+// frame itself, no portal (the lab sway's portal is backed by Liam's niri).
+//
 // IPC (shell/preload.js): invoke mincord:cast-available () -> boolean, mincord:cast-sources () -> CastSource[],
 // mincord:cast-start (CastStart) -> boolean; on true the port follows as mincord:cast-port.
 
-const { app, ipcMain, MessageChannelMain } = require('electron')
+const { app, desktopCapturer, ipcMain, MessageChannelMain, session } = require('electron')
 const fs = require('node:fs')
 const { readdir, readFile } = require('node:fs/promises')
 const { createConnection } = require('node:net')
@@ -215,6 +219,16 @@ function startCast(e, opts) {
   console.log(`[cast] capture ${cap.pid}: ${args.join(' ')}`)
   return true
 }
+
+app.whenReady().then(() =>
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    if (clip) return callback({ video: request.frame })
+    const sources = await desktopCapturer
+      .getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } })
+      .catch((e) => (console.error('[mincord:cast] portal:', e), []))
+    callback(sources[0] ? { video: sources[0] } : {})
+  }),
+)
 
 ipcMain.handle('mincord:cast-available', castAvailable)
 ipcMain.handle('mincord:cast-sources', castSources)
