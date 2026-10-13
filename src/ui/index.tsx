@@ -6,7 +6,7 @@
 import { render } from '@solidjs/web'
 
 import { G, setMount } from '../adapter/anchor'
-import '../adapter/games'
+import '../adapter/native'
 import { A, check, S } from '../adapter/core'
 import * as triggers from '../adapter/triggers'
 import { byCode, byProps, find, findModuleId, inModule, wreq } from '../adapter/webpack'
