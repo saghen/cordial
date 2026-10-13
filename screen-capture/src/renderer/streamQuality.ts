@@ -69,11 +69,17 @@ export interface QualityChoice {
   frameRate: StreamFps
 }
 
-/** Every allowed pair, by resolution. */
+// Every account may stream 1080p30 (Liam, 2026-10-13: "Go with 1080p30 for both codecs"), past Discord's own rules for
+// an account without Nitro (720p30), at Discord's bitrate for that account (3.5 Mbps). At 3.5 Mbps, 1080p30 beat
+// 720p30 for AV1 on every lab clip and for VP9 on still content, even on games (LOG Key finds, "What 3.5 Mbps buys").
+const ALWAYS: QualityChoice = { resolution: '1080', frameRate: '30' }
+const always = (r: StreamResolution, f: StreamFps) => r === ALWAYS.resolution && f === ALWAYS.frameRate
+
+/** Every allowed pair, by resolution: Discord's, and 1080p30. */
 export function allowedQualities(): Map<StreamResolution, StreamFps[]> {
   const out = new Map<StreamResolution, StreamFps[]>()
   for (const r of StreamResolutions) {
-    const fps = StreamFps.filter((f) => canStream(r, f))
+    const fps = StreamFps.filter((f) => canStream(r, f) || always(r, f))
     if (fps.length) out.set(r, fps)
   }
   return out
@@ -152,8 +158,10 @@ export interface AutoQuality extends QualityChoice {
   /** Largest capture size: what the track constraints and Discord's maxResolution get. */
   width: number
   height: number
-  /** Discord's bitrate cap for this pair, in bits per second. */
+  /** Discord's bitrate cap for this pair (for 1080p30 past Discord's rules: the account's own, 3.5 Mbps), in bits/s */
   maxBitrate: number
+  /** the pair is past Discord's rules for the account (1080p30 without Nitro): its maxBitrate is a ceiling too */
+  pastDiscord: boolean
   /** Bits per encoded pixel per frame at that cap. */
   bitsPerPixel: number
 }
@@ -190,9 +198,10 @@ export function autoQuality(
 
   const describe = (resolution: StreamResolution, frameRate: StreamFps): AutoQuality => {
     const box = captureBox(resolution, src)
-    const maxBitrate = discordMaxBitrate(resolution, frameRate)
+    const pastDiscord = always(resolution, frameRate) && !canStream(resolution, frameRate)
+    const maxBitrate = pastDiscord ? LOW_MAX_BITRATE : discordMaxBitrate(resolution, frameRate)
     const bitsPerPixel = maxBitrate / (encodedPixels(box, src) * Number(frameRate))
-    return { resolution, frameRate, codec, ...box, maxBitrate, bitsPerPixel }
+    return { resolution, frameRate, codec, ...box, maxBitrate, bitsPerPixel, pastDiscord }
   }
 
   const pairs = [...allowed]
@@ -273,6 +282,8 @@ function withPreference(sender: RTCRtpSender, params: RTCRtpSendParameters) {
     const q = currentStreamQuality()
     if (enc && q) {
       if (enc.maxBitrate != null && enc.maxBitrate < q.maxBitrate) enc.maxBitrate = q.maxBitrate
+      // (Discord sizes the bitrate for the 1080p it's told: the account's own cap still holds)
+      if (q.pastDiscord && (enc.maxBitrate == null || enc.maxBitrate > q.maxBitrate)) enc.maxBitrate = q.maxBitrate
       if (enc.maxFramerate != null && enc.maxFramerate < Number(q.frameRate)) enc.maxFramerate = Number(q.frameRate)
     }
   }
