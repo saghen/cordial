@@ -58,6 +58,7 @@ const answers = (p) =>
 ipcRenderer.on('mincord:cast-port', (e) => window.postMessage({ mincordCastPort: true }, '*', e.ports))
 const cast = {
   available: () => ipcRenderer.invoke('mincord:cast-available'),
+  codecs: () => ipcRenderer.invoke('mincord:cast-codecs'),
   sources: () => ipcRenderer.invoke('mincord:cast-sources'),
   start: (opts) => ipcRenderer.invoke('mincord:cast-start', opts),
 }

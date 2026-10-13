@@ -16,10 +16,12 @@
 // on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. The lab answers with the asking
 // frame itself, no portal (the lab sway's portal is backed by Liam's niri).
 //
-// IPC (shell/preload.js): invoke mincord:cast-available () -> boolean, mincord:cast-sources () -> CastSource[],
+// IPC (shell/preload.js): invoke mincord:cast-available () -> boolean, mincord:cast-codecs () -> ('av1' | 'h264')[],
+// mincord:cast-sources () -> CastSource[],
 // mincord:cast-start (CastStart) -> boolean; on true the port follows as mincord:cast-port.
 
 const { app, desktopCapturer, ipcMain, MessageChannelMain, session } = require('electron')
+const { execFile } = require('node:child_process')
 const fs = require('node:fs')
 const { readdir, readFile } = require('node:fs/promises')
 const { createConnection } = require('node:net')
@@ -103,6 +105,24 @@ const via = () =>
 
 /** Whether Go Live captures through capture: a source kind, capture installed, not off in config.json. */
 const castAvailable = () => process.platform === 'linux' && !!via() && config().capture !== false && !!captureBin()
+
+let codecs
+/**
+ * What capture encodes on its GPU (`capture --probe`, ~10 ms, asked once): ['av1', 'h264'], a part of it, or [].
+ * @returns {Promise<('av1' | 'h264')[]>}
+ */
+function castCodecs() {
+  if (!castAvailable()) return Promise.resolve([])
+  return (codecs ??= new Promise((resolve) =>
+    execFile(captureBin(), ['--probe'], { timeout: 5000 }, (_, out) => {
+      try {
+        resolve(JSON.parse(out).codecs ?? [])
+      } catch {
+        resolve([])
+      }
+    }),
+  ))
+}
 
 /**
  * The portal's last cast: its restore token (the portal picks the same source without its dialog) and what it was.
@@ -299,8 +319,9 @@ app.whenReady().then(() =>
 )
 
 ipcMain.handle('mincord:cast-available', castAvailable)
+ipcMain.handle('mincord:cast-codecs', castCodecs)
 ipcMain.handle('mincord:cast-sources', castSources)
 ipcMain.handle('mincord:cast-start', startCast)
 app.on('will-quit', () => current?.close())
 
-module.exports = { castAvailable, castSources, descendants }
+module.exports = { castAvailable, castCodecs, castSources, descendants }

@@ -30,6 +30,7 @@ if (native)
     // (asked at Go Live, after the App's first render resolved the needs)
     available: () => (check().ok && codecs.applied ? native.available() : Promise.resolve(false)),
   }
+screen.probeCaptureCodecs()
 
 G.screen = screen
 G.screenApplied = () => ({ codecs: codecs.applied })

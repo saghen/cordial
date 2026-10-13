@@ -16,7 +16,7 @@ import {
 } from './streamQuality'
 
 export { av1ReceiveStats } from './av1Receive'
-export { castSessionFor, currentCast, setPendingCast } from './cast'
+export { captureCodecs, castSessionFor, currentCast, probeCaptureCodecs, setPendingCast } from './cast'
 export type { CastPick, CastSource, CastStart } from './cast'
 export { host } from './host'
 export { settings } from './settings'

@@ -2,6 +2,7 @@
 // connection module (mincord registers it with adapter/webpack.ts' patch; the replacement calls back through the
 // `mincord` global, where the glue puts this module's exports as `mincord.screen`).
 
+import { captureCodecs } from './cast'
 import { settings } from './settings'
 import { encodableCodecs } from './streamQuality'
 
@@ -24,9 +25,15 @@ export function orderCodecs(list: string[]): string[] {
     const preferred = settings.codec
     if (!encodableCodecs().includes(preferred)) return list
     if (preferred === 'AV1') {
-      // If AV1 can't be used (a viewer's client lacks it), VP9 is the next best at the same bitrate
-      const vp9First = settings.vp9Fallback && list.includes('VP9') && encodableCodecs().includes('VP9')
-      return ['AV1', ...(vp9First ? ['VP9', ...list.filter((c) => c !== 'VP9')] : list)]
+      // If AV1 can't be used (a viewer's client lacks it, as stock Discord here): H.264 when capture encodes it (still
+      // zero-copy on the GPU), else VP9, the next best at the same bitrate (Chromium's encoder, on the CPU)
+      const next =
+        captureCodecs().includes('h264') && list.includes('H264')
+          ? 'H264'
+          : settings.vp9Fallback && list.includes('VP9') && encodableCodecs().includes('VP9')
+            ? 'VP9'
+            : null
+      return ['AV1', ...(next ? [next, ...list.filter((c) => c !== next)] : list)]
     }
     if (!list.includes(preferred)) return list
     return [preferred, ...list.filter((c) => c !== preferred)]

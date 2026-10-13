@@ -71,6 +71,7 @@ struct Opts {
     seconds: f64,
     start: bool,
     ivf: Option<String>,
+    probe: bool,
 }
 
 fn usage() -> ! {
@@ -80,7 +81,7 @@ fn usage() -> ! {
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
          \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--h264-min-qp 0]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
-         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264]\n\
+         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] | --probe [--device ...]\n\
          stdin: start [kbps=N] [height=N] [codec=av1|h264] | bitrate N | key | height N | stop; stdout: see out.rs"
     );
     std::process::exit(2)
@@ -120,6 +121,7 @@ fn opts() -> Opts {
         seconds: 0.0,
         start: false,
         ivf: None,
+        probe: false,
     };
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -157,12 +159,13 @@ fn opts() -> Opts {
             "--seconds" => o.seconds = num(v()),
             "--start" => o.start = true,
             "--encode-out" => o.ivf = Some(v()),
+            "--probe" => o.probe = true,
             _ => usage(),
         }
     }
     let clip = !o.clip.is_empty();
     let sources = [o.window.is_some(), o.output.is_some(), o.node.is_some(), o.portal, clip];
-    if sources.iter().filter(|&&s| s).count() != 1 || (clip && o.clip_w == 0) || o.fps == 0 {
+    if !o.probe && sources.iter().filter(|&&s| s).count() != 1 || (clip && o.clip_w == 0) || o.fps == 0 {
         usage()
     }
     if o.prev_box.1 == 0 {
@@ -1179,6 +1182,12 @@ impl<'a> Worker<'a> {
 
 fn main() {
     let mut o = opts();
+    if o.device == "auto" {
+        o.device = pick_device();
+    }
+    if o.probe {
+        std::process::exit(probe(&o.device))
+    }
     out::start();
     // SAFETY: plain libc calls on our own process and fds
     unsafe {
@@ -1191,9 +1200,6 @@ fn main() {
         libc::fcntl(1, libc::F_SETPIPE_SZ, 1 << 20);
         libc::fcntl(1, libc::F_SETFL, libc::fcntl(1, libc::F_GETFL) | libc::O_NONBLOCK);
     }
-    if o.device == "auto" {
-        o.device = pick_device();
-    }
     stage("main");
     let code = match run(Arc::new(o)) {
         Ok(()) => 0,
@@ -1203,6 +1209,21 @@ fn main() {
         }
     };
     std::process::exit(code)
+}
+
+/// --probe: what this device encodes, one JSON line on stdout (`{"device":"/dev/dri/renderD128","codecs":["av1","h264"]}`);
+/// mincord orders the codecs it advertises by it
+fn probe(device: &str) -> i32 {
+    let Ok(va) = Va::open(device) else {
+        println!("{{\"device\":\"{device}\",\"codecs\":[]}}");
+        return 1;
+    };
+    let codecs: Vec<_> = [("av1", av1enc::supported(&va)), ("h264", h264enc::supported(&va))]
+        .into_iter()
+        .filter_map(|(c, ok)| ok.then(|| format!("\"{c}\"")))
+        .collect();
+    println!("{{\"device\":\"{device}\",\"codecs\":[{}]}}", codecs.join(","));
+    0
 }
 
 fn run(o: Arc<Opts>) -> Result<()> {

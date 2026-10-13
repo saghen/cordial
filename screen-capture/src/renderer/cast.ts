@@ -272,8 +272,7 @@ export class CastSession {
     this.codec = codec
     this.decoderConfig = undefined
     // H.264 is Annex B (no description); the levels are what capture picks up to 1440p60 and 4K
-    const tries =
-      codec === 'h264' ? ['avc1.640033', 'avc1.64002a', 'avc1.640028'] : ['av01.0.13M.08', 'av01.0.09M.08']
+    const tries = codec === 'h264' ? ['avc1.640033', 'avc1.64002a', 'avc1.640028'] : ['av01.0.13M.08', 'av01.0.09M.08']
     ;(async () => {
       for (const c of tries) {
         const config = { codec: c, hardwareAcceleration: 'prefer-hardware', optimizeForLatency: true } as const
@@ -473,6 +472,16 @@ RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, 
 let available: Promise<boolean> | null = null
 /** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on). */
 export const castAvailable = () => (available ??= host.native?.available().catch(() => false) ?? Promise.resolve(false))
+
+let codecs: ('av1' | 'h264')[] = []
+/** What capture encodes on this machine's GPU, once probeCaptureCodecs has its answer ([] until then). */
+export const captureCodecs = () => codecs
+/** Asks capture once, at startup (the codec order is read when a call connects). */
+export const probeCaptureCodecs = () =>
+  host.native?.codecs().then(
+    (c) => (codecs = c),
+    () => {},
+  )
 
 let latest: CastSession | null = null
 /** The newest cast session (live or ended), for stats and the lab. */
