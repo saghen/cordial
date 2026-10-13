@@ -654,7 +654,7 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
       prev = { at, bytes, packets, delay }
       const enc = sender.getParameters().encodings?.[0]
       swap.updateRate(bwe, enc?.maxBitrate ?? 9e6, wire, sendDelay)
-      // Discord's scaleResolutionDownBy (viewers who want fewer pixels) is capture's size limit
+      // the encoding's scale is only ever ours (streamQuality.ts drops Discord's, the viewers'): capture's size limit
       const scale = enc?.scaleResolutionDownBy ?? 1
       const height = scale > 1 ? Math.round(session.height / scale) : 0
       if (height !== lastHeight) {

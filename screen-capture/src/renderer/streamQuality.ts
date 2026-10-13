@@ -293,23 +293,24 @@ function withPreference(sender: RTCRtpSender, params: RTCRtpSendParameters) {
 const MOTION = { down: 185, up: 145, downSecs: 3, upSecs: 6, dwell: 8, warmup: 5 }
 const MOTION_HEIGHT = 1080
 
-// Per sender: our extra downscale (1: full size), Discord's own scaleResolutionDownBy, what we last wrote over it
-const motion = new WeakMap<RTCRtpSender, { factor: number; discord?: number; applied?: number; running?: boolean }>()
+// Per sender: our extra downscale (1: full size)
+const motion = new WeakMap<RTCRtpSender, { factor: number; running?: boolean }>()
 
-/** Discord's scale times ours; remembers Discord's (a value we wrote ourselves isn't Discord's). */
+/**
+ * Only our scale: Discord's own scaleResolutionDownBy (viewers who want fewer pixels) is dropped, the stream stays
+ * at the quality's size whoever watches (Liam, 2026-10-13: "We always want to stream the max quality, regardless of
+ * size of the viewer"). The track is already at that size (capture's --size, the fallback's constraints).
+ */
 function withMotionScale(sender: RTCRtpSender, params: RTCRtpSendParameters) {
   const enc = params.encodings?.[0]
   if (!enc || !isStreamTrack(sender.track)) return params
   let m = motion.get(sender)
-  if (!m) motion.set(sender, (m = { factor: 1, discord: enc.scaleResolutionDownBy }))
-  else if (enc.scaleResolutionDownBy !== m.applied) m.discord = enc.scaleResolutionDownBy
-  enc.scaleResolutionDownBy = m.factor === 1 ? m.discord : (m.discord ?? 1) * m.factor
-  m.applied = enc.scaleResolutionDownBy
+  if (!m) motion.set(sender, (m = { factor: 1 }))
+  enc.scaleResolutionDownBy = m.factor
   return params
 }
 
-// Only Chromium's own encoder (libaom: no capture, or its fallback); capture's size follows Discord's scale by
-// itself (zeroCopy.ts)
+// Only Chromium's own encoder (libaom: no capture, or its fallback)
 function startMotionScaler(sender: RTCRtpSender) {
   withMotionScale(sender, sender.getParameters())
   const m = motion.get(sender)
