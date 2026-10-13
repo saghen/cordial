@@ -24,6 +24,8 @@
       };
       # Go Live's capture and encoder (screen-capture/)
       capture = pkgs.callPackage ./screen-capture/capture { };
+      # ... its Rust port (P2), beside it until P3 picks
+      capture-rs = pkgs.callPackage ./screen-capture/capture-rs { };
     in
     {
       packages.x86_64-linux = {
@@ -61,7 +63,7 @@
             runHook postInstall
           '';
         };
-        inherit game-detection wine-bridge capture;
+        inherit game-detection wine-bridge capture capture-rs;
         # ai/lab/wine.py's stand-in for a Windows game
         lab-wine-client = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
           name = "mincord-lab-wine-client";
@@ -73,7 +75,7 @@
       };
 
       devShells.x86_64-linux.default = pkgs.mkShell {
-        packages = [ pkgs.nodejs pkgs.electron pkgs.prettier pkgs.cargo pkgs.rustc pkgs.pkg-config ];
+        packages = [ pkgs.nodejs pkgs.electron pkgs.prettier pkgs.cargo pkgs.rustc pkgs.pkg-config pkgs.rustPlatform.bindgenHook ];
         inputsFrom = [ capture ];
       };
     };
