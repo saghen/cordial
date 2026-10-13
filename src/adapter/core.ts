@@ -84,7 +84,8 @@ storeNeed("Gateway", "GatewayConnectionStore", "isConnected", "isTryingToConnect
 storeNeed("Auth", "AuthenticationStore", "isAuthenticated");
 storeNeed("User", "UserStore", "getCurrentUser", "getUser");
 storeNeed("Guild", "GuildStore", "getGuild");
-storeNeed("SortedGuild", "SortedGuildStore", "getFlattenedGuildIds");
+storeNeed("SortedGuild", "SortedGuildStore", "getGuildFolders");
+storeNeed("ExpandedGuildFolder", "ExpandedGuildFolderStore", "isFolderExpanded");
 storeNeed("Channel", "ChannelStore", "getChannel");
 storeNeed("GuildChannel", "GuildChannelStore", "getChannels");
 storeNeed("PrivateChannelSort", "PrivateChannelSortStore", "getSortedChannels");
@@ -92,7 +93,8 @@ storeNeed("SelectedGuild", "SelectedGuildStore", "getGuildId");
 storeNeed("SelectedChannel", "SelectedChannelStore", "getChannelId");
 storeNeed("Message", "MessageStore", "getMessages", "getMessage", "getLastEditableMessage");
 storeNeed("ReadState", "ReadStateStore", "hasUnread", "getMentionCount", "getOldestUnreadMessageId");
-storeNeed("GuildReadState", "GuildReadStateStore", "hasUnread", "getMentionCount", "getPrivateChannelMentionCount");
+storeNeed("GuildReadState", "GuildReadStateStore", "hasUnread", "getMentionCount", "getPrivateChannelMentionCount",
+    "getGuildHasUnreadIgnoreMuted");
 storeNeed("PrivateChannelReadState", "PrivateChannelReadStateStore", "getUnreadPrivateChannelIds");
 storeNeed("Presence", "PresenceStore", "getStatus");
 storeNeed("Permission", "PermissionStore", "can");
@@ -122,6 +124,10 @@ byProps("parser", "parse", "unparse");
 byProps("drafts", "saveDraft", "changeDraft");
 byProps("uploads", "addFiles", "remove", "clearAll");
 byProps("autocomplete", "queryMentionResults", "queryChannelResults", "queryEmojiResults");
+byProps("guilds", "toggleGuildFolderExpand");
+byProps("notifications", "updateGuildNotificationSettings");
+// stock's Mark As Read for servers: every channel, thread and event read state up to its last message, as BULK_ACK
+byCode("markGuildsRead", "getActiveJoinedThreadsForGuild", "GUILD_ONBOARDING_QUESTION");
 byProps("channelSections", "toggleMembersSection", "toggleUserProfileSidebarSection");
 // stock's member list range helper: the rows in view, in pages of 100, as GUILD_SUBSCRIPTIONS_CHANNEL
 mangled("memberSubscriptions", 'GUILD_SUBSCRIPTIONS_MEMBERS_REMOVE",guildId', { range: "rowHeight" });

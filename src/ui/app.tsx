@@ -7,6 +7,7 @@ import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
 import { Composer } from "./composer";
 import { Members, MembersToggle } from "./members";
+import { ServerMenu } from "./menu";
 import { Messages } from "./messages";
 import { $ } from "./store";
 import { CSS } from "./style";
@@ -49,20 +50,43 @@ function Dm(p: { id: Id; bar?: boolean; }) {
         go={() => A.nav.transitionTo(`/channels/@me/${p.id}`)} />;
 }
 
+function Guild(p: { id: Id; }) {
+    const g = () => $.Guild.getGuild(p.id);
+    return <Item mc={`guild:${p.id}`} title={g()?.name} sel={selectedGuild() === p.id}
+        label={g()?.icon ? "" : g()?.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)}
+        icon={guildIcon(p.id)} unread={$.GuildReadState.hasUnread(p.id)} muted={$.UserGuildSettings.isMuted(p.id)}
+        mentions={$.GuildReadState.getMentionCount(p.id)} go={() => A.nav.transitionToGuild(p.id)} />;
+}
+const guildIcon = (id: Id) => {
+    const icon = $.Guild.getGuild(id)?.icon;
+    return icon && `https://cdn.discordapp.com/icons/${id}/${icon}.webp?size=96`;
+};
+
+// a folder: closed, its first four servers' icons in a tile; open, its colour above its servers. Expanding is
+// stock's ExpandedGuildFolderStore (local)
+function Folder(p: { folder: ReturnType<typeof S.SortedGuild.getGuildFolders>[number]; }) {
+    const id = p.folder.folderId!, ids = () => p.folder.guildIds;
+    const open = () => $.ExpandedGuildFolder.isFolderExpanded(id);
+    const icons = () => ids().slice(0, 4).map(guildIcon).filter(Boolean).map(src => `url(${src})`).join();
+    return <>
+        <a data-mc={`folder:${id}`} title={p.folder.folderName ?? ids().map(g => $.Guild.getGuild(g)?.name).join(", ")}
+            class={{ folder: true, open: open(), unread: !open() && ids().some(g => $.GuildReadState.hasUnread(g) && !$.UserGuildSettings.isMuted(g)) }}
+            data-n={!open() && ids().reduce((n, g) => n + $.GuildReadState.getMentionCount(g), 0) || undefined}
+            style={{ "--icon": open() ? undefined : icons() || undefined, "--folder": `#${(p.folder.folderColor ?? 0x5865f2).toString(16).padStart(6, "0")}` }}
+            onClick={() => A.guilds.toggleGuildFolderExpand(id)} />
+        <Show when={open()}><For each={ids()}>{g => <Guild id={g} />}</For></Show>
+    </>;
+}
+
 function Servers() {
-    return <aside>
+    let bar!: HTMLElement;
+    return <aside ref={bar}>
         <Item mc="dms" label="DM" title="Direct Messages" sel={!selectedGuild()}
             mentions={$.GuildReadState.getPrivateChannelMentionCount()} go={() => A.nav.transitionTo("/channels/@me")} />
         <For each={$.PrivateChannelReadState.getUnreadPrivateChannelIds()}>{id => <Dm id={id} bar />}</For>
         <hr />
-        <For each={$.SortedGuild.getFlattenedGuildIds()}>{id => {
-            const g = () => $.Guild.getGuild(id);
-            return <Item mc={`guild:${id}`} title={g()?.name} sel={selectedGuild() === id}
-                label={g()?.icon ? "" : g()?.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)}
-                icon={g()?.icon && `https://cdn.discordapp.com/icons/${id}/${g()!.icon}.webp?size=96`}
-                unread={$.GuildReadState.hasUnread(id)} muted={$.UserGuildSettings.isMuted(id)}
-                mentions={$.GuildReadState.getMentionCount(id)} go={() => A.nav.transitionToGuild(id)} />;
-        }}</For>
+        <For each={$.SortedGuild.getGuildFolders()}>{f => f.folderId == null ? <Guild id={f.guildIds[0]} /> : <Folder folder={f} />}</For>
+        <ServerMenu bar={bar} />
     </aside>;
 }
 

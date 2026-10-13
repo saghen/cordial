@@ -32,6 +32,11 @@ export const CSS = `
   }
   aside > a.sel { outline: 2px solid var(--accent); }
   aside > a.unread::before { content: ""; position: absolute; left: -16px; width: 8px; height: 8px; border-radius: 0 4px 4px 0; background: var(--text-strong); }
+  aside > a.folder {
+    background: var(--icon, none) no-repeat, color-mix(in srgb, var(--folder) 30%, var(--bg-raised));
+    background-size: 18px; background-position: 5px 5px, 25px 5px, 5px 25px, 25px 25px, 0 0;
+  }
+  aside > a.folder.open { background: var(--folder); }
   aside > hr { width: 32px; border: 0; border-top: 2px solid var(--bg-raised); }
   nav { grid-area: nav; grid-template-columns: auto 1fr auto; padding: 8px; }
   nav > a {
@@ -147,9 +152,10 @@ export const CSS = `
   }
   article > p > button.me { border-color: var(--accent); color: var(--text-strong); }
   article > p > button > img { width: 16px; height: 16px; }
-  /* the message menu: a popover at the pointer */
-  menu[data-mc=message-menu] { position: fixed; margin: 0; }
+  /* the context menus: popovers at the pointer */
+  menu:is([data-mc=message-menu], [data-mc=server-menu]) { position: fixed; margin: 0; }
   menu > button.danger { color: var(--danger); }
+  menu > button:disabled { opacity: 0.5; cursor: default; }
   menu > input { padding: 6px 8px; border: 0; border-radius: 4px; outline: 0; background: var(--bg-deep); color: inherit; font: inherit; }
   menu > p { display: grid; grid-template-columns: repeat(6, 1fr); }
   menu > p > button { padding: 4px; border: 0; border-radius: 4px; background: none; font-size: 22px; line-height: 1; cursor: pointer; }

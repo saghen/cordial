@@ -15,7 +15,9 @@ export interface Stores {
     Auth: FluxStore & { isAuthenticated(): boolean; };
     User: FluxStore & { getCurrentUser(): Rec | undefined; getUser(id: Id): Rec | undefined; };
     Guild: FluxStore & { getGuild(id: Id): Rec | undefined; };
-    SortedGuild: FluxStore & { getFlattenedGuildIds(): Id[]; };
+    // the server bar: single servers are folders without a folderId
+    SortedGuild: FluxStore & { getGuildFolders(): { folderId?: number; folderName?: string; folderColor?: number; guildIds: Id[]; }[]; };
+    ExpandedGuildFolder: FluxStore & { isFolderExpanded(folderId: number): boolean; };
     Channel: FluxStore & { getChannel(id: Id): Rec | undefined; };
     GuildChannel: FluxStore & { getChannels(guildId: Id): Rec; };
     // getSortedChannels: [pinned (Discord's DM favorites), the rest], newest first
@@ -33,7 +35,7 @@ export interface Stores {
         getMentionCount(channelId: Id): number;
         getOldestUnreadMessageId(channelId: Id): Id | null;
     };
-    GuildReadState: FluxStore & { hasUnread(guildId: Id): boolean; getMentionCount(guildId: Id): number; getPrivateChannelMentionCount(): number; };
+    GuildReadState: FluxStore & { hasUnread(guildId: Id): boolean; getMentionCount(guildId: Id): number; getPrivateChannelMentionCount(): number; getGuildHasUnreadIgnoreMuted(guildId: Id): boolean; };
     PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[]; };
     Presence: FluxStore & { getStatus(userId: Id): string; };
     Permission: FluxStore & { can(permission: bigint, context: Rec): boolean; };
@@ -114,6 +116,10 @@ export interface Actions {
         queryChannelResults(o: { query: string; channel: Rec; }): { channels: Rec[]; };
         queryEmojiResults(o: { query: string; channel: Rec; intention: number; maxCount?: number; }): { emojis: { unlocked: Rec[]; }; };
     };
+    guilds: { toggleGuildFolderExpand(folderId: number): void; };
+    // reason: the analytics label stock passes ("muted", "unmuted")
+    notifications: { updateGuildNotificationSettings(guildId: Id, settings: Rec, reason?: string): void; };
+    markGuildsRead(guildIds: Id[], source: string): void;
     channelSections: { toggleMembersSection(): void; toggleUserProfileSidebarSection(): void; };
     memberSubscriptions: { range(o: { guildId: Id; channelId: Id; y: number; height: number; rowHeight: number; }): void; };
     setStatus(options: { nextStatus: string; prevStatus?: string; durationMillis?: number; }): Promise<void>;

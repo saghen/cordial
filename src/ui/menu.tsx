@@ -1,10 +1,20 @@
-// The message context menu (right click on a row): stock's basics, each as it's built. A popover at the pointer.
+// The context menus (right click on a message, on a server): stock's basics, each as it's built. Popovers at the
+// pointer.
 
 import { createSignal, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Id } from "../adapter/discord";
 import type { Message } from "./model";
+import { $ } from "./store";
+
+function popAt(menu: HTMLElement, e: MouseEvent) {
+    e.preventDefault();
+    Object.assign(menu.style, { left: `${e.clientX}px`, top: `${e.clientY}px` });
+    // on Linux contextmenu fires on the press: opened before the release, the release would light-dismiss it
+    if (e.buttons) addEventListener("pointerup", () => menu.showPopover(), { once: true });
+    else menu.showPopover();
+}
 
 const MANAGE_MESSAGES = 8192n, SEND_MESSAGES = 2048n, ADD_REACTIONS = 64n;
 
@@ -21,14 +31,10 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
         const id = (e.target as Element).closest("article")?.dataset.id, channelId = p.channelId();
         const m = id && channelId ? S.Message.getMessage(channelId, id) as Message | undefined : undefined;
         if (!m) return;
-        e.preventDefault();
         setTarget(m);
         setSure(false);
         setQuery(null);
-        Object.assign(menu.style, { left: `${e.clientX}px`, top: `${e.clientY}px` });
-        // on Linux this fires on the press: opened before the release, the release would light-dismiss it
-        if (e.buttons) addEventListener("pointerup", () => menu.showPopover(), { once: true });
-        else menu.showPopover();
+        popAt(menu, e);
     });
 
     const channel = () => S.Channel.getChannel(target()!.channel_id)!;
@@ -83,6 +89,32 @@ export function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null; 
                     ? act(() => A.messages.deleteMessage(channel().id, target()!.id))()
                     : setSure(true)}>{sure() ? "Delete: click again" : "Delete"}</button>
             </Show>
+        </Show>
+    </menu>;
+}
+
+export function ServerMenu(p: { bar: HTMLElement; }) {
+    const [guild, setGuild] = createSignal<Id | null>(null);
+    let menu!: HTMLMenuElement;
+    p.bar.addEventListener("contextmenu", e => {
+        const id = (e.target as Element).closest<HTMLElement>("[data-mc^='guild:']")?.dataset.mc!.slice(6);
+        if (!id) return;
+        setGuild(id);
+        popAt(menu, e);
+    });
+    const act = (fn: (id: Id) => void) => () => {
+        menu.hidePopover();
+        fn(guild()!);
+    };
+    const muted = () => $.UserGuildSettings.isMuted(guild()!);
+
+    return <menu ref={menu} data-mc="server-menu" popover>
+        <Show when={guild()}>
+            <button data-mc="menu:read" disabled={!$.GuildReadState.getGuildHasUnreadIgnoreMuted(guild()!)}
+                onClick={act(id => A.markGuildsRead([id], "Guild List"))}>Mark As Read</button>
+            <button data-mc="menu:mute" onClick={act(id => A.notifications.updateGuildNotificationSettings(id,
+                { muted: !muted() }, muted() ? "unmuted" : "muted"))}>{muted() ? "Unmute Server" : "Mute Server"}</button>
+            <button data-mc="menu:copy-id" onClick={act(id => navigator.clipboard.writeText(id))}>Copy Server ID</button>
         </Show>
     </menu>;
 }
