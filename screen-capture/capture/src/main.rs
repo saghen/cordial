@@ -7,7 +7,7 @@
 //   mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID
 //                    | --clip F.i420 --clip-size WxH) [--size WxH]
 //                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
-//                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--av1-align WxH] [--h264-min-qp 0]
+//                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 50] [--av1-align WxH] [--h264-min-qp 0]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
 //                   [--encode-out F.ivf|F.h264] [--socket-fd N]
 //   stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | stop
@@ -92,7 +92,7 @@ fn usage() -> ! {
         "usage: mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
          \x20                       | --clip FILE.i420 --clip-size WxH)\n\
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
-         \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--av1-align WxH] [--h264-min-qp 0]\n\
+         \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 50] [--av1-align WxH] [--h264-min-qp 0]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
          \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] [--socket-fd N] | --probe [--device ...]\n\
          stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | stop; stdout: see out.rs"
@@ -125,7 +125,8 @@ fn opts() -> Opts {
         kbps: 6000,
         h264: false,
         refs: 2,
-        min_qindex: 10,
+        // (a floor of 10 let still content's scene cut cost half a second of bitrate: LOG; Liam picked 50)
+        min_qindex: 50,
         min_qp: 0,
         drop_ms: 300.0,
         repeat_ms: 1000.0,
