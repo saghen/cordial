@@ -1,7 +1,7 @@
 // What a message row shows, derived from the records and stores.
 
-import { A, S } from '../../adapter/core'
-import type { Id, Rec } from '../../adapter/discord'
+import { A, S } from '../adapter/needs'
+import type { Id, Rec } from '../adapter/discord'
 import { $ } from './store'
 
 export type Message = Record<string, any> & { id: Id; content: string; timestamp: Date; author: Record<string, any> }

@@ -6,11 +6,11 @@
 import { createEffect, createSignal, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
-import { A, S } from '../adapter/core'
+import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { emojiSrc } from './lib/model'
-import { $ } from './lib/store'
-import { guildIcon } from './server_bar'
+import { emojiSrc } from '../api/model'
+import { $ } from '../api/store'
+import { guildIcon } from '../views/server_bar'
 
 const COUNT = 48
 

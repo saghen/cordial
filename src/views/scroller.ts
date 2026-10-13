@@ -2,9 +2,9 @@
 // bottom). Like stock's list, it reports its position, turns automatic acks on for its channel and loads more history
 // near either end: without a UI nothing else does.
 
-import { A, S } from '../../adapter/core'
-import type { Id } from '../../adapter/discord'
-import { automaticAck, channelDimensions } from '../../adapter/triggers'
+import { A, S } from '../adapter/needs'
+import type { Id } from '../adapter/discord'
+import { automaticAck, channelDimensions } from '../api/triggers'
 
 // stock's cap on a fetch's limit
 const MAX_FETCH = 30

@@ -4,10 +4,10 @@
 
 import { createEffect, createMemo, createSignal, For, Show, untrack } from 'solid-js'
 
-import { A, S } from '../adapter/core'
+import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
-import { embed, fit, img } from './embeds'
-import { renderAST } from './lib/content'
+import { embed, fit, img } from '../components/embeds'
+import { renderAST } from '../components/markdown'
 import {
   type Attachment,
   authorOf,
@@ -24,10 +24,10 @@ import {
   USER_MESSAGE,
   hiddenAs,
   when,
-} from './lib/model'
-import { contextMenu, Items } from './lib/menu'
-import { createScroller } from './lib/scroller'
-import { $, selected, selectedChannel } from './lib/store'
+} from '../api/model'
+import { contextMenu, Items } from '../primitives/menu'
+import { createScroller } from './scroller'
+import { $, selected, selectedChannel } from '../api/store'
 
 let built = new WeakMap<Message, globalThis.Node[]>()
 

@@ -1,12 +1,12 @@
 // The anchor. Discord's root App class stays mounted: its componentDidMount starts its managers and its route
 // listener starts the session and selects guilds and channels from the URL. Only its render changes: it renders one
-// host element, and our renderer mounts into that. Logged out, our login form shows (ui/login.tsx), or Discord's own
+// host element, and our renderer mounts into that. Logged out, our login form shows (views/login.tsx), or Discord's own
 // tree (its login screen) once the form hands over to it.
 //
-// Discord's own UI shows instead when the patch doesn't match, when the self-check (core.ts) fails, or when
+// Discord's own UI shows instead when the patch doesn't match, when the self-check (needs.ts) fails, or when
 // window.name contains "mincord:stock" (it survives a reload). mincord.status() says which.
 
-import { A, check, S } from './core'
+import { A, check, S } from './needs'
 import { patch } from './webpack'
 
 type Mount = (host: HTMLElement) => () => void

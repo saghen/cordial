@@ -1,5 +1,5 @@
 // The parts of Discord's stores and action creators the renderer uses, typed only as far as we call them. Every method
-// named here is checked at startup (core.ts): adding one here means adding it to its need too.
+// named here is checked at startup (needs.ts): adding one here means adding it to its need too.
 
 export type Id = string
 export type Rec = Record<string, any>

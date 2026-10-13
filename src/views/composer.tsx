@@ -4,13 +4,13 @@
 
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 
-import { A, S } from '../adapter/core'
-import { startTyping, stopTyping } from '../adapter/triggers'
+import { A, S } from '../adapter/needs'
+import { startTyping, stopTyping } from '../api/triggers'
 import type { Rec } from '../adapter/discord'
 import { dmName, kindOf } from './channels'
-import { authorOf, can as allowed, emojiSrc, type Message, nameOf, PERMS } from './lib/model'
-import { $, selected, selectedChannel } from './lib/store'
-import { EmojiPicker, GifPicker, StickerPicker } from './pickers'
+import { authorOf, can as allowed, emojiSrc, type Message, nameOf, PERMS } from '../api/model'
+import { $, selected, selectedChannel } from '../api/store'
+import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
 
 export function MessageInput() {
   const channelId = selected

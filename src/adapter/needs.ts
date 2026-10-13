@@ -359,7 +359,7 @@ mangled('promptToUpload', 'Unexpected mismatch between files and file metadata',
 byCode('setStatus', 'nextStatus:', 'statusExpiresAtMs=')
 byCode('canStreamWithSettings', 'location:"canStreamWithSettings"')
 // stock's Go Live on the web engine: the stream settings by its rule, then getDisplayMedia (screen-capture's picker,
-// ui/user_panel.tsx), then the stream; ending your own stream, and watching and stopping others' (stop: STREAM_CLOSE, then STREAM_STOP, which
+// views/user_panel.tsx), then the stream; ending your own stream, and watching and stopping others' (stop: STREAM_CLOSE, then STREAM_STOP, which
 // keeps Discord's core from watching it again in a call)
 mangled('goLive', '.getDesktopSource(', { start: 'getDesktopSource(' })
 mangled('streams', 'type:"STREAM_START"', {

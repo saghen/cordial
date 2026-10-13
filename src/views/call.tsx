@@ -4,11 +4,11 @@
 
 import { createEffect, createMemo, For, Show } from 'solid-js'
 
-import { A, S } from '../adapter/core'
+import { A, S } from '../adapter/needs'
 import type { FluxStore, Id, Rec } from '../adapter/discord'
 import { url } from './channels'
-import { nameOf } from './lib/model'
-import { $, selectedChannel } from './lib/store'
+import { nameOf } from '../api/model'
+import { $, selectedChannel } from '../api/store'
 
 // a DM's call with someone in it (a call record can outlive its last participant)
 const going = (id: Id) => !!$.Call.getCall(id) && Object.keys($.VoiceState.getVoiceStatesForChannel(id)).length > 0

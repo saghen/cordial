@@ -2,18 +2,18 @@
 
 import { createEffect, createMemo, createSignal, Show } from 'solid-js'
 
-import { A, S } from '../adapter/core'
-import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from './channels'
-import { CallButtons, CallView, IncomingCalls, voiceSounds } from './call'
-import { NotificationBell, Pins, Search } from './header'
-import { Chat } from './chat'
-import { warm } from './lib/preload'
-import { $, selectedChannel, selectedGuild } from './lib/store'
-import { MembersList, MembersToggle } from './members'
-import { MessageInput } from './message_input'
-import { ServerBar } from './server_bar'
+import { A, S } from './adapter/needs'
+import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from './views/channels'
+import { CallButtons, CallView, IncomingCalls, voiceSounds } from './views/call'
+import { NotificationBell, Pins, Search } from './views/header'
+import { Chat } from './views/chat'
+import { warm } from './api/preload'
+import { $, selectedChannel, selectedGuild } from './api/store'
+import { MembersList, MembersToggle } from './views/members'
+import { MessageInput } from './views/composer'
+import { ServerBar } from './views/server_bar'
 import { CSS } from './style'
-import { UserPanel } from './user_panel'
+import { UserPanel } from './views/user_panel'
 
 // GatewayConnectionStore reads the socket and doesn't emit when it drops or comes back, so follow the actions (the
 // socket's own state changes only after CONNECTION_INTERRUPTED)

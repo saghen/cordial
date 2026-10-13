@@ -2,8 +2,8 @@
 // text, a small thumbnail beside it or a large image under it; an image or GIF link is just the media. No players: a
 // video is its thumbnail, opening the page.
 
-import { A } from '../adapter/core'
-import { renderAST } from './lib/content'
+import { A } from '../adapter/needs'
+import { renderAST } from './markdown'
 
 type Media = { url: string; proxyURL?: string; width: number; height: number }
 type Embed = Record<string, any> & { type: string; url?: string; thumbnail?: Media; image?: Media; video?: Media }

@@ -5,10 +5,10 @@
 
 import { createEffect, createMemo, For, Show } from 'solid-js'
 
-import { A, S } from '../adapter/core'
+import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { nameOf } from './lib/model'
-import { $, selectedChannel } from './lib/store'
+import { nameOf } from '../api/model'
+import { $, selectedChannel } from '../api/store'
 
 const ROW = 44
 const GROUP_DM = 3

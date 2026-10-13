@@ -1,7 +1,7 @@
 // Discord's markdown AST (model.ts contentAST) to plain DOM: content never changes, so it needs no reactivity. An
 // unknown node type renders its text.
 
-import { emojiSrc } from './model'
+import { emojiSrc } from '../api/model'
 
 type Node = Record<string, any> & { type: string }
 

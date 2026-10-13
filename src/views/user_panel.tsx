@@ -5,12 +5,12 @@ import { createSignal, For, onCleanup, Show } from 'solid-js'
 
 import * as screen from '../../screen-capture/src/renderer'
 
-import { A, S } from '../adapter/core'
+import { A, S } from '../adapter/needs'
 import type { Rec } from '../adapter/discord'
 import { dmName, url } from './channels'
-import { emojiSrc, nameOf } from './lib/model'
-import { contextMenu, Items } from './lib/menu'
-import { $ } from './lib/store'
+import { emojiSrc, nameOf } from '../api/model'
+import { contextMenu, Items } from '../primitives/menu'
+import { $ } from '../api/store'
 
 export const UserPanel = () => (
   <>

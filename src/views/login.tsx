@@ -6,9 +6,9 @@
 import { createSignal, Show } from 'solid-js'
 
 import { G } from '../adapter/anchor'
-import { A, S } from '../adapter/core'
-import { $ } from './lib/store'
-import { CSS } from './style'
+import { A, S } from '../adapter/needs'
+import { $ } from '../api/store'
+import { CSS } from '../style'
 
 // the steps stock's own screen takes over (AuthenticationStore's login status)
 const DISCORDS = [

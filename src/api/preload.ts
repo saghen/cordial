@@ -3,9 +3,9 @@
 // preloads on mouse down), and the `warm` most used channels after connecting (FrecencyStore; `warm` in
 // <userData>/config.json, default 5, 0 for none).
 
-import { G } from '../../adapter/anchor'
-import { A, S } from '../../adapter/core'
-import type { Id, Rec } from '../../adapter/discord'
+import { G } from '../adapter/anchor'
+import { A, S } from '../adapter/needs'
+import type { Id, Rec } from '../adapter/discord'
 import { can, PERMS } from './model'
 
 export const preload = (id?: Id | null) => {

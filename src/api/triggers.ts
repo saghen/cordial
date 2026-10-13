@@ -1,8 +1,8 @@
 // What Discord's UI does that its core doesn't do by itself: without the UI, nothing else does it. Each one is checked
 // against stock in the conformance diff.
 
-import { A } from './core'
-import type { Id } from './discord'
+import { A } from '../adapter/needs'
+import type { Id } from '../adapter/discord'
 
 // the composer's, on input. TypingStore throttles, POSTs /typing and applies slowmode cooldowns
 export function startTyping(channelId: Id) {

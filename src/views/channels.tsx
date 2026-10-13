@@ -3,12 +3,12 @@
 
 import { createEffect, createSignal, For, Show } from 'solid-js'
 
-import { A, S } from '../adapter/core'
+import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { nameOf } from './lib/model'
-import { contextMenu, Items } from './lib/menu'
-import { preload } from './lib/preload'
-import { $, selected, selectedGuild } from './lib/store'
+import { nameOf } from '../api/model'
+import { contextMenu, Items } from '../primitives/menu'
+import { preload } from '../api/preload'
+import { $, selected, selectedGuild } from '../api/store'
 
 export const url = (src?: string | null) => (src ? { '--icon': `url(${src})` } : undefined)
 
@@ -38,7 +38,7 @@ export function Item(p: {
   muted?: boolean
   mentions?: number
   go(): void
-  // the channel a click opens, preloaded when the pointer stays (lib/preload.ts)
+  // the channel a click opens, preloaded when the pointer stays (api/preload.ts)
   pre?(): Id | null | undefined
 }) {
   let t = 0

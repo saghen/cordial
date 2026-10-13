@@ -2,11 +2,11 @@
 
 import { createSignal, For, Show } from 'solid-js'
 
-import { A, S } from '../adapter/core'
+import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { Dm, Item, url } from './channels'
-import { contextMenu, Items } from './lib/menu'
-import { $, selectedGuild } from './lib/store'
+import { contextMenu, Items } from '../primitives/menu'
+import { $, selectedGuild } from '../api/store'
 
 // as stock's click: the channel Discord remembers for the server (persisted across restarts), else its default
 const channel = (id: Id) => S.SelectedChannel.getChannelId(id) ?? undefined

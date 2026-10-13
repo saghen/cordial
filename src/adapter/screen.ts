@@ -7,7 +7,7 @@
 
 import * as screen from '../../screen-capture/src/renderer'
 import { G } from './anchor'
-import { A, check, S } from './core'
+import { A, check, S } from './needs'
 import { patch } from './webpack'
 
 const codecs = patch(screen.codecPatch.find, screen.codecPatch.replace)

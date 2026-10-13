@@ -1,4 +1,4 @@
-import { ICONS } from './icons'
+import { ICONS } from './primitives/icons'
 
 // All of the renderer's CSS. The root is one grid; list rows are subgrids of their list (icon, label, badge). Elements
 // are styled by tag, nested under the root so Discord's own layers never see these rules, and each region's rules under
@@ -500,7 +500,7 @@ export const CSS = `
   }
   section.members > a > i { margin-left: -8px; }
 
-  /* the message box (message_input.tsx): a grid of the attach button, the text, then the pickers (pickers.tsx) in
+  /* the message box (views/composer.tsx): a grid of the attach button, the text, then the pickers (pickers.tsx) in
      stock's order, GIF, sticker, emoji, each in a column of its own, so the text never runs under them. The text grows
      with its lines, up to half the window; the buttons stay on the first line; the pickers open above */
   div.box {
@@ -679,7 +679,7 @@ export const CSS = `
   }
   &:has(> .messages.up) > output { background: var(--bg); box-shadow: 0 -8px 8px var(--bg); }
 
-  /* content (lib/content.ts); Discord's reset (its stylesheet stays loaded for the fonts) needs em and strong back */
+  /* content (components/markdown.ts); Discord's reset (its stylesheet stays loaded for the fonts) needs em and strong back */
   article {
     :is(h1, h2, h3) { margin: 8px 0 0; line-height: 1.25; color: var(--text-strong); }
     h1 { font-size: 24px; } h2 { font-size: 20px; } h3 { font-size: 16px; }
