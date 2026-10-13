@@ -1,7 +1,8 @@
 // stdout to mincord (capture.c's send_msg): a message is a 24-byte header (u32 LE: magic "CSZ1", type, payload size,
 // seq, then u64 µs of CLOCK_MONOTONIC) + payload. frame: u32 flags (1: key), u32 w | h << 16, u32 qindex (0: none),
 // u32 submit -> encoded µs, then the temporal unit (OBUs, no temporal delimiter); its time is the frame's VPP submit.
-// preview: u32 w | h << 16, then w x h BGRx, rows packed. info: JSON. Plus the log (stderr) and the startup stages.
+// preview: u32 w | h << 16, then w x h BGRx, rows packed. info: JSON. audio (audio.rs): u32 rate, u32 channels, then
+// s16 samples, interleaved; its time is when it was taken from PipeWire. Plus the log (stderr) and the startup stages.
 
 use std::collections::HashSet;
 use std::io::IoSlice;
@@ -14,6 +15,7 @@ const MSG_MAGIC: u32 = 0x315a5343; // "CSZ1"
 pub const MSG_FRAME: u32 = 2;
 pub const MSG_INFO: u32 = 3;
 pub const MSG_PREVIEW: u32 = 4;
+pub const MSG_AUDIO: u32 = 5;
 
 #[derive(PartialEq)]
 pub enum Sent {

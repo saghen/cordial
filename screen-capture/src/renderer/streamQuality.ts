@@ -261,6 +261,17 @@ const streamTracks = new WeakSet<MediaStreamTrack>()
 /** Whether a track is a Go Live track we set up (for stats, overlays). */
 export const isStreamTrack = (track: MediaStreamTrack | null | undefined) => !!track && streamTracks.has(track)
 
+const streamAudio = new WeakSet<MediaStreamTrack>()
+/** Marks a track as the stream's sound (cast.ts): its sender gets STREAM_OPUS_KBPS. */
+export const markStreamAudio = (track: MediaStreamTrack) => void streamAudio.add(track)
+export const isStreamAudio = (track: MediaStreamTrack | null | undefined) => !!track && streamAudio.has(track)
+
+// Discord caps the sender at 64 kbps (its voice rate) whatever the fmtp's maxaveragebitrate says
+function withAudioRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
+  if (isStreamAudio(sender.track)) for (const e of params.encodings ?? []) e.maxBitrate = STREAM_OPUS_KBPS * 1000
+  return params
+}
+
 /** Marks a getDisplayMedia track as ours and sets how it degrades. */
 export function tuneStreamTrack(track: MediaStreamTrack, p: StreamPriority) {
   priority = p
@@ -393,7 +404,7 @@ function startMotionScaler(sender: RTCRtpSender) {
 const origSetParameters = RTCRtpSender.prototype.setParameters
 RTCRtpSender.prototype.setParameters = function (this: RTCRtpSender, params, ...rest) {
   try {
-    withMotionScale(this, withPreference(this, params))
+    withAudioRate(this, withMotionScale(this, withPreference(this, params)))
   } catch (e) {
     logger.error('Failed to set degradation preference', e)
   }
@@ -431,6 +442,59 @@ export function withMinBitrate(sdp: string): string {
   })
 }
 
+// ---- The stream's sound in stereo ----
+//
+// Discord's browser engine writes no stereo for Opus: the stream's sound (cast.ts, capture's) went out mono at 64 kbps,
+// and a viewer decodes mono. libwebrtc's Opus encoder takes its channels and rate from the remote description's
+// fmtp, the decoder its channels from the local one. So on Go Live connections only (Discord's context "stream":
+// ours, sending, and those we watch), stereo=1 both ways and 96 kbps for what we send; voice keeps Discord's mono.
+const STREAM_OPUS_KBPS = 96
+
+/** Discord's context of a connection ("default" for voice, "stream" for Go Live): the one holding `pc`, a level down. */
+function contextOf(pc: RTCPeerConnection): string | undefined {
+  for (const c of host.discord?.connections() ?? [])
+    for (const v of Object.values(c ?? {}))
+      if (v === pc || (v && typeof v === 'object' && Object.values(v).includes(pc))) return c.context
+  return undefined
+}
+
+const stereoLogged = new WeakSet<RTCPeerConnection>()
+function stereo<T extends RTCLocalSessionDescriptionInit>(pc: RTCPeerConnection, desc: T, kbps?: number): T {
+  if (!desc.sdp || contextOf(pc) !== 'stream') return desc
+  if (!stereoLogged.has(pc)) logger.info('Go Live connection: Opus in stereo')
+  stereoLogged.add(pc)
+  return { ...desc, sdp: withStereo(desc.sdp, kbps) }
+}
+
+/** Opus's fmtp lines with stereo (both ways) and, when given, its average rate: every m-section's (a stream's
+ * connection has two audio sections on the same payload type, the stream's sound in the second) */
+export function withStereo(sdp: string, kbps?: number): string {
+  const pts = new Set([...sdp.matchAll(/a=rtpmap:(\d+) opus\/48000\/2/gi)].map(([, pt]) => pt))
+  for (const pt of pts) {
+    sdp = sdp.replace(new RegExp(`(a=fmtp:${pt} )([^\r\n]*)`, 'g'), (_, head: string, params: string) => {
+      const set: Record<string, string> = { stereo: '1', 'sprop-stereo': '1' }
+      if (kbps) set.maxaveragebitrate = String(kbps * 1000)
+      const kept = params.split(';').filter((kv) => kv && !(kv.split('=')[0] in set))
+      return head + [...kept, ...Object.entries(set).map(([k, v]) => `${k}=${v}`)].join(';')
+    })
+  }
+  return sdp
+}
+
+const origSetLocalDescription = RTCPeerConnection.prototype.setLocalDescription
+RTCPeerConnection.prototype.setLocalDescription = function (
+  this: RTCPeerConnection,
+  desc?: RTCLocalSessionDescriptionInit,
+  ...rest: unknown[]
+) {
+  try {
+    if (desc) desc = stereo(this, desc)
+  } catch (e) {
+    logger.error('Failed to set stereo', e)
+  }
+  return (origSetLocalDescription as any).call(this, desc, ...rest)
+} as typeof origSetLocalDescription
+
 const origSetRemoteDescription = RTCPeerConnection.prototype.setRemoteDescription
 RTCPeerConnection.prototype.setRemoteDescription = function (
   this: RTCPeerConnection,
@@ -447,6 +511,7 @@ RTCPeerConnection.prototype.setRemoteDescription = function (
       desc = { type: desc.type, sdp: withMinBitrate(desc.sdp!) }
       logger.info('Go Live connection: bandwidth estimate floor at', MIN_FRACTION, "x Discord's max bitrate")
     }
+    if (desc) desc = stereo(this, desc, STREAM_OPUS_KBPS)
   } catch (e) {
     logger.error('Failed to set start bitrate', e)
   }
@@ -456,6 +521,10 @@ RTCPeerConnection.prototype.setRemoteDescription = function (
 // Discord only calls setParameters when its own numbers change, so also apply the preference
 // when our track is attached to a sender.
 function applyToSender(sender: RTCRtpSender) {
+  if (isStreamAudio(sender.track))
+    origSetParameters
+      .call(sender, withAudioRate(sender, sender.getParameters()))
+      .catch((e) => logger.error('Failed to set the sound bitrate', e))
   if (!sender.track || !streamTracks.has(sender.track)) return
   origSetParameters
     .call(sender, withMotionScale(sender, withPreference(sender, sender.getParameters())))

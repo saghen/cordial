@@ -5,12 +5,16 @@
 // on Wayland, the desktop's ScreenCast portal (capture --portal, the portal's own dialog), with "the same as last time"
 // first once a cast gave a restore token (kept in <userData>/capture-portal.json).
 //
+// The sound (when Discord asks for it), niri only: capture takes it from PipeWire (capture/src/audio.rs), from the
+// shared window's apps, or for an output from the focused window on that output (audioTarget, followOutput).
+//
 // capture: $MINCORD_CAPTURE, else `mincord-capture` on PATH. Without it, with neither niri nor Wayland, or with
 // "capture": false in <userData>/config.json, Go Live is Chromium's own capture (the portal).
 //
 // The lab: $MINCORD_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no niri
-// needed (screen-capture/lab/golive.py). $MINCORD_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture
-// alone talks to that bus (the lab portal of screen-capture/lab/castsrc.py --portal, never the desktop's).
+// needed (screen-capture/lab/golive.py). $MINCORD_CAPTURE_AUDIO=TARGET takes the sound from capture's TARGET (pid=N...)
+// whatever the source. $MINCORD_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture alone talks to that
+// bus (the lab portal of screen-capture/lab/castsrc.py --portal, never the desktop's).
 //
 // getDisplayMedia (Chromium's own capture: Go Live without capture, and capture's fallback) gets the portal's source:
 // on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. The lab answers with the asking
@@ -46,8 +50,9 @@ app.commandLine.appendSwitch(
  *   current_mode: number | null }} NiriOutput
  * @typedef {{ id: string, kind: 'window' | 'output', name: string, detail: string, width: number, height: number }}
  *   CastSource  id: "window:<niri id>" / "output:<name>"
- * @typedef {{ source: string, size: [number, number], fps: number }} CastStart  size: the box capture fits the
- *   source into, e.g. [2560, 1440]
+ * @typedef {{ name: string, output: string | null, is_active: boolean, active_window_id: number | null }} NiriWorkspace
+ * @typedef {{ source: string, size: [number, number], fps: number, audio?: boolean }} CastStart  size: the box
+ *   capture fits the source into, e.g. [2560, 1440]; audio: the stream has sound
  */
 
 let found
@@ -248,6 +253,90 @@ async function descendants(pid) {
   return out
 }
 
+/**
+ * Where capture takes a window's sound from (audio.rs): its process and those below it; an X11 window (each has
+ * xwayland-satellite's pid) by its Steam app (a Proton game's app id is steam_app_N), else by its app id as the
+ * process's name.
+ * @param {NiriWindow | undefined} w
+ * @returns {Promise<string>}
+ */
+async function audioTarget(w) {
+  if (!w?.pid) return 'off'
+  const exe = await fs.promises.readlink(`/proc/${w.pid}/exe`).catch(() => '')
+  if (!path.basename(exe).startsWith('xwayland')) return `pid=${w.pid}`
+  const steam = /^steam_app_(\d+)$/.exec(w.app_id ?? '')
+  return steam ? `steam=${steam[1]}` : w.app_id ? `name=${w.app_id.toLowerCase()}` : 'off'
+}
+
+// niri's events that can change an output's focused window
+const WINDOW_EVENTS = new Set([
+  'WorkspacesChanged',
+  'WorkspaceActivated',
+  'WorkspaceActiveWindowChanged',
+  'WindowsChanged',
+  'WindowOpenedOrChanged',
+  'WindowClosed',
+])
+
+/**
+ * An output's sound follows its focused window: the active window of its active workspace, not the global focus
+ * (focusing another output keeps it). mincord's own windows keep the one before; an empty workspace is silence.
+ * niri's event stream says when to look again (the state asked anew, ~0.4 ms).
+ * @param {string} output
+ * @param {(target: string) => void} set
+ * @returns {() => void} stops following
+ */
+function followOutput(output, set) {
+  let last = null
+  let stopped = false
+  let busy = false
+  let again = false
+  const update = async () => {
+    if (busy) return void (again = true)
+    busy = true
+    try {
+      const [{ Workspaces: workspaces }, { Windows: windows }] = await Promise.all([
+        niri('Workspaces'),
+        niri('Windows'),
+      ])
+      const ws = /** @type {NiriWorkspace[]} */ (workspaces).find((w) => w.output === output && w.is_active)
+      const win = /** @type {NiriWindow[]} */ (windows).find((w) => w.id === ws?.active_window_id)
+      const own = win?.pid != null && (win.pid === process.pid || (await descendants(process.pid)).includes(win.pid))
+      const target = own ? last : await audioTarget(win)
+      if (!stopped && target != null && target !== last) set((last = target))
+    } catch (e) {
+      console.error('[cast] sound target:', e)
+    } finally {
+      busy = false
+      if (again && !stopped) {
+        again = false
+        update()
+      }
+    }
+  }
+  // the stream starts with the current state (WorkspacesChanged, WindowsChanged, ...)
+  const socket = createConnection(process.env.NIRI_SOCKET ?? '')
+  let buf = ''
+  socket.on('connect', () => socket.write('"EventStream"\n'))
+  socket.on('data', (chunk) => {
+    const lines = (buf + chunk).split('\n')
+    buf = lines.pop() ?? ''
+    const relevant = lines.some((l) => {
+      try {
+        return WINDOW_EVENTS.has(Object.keys(JSON.parse(l))[0])
+      } catch {
+        return false
+      }
+    })
+    if (relevant) update()
+  })
+  socket.on('error', (e) => console.error('[cast] niri events:', e.message))
+  return () => {
+    stopped = true
+    socket.destroy()
+  }
+}
+
 // niri keeps a cast going after its D-Bus client is gone: stop the cast of a capture that died without stopping it
 // (capture stops its own when it exits normally; this then fails harmlessly)
 function stopCast(sessionId) {
@@ -280,6 +369,7 @@ function startCast(e, opts) {
   // the fallback's frames (raw), straight to the page
   const fdsock = loadFdsock()
   const raw = fdsock ? rawRelay(e.sender) : null
+  let stopAudio = () => {}
   const cap = startCapture(
     bin,
     args,
@@ -295,6 +385,7 @@ function startCast(e, opts) {
       }
       if (m.type === 'closed') {
         console.log(`[cast] capture ${cap.pid} ${m.why}`)
+        stopAudio()
         if (sessionId != null) stopCast(sessionId)
         raw?.close()
       }
@@ -306,10 +397,23 @@ function startCast(e, opts) {
     portalBus && kind === 'portal' ? { ...process.env, DBUS_SESSION_BUS_ADDRESS: portalBus } : undefined,
     fdsock,
   )
+  if (opts.audio) {
+    const send = (target) => {
+      console.log(`[cast] capture ${cap.pid} sound: ${target}`)
+      cap.send({ type: 'audio', target })
+    }
+    if (process.env.MINCORD_CAPTURE_AUDIO) send(process.env.MINCORD_CAPTURE_AUDIO)
+    else if (kind === 'window')
+      niri('Windows')
+        .then((r) => audioTarget(/** @type {NiriWindow[]} */ (r.Windows).find((w) => String(w.id) === id)))
+        .then(send, (e) => console.error('[cast] sound target:', e))
+    else if (kind === 'output') stopAudio = followOutput(id, send)
+  }
   const session = {
     close() {
       if (!open) return
       open = false
+      stopAudio()
       cap.send({ type: 'stop' })
       setTimeout(() => cap.kill(), 2000).unref()
       port1.close()

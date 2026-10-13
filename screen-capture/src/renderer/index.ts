@@ -77,7 +77,7 @@ if (navigator.userAgent.includes('Linux')) {
   navigator.mediaDevices.getDisplayMedia = async function (this: MediaDevices, opts) {
     // on niri with capture: our own capture (cast.ts), Chromium's only as its fallback
     return (await castAvailable())
-      ? castDisplayMedia((o) => original.call(this, o))
+      ? castDisplayMedia((o) => original.call(this, o), opts)
       : chromiumDisplayMedia(original, this, opts)
   }
 }

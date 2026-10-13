@@ -15,6 +15,9 @@
 //   the same frames, and neither track object ever changes.
 // The track's label, settings and constraints are the session's: Discord reads the label as the source id and the
 // settings for its preview's size; its constraints go to the fallback capture.
+// The sound, when Discord asks for it: capture's (main/cast.js picks the apps), as a third generator track in the
+// stream Discord gets, which it sends as the stream's audio. It lasts as long as capture runs (raw included); the
+// portal's fallback has none.
 
 import { host } from './host'
 import { logger as makeLogger } from './log'
@@ -24,6 +27,8 @@ import {
   AutoQuality,
   autoQuality,
   effectiveCodec,
+  isStreamAudio,
+  markStreamAudio,
   setCurrentStreamQuality,
   StreamCodec,
   StreamPriority,
@@ -32,9 +37,9 @@ import {
 
 const logger = makeLogger('mincord:cast')
 
-declare class MediaStreamTrackGenerator extends MediaStreamTrack {
+declare class MediaStreamTrackGenerator<T = VideoFrame> extends MediaStreamTrack {
   constructor(init: { kind: 'video' | 'audio' })
-  readonly writable: WritableStream<VideoFrame>
+  readonly writable: WritableStream<T>
 }
 declare class MediaStreamTrackProcessor {
   constructor(init: { track: MediaStreamTrack })
@@ -56,6 +61,8 @@ export interface CastStart {
   source: string
   size: [number, number]
   fps: number
+  /** the stream has sound: capture sends it */
+  audio?: boolean
 }
 
 /** What to stream: a capture source ("window:<niri id>" / "output:<name>") and the stream settings. */
@@ -71,6 +78,7 @@ export interface CastPick {
 export type CastMessage =
   | { type: 'frame'; seq: number; t: number; key: boolean; w: number; h: number; data: ArrayBuffer }
   | { type: 'preview'; t: number; w: number; h: number; data: ArrayBuffer }
+  | { type: 'audio'; t: number; rate: number; channels: number; data: ArrayBuffer }
   | { type: 'info'; t: number; info: any }
   | { type: 'closed'; why: string }
 
@@ -110,6 +118,8 @@ export class CastSession {
   readonly track = new MediaStreamTrackGenerator({ kind: 'video' })
   /** what the sender gets in place of Discord's track (or a clone of it): only this one is encoded */
   readonly encoder = new MediaStreamTrackGenerator({ kind: 'video' })
+  /** the stream's sound (capture's s16 PCM), when Discord asked for it */
+  readonly audio: MediaStreamTrackGenerator<AudioData> | null
   state: 'starting' | 'cast' | 'fallback' | 'ended' = 'starting'
   /** capture's full-size encode size (the stream's size) */
   width: number
@@ -130,6 +140,7 @@ export class CastSession {
   private port: MessagePort | null = null
   private writer = this.encoder.writable.getWriter()
   private display = this.track.writable.getWriter()
+  private sound: WritableStreamDefaultWriter<AudioData> | null
   private shownAt = -Infinity
   // capture's AV1, decoded for Discord's track; it shows the encoder track's frames until the first decoded one
   private decoder: VideoDecoder | null = null
@@ -150,7 +161,11 @@ export class CastSession {
     readonly pick: CastPick,
     readonly quality: AutoQuality,
     private readonly displayMedia: (opts: DisplayMediaStreamOptions) => Promise<MediaStream>,
+    withAudio = false,
   ) {
+    this.audio = withAudio ? new MediaStreamTrackGenerator<AudioData>({ kind: 'audio' }) : null
+    this.sound = this.audio?.writable.getWriter() ?? null
+    if (this.audio) markStreamAudio(this.audio)
     sessions.set(this.track, this)
     sessions.set(this.encoder, this)
     this.width = quality.width
@@ -202,6 +217,7 @@ export class CastSession {
         source: this.pick.source,
         size: [this.quality.width, this.quality.height],
         fps: Number(this.quality.frameRate),
+        audio: !!this.audio,
       })
       .catch(() => false)
     this.port = ok ? await port : null
@@ -223,6 +239,7 @@ export class CastSession {
   }
 
   private message(m: CastMessage) {
+    if (m.type === 'audio') return this.writeAudio(m)
     if (this.state === 'fallback' && this.port) {
       // raw (or capture restarting for it): capture failing now means a restart, or the portal after all
       if (m.type === 'closed' || (m.type === 'info' && m.info.type === 'error')) {
@@ -259,6 +276,19 @@ export class CastSession {
       return
     }
     this.consumer?.message(m)
+  }
+
+  private writeAudio(m: Extract<CastMessage, { type: 'audio' }>) {
+    if (!this.sound || this.state === 'ended') return
+    const data = new AudioData({
+      format: 's16',
+      sampleRate: m.rate,
+      numberOfChannels: m.channels,
+      numberOfFrames: m.data.byteLength / 2 / m.channels,
+      timestamp: Math.round(m.t),
+      data: m.data,
+    })
+    this.sound.write(data).catch(() => data.close())
   }
 
   private setPreview(m: Extract<CastMessage, { type: 'preview' }>) {
@@ -537,6 +567,7 @@ export class CastSession {
     this.fallbackTrack?.stop()
     this.writer.close().catch(() => {})
     this.display.close().catch(() => {})
+    this.sound?.close().catch(() => {})
   }
 
   private closeCast() {
@@ -567,6 +598,7 @@ MediaStreamTrack.prototype.clone = function (this: MediaStreamTrack) {
   const copy = origClone.call(this)
   const s = displayed(this)
   if (s) clones.set(copy, s)
+  if (isStreamAudio(this)) markStreamAudio(copy)
   return copy
 }
 const origReplaceTrack = RTCRtpSender.prototype.replaceTrack
@@ -611,6 +643,7 @@ export function setPendingCast(pick: CastPick | null) {
 /** getDisplayMedia through capture: mincord's picker (or the pending pick), then a cast session. */
 export async function castDisplayMedia(
   displayMedia: (opts: DisplayMediaStreamOptions) => Promise<MediaStream>,
+  opts?: DisplayMediaStreamOptions,
 ): Promise<MediaStream> {
   const p = pending && Date.now() - pending.at < 60_000 ? pending.pick : null
   pending = null
@@ -626,7 +659,7 @@ export async function castDisplayMedia(
     pick.width && pick.height ? { width: pick.width, height: pick.height } : undefined,
     effectiveCodec(pick.codec),
   )
-  const session = (latest = new CastSession(pick, quality, displayMedia))
+  const session = (latest = new CastSession(pick, quality, displayMedia, !!opts?.audio))
   tuneStreamTrack(session.track, pick.priority)
   tuneStreamTrack(session.encoder, pick.priority)
   setCurrentStreamQuality(session.track, quality)
@@ -636,7 +669,8 @@ export async function castDisplayMedia(
     logger.error('Failed to update stream connection quality', e)
   }
   logger.info(
-    `${pick.name} (${pick.source}, ${pick.width}x${pick.height}): ${quality.resolution}p${quality.frameRate} ${quality.codec}`,
+    `${pick.name} (${pick.source}, ${pick.width}x${pick.height}): ${quality.resolution}p${quality.frameRate} ${quality.codec}` +
+      (session.audio ? ', with sound' : ''),
   )
   // the track goes to Discord at once: capture starts (~40 ms: spawn, the cast, PipeWire, VA) while Discord sets
   // the stream up on its servers (STREAM_START ... RTC_CONNECTED, hundreds of ms), and only then does the track
@@ -645,5 +679,5 @@ export async function castDisplayMedia(
   session.start().then((ok) => {
     if (!ok) session.fallback("capture didn't start", 'portal')
   })
-  return new MediaStream([session.track])
+  return new MediaStream(session.audio ? [session.track, session.audio] : [session.track])
 }

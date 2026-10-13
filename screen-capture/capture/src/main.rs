@@ -9,8 +9,9 @@
 //                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
 //                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 50] [--av1-align WxH] [--h264-min-qp 0]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
-//                   [--encode-out F.ivf|F.h264] [--socket-fd N]
-//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | stop
+//                   [--encode-out F.ivf|F.h264] [--socket-fd N] [--audio SPEC]
+//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | audio SPEC | stop
+//   (audio: the stream's sound, from the apps SPEC names: audio.rs)
 //
 // raw (mincord's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
 // LINEAR NV12 surfaces that mincord imports (Electron's sharedTexture) and Chromium encodes. On the socket of
@@ -27,6 +28,7 @@
 // the clip, stamps the barcode and converts I420 to NV12 (CLIP_RING frames ahead), and the main thread paces it at
 // --fps, uploads it and runs the VPPs itself.
 
+mod audio;
 mod av1enc;
 mod bits;
 mod cast;
@@ -85,6 +87,7 @@ struct Opts {
     probe: bool,
     av1_align: Option<(u32, u32)>, // --av1-align WxH (else av1enc::align's)
     socket: Option<i32>,           // --socket-fd N: raw's socket (SOCK_SEQPACKET, mincord's fdsock)
+    audio: Option<audio::Target>,  // --audio SPEC: the stream's sound from the start (the lab; mincord sends "audio")
 }
 
 fn usage() -> ! {
@@ -94,8 +97,9 @@ fn usage() -> ! {
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
          \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 50] [--av1-align WxH] [--h264-min-qp 0]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
-         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] [--socket-fd N] | --probe [--device ...]\n\
-         stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | stop; stdout: see out.rs"
+         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] [--socket-fd N] [--audio SPEC] | --probe [--device ...]\n\
+         stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | audio SPEC | stop\n\
+         (SPEC: off | pid=N | steam=N | name=S, audio.rs); stdout: see out.rs"
     );
     std::process::exit(2)
 }
@@ -138,6 +142,7 @@ fn opts() -> Opts {
         probe: false,
         av1_align: None,
         socket: None,
+        audio: None,
     };
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -178,6 +183,7 @@ fn opts() -> Opts {
             "--probe" => o.probe = true,
             "--av1-align" => o.av1_align = Some(parse_size(&v(), 2)),
             "--socket-fd" => o.socket = Some(num(v())),
+            "--audio" => o.audio = Some(audio::Target::parse(&v()).unwrap_or_else(|| usage())),
             _ => usage(),
         }
     }
@@ -632,6 +638,11 @@ impl State {
         } else if let Some(n) = line.strip_prefix("height ") {
             self.req_h = arg(n) as u32;
             self.update_sizes(o);
+        } else if let Some(t) = line.strip_prefix("audio ") {
+            match audio::Target::parse(t) {
+                Some(t) => audio::set_target(t),
+                None => eprintln!("cmd: bad audio target {t:?}"),
+            }
         } else if line == "stop" {
             self.quit("stopped");
         }
@@ -1437,6 +1448,9 @@ fn probe(device: &str) -> i32 {
 }
 
 fn run(o: Arc<Opts>) -> Result<()> {
+    if let Some(t) = o.audio.clone() {
+        audio::set_target(t);
+    }
     let no_va = || {
         info(&format!(
             "{{\"type\":\"error\",\"message\":\"no VA-API on {}\"}}",
