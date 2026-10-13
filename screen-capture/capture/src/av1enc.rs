@@ -17,7 +17,7 @@ const KEY_FRAME: u32 = 0;
 const INTER_FRAME: u32 = 1;
 
 pub struct Cfg {
-    pub width: u32, // multiple of 8 x multiple of 2 on VCN 5 (the caller rounds)
+    pub width: u32, // multiple of align()'s (the caller rounds)
     pub height: u32,
     pub fps: u32,
     pub kbps: u32,       // initial target
@@ -47,6 +47,19 @@ fn obu(mut b: Bits, kind: u8) -> Vec<u8> {
     }
     out.extend_from_slice(&b.buf);
     out
+}
+
+/// The encode size's alignment. radeonsi codes AV1 on VCN 4 (RDNA3, gfx11: Navi 3x, Phoenix, Strix) at 64x16 and
+/// pads the input to it, cropped only by a render size, which this encoder's frame header doesn't carry (Mesa 26.2.4,
+/// radeon_vcn_enc.c), so sizes are chosen aligned there; VCN 5 codes them as they are (8x2). VA-API doesn't say;
+/// the driver's name does ("... (radeonsi, navi31, ...", "(radeonsi, gfx1150, ...").
+pub fn align(va: &Va) -> (u32, u32) {
+    let v = va.vendor().to_lowercase();
+    if v.contains("radeonsi, navi3") || v.contains("radeonsi, gfx11") {
+        (64, 16)
+    } else {
+        (8, 2)
+    }
 }
 
 pub fn supported(va: &Va) -> bool {

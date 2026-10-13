@@ -7,7 +7,7 @@
 //   mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID
 //                    | --clip F.i420 --clip-size WxH) [--size WxH]
 //                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
-//                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--h264-min-qp 0]
+//                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--av1-align WxH] [--h264-min-qp 0]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
 //                   [--encode-out F.ivf|F.h264]
 //   stdin: start [kbps=N] [height=N] [codec=av1|h264] | bitrate N | key | height N | stop
@@ -72,6 +72,7 @@ struct Opts {
     start: bool,
     ivf: Option<String>,
     probe: bool,
+    av1_align: Option<(u32, u32)>, // --av1-align WxH (else av1enc::align's)
 }
 
 fn usage() -> ! {
@@ -79,7 +80,7 @@ fn usage() -> ! {
         "usage: mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
          \x20                       | --clip FILE.i420 --clip-size WxH)\n\
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
-         \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--h264-min-qp 0]\n\
+         \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--av1-align WxH] [--h264-min-qp 0]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
          \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] | --probe [--device ...]\n\
          stdin: start [kbps=N] [height=N] [codec=av1|h264] | bitrate N | key | height N | stop; stdout: see out.rs"
@@ -122,6 +123,7 @@ fn opts() -> Opts {
         start: false,
         ivf: None,
         probe: false,
+        av1_align: None,
     };
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -160,6 +162,7 @@ fn opts() -> Opts {
             "--start" => o.start = true,
             "--encode-out" => o.ivf = Some(v()),
             "--probe" => o.probe = true,
+            "--av1-align" => o.av1_align = Some(parse_size(&v(), 2)),
             _ => usage(),
         }
     }
@@ -194,8 +197,8 @@ fn pick_device() -> String {
     format!("/dev/dri/renderD{}", best.map_or(128, |(_, n)| n))
 }
 
-/// iw x ih fitted inside bw x bh, aspect kept, never upscaled; width a multiple of wa, height of 2, both >= min
-fn fit(iw: u32, ih: u32, bw: u32, bh: u32, wa: u32, min: u32) -> (u32, u32) {
+/// iw x ih fitted inside bw x bh, aspect kept, never upscaled; width a multiple of wa, height of ha, both >= min
+fn fit(iw: u32, ih: u32, bw: u32, bh: u32, (wa, ha): (u32, u32), min: u32) -> (u32, u32) {
     let (iw, ih, bw, bh) = (iw as u64, ih as u64, bw as u64, bh as u64);
     let (mut fw, mut fh) = (iw, ih);
     if iw > bw || ih > bh {
@@ -205,7 +208,7 @@ fn fit(iw: u32, ih: u32, bw: u32, bh: u32, wa: u32, min: u32) -> (u32, u32) {
             (fw, fh) = (iw * bh / ih, bh);
         }
     }
-    ((fw as u32 / wa * wa).max(min), (fh as u32 & !1).max(min))
+    ((fw as u32 / wa * wa).max(min), (fh as u32 / ha * ha).max(min))
 }
 
 // ---------------------------------------------------------------- the shared state (the C's S under the loop lock)
@@ -423,6 +426,7 @@ struct State {
     req_kbps: u32, // target (0: --kbps)
     req_h: u32,    // maximum height (0: --size's)
     h264: bool,    // the codec: --codec, then "start codec=" (the call's codec is known only once negotiated)
+    av1_align: (u32, u32), // AV1's encode size alignment (av1enc::align)
     want_key: bool,
     failed: bool,         // the encoder broke: no encoding until the next "start"
     quit: Option<String>, // why
@@ -502,10 +506,11 @@ impl State {
             bw = (bw as u64 * self.req_h as u64 / bh as u64) as u32;
             bh = self.req_h;
         }
-        self.full = fit(iw, ih, o.max_w, o.max_h, 8, 16);
-        self.want = fit(iw, ih, bw, bh, 8, 16);
+        let align = if self.h264 { (8, 2) } else { self.av1_align };
+        self.full = fit(iw, ih, o.max_w, o.max_h, align, 16);
+        self.want = fit(iw, ih, bw, bh, align, 16);
         if self.prev_box.0 > 0 {
-            self.prev_want = fit(iw, ih, self.prev_box.0, self.prev_box.1, 2, 2);
+            self.prev_want = fit(iw, ih, self.prev_box.0, self.prev_box.1, (2, 2), 2);
         }
     }
 
@@ -1260,11 +1265,14 @@ fn run(o: Arc<Opts>) -> Result<()> {
     let (av1, h264) = (av1enc::supported(&va), h264enc::supported(&va));
     let supported = if o.h264 { h264 } else { av1 };
     let yes = |b| if b { "yes" } else { "no" };
+    let align = o.av1_align.unwrap_or_else(|| av1enc::align(&va));
     eprintln!(
-        "va: {}: {}, AV1 encode: {}, H.264 encode: {}",
+        "va: {}: {}, AV1 encode: {} (sizes aligned to {}x{}), H.264 encode: {}",
         o.device,
         va.vendor(),
         yes(av1),
+        align.0,
+        align.1,
         yes(h264)
     );
     stage("va");
@@ -1293,6 +1301,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         active,
         want_key: active,
         h264: o.h264,
+        av1_align: align,
         input: (o.clip_w, o.clip_h),
         prev_box: o.prev_box,
         credit: 1.0,
