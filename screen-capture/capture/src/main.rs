@@ -1379,6 +1379,18 @@ fn sock_send(sock: i32, text: &str, fds: &[i32]) -> bool {
 
 fn main() {
     let mut o = opts();
+    // what we inherited past stdio (Electron's CDP and other sockets reached capture: they'd stay open as long as
+    // capture runs), except raw's socket
+    let keep = o.socket.map_or(u32::MAX, |s| s as u32);
+    // SAFETY: close_range on fds nothing here has opened yet
+    unsafe {
+        if keep > 3 {
+            libc::syscall(libc::SYS_close_range, 3u32, keep - 1, 0u32);
+        }
+        if keep < u32::MAX {
+            libc::syscall(libc::SYS_close_range, keep + 1, u32::MAX, 0u32);
+        }
+    }
     if o.device == "auto" {
         o.device = pick_device();
     }
