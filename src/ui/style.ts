@@ -372,12 +372,14 @@ export const CSS = `
   & > button[data-mc=attach][hidden] { display: none; }
   & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
   & > ul > button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
-  /* back to the present, at the messages' bottom left */
+  /* back to the present, at the messages' bottom right */
   & > button[data-mc=jump] {
-    --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: start; z-index: 2; display: grid; width: 32px; height: 32px; margin: 0 0 32px 16px;
-    padding: 0; border: 0; border-radius: 50%; background: var(--bg-floating); color: var(--text-strong); place-content: center;
-    box-shadow: 0 4px 8px #0006; cursor: pointer;
+    --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: end; z-index: 2; display: grid; grid: auto / auto; width: 40px; height: 40px;
+    margin: 0 28px 40px 0; padding: 0; border: 0; border-radius: 50%; background: var(--bg-floating); color: var(--text-muted);
+    place-content: center; box-shadow: 0 4px 8px #0006; cursor: pointer;
   }
+  & > button[data-mc=jump]::before { width: 24px; height: 24px; }
+  & > button[data-mc=jump]:hover { color: var(--text-strong); }
   /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
      on the background with a fade above, over what scrolls under it */
   & > output {
