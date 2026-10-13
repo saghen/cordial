@@ -7,8 +7,8 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { A, S } from "../adapter/core";
 import { startTyping, stopTyping } from "../adapter/triggers";
 import type { Rec } from "../adapter/discord";
-import { dmName } from "./channels";
-import { authorOf, can as allowed, type Message, nameOf, PERMS } from "./lib/model";
+import { dmName, kindOf } from "./channels";
+import { authorOf, can as allowed, emojiSrc, type Message, nameOf, PERMS } from "./lib/model";
 import { $, selected, selectedChannel } from "./lib/store";
 
 export function MessageInput() {
@@ -154,9 +154,18 @@ function Typing() {
 // autocomplete from stock's own queries: `@` users and roles, `#` channels, `:` emoji (two letters at least, as stock).
 // A pick goes in as text the parser turns back into a mention
 
-interface Item { text: string; label: string; icon?: string; }
+// One row: what goes in, what shows, stock's hint at the end. A section's first row carries its heading or a divider
+interface Item {
+    text: string; label: string; hint?: string; head?: string; div?: boolean;
+    img?: string; avatar?: string; status?: string; kind?: string; color?: string;
+}
 
 const TOKEN = /(?:^|\s)([@#:])([^\s@#:]*)$/;
+const ROLE_HINT = "Notify users with this role who have permission to view this channel.";
+// stock's headings: "Members" alone, "Members matching @pie" with a query
+const heading = (what: string, t: { kind: string; query: string; }) => t.query ? `${what} matching ${t.kind}${t.query}` : what;
+// sections in order, each after a divider (stock's @ list: members, @everyone and @here, roles)
+const sections = (...lists: Item[][]) => lists.filter(l => l.length).flatMap((l, i) => i ? [{ ...l[0], div: true }, ...l.slice(1)] : l);
 
 function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec | undefined) {
     const [token, setToken] = createSignal<{ kind: string; query: string; at: number; } | null>(null);
@@ -170,17 +179,26 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec |
             // as stock's box: @everyone, @here and every role with the permission to mention everyone
             const everyone = !c.isPrivate() && S.Permission.can(PERMS.MENTION_EVERYONE, c);
             const r = A.autocomplete.queryMentionResults({ query: t.query, channel: c, canMentionEveryone: everyone, request: true });
-            return [
-                ...r.users.map((u: Rec) => ({ text: `@${u.user.username}`, label: nameOf(u.user, u.nick), icon: u.user.getAvatarURL(c.guild_id, 32) })),
-                ...r.roles.map((role: Rec) => ({ text: `@${role.name}`, label: `@${role.name}` })),
-                ...r.globals.filter((g: Rec) => g.text === "@everyone" || g.text === "@here").map((g: Rec) => ({ text: g.text, label: g.text }))
-            ].slice(0, 10);
+            const users: Item[] = r.users.slice(0, 10).map((u: Rec, i: number) => ({
+                text: `@${u.user.username}`, label: nameOf(u.user, u.nick), hint: u.user.username, head: i ? undefined : heading("Members", t),
+                avatar: u.user.getAvatarURL(c.guild_id, 32), status: $.Presence.getStatus(u.user.id)
+            }));
+            const globals: Item[] = r.globals.filter((g: Rec) => g.text === "@everyone" || g.text === "@here")
+                .map((g: Rec) => ({ text: g.text, label: g.text, hint: g.description }));
+            const roles: Item[] = r.roles.map((role: Rec) => ({ text: `@${role.name}`, label: `@${role.name}`, hint: ROLE_HINT, color: role.colorString ?? undefined }));
+            return sections(users, globals, roles).slice(0, 15);
         }
-        if (t.kind === "#") return A.autocomplete.queryChannelResults({ query: t.query, channel: c }).channels
-            .slice(0, 10).map((ch: Rec) => ({ text: `#${ch.name}`, label: `#${ch.name}` }));
+        if (t.kind === "#") return A.autocomplete.queryChannelResults({ query: t.query, channel: c }).channels.slice(0, 10)
+            .map((ch: Rec, i: number) => ({
+                text: `#${ch.name}`, label: ch.name, hint: S.Channel.getChannel(ch.parent_id)?.name, kind: kindOf(ch) ?? "",
+                head: i ? undefined : heading(t.query ? "Text channels" : "Text Channels", t)
+            }));
         if (t.query.length < 2) return [];
         return A.autocomplete.queryEmojiResults({ query: t.query, channel: c, intention: 3, maxCount: 10 }).emojis.unlocked
-            .map((e: Rec) => ({ text: `:${e.name}:`, label: `:${e.name}:`, icon: e.url ?? undefined }));
+            .map((e: Rec, i: number) => ({
+                text: `:${e.name}:`, label: `:${e.name}:`, img: emojiSrc(e.emojiObject ?? e), hint: e.guildId && S.Guild.getGuild(e.guildId)?.name,
+                head: i ? undefined : heading("Emoji", t)
+            }));
     });
 
     // after each input: the token the caret ends
@@ -215,12 +233,14 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec |
     };
 
     const view = <menu ref={menu} data-mc="autocomplete" popover="manual">
-        <For each={items()}>{(item, i) =>
-            <button data-mc={`complete:${item.text}`} class={{ sel: i() === sel() }}
+        <For each={items()}>{(item, i) => <>
+            {item.head ? <h3>{item.head}</h3> : item.div ? <hr /> : null}
+            <button data-mc={`complete:${item.text}`} class={[item.kind, { sel: i() === sel(), ch: item.kind !== undefined }]} data-status={item.status}
+                style={item.avatar || item.color ? { "--icon": item.avatar && `url(${item.avatar})`, color: item.color } : undefined}
                 onPointerDown={e => e.preventDefault()} onClick={() => pick(item)}>
-                {item.icon ? <img alt="" src={item.icon} /> : null}{item.label}
+                {item.img ? <img alt="" src={item.img} /> : null}{item.label}{item.hint ? <small>{item.hint}</small> : null}
             </button>
-        }</For>
+        </>}</For>
     </menu>;
 
     return { view, update, key };

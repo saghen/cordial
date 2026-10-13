@@ -29,7 +29,7 @@ export const CSS = `
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
   & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before,
-  menu[data-mc=message-menu] > button::before, menu > button[data-mc="menu:react"]::after, article > p > button[data-mc="reaction:add"]::before {
+  menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, menu > button[data-mc="menu:react"]::after, article > p > button[data-mc="reaction:add"]::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
 
@@ -100,9 +100,9 @@ export const CSS = `
     background: radial-gradient(circle at 0 50%, var(--text-strong) 3.5px, #0000 4px) 0 50% / 4px 8px no-repeat border-box, none padding-box;
     color: var(--text-strong); font-weight: 600;
   }
-  :is(nav > a, & > header).news { --i: var(--i-announce); }
-  :is(nav > a, & > header).nsfw { --i: var(--i-hash-nsfw); }
-  :is(nav > a, & > header).lock { --i: var(--i-hash-lock); }
+  :is(nav > a, & > header, menu > button.ch).news { --i: var(--i-announce); }
+  :is(nav > a, & > header, menu > button.ch).nsfw { --i: var(--i-hash-nsfw); }
+  :is(nav > a, & > header, menu > button.ch).lock { --i: var(--i-hash-lock); }
   nav > a:hover, nav > a.sel { background-color: var(--bg-raised); color: var(--text-strong); }
   nav > a.sel { background-color: var(--bg-selected); }
   nav > a.muted { color: var(--text-faint); }
@@ -364,8 +364,19 @@ export const CSS = `
   textarea.editing { box-shadow: 0 0 0 2px var(--accent); }
   &:has(> label) > textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
   /* autocomplete (message_input.tsx): a list over the messages, as wide as the box, just above it */
-  menu[data-mc=autocomplete] { position-anchor: --box; width: anchor-size(width); margin: 0 0 8px; }
-  menu[data-mc=autocomplete] > button > img { width: 24px; height: 24px; border-radius: 50%; }
+  menu[data-mc=autocomplete] { position-anchor: --box; width: anchor-size(width); margin: 0 0 8px; border-radius: 5px; gap: 0; }
+  /* stock's sizes: headings 12/600 caps, rows 16 px with the hint at 12 px on the right, 24 px avatars (with the status),
+     20 px emoji, 16 px channel icons, dividers between the @ list's sections */
+  menu[data-mc=autocomplete] {
+    & > h3 { margin: 0 0 8px; padding: 4px 0; font-size: 12px; font-weight: 600; line-height: 16px; text-transform: uppercase; color: var(--text-muted); }
+    & > hr { margin: 8px 0; }
+    & > button { padding: 8px; border-radius: 3px; color: var(--text-strong); font-size: 16px; line-height: 20px; }
+    & > button:has(> img) { min-height: 31px; padding: 4px 8px; }
+    & > button > img { width: 20px; height: 20px; }
+    & > button[data-status]::before { content: ""; flex: none; width: 24px; height: 24px; }
+    & > button.ch::before { width: 16px; height: 16px; color: var(--text-muted); }
+    & > button > small { margin-left: auto; padding-left: 16px; font-size: 12px; font-weight: 400; line-height: 16px; white-space: nowrap; }
+  }
   /* the attach button over the box's left edge, the files waiting to go as chips above it */
   & > button[data-mc=attach] {
     --i: var(--i-plus); grid-area: compose; align-self: start; justify-self: start; z-index: 1; width: 24px; height: 24px; margin: 16px 0 0 32px;
