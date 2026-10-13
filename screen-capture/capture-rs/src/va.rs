@@ -128,6 +128,19 @@ impl Va {
         Ok(Context { va: self.clone(), id })
     }
 
+    /// an image sharing the surface's memory, if the driver can derive one
+    pub fn derive_image(&self, surf: VASurfaceID) -> Option<Image> {
+        let mut img = sys::VAImage::default();
+        // SAFETY: img is written on success
+        let st = unsafe { sys::vaDeriveImage(self.dpy(), surf, &mut img) };
+        (st == sys::VA_STATUS_SUCCESS as sys::VAStatus).then(|| Image { va: self.clone(), img })
+    }
+
+    pub fn sync_surface(&self, surf: VASurfaceID) -> Result<()> {
+        // SAFETY: the surface lives on this display
+        check(unsafe { sys::vaSyncSurface(self.dpy(), surf) }, "vaSyncSurface")
+    }
+
     pub fn image(&self, mut format: sys::VAImageFormat, w: u32, h: u32) -> Result<Image> {
         let mut img = sys::VAImage::default();
         // SAFETY: img is written on success
@@ -328,6 +341,42 @@ impl Image {
         Ok(())
     }
 
+    /// the image's buffer mapped for reading (vaMapBuffer2's READ: a derived image of a VRAM surface is blitted to a
+    /// staging buffer and waited for)
+    pub fn read(&self, f: impl FnOnce(&[u8], &[u32; 3], &[u32; 3])) -> Result<()> {
+        let dpy = self.va.dpy();
+        let mut p: *mut u8 = std::ptr::null_mut();
+        // SAFETY: the mapped buffer is data_size bytes until vaUnmapBuffer
+        unsafe {
+            check(
+                sys::vaMapBuffer2(
+                    dpy,
+                    self.img.buf,
+                    &mut p as *mut _ as *mut _,
+                    sys::VA_MAPBUFFER_FLAG_READ,
+                ),
+                "vaMapBuffer2",
+            )?;
+            f(
+                std::slice::from_raw_parts(p, self.img.data_size as usize),
+                &self.img.offsets,
+                &self.img.pitches,
+            );
+            sys::vaUnmapBuffer(dpy, self.img.buf);
+        }
+        Ok(())
+    }
+
+    /// `surf` (same size) copied into the image
+    pub fn get(&self, surf: VASurfaceID) -> Result<()> {
+        let (w, h) = (self.img.width as u32, self.img.height as u32);
+        // SAFETY: the surface and image live on this display
+        check(
+            unsafe { sys::vaGetImage(self.va.dpy(), surf, 0, 0, w, h, self.img.image_id) },
+            "vaGetImage",
+        )
+    }
+
     /// the image into the whole of `surf` (same size)
     pub fn put(&self, surf: VASurfaceID) -> Result<()> {
         let (w, h) = (self.img.width as u32, self.img.height as u32);
@@ -395,4 +444,16 @@ pub fn vpp_submit(
     }
     let b = ctx.buffer(sys::VABufferType::VAProcPipelineParameterBufferType, &p)?;
     ctx.render(out, &[b])
+}
+
+/// a settable integer surface attribute (usage hint, pixel format)
+pub fn surface_attr(type_: sys::VASurfaceAttribType::Type, value: u32) -> sys::VASurfaceAttrib {
+    sys::VASurfaceAttrib {
+        type_,
+        flags: sys::VA_SURFACE_ATTRIB_SETTABLE,
+        value: sys::VAGenericValue {
+            type_: sys::VAGenericValueType::VAGenericValueTypeInteger,
+            value: sys::_VAGenericValue__bindgen_ty_1 { i: value as i32 },
+        },
+    }
 }
