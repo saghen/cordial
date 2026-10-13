@@ -4,7 +4,7 @@ import { createEffect, createMemo, createSignal, Show } from 'solid-js'
 
 import { A, S } from '../adapter/core'
 import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from './channels'
-import { CallButton, CallView, IncomingCalls, voiceSounds } from './call'
+import { CallButtons, CallView, IncomingCalls, voiceSounds } from './call'
 import { NotificationBell, Pins, Search } from './header'
 import { Chat } from './chat'
 import { warm } from './lib/preload'
@@ -74,7 +74,7 @@ export function App(p: { root: HTMLElement }) {
           )}
         </Show>
         <Show when={dm()}>
-          <CallButton channel={channel()!} />
+          <CallButtons channel={channel()!} />
         </Show>
         <Show when={channel()?.guild_id && channel()}>{(c) => <NotificationBell channel={c()} />}</Show>
         <Show when={channel()}>{(c) => <Pins channel={c()} />}</Show>

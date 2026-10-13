@@ -36,28 +36,32 @@ export function resetContent() {
   built = new WeakMap()
 }
 
-// a DM call: stock's own component writes it (its strings, outside the formatter), here in its English. The call
-// record's duration is a moment duration (stock's "a few seconds", "15 minutes")
+// a DM call: stock's own component writes it (its strings, outside the formatter), here in its English: the caller's
+// name as an author's, the text, the time. The call record's duration is a moment duration (stock's "a few seconds",
+// "15 minutes")
 const CALL = 3
-const callText = (m: Message) => {
-  const { participants = [], duration } = (m as any).call ?? {},
-    who = nameOf(m.author),
+const missed = (m: Message) => !((m as any).call?.participants ?? []).includes(S.Auth.getId())
+const callMessage = (m: Message): globalThis.Node[] => {
+  const duration = (m as any).call?.duration,
+    who = (<b data-mc={`author:${m.author.id}`}>{nameOf(m.author)}</b>) as HTMLElement,
     lasted = duration ? ` that lasted ${duration.humanize()}` : ''
-  return participants.includes(S.Auth.getId())
-    ? `${who} started a call${lasted}.`
-    : `You missed a call from ${who}${lasted}.`
+  const text = missed(m) ? ['You missed a call from ', who, `${lasted}.`] : [who, ` started a call${lasted}.`]
+  return [
+    ...text.map((n) => (typeof n === 'string' ? document.createTextNode(n) : n)),
+    (<time data-mc="ts">{when(m.timestamp)}</time>) as HTMLElement,
+  ]
 }
 
 function content(m: Message, channelId: Id) {
   let nodes = built.get(m)
   if (!nodes) {
-    // a system message is stock's text for it (its formatter, as in notifications)
+    // a system message is stock's text for it (its formatter, as in notifications); a call's is above
     const f = USER_MESSAGE.has(m.type)
       ? renderAST(contentAST(m, channelId), document.createDocumentFragment())
-      : document.createTextNode(
-          (m.type === CALL ? callText(m) : A.systemMessages.stringify(m)) ?? (m.content || `(message type ${m.type})`),
-        )
-    built.set(m, (nodes = f instanceof DocumentFragment ? [...f.childNodes] : [f]))
+      : m.type === CALL
+        ? callMessage(m)
+        : document.createTextNode(A.systemMessages.stringify(m) ?? (m.content || `(message type ${m.type})`))
+    built.set(m, (nodes = f instanceof DocumentFragment ? [...f.childNodes] : Array.isArray(f) ? f : [f]))
     // as stock: emoji alone (up to 30) show large
     const shown = nodes.filter((n) => n.nodeType !== 3 || n.textContent!.trim())
     if (shown.length <= 30 && shown.every((n) => n.nodeName === 'IMG'))
@@ -193,6 +197,8 @@ export function Chat(p: { root: HTMLElement }) {
           failed: m.state === 'SEND_FAILED',
           head: head(),
           system: !USER_MESSAGE.has(m.type),
+          call: m.type === CALL,
+          missed: m.type === CALL && missed(m),
           new: unread() === m.id,
           edited: !!m.editedTimestamp,
           day: !!day(),
@@ -203,7 +209,7 @@ export function Chat(p: { root: HTMLElement }) {
           gone: collapsed() && !count(),
         }}
         style={author() ? { '--av': `url(${author()!.avatar})` } : undefined}
-        data-t={head() ? undefined : clock(m.timestamp)}
+        data-t={head() || m.type === CALL ? undefined : clock(m.timestamp)}
       >
         <Show when={count()}>
           {(n) => (
@@ -330,10 +336,6 @@ export function Chat(p: { root: HTMLElement }) {
       }}
     >
       <div>
-        {/* as stock, skeleton messages while the first page loads, and above the oldest while there are older ones */}
-        <Show when={messages() && (!messages()!.ready || messages()!.hasMoreBefore)}>
-          <div data-mc="placeholder" />
-        </Show>
         <For each={list()}>{Row}</For>
       </div>
     </div>

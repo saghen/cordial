@@ -41,9 +41,9 @@ export const CSS = `
 
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
-  & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after,
-  menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, menu > button[data-mc="menu:react"]::after, article > p > button[data-mc="reaction:add"]::before,
-  div[data-mc=search-results] > h2 > button::before {
+  & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after, section[data-mc=call] > footer > button[title]::before,
+  menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, article > p > button[data-mc="reaction:add"]::before,
+  div[data-mc=search-results] > h2 > button::before, article.call::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
   /* avatars (DMs, the user panel) are round, with the status as a ring */
@@ -178,7 +178,8 @@ export const CSS = `
     &.forced::after { background: var(--danger); }
     &[data-mc^=voice-user]:not(:has(> b))::after { margin-left: auto; }
     /* a category: its name and a chevron, lit on hover (no background) */
-    &.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 14px; line-height: 18px; font-weight: 500; }
+    &.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 12px; line-height: 16px; font-weight: 500; }
+    &.cat:first-child { margin-top: 0; }
     &.cat:hover { background: none; }
     &.cat::before { display: none; }
     &.cat::after { width: 12px; height: 12px; }
@@ -278,9 +279,8 @@ export const CSS = `
     > button[data-status]::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--status); }
     > button.danger { color: var(--danger); }
     > button:disabled { opacity: 0.5; cursor: default; }
-    > hr { margin: 4px 8px; border: 0; border-top: 1px solid var(--bg-raised); }
+    > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
     > button[data-mc="menu:react"] { --i: var(--i-reaction); }
-    > button[data-mc="menu:react"]::after { --i: var(--i-chevron-right); width: 16px; height: 16px; margin-left: auto; }
     > button[data-mc="menu:edit"] { --i: var(--i-pencil); } > button[data-mc="menu:reply"] { --i: var(--i-reply); }
     > button[data-mc="menu:copy"] { --i: var(--i-copy); } > button[data-mc="menu:pin"] { --i: var(--i-pin); }
     > button[data-mc="menu:unread"] { --i: var(--i-unread); } > button[data-mc="menu:link"] { --i: var(--i-link); }
@@ -304,11 +304,6 @@ export const CSS = `
      arrive while scrolled up */
   .messages { grid-area: main; overflow-y: auto; display: flex; flex-direction: column-reverse; }
   .messages > div { padding: 16px 0 24px; }
-  /* loading: skeleton message groups, a tile repeated down a screen's height */
-  .messages > div > div[data-mc=placeholder] {
-    height: 100vh; margin: 0 16px; background: var(--bg-raised);
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='336'%3E%3Ccircle cx='36' cy='26' r='20'/%3E%3Crect x='72' y='8' width='96' height='14' rx='7'/%3E%3Crect x='72' y='32' width='420' height='14' rx='7'/%3E%3Crect x='72' y='56' width='260' height='14' rx='7'/%3E%3Ccircle cx='36' cy='122' r='20'/%3E%3Crect x='72' y='104' width='130' height='14' rx='7'/%3E%3Crect x='72' y='128' width='300' height='14' rx='7'/%3E%3Ccircle cx='36' cy='194' r='20'/%3E%3Crect x='72' y='176' width='80' height='14' rx='7'/%3E%3Crect x='72' y='200' width='520' height='14' rx='7'/%3E%3Crect x='72' y='224' width='380' height='14' rx='7'/%3E%3Crect x='72' y='248' width='200' height='14' rx='7'/%3E%3Ccircle cx='36' cy='290' r='20'/%3E%3Crect x='72' y='272' width='110' height='14' rx='7'/%3E%3Crect x='72' y='296' width='240' height='14' rx='7'/%3E%3C/svg%3E") 0 0 / 640px 336px repeat-y;
-  }
   article {
     position: relative; padding: 2px 16px 2px 72px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
     /* offscreen rows skip style and layout until scrolled to (ai/LOG.md, Key finds) */
@@ -322,7 +317,10 @@ export const CSS = `
       content: ""; position: absolute; left: 16px; top: calc(var(--q, 0px) + 4px); width: 40px; height: 40px; border-radius: 50%;
       background: var(--av) center / cover, var(--bg-raised);
     }
-    &.system { color: var(--text-muted); font-style: italic; }
+    &.system { color: var(--text-muted); }
+    /* a DM call: stock's phone in the avatar's column, green (grey when missed) */
+    &.call::before, &.call:hover::before { content: ""; position: absolute; left: 34px; top: 4px; width: 18px; height: 18px; --i: var(--i-call); background: var(--positive); }
+    &.call.missed::before { background: var(--text-muted); }
     /* a collapsed run of blocked or ignored messages: one line on its first row, stock's "N blocked messages" */
     &.gone { display: none; }
     > button[data-mc$=":show"] { padding: 0; color: var(--text-muted); font: inherit; font-size: 14px; }
@@ -340,7 +338,7 @@ export const CSS = `
       border-top: 32px solid #0000; overflow-clip-margin: border-box;
       background: linear-gradient(var(--bg-raised) 0 0) 0 7px / 100% 1px no-repeat border-box, linear-gradient(#0000 0 0) padding-box;
     }
-    &.day > b::before {
+    &.day > b[data-day]::before {
       content: attr(data-day); position: absolute; top: -32px; left: 50%; translate: -50%; padding: 0 4px;
       background: var(--bg); font-size: 12px; font-weight: 600; line-height: 16px; color: var(--text-muted);
     }
@@ -425,13 +423,14 @@ export const CSS = `
     > button:first-of-type { margin-left: auto; }
     > button + button { margin-left: 8px; }
     > button:hover, > button.on { color: var(--text-strong); }
-    > button[data-mc="call:start"] { --i: var(--i-voice); }
+    > button[data-mc="call:start"] { --i: var(--i-call); }
+    > button[data-mc="call:video"] { --i: var(--i-video); }
     /* notification settings (header.tsx): mute with its durations on hover, then the levels as radios */
     > button[data-mc=notifications] { --i: var(--i-bell); }
     > button[data-mc=notifications].muted { --i: var(--i-bell-slash); }
     /* pins: a dot while there are new ones */
     > button[data-mc=pins] { --i: var(--i-pin); position: relative; }
-    > button[data-mc=pins].unread::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+    > button[data-mc=pins].unread::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
     /* search: a box at the header's end, wider while in use */
     > input[data-mc=search] {
       width: 160px; height: 28px; margin-left: 16px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
@@ -477,7 +476,8 @@ export const CSS = `
   /* the member list (members.tsx): as stock, offline members dimmed, bots badged as in messages */
   section[data-mc=members] {
     grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised);
-    > h3 { padding: 24px 8px 4px; font-size: 14px; font-weight: 500; color: var(--text-muted); }
+    > h3 { padding: 16px 8px 4px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    > h3:first-child { padding-top: 0; }
     > a {
       display: flex; align-items: center; gap: 12px; height: 44px;
       padding: 0 8px; border-radius: 4px; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden;
@@ -485,8 +485,6 @@ export const CSS = `
     > a:hover { background: var(--bg-raised); }
     > a[data-status=offline] { opacity: 0.3; }
     > a::before { content: ""; flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--icon, var(--bg-raised)) center / cover; }
-    /* a row not loaded yet (outside the ranges Discord has sent): a skeleton name */
-    > a:not([data-mc])::after { content: ""; width: 50%; height: 14px; border-radius: 7px; background: var(--bg-raised); }
   }
   section[data-mc=members] > a > i, article > b > i {
     display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; background: var(--accent); color: #fff;
@@ -565,7 +563,7 @@ export const CSS = `
     &:hover { color: var(--text-strong); }
   }
 
-  /* the call view: a tile per person (avatar, name, a ring while speaking), Join beside them; a camera fills its tile,
+  /* the call view: a tile per person (avatar, name, a ring while speaking), Join below them; a camera fills its tile,
      under the name; someone's Go Live: Watch Stream until watched, then the stream, larger and letterboxed */
   & > section[data-mc=call] {
     grid-area: call; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 16px; background: var(--bg-deep);
@@ -587,8 +585,17 @@ export const CSS = `
     > figure.mute { --i: var(--i-mic-off); }
     > figure.deaf { --i: var(--i-deaf); }
     > figure:is(.mute, .deaf)::after { grid-area: 1 / 1; place-self: start end; width: 16px; height: 16px; color: var(--danger); }
+    /* a DM call without cameras or streams, as stock's: round avatars, the name on hover, the icon at the bottom right */
+    &.dm:not(:has(video, figure.stream)) > figure {
+      width: 80px; height: 80px; padding: 0; border-radius: 50%; font-size: 0; background: var(--icon, none) center / cover, var(--bg-raised); outline-offset: 2px;
+    }
+    &.dm:not(:has(video, figure.stream)) > figure:is(.mute, .deaf)::after { place-self: end end; width: 20px; height: 20px; }
   }
-  section[data-mc=call] > button, dialog[data-mc^=incoming] > button {
+  /* Join on a row of its own below the tiles; a DM's are icons */
+  section[data-mc=call] > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; }
+  section[data-mc=call] > footer > button[title] { display: grid; place-content: center; width: 56px; height: 40px; padding: 0; --i: var(--i-call); }
+  section[data-mc=call] > footer > button[data-mc="call:join-video"] { --i: var(--i-video); }
+  section[data-mc=call] > footer > button, dialog[data-mc^=incoming] > button {
     padding: 8px 16px; border-radius: 4px; background: var(--positive); color: #fff; font: inherit; font-size: 14px; font-weight: 500;
   }
   /* a call ringing for you, at the top of the window */

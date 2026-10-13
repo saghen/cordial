@@ -1,5 +1,5 @@
 // The call view: who's in the selected voice channel, or in the DM's call, as tiles above its messages (a voice
-// channel's text chat), with Join while elsewhere; the DM header's call button; incoming calls with Accept and Decline.
+// channel's text chat), with Join below them while elsewhere; the DM header's call button; incoming calls with Accept and Decline.
 // Discord's voice engine does the call (stock's selectVoiceChannel, call and stopRinging)
 
 import { createEffect, createMemo, For, Show } from 'solid-js'
@@ -10,10 +10,14 @@ import { url } from './channels'
 import { nameOf } from './lib/model'
 import { $, selectedChannel } from './lib/store'
 
+// a DM's call with someone in it (a call record can outlive its last participant)
+const going = (id: Id) =>
+  !!$.Call.getCall(id) && Object.keys($.VoiceState.getVoiceStatesForChannel(id)).length > 0
+
 // voice and stage channels, and DMs with a call going
 const callOf = () => {
   const c = selectedChannel()
-  return c && (c.type === 2 || c.type === 13 || (!c.guild_id && $.Call.getCall(c.id))) ? c : null
+  return c && (c.type === 2 || c.type === 13 || (!c.guild_id && going(c.id))) ? c : null
 }
 
 export function CallView() {
@@ -22,7 +26,7 @@ export function CallView() {
       {(c) => {
         const states = () => Object.values($.VoiceState.getVoiceStatesForChannel(c().id)) as Rec[]
         return (
-          <section data-mc="call">
+          <section data-mc="call" class={{ dm: !c().guild_id }}>
             <For each={states()}>
               {(v) => {
                 const user = () => $.User.getUser(v.userId)
@@ -31,6 +35,7 @@ export function CallView() {
                   <>
                     <figure
                       data-mc={`tile:${v.userId}`}
+                      title={name()}
                       style={url(user()?.getAvatarURL(c().guild_id, 128))}
                       class={{
                         speaking: $.Speaking.isSpeaking(v.userId),
@@ -50,10 +55,25 @@ export function CallView() {
                 )
               }}
             </For>
+            {/* as stock, below the tiles while you're elsewhere: Join Voice, or a DM call's video and voice */}
             <Show when={$.RTCConnection.getChannelId() !== c().id}>
-              <button data-mc="call:join" onClick={() => A.voice.selectVoiceChannel(c().id)}>
-                {states().length ? 'Join Voice' : c().guild_id ? 'Join Voice' : 'Join Call'}
-              </button>
+              <footer>
+                <Show
+                  when={!c().guild_id}
+                  fallback={
+                    <button data-mc="call:join" onClick={() => A.voice.selectVoiceChannel(c().id)}>
+                      Join Voice
+                    </button>
+                  }
+                >
+                  <button
+                    data-mc="call:join-video"
+                    title="Join Call with Video"
+                    onClick={() => A.calls.call(c().id, true, false)}
+                  />
+                  <button data-mc="call:join" title="Join Call" onClick={() => A.calls.call(c().id, false, false)} />
+                </Show>
+              </footer>
             </Show>
           </section>
         )
@@ -103,16 +123,23 @@ function Video(p: { id: string }) {
   return el
 }
 
-// stock's DM header button: a call to the DM (ringing its recipients), or to a 1:1 DM's user
-export const CallButton = (p: { channel: Rec }) => (
-  <button
-    data-mc="call:start"
-    title="Start Voice Call"
-    onClick={() =>
-      A.calls.call(p.channel.id, false, true, p.channel.type === 1 ? p.channel.getRecipientId() : undefined)
-    }
-  />
-)
+// stock's DM header buttons: a voice or video call to the DM (ringing its recipients, or a 1:1 DM's user), or into the
+// call already going there (no ring); gone while you're in it
+export function CallButtons(p: { channel: Rec }) {
+  const call = (video: boolean) =>
+    A.calls.call(
+      p.channel.id,
+      video,
+      !going(p.channel.id),
+      p.channel.type === 1 ? p.channel.getRecipientId() : undefined,
+    )
+  return (
+    <Show when={$.RTCConnection.getChannelId() !== p.channel.id}>
+      <button data-mc="call:start" title="Start Voice Call" onClick={() => call(false)} />
+      <button data-mc="call:video" title="Start Video Call" onClick={() => call(true)} />
+    </Show>
+  )
+}
 
 // calls ringing for you: Accept joins and opens the DM, Decline stops the ringing (stock's), and the ringtone loops
 // meanwhile, as stock's (unless its sound is off)
