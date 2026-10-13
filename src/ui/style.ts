@@ -147,7 +147,7 @@ export const CSS = `
   /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size */
   &:has(> footer) > nav { padding-bottom: 64px; }
   & > footer {
-    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr auto auto; padding: 8px; border-top: 1px solid var(--bg-raised);
+    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr auto auto auto; padding: 8px; border-top: 1px solid var(--bg-raised);
     font-size: 14px; font-weight: 600; color: var(--warning);
   }
   & > footer[data-state=RTC_CONNECTED] { color: var(--positive); }
@@ -158,6 +158,16 @@ export const CSS = `
   }
   & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
   & > footer > button[data-mc="voice:settings"] { --i: var(--i-settings); }
+  & > footer > button[data-mc="voice:soundboard"] { --i: var(--i-soundboard); }
+  & > footer > button[data-mc="voice:soundboard"]:hover { color: var(--text-strong); }
+  /* the soundboard: each server's sounds as tiles, over the panel */
+  menu[data-mc=soundboard] { inset: auto auto 72px 80px; width: 420px; max-height: 60vh; overflow-y: auto; }
+  menu[data-mc=soundboard] > h3 { padding: 8px 4px 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
+  menu[data-mc=soundboard] > p { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  menu[data-mc=soundboard] > p > button { display: flex; gap: 6px; align-items: center; padding: 8px; border: 0; border-radius: 8px; background: var(--bg-raised); color: var(--text); font: inherit; font-size: 13px; text-align: left; overflow: hidden; }
+  menu[data-mc=soundboard] > p > button.on { outline: 2px solid var(--positive); }
+  menu[data-mc=soundboard] > p > button:disabled { opacity: 0.4; cursor: default; }
+  menu[data-mc=soundboard] > p > button > img { width: 20px; height: 20px; }
   & > footer > button[data-mc="voice:settings"]:hover { color: var(--text-strong); }
   /* the voice settings: a column of labelled controls over the panel */
   form[data-mc=voice-settings] {

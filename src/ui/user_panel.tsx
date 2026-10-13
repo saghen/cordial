@@ -6,7 +6,7 @@ import { createSignal, For, Show } from 'solid-js'
 import { A, S } from '../adapter/core'
 import type { Rec } from '../adapter/discord'
 import { url } from './channels'
-import { nameOf } from './lib/model'
+import { emojiSrc, nameOf } from './lib/model'
 import { popAt } from './lib/popover'
 import { $ } from './lib/store'
 
@@ -84,12 +84,61 @@ function VoicePanel() {
           <small>
             {c().name} / {$.Guild.getGuild(c().guild_id)?.name}
           </small>
+          <button data-mc="voice:soundboard" title="Open Soundboard" popovertarget="mc-soundboard" />
           <button data-mc="voice:settings" title="Voice Settings" popovertarget="mc-voice-settings" />
           <button data-mc="voice:disconnect" title="Disconnect" onClick={() => A.voice.disconnect()} />
           <VoiceSettings />
+          <Soundboard channel={c()} />
         </footer>
       )}
     </Show>
+  )
+}
+
+// the soundboard, as stock's: the sounds of this server, the others' and Discord's, the ones you can't use greyed (stock's
+// rule: Nitro for other servers' sounds); a click plays it in the call, unless you're muted. The sounds load on open
+function Soundboard(p: { channel: Rec }) {
+  const sections = () => {
+    const all = $.Soundboard.getSounds(),
+      here = p.channel.guild_id
+    const ids = [here, ...[...all.keys()].filter((id) => id !== here && id !== '0'), '0']
+    return ids
+      .filter((id) => all.get(id)?.length)
+      .map((id) => [id === '0' ? 'Default' : $.Guild.getGuild(id)?.name, all.get(id)!] as const)
+  }
+  const usable = (sound: Rec) => A.soundboard.canUse(S.User.getCurrentUser(), sound, p.channel, true)
+  return (
+    <menu
+      id="mc-soundboard"
+      data-mc="soundboard"
+      popover
+      onToggle={(e) => e.newState === 'open' && A.soundboardSounds.fetch()}
+    >
+      <For each={sections()}>
+        {([name, sounds]) => (
+          <>
+            <h3>{name}</h3>
+            <p>
+              <For each={sounds}>
+                {(sound) => (
+                  <button
+                    data-mc={`soundboard:${sound.soundId}`}
+                    class={{ on: $.Soundboard.isPlayingSound(sound.soundId) }}
+                    disabled={!usable(sound)}
+                    onClick={() => A.soundboard.canPlay(p.channel) && A.soundboard.play(sound, p.channel.id, [])}
+                  >
+                    <Show when={sound.emojiId} fallback={sound.emojiName}>
+                      <img alt="" src={emojiSrc({ id: sound.emojiId })} />
+                    </Show>
+                    {sound.name}
+                  </button>
+                )}
+              </For>
+            </p>
+          </>
+        )}
+      </For>
+    </menu>
   )
 }
 

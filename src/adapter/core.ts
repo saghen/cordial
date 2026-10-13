@@ -118,6 +118,7 @@ storeNeed(
 storeNeed('NotificationSettings', 'NotificationSettingsStore', 'getDisableUnreadBadge', 'isSoundDisabled')
 storeNeed('Soundpack', 'SoundpackStore', 'getSoundpack')
 storeNeed('Search', 'SearchMessageStore', 'getMessages', 'getTotalCount', 'getIsFetching', 'getError')
+storeNeed('Soundboard', 'SoundboardStore', 'getSounds', 'isPlayingSound')
 storeNeed('ChannelPins', 'ChannelPinsStore', 'getPins')
 storeNeed('Stickers', 'StickersStore', 'getAllGuildStickers', 'getPremiumPacks')
 storeNeed('GIFPickerView', 'GIFPickerViewStore', 'getResultItems', 'getTrendingCategories')
@@ -260,6 +261,14 @@ mangled('gifs', 'type:"GIF_PICKER_INITIALIZE"', {
   clear: 'GIF_PICKER_QUERY",query:""',
   select: 'GIFS_SELECT',
 })
+// stock's soundboard: play (its request, then the sound here), its rules for which sounds you can use and whether you
+// can play in a channel, and its fetch of the sounds (Discord's over REST, the servers' over the gateway)
+mangled('soundboard', 'SEND_SOUNDBOARD_SOUND(', {
+  play: 'SEND_SOUNDBOARD_SOUND(',
+  canUse: 'canUseSoundboardEverywhere',
+  canPlay: 'suppress:',
+})
+mangled('soundboardSounds', 'type:"SOUNDBOARD_FETCH_DEFAULT_SOUNDS"', { fetch: 'REQUEST_SOUNDBOARD_SOUNDS' })
 // stock's message search: its actions are in the chunks of the lazy "Search" component (its header's search bar),
 // loaded as stock loads them, the first time
 moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
