@@ -13,8 +13,12 @@
 // arguments if any. Discord's database has Linux executables for only a few games, so a path under
 // `<library>/steamapps/common/<installdir>/` also matches the game with that Steam app id (from the library's
 // appmanifest_<id>.acf): native and Proton Steam games, and the many games the database knows only by app id.
+//
+// With $MINCORD_WINE_BRIDGE, Wine and Proton games also get Rich Presence (wine.rs).
 
-use std::collections::{BTreeMap, HashMap};
+mod wine;
+
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, Read, Write};
 use std::os::unix::process::parent_id;
@@ -36,6 +40,7 @@ struct Watch {
     steam: HashMap<String, usize>,
     // Steam libraries: installdir -> app id, read when steamapps/ changes
     libraries: HashMap<String, (Option<SystemTime>, HashMap<String, String>)>,
+    bridge: Option<wine::Bridge>,
 }
 
 type Running = BTreeMap<usize, (u32, String, String)>;
@@ -45,7 +50,7 @@ fn basename(path: &str) -> &str {
 }
 
 fn main() {
-    let mut watch = Watch::default();
+    let mut watch = Watch { bridge: wine::Bridge::start(), ..Default::default() };
     for line in io::stdin().lock().lines().map_while(Result::ok) {
         let mut fields = line.split('\t');
         let (Some(id), Some(arguments), Some(steam)) = (fields.next(), fields.next(), fields.next()) else { continue };
@@ -90,12 +95,19 @@ impl Watch {
         pids.sort_unstable();
         // one read each: command lines past 16 KiB are cut (only arguments are matched there)
         let mut buf = vec![0; 16 << 10];
+        let mut wineservers = HashSet::new();
         for pid in pids {
             // empty for kernel threads and zombies
             let Ok(n) = File::open(format!("/proc/{pid}/cmdline")).and_then(|mut f| f.read(&mut buf)) else { continue };
             let cmdline = &buf[..n];
             let Some(argv0) = cmdline.split(|&b| b == 0).next().filter(|a| !a.is_empty()) else { continue };
             let exe = fs::read_link(format!("/proc/{pid}/exe")).unwrap_or_default();
+            if let Some(bridge) = &mut self.bridge
+                && exe.file_name().is_some_and(|n| n == "wineserver")
+            {
+                wineservers.insert(pid);
+                bridge.wineserver(pid, &exe);
+            }
             let exe = exe.as_os_str().as_encoded_bytes();
             for path in [exe.strip_suffix(b" (deleted)").unwrap_or(exe), argv0] {
                 let path = String::from_utf8_lossy(path).replace('\\', "/");
@@ -104,6 +116,9 @@ impl Watch {
                     break;
                 }
             }
+        }
+        if let Some(bridge) = &mut self.bridge {
+            bridge.retain(&wineservers);
         }
         running
     }
