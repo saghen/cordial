@@ -35,10 +35,10 @@ function content(m: Message, channelId: Id) {
     return nodes;
 }
 
-// images and videos inline, scaled to fit 400x300 (as embeds' media), anything else a link
+// images and videos inline (images in the larger box), anything else a link
 const attachment = (a: Attachment) => {
     const type = a.content_type?.split("/")[0], m = { url: a.url, proxyURL: a.proxy_url, width: a.width!, height: a.height! };
-    if (type === "image" && a.width) return img(m, 400, 300, "media");
+    if (type === "image" && a.width) return img(m, "sent");
     if (type === "video") return <video class="media" controls preload="metadata" {...(a.width ? fit(m, 400, 300) : {})} src={a.url} />;
     return <a class="file" href={a.url} target="_blank" rel="noreferrer noopener" data-size={size(a.size)}>{a.filename}</a>;
 };

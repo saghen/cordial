@@ -15,10 +15,13 @@ export const fit = (m: Media, w: number, h: number) => {
     const s = Math.min(1, w / m.width, h / m.height);
     return { width: Math.round(m.width * s), height: Math.round(m.height * s) };
 };
-export const img = (m: Media, w: number, h: number, cls: string, open?: string) => {
-    const { width, height } = fit(m, w, h);
+// the box an image fits: embeds' media, a thumbnail, a sent image (larger, but GIFs stay at embeds' size)
+const BOX = { media: [400, 300], thumb: [80, 80], sent: [550, 350] } as const;
+export const img = (m: Media, box: keyof typeof BOX, open?: string) => {
+    const isGif = !!m.proxyURL && /\.gif(\?|$)/i.test(m.url), thumb = box === "thumb";
+    const [w, h] = BOX[isGif && box === "sent" ? "media" : box], { width, height } = fit(m, w, h);
     const src = m.proxyURL ? `${m.proxyURL}${m.proxyURL.includes("?") ? "&" : "?"}width=${width}&height=${height}` : m.url;
-    return <img class={cls} alt="" width={width} height={height} loading="lazy" {...(m.proxyURL && /\.gif(\?|$)/i.test(m.url) ? gif(src) : { src })}
+    return <img class={{ media: true, thumb }} alt="" width={width} height={height} loading="lazy" {...(isGif ? gif(src) : { src })}
         onClick={open ? () => window.open(open) : undefined} />;
 };
 
@@ -48,7 +51,7 @@ export const embed = (e: Embed) => {
                 : <video class="media" controls preload="metadata" width={width} height={height} src={e.video.proxyURL} />;
         }
         const m = e.image ?? e.thumbnail;
-        return m ? img(m, 400, 300, "media") : null;
+        return m ? img(m, "media") : null;
     }
     const big = e.image ?? (e.video && e.thumbnail), small = !e.video && e.thumbnail;
     // as stock: no description for YouTube (youtu.be, shorts, music. and m. included)
@@ -59,7 +62,7 @@ export const embed = (e: Embed) => {
         {e.author && <b>{e.author.name}</b>}
         {e.rawTitle && <a href={e.url} target="_blank" rel="noreferrer noopener">{e.rawTitle}</a>}
         {text && <p ref={p => renderAST(markdown(text), p)} />}
-        {small && img(small, 80, 80, "media thumb")}
-        {big && img(big, 400, 300, "media", e.url)}
+        {small && img(small, "thumb")}
+        {big && img(big, "media", e.url)}
     </figure>;
 };
