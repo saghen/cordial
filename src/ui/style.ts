@@ -12,9 +12,9 @@ export const CSS = `
   ${ICONS}
   --i: var(--i-hash);
   position: fixed; inset: 0; z-index: 1; display: grid;
-  grid: "notice notice notice notice" auto "servers side head head" 48px "servers nav call members" auto "servers nav main members" 1fr
-    "servers nav uploads members" auto "servers nav reply members" auto "servers nav compose members" auto
-    "servers me compose members" 60px / 72px 300px minmax(0, 1fr) auto;
+  grid: "notice notice notice notice" auto "servers side head head" 48px "servers panels call members" auto "servers panels main members" 1fr
+    "servers panels uploads members" auto "servers panels reply members" auto "servers panels compose members" auto
+    / 72px 300px minmax(0, 1fr) auto;
   background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
 
   & * { margin: 0; box-sizing: border-box; }
@@ -41,13 +41,13 @@ export const CSS = `
 
   /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
   nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
-  & > header > button::before, & > footer > button::before, & > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after, section[data-mc=call] > footer > button[title]::before,
+  & > header > button::before, section[data-mc=side] > footer > button::before, & > button:not([data-mc=me])::before, section[data-mc=side] > button:not([data-mc=me])::before, div.open > a.folder::before, aside > button[data-mc=add-server]::before, dialog[data-mc^=incoming] > button::before, section[data-mc=call] > figure:is(.mute, .deaf)::after, section[data-mc=call] > footer > button[title]::before,
   menu[data-mc=message-menu] > button::before, menu[data-mc=autocomplete] > button.ch::before, article > p > button[data-mc="reaction:add"]::before,
   div[data-mc=search-results] > h2 > button::before, article.call::before, menu > nav > button[style]::before, menu > h3 > button::before {
     content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
   }
   /* avatars (DMs, the user panel) are round, with the status as a ring */
-  nav > a[style]::before, & > header[style]::before, & > button[data-mc=me]::before {
+  nav > a[style]::before, & > header[style]::before, button[data-mc=me]::before {
     content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
   }
   /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
@@ -92,7 +92,8 @@ export const CSS = `
     a.unread::before { height: 8px; }
     a:hover::before { height: 20px; }
     a.sel::before { height: 40px; }
-    a[data-mc=dms] { background: var(--img-discord) center / 28px no-repeat, var(--bg-raised); }
+    a[data-mc=dms] { background: var(--img-chat) center / 24px no-repeat, var(--bg-raised); }
+    a[data-mc=dms]:is(:hover, .sel) { background-image: var(--img-chat-on); }
     a[data-n]::after { position: absolute; right: -4px; bottom: -4px; box-shadow: 0 0 0 3px var(--bg); }
     /* folders, as stock measures them: closed, a 48 px tile of four; open, the folder icon in its colour over its
        servers, on one column */
@@ -191,11 +192,13 @@ export const CSS = `
     &:has(> small)::before { grid-row: span 2; }
   }
 
-  /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size. Rows: the
-     voice settings when open, the status, the channel; the buttons a column each beside the last two */
-  &:has(> footer) > nav { padding-bottom: 64px; }
-  & > footer {
-    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid: auto auto auto / 1fr repeat(5, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
+  /* the side column: the channel list or the DMs, then the voice panel and the user panel, each in its own row, so
+     neither panel covers the list */
+  section[data-mc=side] { grid-area: panels; display: grid; grid: "nav" minmax(0, 1fr) "voice" auto "me" 60px / minmax(0, 1fr); }
+  /* the voice panel. Rows: the voice settings when open, the status, the channel; the buttons a column each beside
+     the last two */
+  section[data-mc=side] > footer {
+    grid-area: voice; display: grid; background: var(--bg); grid: auto auto auto / 1fr repeat(5, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
     font-size: 14px;
     > b { grid-area: 2 / 1; font-weight: 600; color: var(--warning); }
     &[data-state=RTC_CONNECTED] > b { color: var(--positive); }
@@ -252,7 +255,7 @@ export const CSS = `
   }
 
   /* the user panel (a button: it opens the account popout), and mute and deafen over its end (user_panel.tsx) */
-  & > button {
+  section[data-mc=side] > button {
     grid-area: me; display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; padding: 0 8px;
     border-top: 1px solid var(--bg-raised); text-align: left; font: inherit; font-weight: 500; color: var(--text-strong);
     &[data-mc=me]::before { grid-row: span 2; align-self: center; }
@@ -318,10 +321,12 @@ export const CSS = `
       content: ""; position: absolute; left: 16px; top: calc(var(--q, 0px) + 4px); width: 40px; height: 40px; border-radius: 50%;
       background: var(--av) center / cover, var(--bg-raised);
     }
-    &.system { color: var(--text-muted); }
-    /* a DM call: stock's phone in the avatar's column, green (grey when missed) */
-    &.call::before, &.call:hover::before { content: ""; position: absolute; left: 34px; top: 4px; width: 18px; height: 18px; --i: var(--i-call); background: var(--positive); }
-    &.call.missed::before { background: var(--text-muted); }
+    /* a system message: stock's container adds 2 px above and below the line */
+    &.system { padding-block: 4px; color: var(--text-muted); }
+    &.system:hover::before { top: 4px; }
+    /* a DM call: stock's handset in the avatar's column, green (grey and mirrored when missed) */
+    &.call::before, &.call:hover::before { content: ""; position: absolute; left: 28px; top: 7px; width: 16px; height: 16px; --i: var(--i-call-joined); background: var(--positive); }
+    &.call.missed::before { --i: var(--i-call-missed); background: var(--text-muted); }
     /* a collapsed run of blocked or ignored messages: one line on its first row, stock's "N blocked messages" */
     &.gone { display: none; }
     > button[data-mc$=":show"] { padding: 0; color: var(--text-muted); font: inherit; font-size: 14px; }
@@ -331,6 +336,7 @@ export const CSS = `
     > b { font-weight: 500; color: var(--text-strong); white-space: normal; cursor: pointer; }
     > b::before { pointer-events: none; }
     > time[data-mc=ts] { margin-left: 8px; font-size: 12px; color: var(--text-muted); }
+    &.system > time[data-mc=ts] { margin-left: 4px; }
     > b:hover { text-decoration: underline 1px; }
     /* The date divider and the first unread's red line with stock's NEW tag: inside the row (content-visibility clips
        what's outside it), in a clear top border, so a mention or reply's background starts below them (the last layer
@@ -517,8 +523,8 @@ export const CSS = `
   }
   /* the attach button over the box's left edge, the pickers (pickers.tsx) over its right, each opening above it */
   & > button:is([data-mc=attach], [data-mc=emoji], [data-mc=gif], [data-mc=sticker]) {
-    --i: var(--i-reaction); grid-area: compose; align-self: start; justify-self: end; z-index: 1; width: 24px; height: 24px; margin: 16px 32px 0 0;
-    padding: 0; border: 0; color: var(--text-muted); place-content: center;
+    --i: var(--i-reaction); grid-area: compose; align-self: start; justify-self: end; z-index: 1; display: grid; width: 24px; height: 24px;
+    margin: 16px 32px 0 0; padding: 0; border: 0; color: var(--text-muted); place-content: center;
     &:hover { color: var(--text-strong); }
     &[hidden] { display: none; }
   }

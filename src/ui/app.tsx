@@ -58,8 +58,10 @@ export function App(p: { root: HTMLElement }) {
       <Connection />
       <ServerBar />
       <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : 'Direct Messages'}</h1>
-      <Channels />
-      <UserPanel />
+      <section data-mc="side">
+        <Channels />
+        <UserPanel />
+      </section>
       <header
         style={dm() ? url(dmIcon(channel())) : undefined}
         data-status={dm() ? dmStatus(channel()) : undefined}
