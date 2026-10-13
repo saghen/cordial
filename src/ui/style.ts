@@ -151,9 +151,12 @@ export const CSS = `
     font-size: 14px; font-weight: 600; color: var(--warning);
   }
   & > footer[data-state=RTC_CONNECTED] { color: var(--positive); }
-  & > footer > small { grid-column: 1; font-weight: 400; font-size: 12px; color: var(--text-muted); }
+  /* placed, so the bare status text takes the first cell and the buttons a column each */
+  & > footer > small { grid-area: 2 / 1; font-weight: 400; font-size: 12px; color: var(--text-muted); }
+  & > footer > button:nth-of-type(2) { grid-column: 3; }
+  & > footer > button:nth-of-type(3) { grid-column: 4; }
   & > footer > button {
-    --i: var(--i-hangup); grid-row: 1 / 3; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
+    --i: var(--i-hangup); grid-area: 1 / 2 / 3; display: grid; place-content: center; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
     color: var(--text-muted);
   }
   & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
