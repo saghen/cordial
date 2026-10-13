@@ -90,6 +90,8 @@ export interface Stores {
     getEchoCancellation(): boolean
     getAutomaticGainControl(): boolean
     isNoiseCancellationSupported(): boolean
+    // the voice engine: its connections (Go Live's among them, screen-capture's quality)
+    getMediaEngine(): { connections: Iterable<any> }
   }
   ExpandedGuildFolder: FluxStore & { isFolderExpanded(folderId: number): boolean }
   Channel: FluxStore & { getChannel(id: Id): Rec | undefined }
@@ -408,6 +410,8 @@ export interface Actions {
   memberSubscriptions: { range(o: { guildId: Id; channelId: Id; y: number; height: number; rowHeight: number }): void }
   // stock's status picker: writes the status user setting (it syncs to every client)
   setStatus(options: { nextStatus: string; prevStatus?: string; durationMillis?: number }): Promise<void>
+  // which Go Live resolution and frame rate the user and the server's boost level allow (screen-capture)
+  canStreamWithSettings(preset: number, resolution: number, fps: number, user: unknown, tier?: number): boolean
   // stock's login actions: each dispatches its result (LOGIN_MFA_STEP, LOGIN_SUCCESS, LOGIN_FAILURE...) and rejects with
   // the request's error (its fields' messages) on a failure
   auth: {

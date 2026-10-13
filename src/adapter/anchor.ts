@@ -133,6 +133,7 @@ Object.assign(G, {
     adapter: checked ? check() : null,
     mounted: !!unmount,
     native: G.nativeApplied?.() ?? null,
+    screen: G.screenApplied?.() ?? null,
   }),
 })
 

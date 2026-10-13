@@ -14,7 +14,8 @@
 //
 // Discord sets its decryption up per receiver with RTCRtpScriptTransform when the receiver has `transform`, else with
 // createEncodedStreams (handing the streams to its worker), so `transform` goes and video receivers' streams get a
-// stage on each side of Discord's worker.
+// stage on each side of Discord's worker. Anything unexpected (a frame without metadata, one the worker didn't come
+// back with, a stage that throws) leaves the frame as it was: a Discord change can cost AV1 receive, not calls.
 
 const isAv1 = (f: any) => f.getMetadata().mimeType === 'video/AV1'
 
@@ -95,13 +96,21 @@ function stages() {
   return { before, after }
 }
 
+// (only where Chromium has both: else Discord keeps its own path, untouched)
 const proto = RTCRtpReceiver.prototype as any
-delete proto.transform
 const origCreate = proto.createEncodedStreams
-proto.createEncodedStreams = function (this: RTCRtpReceiver) {
-  const streams = origCreate.call(this)
-  if (this.track.kind !== 'video') return streams
-  const { before, after } = stages()
-  after.readable.pipeTo(streams.writable).catch((e) => failed('to the receiver: ' + e))
-  return { readable: streams.readable.pipeThrough(before), writable: after.writable }
+if (typeof origCreate === 'function' && 'transform' in proto) {
+  delete proto.transform
+  proto.createEncodedStreams = function (this: RTCRtpReceiver) {
+    const streams = origCreate.call(this)
+    try {
+      if (this.track?.kind !== 'video' || !streams?.readable || !streams.writable) return streams
+      const { before, after } = stages()
+      after.readable.pipeTo(streams.writable).catch((e) => failed('to the receiver: ' + e))
+      return { readable: streams.readable.pipeThrough(before), writable: after.writable }
+    } catch (e) {
+      failed(e)
+      return streams
+    }
+  }
 }

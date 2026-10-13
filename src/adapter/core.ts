@@ -208,6 +208,7 @@ storeNeed(
   'getEchoCancellation',
   'getAutomaticGainControl',
   'isNoiseCancellationSupported',
+  'getMediaEngine',
 )
 storeNeed('SelfPresence', 'SelfPresenceStore', 'getStatus')
 storeNeed('LocalActivity', 'LocalActivityStore', 'getPrimaryActivity')
@@ -349,6 +350,7 @@ mangled('memberSubscriptions', 'GUILD_SUBSCRIPTIONS_MEMBERS_REMOVE",guildId', { 
 // stock's file chooser handler: size and count limits, then the files staged in UploadAttachmentStore
 mangled('promptToUpload', 'Unexpected mismatch between files and file metadata', { prompt: 'requireConfirm' })
 byCode('setStatus', 'nextStatus:', 'statusExpiresAtMs=')
+byCode('canStreamWithSettings', 'location:"canStreamWithSettings"')
 mangled('nav', 'transitionTo - Transitioning to', {
   transitionTo: 'transitionTo -',
   transitionToGuild: 'transitionToGuild -',
