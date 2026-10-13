@@ -1,12 +1,14 @@
-// capture, the Rust port (P2) of capture/capture.c: a niri cast of a window or an output (--window, --output; the
-// Mutter ScreenCast D-Bus API, mutter.rs), a PipeWire node (--node) or the clip (--clip), with the C's protocol (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1
-// encoder, the frame dropper and the repeats. capture.c's header has the design; this follows it function by function.
+// capture: a niri cast of a window or an output (--window, --output; the Mutter ScreenCast D-Bus API, mutter.rs), a
+// PipeWire node (--node) or the clip (--clip), with its protocol (stdin commands, stdout frames, previews, info and
+// stats), the VPP, the AV1 encoder, the frame dropper and the repeats. It is the Rust port of the C build (castscale
+// renamed; P3 chose Rust and removed the C, whose capture.c, last at f59ff8c, has the design); it follows the C
+// function by function.
 //
-//   mincord-capture-rs (--window ID | --output NAME | --node ID | --clip F.i420 --clip-size WxH) [--size WxH]
-//                      [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
-//                      [--av1-refs 1|2] [--av1-min-q 10]
-//                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
-//                      [--encode-out F.ivf]
+//   mincord-capture (--window ID | --output NAME | --node ID | --clip F.i420 --clip-size WxH) [--size WxH]
+//                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
+//                   [--av1-refs 1|2] [--av1-min-q 10]
+//                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
+//                   [--encode-out F.ivf]
 //   stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop
 //
 // Threads: the PipeWire thread (cast.rs) dequeues the newest buffer, submits the VPP into a free slot of the encode
@@ -65,12 +67,12 @@ struct Opts {
 
 fn usage() -> ! {
     eprintln!(
-        "usage: mincord-capture-rs (--window ID | --output NAME | --node ID | --clip FILE.i420 --clip-size WxH)\n\
-         \x20                         [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
-         \x20                         [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 10]\n\
-         \x20                         [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
-         \x20                         [--start] [--encode-out FILE.ivf]\n\
-         stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop; stdout: see capture.c"
+        "usage: mincord-capture (--window ID | --output NAME | --node ID | --clip FILE.i420 --clip-size WxH)\n\
+         \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
+         \x20                      [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 10]\n\
+         \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
+         \x20                      [--start] [--encode-out FILE.ivf]\n\
+         stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop; stdout: see out.rs"
     );
     std::process::exit(2)
 }

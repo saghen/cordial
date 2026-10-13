@@ -3,11 +3,7 @@ name = "mincord-capture"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "mincord's Go Live encoder (the Rust port of capture/, P2)"
-
-[[bin]]
-name = "mincord-capture-rs"
-path = "src/main.rs"
+description = "mincord's Go Live encoder"
 
 [dependencies]
 # Discord's fork (crates.md): Display is Arc + Send + Sync; the raw bindings are re-exported

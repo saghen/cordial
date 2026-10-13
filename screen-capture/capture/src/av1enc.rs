@@ -1,6 +1,6 @@
-// av1enc: low-delay AV1 encoding through VA-API, ported from capture/av1enc.c (its header has the why: what Mesa's VA
-// frontend and radeonsi want, the references, rate control, the quantizer floor, the quality preset). Byte for byte
-// the same parameters and packed headers, so the same bitstream.
+// av1enc: low-delay AV1 encoding through VA-API, ported from the C build's av1enc.c (at f59ff8c; its header has the
+// why: what Mesa's VA frontend and radeonsi want, the references, rate control, the quantizer floor, the quality
+// preset). Byte for byte the same parameters and packed headers, so the same bitstream.
 
 use std::time::Instant;
 
