@@ -184,6 +184,13 @@ export const CSS = `
   }
   article > p > button.me { border-color: var(--accent); color: var(--text-strong); }
   article > p > button > img { width: 16px; height: 16px; }
+  /* the age gate (app.tsx): over the messages and the composer */
+  & > figure {
+    grid-area: main / main / compose / main; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 16px;
+    background: var(--bg); text-align: center;
+  }
+  & > figure > h2 { font-size: 20px; color: var(--text-strong); }
+  & > figure > button { min-width: 120px; padding: 8px 16px; border: 0; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; cursor: pointer; }
   /* the context menus: popovers at the pointer */
   menu:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=devices]) { position: fixed; margin: 0; }
   menu > button.danger { color: var(--danger); }

@@ -116,6 +116,7 @@ storeNeed("RTCConnection", "RTCConnectionStore", "getState", "getChannelId");
 storeNeed("ChannelStatus", "ChannelStatusStore", "hasRequestedStatuses", "getChannelStatus");
 storeNeed("MediaEngine", "MediaEngineStore", "isSelfMute", "isSelfDeaf", "getInputDevices", "getOutputDevices",
     "getInputDeviceId", "getOutputDeviceId");
+storeNeed("GuildNSFWAgree", "GuildNSFWAgreeStore", "didAgree");
 storeNeed("SelfPresence", "SelfPresenceStore", "getStatus");
 storeNeed("DefaultRoute", "DefaultRouteStore");
 needs.push({
@@ -130,7 +131,9 @@ byProps("parser", "parse", "unparse");
 byProps("drafts", "saveDraft", "changeDraft");
 byProps("uploads", "addFiles", "remove", "clearAll");
 byProps("autocomplete", "queryMentionResults", "queryChannelResults", "queryEmojiResults");
-byProps("guilds", "toggleGuildFolderExpand");
+byProps("guilds", "toggleGuildFolderExpand", "nsfwAgree", "nsfwReturnToSafety");
+// stock's age gate rule: an age-restricted channel or server, not agreed to or not allowed (unverified age)
+mangled("ageGate", "null==i.nsfwAllowed&&", { gated: "if(e.isNSFW()" });
 byProps("notifications", "updateGuildNotificationSettings");
 // stock's Mark As Read for servers: every channel, thread and event read state up to its last message, as BULK_ACK
 byCode("markGuildsRead", "getActiveJoinedThreadsForGuild", "GUILD_ONBOARDING_QUESTION");

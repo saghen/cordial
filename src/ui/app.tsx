@@ -165,6 +165,27 @@ function Connection() {
     </Show>;
 }
 
+// stock's age gate, over the messages and the composer. Discord's core loads nothing behind it. Continue is for
+// accounts Discord allows; for the rest stock's Confirm Age starts its age verification, which mincord leaves to Discord
+function Gate(p: { channel: Rec; }) {
+    const allowed = () => $.User.getCurrentUser()?.nsfwAllowed !== false;
+    // stock's rule reads its stores itself: reading them through $ first subscribes to them
+    const gated = () => {
+        void $.GuildNSFWAgree, void $.Guild;
+        return allowed() !== undefined && A.ageGate.gated(p.channel);
+    };
+    return <Show when={gated()}>
+        <figure data-mc="gate">
+            <h2>Age-Restricted Channel</h2>
+            <p>{allowed() ? "This channel is for adults (18+) only." : "This channel is for adults (18+) only. Confirm your age in Discord to see it."}</p>
+            <button data-mc="gate:back" onClick={() => A.guilds.nsfwReturnToSafety(p.channel.guild_id)}>Go Back</button>
+            <Show when={allowed()}>
+                <button data-mc="gate:continue" onClick={() => A.guilds.nsfwAgree(p.channel.guild_id)}>Continue</button>
+            </Show>
+        </figure>
+    </Show>;
+}
+
 export function App(p: { root: HTMLElement; }) {
     const channel = () => $.Channel.getChannel(selected()!);
     return <>
@@ -182,6 +203,7 @@ export function App(p: { root: HTMLElement; }) {
         </header>
         <Messages root={p.root} />
         <Composer />
+        <Show when={channel()?.guild_id && channel()}>{c => <Gate channel={c()} />}</Show>
         <Members />
     </>;
 }
