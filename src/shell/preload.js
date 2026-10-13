@@ -53,7 +53,19 @@ const answers = (p) =>
     s.on('error', () => r(false))
   })
 
-if (process.env.MINCORD_PRESENCE !== '0') contextBridge.exposeInMainWorld('mincordNative', { observeGames, rpc })
+// Go Live through capture (screen-capture/src/main/cast.js): its frames arrive on a MessagePort, handed on to the
+// page's world the way Electron documents for context isolation (screen-capture/src/renderer/cast.ts takes it)
+ipcRenderer.on('mincord:cast-port', (e) => window.postMessage({ mincordCastPort: true }, '*', e.ports))
+const cast = {
+  available: () => ipcRenderer.invoke('mincord:cast-available'),
+  sources: () => ipcRenderer.invoke('mincord:cast-sources'),
+  start: (opts) => ipcRenderer.invoke('mincord:cast-start', opts),
+}
+
+contextBridge.exposeInMainWorld('mincordNative', {
+  cast,
+  ...(process.env.MINCORD_PRESENCE !== '0' ? { observeGames, rpc } : {}),
+})
 contextBridge.executeInMainWorld({
   func: (src, config) => ((0, eval)(src), (window.mincord.config = config)),
   args: [src, ipcRenderer.sendSync('mincord:config')],

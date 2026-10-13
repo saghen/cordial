@@ -445,6 +445,10 @@ let available: Promise<boolean> | null = null
 /** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on). */
 export const castAvailable = () => (available ??= host.native?.available().catch(() => false) ?? Promise.resolve(false))
 
+let latest: CastSession | null = null
+/** The newest cast session (live or ended), for stats and the lab. */
+export const currentCast = () => latest
+
 let pending: { pick: CastPick; at: number } | null = null
 /** The next getDisplayMedia streams this, no picker ("Stream <game>"). */
 export function setPendingCast(pick: CastPick | null) {
@@ -469,7 +473,7 @@ export async function castDisplayMedia(
     pick.width && pick.height ? { width: pick.width, height: pick.height } : undefined,
     effectiveCodec(pick.codec),
   )
-  const session = new CastSession(pick, quality, displayMedia)
+  const session = (latest = new CastSession(pick, quality, displayMedia))
   tuneStreamTrack(session.track, pick.priority)
   tuneStreamTrack(session.encoder, pick.priority)
   setCurrentStreamQuality(session.track, quality)

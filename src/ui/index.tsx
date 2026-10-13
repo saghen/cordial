@@ -9,6 +9,7 @@ import { Show } from 'solid-js'
 
 import { G, setMount } from '../adapter/anchor'
 import '../adapter/native'
+import '../adapter/screen'
 import { A, check, S } from '../adapter/core'
 import * as triggers from '../adapter/triggers'
 import { byCode, byProps, find, findModuleId, inModule, wreq } from '../adapter/webpack'

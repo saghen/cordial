@@ -77,6 +77,9 @@ app.on('second-instance', (_, argv) => {
   if (to) win.webContents.executeJavaScript(`mincord.adapter.A.nav.transitionTo(${JSON.stringify(to)})`).catch(() => {})
 })
 
+// Go Live through screen-capture's capture (its IPC: mincord:cast-*)
+require('../../screen-capture/src/main/cast.js')
+
 app.whenReady().then(() => {
   const zoomFile = path.join(app.getPath('userData'), 'zoom')
   let zoom = 1.5

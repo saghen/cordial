@@ -5,6 +5,9 @@
 // capture: $MINCORD_CAPTURE, else `mincord-capture` on PATH. Without it, off niri, or with "capture": false in
 // <userData>/config.json, Go Live is Chromium's own capture (the portal).
 //
+// The lab: $MINCORD_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no niri
+// needed (screen-capture/lab/golive.py).
+//
 // IPC (shell/preload.js): invoke mincord:cast-available () -> boolean, mincord:cast-sources () -> CastSource[],
 // mincord:cast-start (CastStart) -> boolean; on true the port follows as mincord:cast-port.
 
@@ -76,15 +79,18 @@ function niri(request) {
   })
 }
 
-/** Whether Go Live captures through capture: niri, capture installed, not turned off in config.json. */
+const clip = /^(.+):(\d+)x(\d+)$/.exec(process.env.MINCORD_CAPTURE_CLIP ?? '')
+
+/** Whether Go Live captures through capture: niri (or the lab's clip), capture installed, not off in config.json. */
 const castAvailable = () =>
-  process.platform === 'linux' && !!process.env.NIRI_SOCKET && config().capture !== false && !!captureBin()
+  process.platform === 'linux' && !!(process.env.NIRI_SOCKET || clip) && config().capture !== false && !!captureBin()
 
 /**
  * niri's outputs, then its windows (focused first, then by workspace), for the picker
  * @returns {Promise<CastSource[]>}
  */
 async function castSources() {
+  if (clip) return [{ id: 'clip:0', kind: 'output', name: 'clip', detail: clip[1], width: +clip[2], height: +clip[3] }]
   const [windows, outputs] = await Promise.all([
     niri('Windows').then((r) => /** @type {NiriWindow[]} */ (r.Windows)),
     niri('Outputs').then((r) => /** @type {Record<string, NiriOutput>} */ (r.Outputs)),
@@ -167,11 +173,12 @@ let current = null
 function startCast(e, opts) {
   const bin = captureBin()
   const [kind, id] = opts.source.split(/:(.*)/s)
-  if (!bin || !castAvailable() || !(kind === 'window' || kind === 'output') || !id) return false
+  if (!bin || !castAvailable() || !(kind === 'window' || kind === 'output' || (kind === 'clip' && clip)) || !id)
+    return false
   current?.close()
   const args = [
-    kind === 'window' ? '--window' : '--output',
-    id,
+    ...(kind === 'clip' ? ['--clip', clip[1], '--clip-size', `${clip[2]}x${clip[3]}`] : []),
+    ...(kind === 'window' ? ['--window', id] : kind === 'output' ? ['--output', id] : []),
     '--size',
     `${opts.size[0] | 0}x${opts.size[1] | 0}`,
     '--fps',

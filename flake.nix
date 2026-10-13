@@ -22,6 +22,8 @@
         buildPhase = "$CC -O2 -Wall -static -mwindows -o bridge.exe bridge.c -lws2_32";
         installPhase = "install -D bridge.exe $out/bridge.exe";
       };
+      # Go Live's capture and encoder (screen-capture/)
+      capture = pkgs.callPackage ./screen-capture/capture { };
     in
     {
       packages.x86_64-linux = {
@@ -30,7 +32,7 @@
           version = "0";
           src = fs.toSource {
             root = ./.;
-            fileset = fs.unions [ ./src ./package.json ./package-lock.json ./vite.config.ts ./tsconfig.json ];
+            fileset = fs.unions [ ./src ./screen-capture/src ./package.json ./package-lock.json ./vite.config.ts ./tsconfig.json ];
           };
           npmDepsHash = "sha256-QFMwblwopJFT5qZ0c8GUFtYRixNTLPy2ctAvgvl9wMA=";
           nativeBuildInputs = [ pkgs.makeWrapper pkgs.copyDesktopItems ];
@@ -50,13 +52,16 @@
             mkdir -p $out/lib/mincord/src
             cp -r dist package.json $out/lib/mincord/
             cp -r src/shell $out/lib/mincord/src/
+            mkdir -p $out/lib/mincord/screen-capture/src
+            cp -r screen-capture/src/main $out/lib/mincord/screen-capture/src/
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/mincord --add-flags $out/lib/mincord \
               --set-default MINCORD_GAME_DETECTION ${game-detection}/bin/game-detection \
-              --set-default MINCORD_WINE_BRIDGE ${wine-bridge}/bridge.exe
+              --set-default MINCORD_WINE_BRIDGE ${wine-bridge}/bridge.exe \
+              --set-default MINCORD_CAPTURE ${capture}/bin/mincord-capture
             runHook postInstall
           '';
         };
-        inherit game-detection wine-bridge;
+        inherit game-detection wine-bridge capture;
         # ai/lab/wine.py's stand-in for a Windows game
         lab-wine-client = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
           name = "mincord-lab-wine-client";
@@ -64,13 +69,12 @@
           buildPhase = "$CC -O2 -Wall -static -o wine-client.exe wine-client.c";
           installPhase = "install -D wine-client.exe $out/wine-client.exe";
         };
-        capture = pkgs.callPackage ./screen-capture/capture { };
         inherit (pkgs) electron;
       };
 
       devShells.x86_64-linux.default = pkgs.mkShell {
         packages = [ pkgs.nodejs pkgs.electron pkgs.prettier pkgs.cargo pkgs.rustc pkgs.pkg-config ];
-        inputsFrom = [ (pkgs.callPackage ./screen-capture/capture { }) ];
+        inputsFrom = [ capture ];
       };
     };
 }
