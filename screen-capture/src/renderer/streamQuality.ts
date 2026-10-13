@@ -2,7 +2,6 @@
 // rules), which of them to stream at for a given source and codec, and how the stream trades
 // resolution against frame rate once it's live.
 
-import { captureEncodes } from './cast'
 import { host } from './host'
 import { logger as makeLogger } from './log'
 import { settings } from './settings'
@@ -102,13 +101,9 @@ export function encodableCodecs(): StreamCodec[] {
   return encodable
 }
 
-/**
- * The codec the stream will (most likely) be sent in: the preferred one if this client can encode it, AV1 only on
- * capture (orderCodecs' order: VP9 next).
- */
+/** The codec the stream will (most likely) be sent in: the preferred one if this client can encode it. */
 export function effectiveCodec(preferred: StreamCodec = settings.codec): StreamCodec {
   const codecs = encodableCodecs()
-  if (preferred === 'AV1' && !captureEncodes('av1')) return codecs.includes('VP9') ? 'VP9' : effectiveCodec('H264')
   if (codecs.includes(preferred)) return preferred
   // Discord's own order otherwise leads with H.264
   return (['H264', 'VP8', 'VP9'] as const).find((c) => codecs.includes(c)) ?? 'H264'

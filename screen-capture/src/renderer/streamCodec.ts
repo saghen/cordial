@@ -2,7 +2,6 @@
 // connection module (mincord registers it with adapter/webpack.ts' patch; the replacement calls back through the
 // `mincord` global, where the glue puts this module's exports as `mincord.screen`).
 
-import { captureEncodes } from './cast'
 import { settings } from './settings'
 import { encodableCodecs, StreamCodec } from './streamQuality'
 
@@ -17,12 +16,14 @@ export const codecPatch = {
 }
 
 /**
- * Discord's codec list with the preferred codec first (priority = index + 1). AV1 isn't in Discord's list; it's only
- * advertised when preferred, since how the voice server and other clients handle it otherwise is unknown.
+ * Discord's codec list with the preferred codec first (priority = index + 1). AV1 isn't in Discord's list; with AV1
+ * preferred it's added, first.
  *
  * With AV1 preferred, Liam's order (2026-10-13): "AV1 (hardware) -> VP9 (hardware) -> VP9 (cpu) -> h264 (hardware) ->
- * h264 (cpu)". AV1 only when capture encodes it on the GPU; VP9 and H.264 are Chromium's encoders, which take the GPU's
- * when there is one (no AMD GPU encodes VP9: there VP9 is on the CPU).
+ * h264 (cpu)": AV1, VP9, H.264, then the rest. VP9 and H.264 are Chromium's encoders, which take the GPU's when there
+ * is one (no AMD GPU encodes VP9). AV1 stays first even without capture's AV1: the list is also what this client
+ * receives, and a viewer listing AV1 last stopped receiving a mincord streamer's AV1 a second in (LOG Key finds,
+ * "The codec list is also what a client receives"). So "AV1 only on hardware" isn't expressed here yet.
  */
 export function orderCodecs(list: string[]): string[] {
   try {
@@ -31,12 +32,8 @@ export function orderCodecs(list: string[]): string[] {
       if (!encodable.includes(settings.codec) || !list.includes(settings.codec)) return list
       return [settings.codec, ...list.filter((c) => c !== settings.codec)]
     }
-    const order: StreamCodec[] = [
-      ...(captureEncodes('av1') && encodable.includes('AV1') ? ['AV1' as const] : []),
-      'VP9',
-      'H264',
-    ]
-    const first: string[] = order.filter((c) => c === 'AV1' || (list.includes(c) && encodable.includes(c)))
+    if (!encodable.includes('AV1')) return list
+    const first = ['AV1', ...['VP9', 'H264'].filter((c) => list.includes(c) && encodable.includes(c as StreamCodec))]
     return [...first, ...list.filter((c) => !first.includes(c))]
   } catch {
     return list
