@@ -178,7 +178,7 @@ export const CSS = `
     &.forced::after { background: var(--danger); }
     &[data-mc^=voice-user]:not(:has(> b))::after { margin-left: auto; }
     /* a category: its name and a chevron, lit on hover (no background) */
-    &.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 12px; line-height: 16px; font-weight: 500; }
+    &.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; line-height: 16px; font-weight: 500; }
     &.cat:first-child { margin-top: 0; }
     &.cat:hover { background: none; }
     &.cat::before { display: none; }
@@ -476,7 +476,7 @@ export const CSS = `
   /* the member list (members.tsx): as stock, offline members dimmed, bots badged as in messages */
   section[data-mc=members] {
     grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised);
-    > h3 { padding: 16px 8px 4px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    > h3 { padding: 16px 8px 4px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
     > h3:first-child { padding-top: 0; }
     > a {
       display: flex; align-items: center; gap: 12px; height: 44px;
