@@ -4,6 +4,7 @@
 // requeued at once; the worker (main.rs) encodes.
 
 use std::ffi::{c_char, c_int, c_void, CStr};
+use std::os::fd::OwnedFd;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
@@ -192,12 +193,14 @@ struct Input {
     modifier: u64,
 }
 
-/// the PipeWire thread, streaming node `node` until `stop` is sent (or the cast ends: quit set)
+/// the PipeWire thread, streaming node `node` until `stop` is sent (or the cast ends: quit set); on `remote` (the
+/// portal's) if given, else on the default PipeWire
 pub fn spawn(
     sh: Arc<Shared>,
     va: Va,
     o: Arc<Opts>,
     node: u32,
+    remote: Option<OwnedFd>,
     mods: Vec<u64>,
 ) -> (JoinHandle<()>, pw::channel::Sender<()>) {
     let (stop, rx) = pw::channel::channel();
@@ -205,7 +208,7 @@ pub fn spawn(
         .name("pipewire".into())
         .spawn(move || {
             let sh2 = sh.clone();
-            if let Err(e) = run(sh, va, o, node, mods, rx) {
+            if let Err(e) = run(sh, va, o, node, remote, mods, rx) {
                 eprintln!("pipewire: {e:#}");
                 sh2.quit("no PipeWire");
             }
@@ -219,13 +222,18 @@ fn run(
     va: Va,
     o: Arc<Opts>,
     node: u32,
+    remote: Option<OwnedFd>,
     mods: Vec<u64>,
     stop: pw::channel::Receiver<()>,
 ) -> Result<()> {
     pw::init();
     let ml = pw::main_loop::MainLoopRc::new(None)?;
     let ctx = pw::context::ContextRc::new(&ml, None)?;
-    let core = ctx.connect_rc(None).map_err(|e| anyhow!("pw_context_connect: {e}"))?;
+    let core = match remote {
+        Some(fd) => ctx.connect_fd_rc(fd, None),
+        None => ctx.connect_rc(None),
+    }
+    .map_err(|e| anyhow!("pw_context_connect: {e}"))?;
     let _core_listener = core
         .add_listener_local()
         .error({

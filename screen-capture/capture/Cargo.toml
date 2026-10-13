@@ -15,6 +15,9 @@ pipewire = { version = "0.10", features = ["v1_2_0"] }
 # niri's cast: the Mutter ScreenCast D-Bus API (blocking proxies)
 zbus = "5"
 libc = "0.2"
+# the portal source (P4): xdg ScreenCast on zbus, without tokio; futures-lite blocks on its calls at startup
+ashpd = { version = "0.13", default-features = false, features = ["async-io", "screencast"] }
+futures-lite = "2"
 
 [profile.release]
 debug = 1

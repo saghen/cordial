@@ -1,10 +1,11 @@
-// capture: a niri cast of a window or an output (--window, --output; the Mutter ScreenCast D-Bus API, mutter.rs), a
-// PipeWire node (--node) or the clip (--clip), with its protocol (stdin commands, stdout frames, previews, info and
-// stats), the VPP, the AV1 encoder, the frame dropper and the repeats. It is the Rust port of the C build (castscale
-// renamed; P3 chose Rust and removed the C, whose capture.c, last at f59ff8c, has the design); it follows the C
-// function by function.
+// capture: a niri cast of a window or an output (--window, --output; the Mutter ScreenCast D-Bus API, mutter.rs), the
+// desktop's ScreenCast portal (--portal, portal.rs), a PipeWire node (--node) or the clip (--clip), with its protocol
+// (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1 encoder, the frame dropper and the
+// repeats. It is the Rust port of the C build (castscale renamed; P3 chose Rust and removed the C, whose capture.c,
+// last at f59ff8c, has the design); it follows the C function by function.
 //
-//   mincord-capture (--window ID | --output NAME | --node ID | --clip F.i420 --clip-size WxH) [--size WxH]
+//   mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID
+//                    | --clip F.i420 --clip-size WxH) [--size WxH]
 //                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
 //                   [--av1-refs 1|2] [--av1-min-q 10]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
@@ -23,6 +24,7 @@ mod av1enc;
 mod cast;
 mod mutter;
 mod out;
+mod portal;
 mod va;
 
 use std::fs::File;
@@ -45,7 +47,9 @@ struct Opts {
     window: Option<u64>,
     output: Option<String>,
     node: Option<u32>,
-    cursor: u32, // Mutter's cursor-mode: 0 hidden, 1 embedded
+    portal: bool,
+    restore: Option<String>, // the portal's restore token from an earlier cast
+    cursor: u32,             // Mutter's cursor-mode: 0 hidden, 1 embedded
     clip: String,
     clip_w: u32,
     clip_h: u32,
@@ -67,7 +71,8 @@ struct Opts {
 
 fn usage() -> ! {
     eprintln!(
-        "usage: mincord-capture (--window ID | --output NAME | --node ID | --clip FILE.i420 --clip-size WxH)\n\
+        "usage: mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
+         \x20                       | --clip FILE.i420 --clip-size WxH)\n\
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
          \x20                      [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 10]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
@@ -89,6 +94,8 @@ fn opts() -> Opts {
         window: None,
         output: None,
         node: None,
+        portal: false,
+        restore: None,
         cursor: 1,
         clip: String::new(),
         clip_w: 0,
@@ -118,6 +125,8 @@ fn opts() -> Opts {
             "--window" => o.window = Some(num(v())),
             "--output" => o.output = Some(v()),
             "--node" => o.node = Some(num(v())),
+            "--portal" => o.portal = true,
+            "--restore-token" => o.restore = Some(v()),
             "--cursor" => o.cursor = (v() != "hidden") as u32,
             "--clip" => o.clip = v(),
             "--clip-size" => (o.clip_w, o.clip_h) = parse_size(&v(), 16),
@@ -138,7 +147,7 @@ fn opts() -> Opts {
         }
     }
     let clip = !o.clip.is_empty();
-    let sources = [o.window.is_some(), o.output.is_some(), o.node.is_some(), clip];
+    let sources = [o.window.is_some(), o.output.is_some(), o.node.is_some(), o.portal, clip];
     if sources.iter().filter(|&&s| s).count() != 1 || (clip && o.clip_w == 0) || o.fps == 0 {
         usage()
     }
@@ -1207,6 +1216,18 @@ fn run(o: Arc<Opts>) -> Result<()> {
             return Err(e);
         }
     };
+    // or the portal's (closed when dropped)
+    let mut portal = match o
+        .portal
+        .then(|| portal::start(sh.clone(), o.cursor, o.restore.as_deref()))
+        .transpose()
+    {
+        Ok(p) => p,
+        Err(e) => {
+            info("{\"type\":\"error\",\"message\":\"could not start the cast\"}");
+            return Err(e);
+        }
+    };
     if let Some(s) = &session {
         // the session's number is niri's cast session id: mincord stops the cast through niri's IPC should we die
         info(&format!(
@@ -1215,17 +1236,32 @@ fn run(o: Arc<Opts>) -> Result<()> {
             s.session_id().unwrap_or("null"),
             s.node
         ));
+    }
+    if let Some(p) = &portal {
+        // the token picks the same source next time without the portal's picker (mincord keeps it)
+        let token = p
+            .token
+            .as_deref()
+            .map_or("null".into(), |t| format!("\"{}\"", t.replace(['"', '\\'], "")));
+        info(&format!(
+            "{{\"type\":\"cast\",\"source\":\"portal\",\"node\":{},\"restoreToken\":{token}}}",
+            p.node
+        ));
+    }
+    if session.is_some() || portal.is_some() {
         let mut g = sh.m.lock().unwrap();
         let t = now();
         (g.st.t_start, g.st.t_tick, g.last_in) = (t, t, t);
     }
 
     watch_stdin(sh.clone(), o.clone(), supported);
+    let remote = portal.as_mut().and_then(|p| p.fd.take());
     let cast = o
         .node
         .or(session.as_ref().map(|s| s.node))
+        .or(portal.as_ref().map(|p| p.node))
         .zip(mods)
-        .map(|(node, mods)| cast::spawn(sh.clone(), va.clone(), o.clone(), node, mods));
+        .map(|(node, mods)| cast::spawn(sh.clone(), va.clone(), o.clone(), node, remote, mods));
 
     let mut w = Worker {
         sh: &sh,
