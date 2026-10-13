@@ -552,8 +552,11 @@ export const CSS = `
     > p > button { min-height: 88px; color: var(--text-muted); font: inherit; font-size: 13px; }
     > nav > button { min-width: 28px; color: var(--text-muted); font: 700 11px/1 sans-serif; }
   }
-  & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
+  & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; align-items: start; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
   & > ul > button { padding: 8px 12px; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; }
+  /* an image's card: the image above its name */
+  & > ul > button[style] { display: grid; gap: 8px; width: 216px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+  & > ul > button[style]::before { content: ""; height: 168px; background: var(--preview) center / contain no-repeat; }
   /* back to the present, at the messages' bottom right */
   & > button[data-mc=jump] {
     --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: end; z-index: 2; display: grid; grid: auto / auto; width: 48px; height: 48px;

@@ -2,7 +2,7 @@
 // line, Up in an empty box edits the last own message in place (Enter saves, Escape leaves). Its text is the draft.
 // Files from + wait as chips above it and go with the next message.
 
-import { createEffect, createMemo, createSignal, For, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 
 import { A, S } from '../adapter/core'
 import { startTyping, stopTyping } from '../adapter/triggers'
@@ -201,15 +201,22 @@ export function MessageInput() {
       <Show when={uploads().length}>
         <ul data-mc="uploads">
           <For each={uploads()}>
-            {(u) => (
-              <button
-                data-mc={`upload:${u.filename}`}
-                title="Remove"
-                onClick={() => A.uploads.remove(channelId()!, u.id, 0)}
-              >
-                {u.filename} ✕
-              </button>
-            )}
+            {(u) => {
+              // an image shows itself, as stock's card, from the picked file
+              const file: File | undefined = u.item?.file
+              const preview = file?.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+              onCleanup(() => preview && URL.revokeObjectURL(preview))
+              return (
+                <button
+                  data-mc={`upload:${u.filename}`}
+                  title="Remove"
+                  style={preview ? { '--preview': `url(${preview})` } : undefined}
+                  onClick={() => A.uploads.remove(channelId()!, u.id, 0)}
+                >
+                  {u.filename} ✕
+                </button>
+              )
+            }}
           </For>
         </ul>
       </Show>
