@@ -67,7 +67,7 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 | `src/primitives/` | generic pieces: `menu.tsx` (menus as data, context menus), `popover.ts`, `icons.ts` (Discord's icons as CSS masks) |
 | `src/components/` | Discord-aware pieces: `markdown.ts` (markdown AST to DOM), `embeds.tsx` (link embeds), `pickers.tsx` (emoji, GIF, sticker) |
 | `src/views/` | a file per region of the grid: `server_bar.tsx`, `channels.tsx` (channel and DM lists, voice rows, the shared row), `chat.tsx` (messages and their menu) with `scroller.ts`, `header.tsx`, `composer.tsx` (box, edit mode, autocomplete), `user_panel.tsx` (account, status, mute/deafen, voice panel), `call.tsx`, `members.tsx`, `login.tsx` |
-| `src/app.tsx`, `src/style.ts`, `src/index.tsx` | the grid, all the CSS, the entry (UI in Solid 2, JSX compiled by Vite, `npm run build` into `dist/mincord.js`) |
+| `src/app.tsx`, `src/app.css`, `src/index.tsx` | the grid and the CSS join (every `.css` under `src/`), the shell's CSS, the entry (UI in Solid 2, JSX compiled by Vite, `npm run build` into `dist/mincord.js`) |
 | `global-keybinds/` | config.json's global keybinds through the desktop's GlobalShortcuts portal, presses and releases (push to talk), for the shell |
 | `flake.nix` | the package (Vite build, nixpkgs' Electron) and a dev shell |
 | `ai/` | what agents work from: `CLAUDE.md`, `LOG.md`, `ROADMAP.md` |

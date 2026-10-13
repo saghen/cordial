@@ -1,4 +1,4 @@
-// The shell: one grid (style.ts), one element per region and per list row.
+// The shell: one grid (app.css), one element per region and per list row; and the renderer's CSS.
 
 import { createEffect, createMemo, createSignal, Show } from 'solid-js'
 
@@ -12,8 +12,22 @@ import { $, selectedChannel, selectedGuild } from './api/store'
 import { MembersList, MembersToggle } from './views/members'
 import { MessageInput } from './views/composer'
 import { ServerBar } from './views/server_bar'
-import { CSS } from './style'
+import { ICONS } from './primitives/icons'
 import { UserPanel } from './views/user_panel'
+
+// Every .css file under src/ (app.css first, the rest by path), nested under #mincord-root once so Discord's own layers
+// never see them, with the icons as custom properties on the root. @keyframes can't nest: they go after it
+const files = import.meta.glob<string>('./**/*.css', { query: '?inline', import: 'default', eager: true })
+const frames: string[] = []
+const rules = [
+  files['./app.css'],
+  ...Object.keys(files)
+    .filter((f) => f !== './app.css')
+    .map((f) => files[f]),
+]
+  .join('\n')
+  .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, (k) => (frames.push(k), ''))
+export const CSS = `#mincord-root {\n${ICONS}\n${rules}}\n${frames.join('\n')}`
 
 // GatewayConnectionStore reads the socket and doesn't emit when it drops or comes back, so follow the actions (the
 // socket's own state changes only after CONNECTION_INTERRUPTED)
@@ -54,7 +68,6 @@ export function App(p: { root: HTMLElement }) {
   voiceSounds()
   return (
     <>
-      <style>{CSS}</style>
       <Connection />
       <ServerBar />
       <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : 'Direct Messages'}</h1>

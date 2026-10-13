@@ -9,7 +9,7 @@ import './adapter/native'
 import './adapter/screen'
 import { expose } from './api/lab'
 import { $ } from './api/store'
-import { App } from './app'
+import { App, CSS } from './app'
 import { resetContent } from './views/chat'
 import { Login } from './views/login'
 
@@ -18,9 +18,12 @@ expose({ list: { reset: resetContent } })
 setMount((host) =>
   render(
     () => (
-      <Show when={$.Auth.isAuthenticated()} fallback={<Login />}>
-        <App root={host} />
-      </Show>
+      <>
+        <style>{CSS}</style>
+        <Show when={$.Auth.isAuthenticated()} fallback={<Login />}>
+          <App root={host} />
+        </Show>
+      </>
     ),
     host,
   ),
