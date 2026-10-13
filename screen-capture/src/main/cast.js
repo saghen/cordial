@@ -27,6 +27,7 @@ const { readdir, readFile } = require('node:fs/promises')
 const { createConnection } = require('node:net')
 const path = require('node:path')
 const { startCapture } = require('./capture.js')
+const { loadFdsock, rawRelay } = require('./raw.js')
 
 /**
  * @typedef {{ id: number, title: string | null, app_id: string | null, pid: number | null,
@@ -266,10 +267,14 @@ function startCast(e, opts) {
   let open = true
   let sessionId = null
   let token = null
+  // the fallback's frames (raw), straight to the page
+  const fdsock = loadFdsock()
+  const raw = fdsock ? rawRelay(e.sender) : null
   const cap = startCapture(
     bin,
     args,
     (m) => {
+      if (m.type === 'raw') return raw?.message(m.raw, m.fds)
       if (m.type === 'info' && m.info.type === 'cast') sessionId = m.info.sessionId
       // the portal's token for next time, kept with the source's size once the format is known
       if (m.type === 'info' && m.info.type === 'cast' && m.info.restoreToken) token = m.info.restoreToken
@@ -281,6 +286,7 @@ function startCast(e, opts) {
       if (m.type === 'closed') {
         console.log(`[cast] capture ${cap.pid} ${m.why}`)
         if (sessionId != null) stopCast(sessionId)
+        raw?.close()
       }
       // (a MessagePortMain only transfers ports: frames, ~20 kB, and previews are copied)
       if (open) port1.postMessage(m)
@@ -288,6 +294,7 @@ function startCast(e, opts) {
     },
     // the lab portal's bus for capture alone (mincord stays on the desktop's)
     portalBus && kind === 'portal' ? { ...process.env, DBUS_SESSION_BUS_ADDRESS: portalBus } : undefined,
+    fdsock,
   )
   const session = {
     close() {

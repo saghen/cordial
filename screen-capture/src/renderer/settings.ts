@@ -5,8 +5,6 @@ import type { StreamCodec, StreamPriority } from './streamQuality'
 export const settings = {
   /** preferred codec; resolution and frame rate are picked automatically */
   codec: 'AV1' as StreamCodec,
-  /** with AV1 preferred and capture unable to encode H.264, offer VP9 before H.264 as the fallback */
-  vp9Fallback: true,
   priority: 'balanced' as StreamPriority,
   /** pad capture's frames up to the target rate (stuffing.ts; experimental) */
   steadyWireRate: false,

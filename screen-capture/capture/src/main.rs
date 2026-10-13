@@ -9,8 +9,15 @@
 //                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
 //                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--av1-align WxH] [--h264-min-qp 0]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
-//                   [--encode-out F.ivf|F.h264]
-//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | bitrate N | key | height N | stop
+//                   [--encode-out F.ivf|F.h264] [--socket-fd N]
+//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | stop
+//
+// raw (mincord's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
+// LINEAR NV12 surfaces that mincord imports (Electron's sharedTexture) and Chromium encodes. On the socket of
+// --socket-fd (SOCK_SEQPACKET, JSON text, the C castscale's protocol): each surface once, with its fd,
+//   {"type":"buffer","id":N,"width":W,"height":H,"modifier":"M","planes":[{"offset":O,"stride":S,"size":Z},..]}
+// then a message per frame, {"type":"frame","id":N,"seq":S,"t":us} (t: the VPP submit's CLOCK_MONOTONIC). A surface
+// isn't written again for RAW_HOLD_S after it was handed out. A new size sends a new set (the same ids).
 //
 // Threads: the PipeWire thread (cast.rs) dequeues the newest buffer, submits the VPP into a free slot of the encode
 // ring (and into the preview surface when one is due) and requeues the buffer at once; it never waits for the GPU. A
@@ -44,6 +51,10 @@ use va::{fence_wait, surface_attr, sys, vpp_submit, Context, Image, Surfaces, Va
 
 const RING: usize = 3;
 const CLIP_RING: usize = 6;
+// raw (the fallback, "raw"): the ring mincord imports, and how long a handed-out slot isn't written again (Chromium
+// reads it back for its encoder long before: README's fallback)
+const RAW_RING: usize = 8;
+const RAW_HOLD_S: f64 = 0.1;
 
 struct Opts {
     window: Option<u64>,
@@ -73,6 +84,7 @@ struct Opts {
     ivf: Option<String>,
     probe: bool,
     av1_align: Option<(u32, u32)>, // --av1-align WxH (else av1enc::align's)
+    socket: Option<i32>,           // --socket-fd N: raw's socket (SOCK_SEQPACKET, mincord's fdsock)
 }
 
 fn usage() -> ! {
@@ -82,8 +94,8 @@ fn usage() -> ! {
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
          \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 10] [--av1-align WxH] [--h264-min-qp 0]\n\
          \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
-         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] | --probe [--device ...]\n\
-         stdin: start [kbps=N] [height=N] [codec=av1|h264] | bitrate N | key | height N | stop; stdout: see out.rs"
+         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] [--socket-fd N] | --probe [--device ...]\n\
+         stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | stop; stdout: see out.rs"
     );
     std::process::exit(2)
 }
@@ -124,6 +136,7 @@ fn opts() -> Opts {
         ivf: None,
         probe: false,
         av1_align: None,
+        socket: None,
     };
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -163,6 +176,7 @@ fn opts() -> Opts {
             "--encode-out" => o.ivf = Some(v()),
             "--probe" => o.probe = true,
             "--av1-align" => o.av1_align = Some(parse_size(&v(), 2)),
+            "--socket-fd" => o.socket = Some(num(v())),
             _ => usage(),
         }
     }
@@ -220,6 +234,7 @@ enum SlotState {
     Free,
     Submitted,
     Busy,
+    Out, // raw: handed to mincord (free again RAW_HOLD_S after t_out)
 }
 
 #[derive(Clone, Copy, Default)]
@@ -227,6 +242,7 @@ struct Slot {
     state: SlotState,
     t_submit: f64,
     seq: u64,
+    t_out: f64,
 }
 
 impl Slot {
@@ -235,40 +251,58 @@ impl Slot {
             state: SlotState::Submitted,
             t_submit,
             seq,
+            t_out: 0.0,
         }
     }
 }
 
 /// RING NV12 surfaces (VPP target, encoder input), each exported once so its VPP's fence can be polled, and a VPP
-/// context on them. The encoder is the worker's. Field order is drop order.
+/// context on them. The encoder is the worker's. Raw: RAW_RING LINEAR surfaces, also exported whole for mincord to
+/// import (`exports`), no encoder. Field order is drop order.
 struct Ring {
     ctx: Context,
     fences: Vec<Vec<OwnedFd>>,
+    exports: Vec<va::Export>,
     surfs: Surfaces,
-    slots: [Slot; RING],
+    slots: Vec<Slot>,
+    raw: bool,
     w: u32,
     h: u32,
     last_slot: Option<usize>, // the slot encoded last (an idle cast re-encodes it)
 }
 
 impl Ring {
-    fn create(va: &Va, vpp_cfg: &va::Config, (w, h): (u32, u32)) -> Result<Ring> {
-        let hint = sys::VA_SURFACE_ATTRIB_USAGE_HINT_VPP_WRITE
-            | sys::VA_SURFACE_ATTRIB_USAGE_HINT_ENCODER
-            | sys::VA_SURFACE_ATTRIB_USAGE_HINT_EXPORT;
-        let mut attrs = [surface_attr(sys::VASurfaceAttribType::VASurfaceAttribUsageHint, hint)];
-        let surfs = va.surfaces(sys::VA_RT_FORMAT_YUV420, w, h, RING, &mut attrs)?;
+    fn create(va: &Va, vpp_cfg: &va::Config, (w, h): (u32, u32), raw: bool) -> Result<Ring> {
+        let surfs = if raw {
+            va.linear_nv12(w, h, RAW_RING)?
+        } else {
+            let hint = sys::VA_SURFACE_ATTRIB_USAGE_HINT_VPP_WRITE
+                | sys::VA_SURFACE_ATTRIB_USAGE_HINT_ENCODER
+                | sys::VA_SURFACE_ATTRIB_USAGE_HINT_EXPORT;
+            let mut attrs = [surface_attr(sys::VASurfaceAttribType::VASurfaceAttribUsageHint, hint)];
+            va.surfaces(sys::VA_RT_FORMAT_YUV420, w, h, RING, &mut attrs)?
+        };
         let fences = surfs
             .ids
             .iter()
             .map(|&s| va.export_fds(s))
             .collect::<Result<Vec<_>>>()?;
+        let exports = match raw {
+            true => surfs
+                .ids
+                .iter()
+                .map(|&s| va.export_nv12(s))
+                .collect::<Result<Vec<_>>>()?,
+            false => Vec::new(),
+        };
         let ctx = va.context(vpp_cfg, w, h, &surfs.ids)?;
         Ok(Ring {
             ctx,
             fences,
+            exports,
+            slots: vec![Slot::default(); surfs.ids.len()],
             surfs,
-            slots: Default::default(),
+            raw,
             w,
             h,
             last_slot: None,
@@ -277,15 +311,20 @@ impl Ring {
 
     /// a free slot, rather not the one encoded last (what an idle cast re-encodes)
     fn free_slot(&self) -> Option<usize> {
-        let free = |&i: &usize| self.slots[i].state == SlotState::Free;
-        (0..RING)
+        let t = now();
+        let free = |&i: &usize| match self.slots[i].state {
+            SlotState::Free => true,
+            SlotState::Out => t - self.slots[i].t_out >= RAW_HOLD_S,
+            _ => false,
+        };
+        (0..self.slots.len())
             .filter(free)
             .find(|&i| Some(i) != self.last_slot)
             .or(self.last_slot.filter(free))
     }
 
     fn oldest_submitted(&self) -> Option<usize> {
-        (0..RING)
+        (0..self.slots.len())
             .filter(|&i| self.slots[i].state == SlotState::Submitted)
             .min_by_key(|&i| self.slots[i].seq)
     }
@@ -422,10 +461,11 @@ struct Stats {
 #[derive(Default)]
 struct State {
     // control: the commands (stdin thread), the input's size (loop thread)
-    active: bool,  // encoding ("start", --start)
-    req_kbps: u32, // target (0: --kbps)
-    req_h: u32,    // maximum height (0: --size's)
-    h264: bool,    // the codec: --codec, then "start codec=" (the call's codec is known only once negotiated)
+    active: bool,          // encoding ("start", --start)
+    req_kbps: u32,         // target (0: --kbps)
+    req_h: u32,            // maximum height (0: --size's)
+    h264: bool,            // the codec: --codec, then "start codec=" (the call's codec is known only once negotiated)
+    raw: bool,             // "raw": frames to mincord over the socket, not encoded
     av1_align: (u32, u32), // AV1's encode size alignment (av1enc::align)
     want_key: bool,
     failed: bool,         // the encoder broke: no encoding until the next "start"
@@ -506,7 +546,13 @@ impl State {
             bw = (bw as u64 * self.req_h as u64 / bh as u64) as u32;
             bh = self.req_h;
         }
-        let align = if self.h264 { (8, 2) } else { self.av1_align };
+        let align = if self.raw {
+            (2, 2)
+        } else if self.h264 {
+            (8, 2)
+        } else {
+            self.av1_align
+        };
         self.full = fit(iw, ih, o.max_w, o.max_h, align, 16);
         self.want = fit(iw, ih, bw, bh, align, 16);
         if self.prev_box.0 > 0 {
@@ -526,6 +572,7 @@ impl State {
     /// one command line:
     ///   start [kbps=N] [height=N] [codec=av1|h264]
     ///                               encode (the preview runs regardless); a new codec re-opens the encoder
+    ///   raw                         stop encoding, hand frames out over --socket-fd (mincord's fallback)
     ///   bitrate N                   new target (kbps), from the next frame
     ///   key                         the next frame a keyframe
     ///   height N                    maximum encode height (0: --size's); a new size starts with a keyframe
@@ -558,6 +605,7 @@ impl State {
             }
             self.h264 = want;
             self.active = true;
+            self.raw = false;
             self.req_kbps = kv("kbps=", self.kbps(o));
             self.req_h = kv("height=", self.req_h);
             self.want_key = true;
@@ -566,6 +614,16 @@ impl State {
             let codec = if self.h264 { "H.264" } else { "AV1" };
             eprintln!("cmd: start {} kbps, height {}, {codec}", self.req_kbps, self.req_h);
             stage("start");
+        } else if line == "raw" {
+            if o.socket.is_none() {
+                info("{\"type\":\"error\",\"message\":\"raw: no --socket-fd\"}");
+                return;
+            }
+            self.raw = true;
+            self.active = false;
+            self.update_sizes(o);
+            eprintln!("cmd: raw");
+            stage("raw");
         } else if let Some(n) = line.strip_prefix("bitrate ") {
             self.req_kbps = arg(n).clamp(100, 100000) as u32;
         } else if line == "key" {
@@ -870,19 +928,42 @@ impl<'a> Worker<'a> {
 
     /// the encode ring + encoder at the wanted size while encoding (none otherwise), the preview at its size
     fn reconcile(&mut self, g: &mut State) {
-        let want = g.active && g.want.0 > 0 && !g.failed;
+        let want = (g.active || g.raw) && g.want.0 > 0 && !g.failed;
         if let Some(r) = &g.ring {
-            let recodec = self.enc.as_ref().is_some_and(|e| e.h264() != g.h264);
+            let recodec = r.raw != g.raw || self.enc.as_ref().is_some_and(|e| e.h264() != g.h264);
             if !want || (r.w, r.h) != g.want || recodec {
-                let why = if !want { "" } else if recodec { " (codec)" } else { " (resize)" };
+                let why = if !want {
+                    ""
+                } else if recodec {
+                    " (codec)"
+                } else {
+                    " (resize)"
+                };
                 eprintln!("enc: {}x{} off{why}", r.w, r.h);
                 g.ring = None;
                 self.enc = None;
             }
         }
+        if want && g.raw && g.ring.is_none() {
+            match Ring::create(self.va, self.vpp_cfg, g.want, true).and_then(|r| self.announce(&r).map(|_| r)) {
+                Ok(r) => {
+                    g.want_key = true; // the last frame at once (repeat), however static the cast
+                    info(&format!(
+                        "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"raw\"}}",
+                        r.w, r.h
+                    ));
+                    g.ring = Some(r);
+                }
+                Err(e) => {
+                    eprintln!("raw setup: {e:#}");
+                    g.failed = true;
+                    info("{\"type\":\"error\",\"message\":\"raw setup failed\"}");
+                }
+            }
+        }
         if want && g.ring.is_none() {
             let kbps = g.kbps(self.o);
-            let created = Ring::create(self.va, self.vpp_cfg, g.want)
+            let created = Ring::create(self.va, self.vpp_cfg, g.want, false)
                 .and_then(|r| Ok((r, Enc::open(self.va, self.o, g.h264, g.want, kbps)?)));
             match created {
                 Ok((r, enc)) => {
@@ -1013,6 +1094,86 @@ impl<'a> Worker<'a> {
         g
     }
 
+    /// raw: each surface of a new ring to mincord, with its fd
+    fn announce(&self, r: &Ring) -> Result<()> {
+        let sock = self.o.socket.context("no --socket-fd")?;
+        eprintln!(
+            "raw: {} x NV12 {}x{} modifier {:#x}",
+            r.exports.len(),
+            r.w,
+            r.h,
+            r.exports[0].modifier
+        );
+        for (i, e) in r.exports.iter().enumerate() {
+            let planes: Vec<String> = e
+                .planes
+                .iter()
+                .map(|(o, s, z)| format!("{{\"offset\":{o},\"stride\":{s},\"size\":{z}}}"))
+                .collect();
+            let m = format!(
+                "{{\"type\":\"buffer\",\"id\":{i},\"width\":{},\"height\":{},\"modifier\":\"{}\",\"planes\":[{}]}}",
+                r.w,
+                r.h,
+                e.modifier,
+                planes.join(",")
+            );
+            if !sock_send(sock, &m, &[e.fd.as_raw_fd()]) {
+                bail!("socket: {}", std::io::Error::last_os_error());
+            }
+        }
+        Ok(())
+    }
+
+    /// slot i to the encoder, or (raw) to mincord
+    fn deliver(&mut self, g: Guard<'a>, i: usize, repeat: bool) -> Guard<'a> {
+        match g.ring.as_ref().is_some_and(|r| r.raw) {
+            true => self.hand_out(g, i, repeat),
+            false => self.encode(g, i, repeat),
+        }
+    }
+
+    /// raw: slot i to mincord once its VPP is done (a repeat: the same surface again, as a new frame)
+    fn hand_out(&mut self, mut g: Guard<'a>, i: usize, repeat: bool) -> Guard<'a> {
+        g.want_key = false;
+        let r = g.ring.as_mut().unwrap();
+        r.slots[i].state = SlotState::Busy;
+        let (fence, slot) = (r.fences[i][0].as_raw_fd(), r.slots[i]);
+        drop(g);
+
+        if !repeat {
+            fence_wait(fence, 1000);
+        }
+        let m = format!(
+            "{{\"type\":\"frame\",\"id\":{i},\"seq\":{},\"t\":{}}}",
+            slot.seq,
+            (slot.t_submit * 1e6) as u64
+        );
+        let sent = sock_send(self.o.socket.unwrap(), &m, &[]);
+        let t = now();
+        self.last_enc_t = t;
+        let lat = (t - slot.t_submit) * 1e3;
+
+        let mut g = self.lock();
+        let st = &mut g.st;
+        if sent {
+            stage("first-frame");
+            st.n_enc += 1;
+            st.total_enc += 1;
+            st.n_repeat += repeat as u32;
+            st.ms_lat += lat;
+            st.max_lat = st.max_lat.max(lat);
+        } else {
+            st.n_outdrop += 1;
+        }
+        let r = g.ring.as_mut().unwrap();
+        r.slots[i].t_out = t;
+        r.slots[i].state = if sent { SlotState::Out } else { SlotState::Free };
+        if sent {
+            r.last_slot = Some(i);
+        }
+        g
+    }
+
     /// read the submitted preview back and send it; the lock is dropped meanwhile (the preview out of the state)
     fn preview_send(&mut self, mut g: Guard<'a>) -> Guard<'a> {
         let mut p = g.prev.take().unwrap();
@@ -1035,10 +1196,11 @@ impl<'a> Worker<'a> {
         let Some(r) = ring.as_mut() else {
             return (g, false);
         };
-        if let Some(i) = r.last_slot.filter(|&i| r.slots[i].state == SlotState::Free) {
+        let idle = |i: &usize| matches!(r.slots[*i].state, SlotState::Free | SlotState::Out);
+        if let Some(i) = r.last_slot.filter(idle) {
             r.slots[i] = Slot::submitted(now(), *seq);
             *seq += 1;
-            return (self.encode(g, i, true), true);
+            return (self.deliver(g, i, true), true);
         }
         let slot = r.last_slot.is_none().then_some(*last_surf).flatten().zip(r.free_slot());
         let Some((surf, i)) = slot else {
@@ -1060,12 +1222,13 @@ impl<'a> Worker<'a> {
             self.reconcile(&mut g);
             let idle_ms = (now() - self.last_enc_t) * 1e3;
             if let Some(i) = g.ring.as_ref().and_then(Ring::oldest_submitted) {
-                g = self.encode(g, i, false);
+                g = self.deliver(g, i, false);
             } else if g.prev.as_ref().is_some_and(|p| p.submitted) {
                 g = self.preview_send(g);
             } else {
                 let mut repeated = false;
-                if self.enc.is_some() && (g.want_key || idle_ms >= self.o.repeat_ms) {
+                let raw = g.ring.as_ref().is_some_and(|r| r.raw);
+                if (self.enc.is_some() || raw) && (g.want_key || idle_ms >= self.o.repeat_ms) {
                     (g, repeated) = self.repeat(g);
                 }
                 if !repeated {
@@ -1155,21 +1318,24 @@ impl<'a> Worker<'a> {
                     *prev_next = t + o.prev_interval;
                 }
             }
-            let slot = ring.as_mut().filter(|_| uploaded && self.enc.is_some()).and_then(|r| {
-                let i = r.free_slot()?;
-                let s = r.surfs.ids[i];
-                let submitted = if (r.w, r.h) == (w, h) {
-                    img.put(s)
-                } else {
-                    vpp_submit(&r.ctx, r.w, r.h, src.ids[0], s, true, true)
-                };
-                submitted.ok()?;
-                r.slots[i] = Slot::submitted(t, idx);
-                Some(i)
-            });
+            let slot = ring
+                .as_mut()
+                .filter(|r| uploaded && (self.enc.is_some() || r.raw))
+                .and_then(|r| {
+                    let i = r.free_slot()?;
+                    let s = r.surfs.ids[i];
+                    let submitted = if (r.w, r.h) == (w, h) {
+                        img.put(s)
+                    } else {
+                        vpp_submit(&r.ctx, r.w, r.h, src.ids[0], s, true, true)
+                    };
+                    submitted.ok()?;
+                    r.slots[i] = Slot::submitted(t, idx);
+                    Some(i)
+                });
             if let Some(i) = slot {
                 st.total_sub += 1;
-                g = self.encode(g, i, false);
+                g = self.deliver(g, i, false);
             }
             idx += 1;
             if self.ivf.is_some() && o.seconds <= 0.0 && idx >= count {
@@ -1180,6 +1346,32 @@ impl<'a> Worker<'a> {
         drop(rx);
         let _ = reader.join();
         Ok(())
+    }
+}
+
+/// one message on raw's socket (non-blocking), with fds; false if it didn't go (full, gone)
+fn sock_send(sock: i32, text: &str, fds: &[i32]) -> bool {
+    let mut iov = libc::iovec {
+        iov_base: text.as_ptr() as *mut _,
+        iov_len: text.len(),
+    };
+    let mut cbuf = [0u64; 8]; // CMSG_SPACE for a few ints, aligned
+                              // SAFETY: msg points at iov and cbuf, which outlive the call; the cmsg header is written inside cbuf
+    unsafe {
+        let mut msg: libc::msghdr = std::mem::zeroed();
+        msg.msg_iov = &mut iov;
+        msg.msg_iovlen = 1;
+        if !fds.is_empty() {
+            let len = std::mem::size_of_val(fds) as u32;
+            msg.msg_control = cbuf.as_mut_ptr() as *mut _;
+            msg.msg_controllen = libc::CMSG_SPACE(len) as usize;
+            let h = libc::CMSG_FIRSTHDR(&msg);
+            (*h).cmsg_level = libc::SOL_SOCKET;
+            (*h).cmsg_type = libc::SCM_RIGHTS;
+            (*h).cmsg_len = libc::CMSG_LEN(len) as usize;
+            std::ptr::copy_nonoverlapping(fds.as_ptr(), libc::CMSG_DATA(h) as *mut i32, fds.len());
+        }
+        libc::sendmsg(sock, &msg, libc::MSG_NOSIGNAL | libc::MSG_DONTWAIT) >= 0
     }
 }
 

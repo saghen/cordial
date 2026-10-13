@@ -14,9 +14,14 @@ const STALL_MS = 3000
  * @typedef {{ type: 'frame', seq: number, t: number, key: boolean, w: number, h: number, data: ArrayBuffer }
  *   | { type: 'preview', t: number, w: number, h: number, data: ArrayBuffer }
  *   | { type: 'info', t: number, info: any }
+ *   | { type: 'raw', raw: RawMessage, fds: number[] }
  *   | { type: 'closed', why: string }} CaptureMessage
- * @typedef {{ type: 'start', kbps: number, height?: number, codec?: 'av1' | 'h264' } | { type: 'bitrate', kbps: number } | { type: 'key' }
- *   | { type: 'height', height: number } | { type: 'stop' }} CaptureCommand
+ * @typedef {{ type: 'buffer', id: number, width: number, height: number, modifier: string,
+ *   planes: { offset: number, stride: number, size: number }[] } | { type: 'frame', id: number, seq: number, t: number }}
+ *   RawMessage  on raw's socket (capture's main.rs): fds, ours to close, come with a buffer
+ * @typedef {{ type: 'start', kbps: number, height?: number, codec?: 'av1' | 'h264' } | { type: 'raw' }
+ *   | { type: 'bitrate', kbps: number } | { type: 'key' } | { type: 'height', height: number } | { type: 'stop' }}
+ *   CaptureCommand
  * @typedef {{ pid: number | undefined, send(c: CaptureCommand): void, kill(): void }} Capture
  */
 
@@ -31,16 +36,35 @@ const commandLine = (c) =>
         : c.type
 
 /**
- * Starts capture; every message (and finally "closed") goes to onMessage.
+ * Starts capture; every message (and finally "closed") goes to onMessage. With fdsock (addon/fdsock.c), capture gets
+ * raw's socket as fd 3 ("raw": the fallback's frames, as raw messages).
  * @param {string} bin
  * @param {string[]} args
  * @param {(m: CaptureMessage) => void} onMessage
  * @param {NodeJS.ProcessEnv} [env]
+ * @param {any} [fdsock]
  * @returns {Capture}
  */
-function startCapture(bin, args, onMessage, env) {
+function startCapture(bin, args, onMessage, env, fdsock) {
+  const [sock, childSock] = fdsock ? fdsock.open() : []
   // stderr ignored: capture then logs to $XDG_RUNTIME_DIR/mincord-capture/<pid>.log
-  const child = spawn(bin, args, { stdio: ['pipe', 'pipe', 'ignore'], env })
+  const child = spawn(bin, fdsock ? [...args, '--socket-fd', '3'] : args, {
+    stdio: ['pipe', 'pipe', 'ignore', ...(fdsock ? [childSock] : [])],
+    env,
+  })
+  if (fdsock) {
+    fdsock.close(childSock)
+    fdsock.listen(sock, (data, fds) => {
+      if (!data) return fdsock.close(sock)
+      if (closed) return fds.forEach(fdsock.close)
+      try {
+        onMessage({ type: 'raw', raw: JSON.parse(data.toString()), fds })
+      } catch (e) {
+        fds.forEach(fdsock.close)
+        console.error('[capture] bad raw message', e)
+      }
+    })
+  }
   let buf = Buffer.alloc(0)
   let closed = false
   let last = Date.now()

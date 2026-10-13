@@ -176,6 +176,88 @@ impl Va {
     }
 }
 
+/// a surface exported for another process to import (mincord's fallback: Chromium's sharedTexture): one fd, the
+/// modifier and each plane's offset, pitch and size
+pub struct Export {
+    pub fd: OwnedFd,
+    pub modifier: u64,
+    pub planes: Vec<(u32, u32, u32)>,
+}
+
+// va_drmcommon.h's VADRMFormatModifierList (not in cros-libva's bindings)
+#[repr(C)]
+struct ModifierList {
+    num: u32,
+    modifiers: *mut u64,
+}
+
+impl Va {
+    /// n NV12 surfaces in LINEAR layout (what Chromium imports for sure), VPP targets that are exported
+    pub fn linear_nv12(&self, w: u32, h: u32, n: usize) -> Result<Surfaces> {
+        const DRM_FORMAT_MOD_LINEAR: u64 = 0;
+        let mut linear = DRM_FORMAT_MOD_LINEAR;
+        let mut list = ModifierList {
+            num: 1,
+            modifiers: &mut linear,
+        };
+        let mut mods = surface_attr(sys::VASurfaceAttribType::VASurfaceAttribDRMFormatModifiers, 0);
+        mods.value.type_ = sys::VAGenericValueType::VAGenericValueTypePointer;
+        mods.value.value.p = &mut list as *mut _ as *mut std::ffi::c_void;
+        let hint = sys::VA_SURFACE_ATTRIB_USAGE_HINT_VPP_WRITE | sys::VA_SURFACE_ATTRIB_USAGE_HINT_EXPORT;
+        let mut attrs = [
+            surface_attr(sys::VASurfaceAttribType::VASurfaceAttribUsageHint, hint),
+            mods,
+        ];
+        self.surfaces(sys::VA_RT_FORMAT_YUV420, w, h, n, &mut attrs)
+    }
+
+    /// an NV12 surface exported as one DMA-BUF with both planes (composed layers)
+    pub fn export_nv12(&self, surf: VASurfaceID) -> Result<Export> {
+        const DRM_FORMAT_NV12: u32 = 0x3231564e; // "NV12"
+        let mut d = sys::VADRMPRIMESurfaceDescriptor::default();
+        // SAFETY: d is written on success; the fds it holds are ours to close
+        check(
+            unsafe {
+                sys::vaExportSurfaceHandle(
+                    self.dpy(),
+                    surf,
+                    sys::VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
+                    sys::VA_EXPORT_SURFACE_READ_ONLY | sys::VA_EXPORT_SURFACE_COMPOSED_LAYERS,
+                    &mut d as *mut _ as *mut _,
+                )
+            },
+            "vaExportSurfaceHandle",
+        )?;
+        // SAFETY: as above
+        let fds: Vec<OwnedFd> = d.objects[..d.num_objects as usize]
+            .iter()
+            .map(|o| unsafe { OwnedFd::from_raw_fd(o.fd) })
+            .collect();
+        let l = &d.layers[0];
+        if d.num_layers != 1 || l.drm_format != DRM_FORMAT_NV12 || l.num_planes != 2 || fds.len() != 1 {
+            bail!(
+                "export: {} layers, format {:#x}, {} planes, {} objects",
+                d.num_layers,
+                l.drm_format,
+                l.num_planes,
+                fds.len()
+            );
+        }
+        let size = d.objects[0].size;
+        let planes = (0..2)
+            .map(|p| {
+                let end = if p == 0 { l.offset[1] } else { size };
+                (l.offset[p], l.pitch[p], end - l.offset[p])
+            })
+            .collect();
+        Ok(Export {
+            fd: fds.into_iter().next().unwrap(),
+            modifier: d.objects[0].drm_format_modifier,
+            planes,
+        })
+    }
+}
+
 impl Va {
     /// a DMA-BUF in XRGB8888 (the cast's buffer) as a BGRx surface; `planes`: fd, offset, stride. The fds stay the
     /// caller's.
