@@ -1,0 +1,5 @@
+:where(.field) { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+:where(.field > span, .field > legend) { padding: 0; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+:where(.field > :is(input:not([type=range]), select)) { padding: 8px; }
+:where(.check) { display: flex; gap: 8px; align-items: center; }
+:where(.field, .check) input { accent-color: var(--accent); }

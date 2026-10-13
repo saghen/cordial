@@ -14,6 +14,7 @@ import { $ } from '../api/store'
 import { IconButton, Toggle } from '../primitives/button'
 import { modal } from '../primitives/modal'
 import { Popout } from '../primitives/popout'
+import { Check, Radios, Range, Select } from '../primitives/fields'
 
 export const UserPanel = () => (
   <>
@@ -179,87 +180,60 @@ function Soundboard(p: { channel: Rec }) {
 // sensitivity, and the audio processing, through stock's setters; MediaEngineStore keeps them on this client
 function VoiceSettings() {
   const M = () => $.MediaEngine
-  const options = (devices: Record<string, Rec>, current: string) =>
-    Object.values(devices).map((d) => (
-      <option value={d.id} selected={d.id === current} disabled={d.disabled}>
-        {d.name}
-      </option>
-    ))
+  const devices = (all: Record<string, Rec>) =>
+    Object.values(all).map((d) => [d.id as string, d.name as string, !!d.disabled] as const)
   const mode = (changes: Rec, next = M().getMode()) => A.audio.setMode(next, { ...M().getModeOptions(), ...changes })
-  const check = (label: string, on: boolean, set: (on: boolean) => void) => (
-    <label>
-      <input type="checkbox" checked={on} onChange={(e) => set(e.currentTarget.checked)} />
-      {label}
-    </label>
-  )
   return (
     <form class="voice-settings" onSubmit={(e) => e.preventDefault()}>
-      <label>
-        Input Device
-        <select onChange={(e) => A.audio.setInputDevice(e.currentTarget.value)}>
-          {options(M().getInputDevices(), M().getInputDeviceId())}
-        </select>
-      </label>
-      <label>
-        Output Device
-        <select onChange={(e) => A.audio.setOutputDevice(e.currentTarget.value)}>
-          {options(M().getOutputDevices(), M().getOutputDeviceId())}
-        </select>
-      </label>
-      <label>
-        Input Volume
-        <input
-          type="range"
-          max={100}
-          value={M().getInputVolume()}
-          onInput={(e) => A.audio.setInputVolume(+e.currentTarget.value)}
-        />
-      </label>
-      <label>
-        Output Volume
-        <input
-          type="range"
-          max={200}
-          value={M().getOutputVolume()}
-          onInput={(e) => A.audio.setOutputVolume(+e.currentTarget.value)}
-        />
-      </label>
-      <fieldset>
-        <legend>Input Mode</legend>
-        {(
-          [
-            ['VOICE_ACTIVITY', 'Voice Activity'],
-            ['PUSH_TO_TALK', 'Push to Talk'],
-          ] as const
-        ).map(([value, label]) => (
-          <label>
-            <input type="radio" name="mode" checked={M().getMode() === value} onChange={() => mode({}, value)} />
-            {label}
-          </label>
-        ))}
-      </fieldset>
+      <Select
+        label="Input Device"
+        options={devices(M().getInputDevices())}
+        value={M().getInputDeviceId()}
+        onChange={A.audio.setInputDevice}
+      />
+      <Select
+        label="Output Device"
+        options={devices(M().getOutputDevices())}
+        value={M().getOutputDeviceId()}
+        onChange={A.audio.setOutputDevice}
+      />
+      <Range label="Input Volume" max={100} value={M().getInputVolume()} onInput={A.audio.setInputVolume} />
+      <Range label="Output Volume" max={200} value={M().getOutputVolume()} onInput={A.audio.setOutputVolume} />
+      <Radios
+        label="Input Mode"
+        name="mode"
+        options={[
+          ['VOICE_ACTIVITY', 'Voice Activity'],
+          ['PUSH_TO_TALK', 'Push to Talk'],
+        ]}
+        value={M().getMode()}
+        onChange={(value) => mode({}, value)}
+      />
       <Show when={M().getMode() === 'VOICE_ACTIVITY'}>
-        {check('Automatically determine input sensitivity', !!M().getModeOptions().autoThreshold, (on) =>
-          mode({ autoThreshold: on }),
-        )}
-        <label>
-          Input Sensitivity
-          <input
-            type="range"
-            min={-100}
-            max={0}
-            value={M().getModeOptions().threshold}
-            disabled={!!M().getModeOptions().autoThreshold}
-            onChange={(e) => mode({ threshold: +e.currentTarget.value })}
-          />
-        </label>
+        <Check
+          label="Automatically determine input sensitivity"
+          checked={!!M().getModeOptions().autoThreshold}
+          onChange={(on) => mode({ autoThreshold: on })}
+        />
+        <Range
+          label="Input Sensitivity"
+          min={-100}
+          max={0}
+          value={M().getModeOptions().threshold}
+          disabled={!!M().getModeOptions().autoThreshold}
+          onChange={(threshold) => mode({ threshold })}
+        />
       </Show>
-      {check('Noise Suppression', M().getNoiseSuppression(), A.audio.setNoiseSuppression)}
+      <Check label="Noise Suppression" checked={M().getNoiseSuppression()} onChange={A.audio.setNoiseSuppression} />
       <Show when={M().isNoiseCancellationSupported()}>
-        {check('Krisp', M().getNoiseCancellation(), A.audio.setNoiseCancellation)}
+        <Check label="Krisp" checked={M().getNoiseCancellation()} onChange={A.audio.setNoiseCancellation} />
       </Show>
-      {check('Echo Cancellation', M().getEchoCancellation(), A.audio.setEchoCancellation)}
-      {check('Automatic Gain Control', M().getAutomaticGainControl(), A.audio.setAutomaticGainControl)}
+      <Check label="Echo Cancellation" checked={M().getEchoCancellation()} onChange={A.audio.setEchoCancellation} />
+      <Check
+        label="Automatic Gain Control"
+        checked={M().getAutomaticGainControl()}
+        onChange={A.audio.setAutomaticGainControl}
+      />
     </form>
   )
 }
@@ -321,7 +295,11 @@ function AudioButtons() {
 // and windows, a click streams one; the priority is what to give up first when the encoder or network can't keep up
 // (resolution and frame rate follow the source and what the account allows). Escape or Cancel declines, as Chromium's
 // own picker
-const PRIORITIES = { balanced: 'Balanced', smoothness: 'Smoothness', clarity: 'Clarity' }
+const PRIORITIES = [
+  ['balanced', 'Balanced'],
+  ['smoothness', 'Smoothness'],
+  ['clarity', 'Clarity'],
+] as const
 
 function ScreenPicker() {
   type Ask = { sources: screen.CastSource[]; resolve: (p: screen.CastPick) => void; reject: (e: Error) => void }
@@ -342,18 +320,12 @@ function ScreenPicker() {
             </button>
           )}
         </For>
-        <label>
-          Priority
-          <select onChange={(e) => (screen.settings.priority = e.currentTarget.value as keyof typeof PRIORITIES)}>
-            <For each={Object.entries(PRIORITIES)}>
-              {([v, label]) => (
-                <option value={v} selected={v === screen.settings.priority}>
-                  {label}
-                </option>
-              )}
-            </For>
-          </select>
-        </label>
+        <Select
+          label="Priority"
+          options={PRIORITIES}
+          value={screen.settings.priority}
+          onChange={(v) => (screen.settings.priority = v)}
+        />
         <button class="screen-cancel" onClick={picker.close}>
           Cancel
         </button>

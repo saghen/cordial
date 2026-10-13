@@ -10,6 +10,7 @@ import { $, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
 import { IconButton } from '../primitives/button'
 import { Popout } from '../primitives/popout'
+import { TextField } from '../primitives/fields'
 
 // as stock's click: the channel Discord remembers for the server (persisted across restarts), else its default
 const channel = (id: Id) => S.SelectedChannel.getChannelId(id) ?? undefined
@@ -135,10 +136,11 @@ function AddServer() {
           })
         }}
       >
-        <label>
-          Invite Link
-          <input placeholder="https://discord.gg/hTKzmak" onInput={(e) => resolve(e.currentTarget.value)} />
-        </label>
+        <TextField
+          label="Invite Link"
+          placeholder="https://discord.gg/hTKzmak"
+          onInput={(e) => resolve(e.currentTarget.value)}
+        />
         <Show when={invite() !== undefined}>
           <Show when={invite()} fallback={<p>The invite is invalid or has expired.</p>}>
             {(i) => (

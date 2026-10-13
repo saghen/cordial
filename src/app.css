@@ -117,8 +117,6 @@ aside {
   > button.add-server:hover { background: var(--positive); color: #fff; }
 }
 form:is(.join, .login) {
-  > label { display: grid; gap: 8px; color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; }
-  input { padding: 8px; text-transform: none; }
   > button { padding: 8px; border-radius: 4px; background: var(--accent); color: #fff; font: inherit; font-weight: 500; }
   > button:disabled { opacity: .5; cursor: default; }
 }
@@ -215,8 +213,6 @@ dialog.screen-picker {
   > button { display: grid; justify-items: start; padding: 8px 12px; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-weight: 600; }
   > button:hover { background: var(--bg-selected); }
   > button.screen-cancel { justify-self: end; background: none; color: var(--text-muted); font-weight: 500; }
-  > label { display: flex; gap: 8px; align-items: center; color: var(--text-muted); }
-  select { padding: 4px; }
 }
 /* the soundboard: each server's sounds as tiles, over the panel */
 menu.soundboard {
@@ -231,13 +227,7 @@ menu.soundboard {
 /* the voice settings: a column of labelled controls, a section of the voice panel above its line */
 form.voice-settings {
   grid-area: 1 / 1 / 2 / -1; display: grid; gap: 12px; max-height: 60vh; overflow-y: auto; margin: 0 -8px 8px; padding: 4px 8px 12px;
-  border-bottom: 1px solid var(--bg-raised); font-weight: 500;
-  :is(label:has(> select), label:has(> [type=range]), fieldset) { display: grid; gap: 4px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
-  fieldset { margin: 0; padding: 0; border: 0; }
-  fieldset > label { text-transform: none; font-size: 14px; color: var(--text); }
-  label:has(> [type=checkbox], > [type=radio]) { display: flex; gap: 8px; align-items: center; }
-  select { padding: 6px; text-transform: none; }
-  input { accent-color: var(--accent); }
+  border-bottom: 1px solid var(--bg-raised); font-size: 14px; font-weight: 500;
 }
 
 /* the user panel (a button: it opens the account popout), and mute and deafen over its end (user_panel.tsx) */

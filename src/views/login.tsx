@@ -8,6 +8,7 @@ import { createSignal, Show } from 'solid-js'
 import { G } from '../adapter/anchor'
 import { A, S } from '../adapter/needs'
 import { $ } from '../api/store'
+import { TextField } from '../primitives/fields'
 
 // the steps stock's own screen takes over (AuthenticationStore's login status)
 const DISCORDS = [
@@ -58,24 +59,40 @@ export function Login() {
         when={mfa()}
         fallback={
           <>
-            <label>
-              Email or Phone Number
-              <input class="login-email" name="email" type="text" autocomplete="username" required autofocus />
-            </label>
-            <label>
-              Password
-              <input class="login-password" name="password" type="password" autocomplete="current-password" required />
-            </label>
+            <TextField
+              label="Email or Phone Number"
+              class="login-email"
+              name="email"
+              type="text"
+              autocomplete="username"
+              required
+              autofocus
+            />
+            <TextField
+              label="Password"
+              class="login-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
           </>
         }
       >
         <Show when={mfaType()} fallback={<p>This account's two-factor needs Discord's login screen.</p>}>
-          <label>
-            {mfaType() === 'backup'
-              ? 'Enter one of your 8-digit backup codes'
-              : 'Enter the code from your authenticator app'}
-            <input class="login-code" name="code" inputmode="numeric" autocomplete="one-time-code" required autofocus />
-          </label>
+          <TextField
+            label={
+              mfaType() === 'backup'
+                ? 'Enter one of your 8-digit backup codes'
+                : 'Enter the code from your authenticator app'
+            }
+            class="login-code"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            required
+            autofocus
+          />
           <Show when={kinds().length > 1}>
             <button
               type="button"
