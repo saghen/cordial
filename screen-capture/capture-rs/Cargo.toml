@@ -16,6 +16,8 @@ cros-libva = { git = "https://github.com/discord/cros-libva", rev = "896a248e003
 anyhow = "1"
 # the cast's input; v1_2_0 for the modifier's DONT_FIXATE flag
 pipewire = { version = "0.10", features = ["v1_2_0"] }
+# niri's cast: the Mutter ScreenCast D-Bus API (blocking proxies)
+zbus = "5"
 libc = "0.2"
 
 [profile.release]

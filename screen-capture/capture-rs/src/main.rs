@@ -1,9 +1,10 @@
-// capture, the Rust port (P2) of capture/capture.c: the cast of a PipeWire node (--node; niri's D-Bus comes next) and
-// the clip (--clip), with the C's protocol (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1
+// capture, the Rust port (P2) of capture/capture.c: a niri cast of a window or an output (--window, --output; the
+// Mutter ScreenCast D-Bus API, mutter.rs), a PipeWire node (--node) or the clip (--clip), with the C's protocol (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1
 // encoder, the frame dropper and the repeats. capture.c's header has the design; this follows it function by function.
 //
-//   mincord-capture-rs (--node ID | --clip F.i420 --clip-size WxH) [--size WxH] [--fps 60]
-//                      [--device auto|/dev/dri/renderDN] [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 10]
+//   mincord-capture-rs (--window ID | --output NAME | --node ID | --clip F.i420 --clip-size WxH) [--size WxH]
+//                      [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
+//                      [--av1-refs 1|2] [--av1-min-q 10]
 //                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
 //                      [--encode-out F.ivf]
 //   stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop
@@ -18,6 +19,7 @@
 
 mod av1enc;
 mod cast;
+mod mutter;
 mod out;
 mod va;
 
@@ -38,7 +40,10 @@ const RING: usize = 3;
 const CLIP_RING: usize = 6;
 
 struct Opts {
+    window: Option<u64>,
+    output: Option<String>,
     node: Option<u32>,
+    cursor: u32, // Mutter's cursor-mode: 0 hidden, 1 embedded
     clip: String,
     clip_w: u32,
     clip_h: u32,
@@ -60,8 +65,9 @@ struct Opts {
 
 fn usage() -> ! {
     eprintln!(
-        "usage: mincord-capture-rs (--node ID | --clip FILE.i420 --clip-size WxH) [--size WxH] [--fps 60]\n\
-         \x20                         [--device auto|/dev/dri/renderDN] [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 10]\n\
+        "usage: mincord-capture-rs (--window ID | --output NAME | --node ID | --clip FILE.i420 --clip-size WxH)\n\
+         \x20                         [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
+         \x20                         [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 10]\n\
          \x20                         [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
          \x20                         [--start] [--encode-out FILE.ivf]\n\
          stdin: start [kbps=N] [height=N] | bitrate N | key | height N | stop; stdout: see capture.c"
@@ -78,7 +84,10 @@ fn parse_size(s: &str, min: u32) -> (u32, u32) {
 
 fn opts() -> Opts {
     let mut o = Opts {
+        window: None,
+        output: None,
         node: None,
+        cursor: 1,
         clip: String::new(),
         clip_w: 0,
         clip_h: 0,
@@ -104,7 +113,10 @@ fn opts() -> Opts {
             s.parse().unwrap_or_else(|_| usage())
         }
         match a.as_str() {
+            "--window" => o.window = Some(num(v())),
+            "--output" => o.output = Some(v()),
             "--node" => o.node = Some(num(v())),
+            "--cursor" => o.cursor = (v() != "hidden") as u32,
             "--clip" => o.clip = v(),
             "--clip-size" => (o.clip_w, o.clip_h) = parse_size(&v(), 16),
             "--size" => (o.max_w, o.max_h) = parse_size(&v(), 16),
@@ -124,7 +136,8 @@ fn opts() -> Opts {
         }
     }
     let clip = !o.clip.is_empty();
-    if clip == o.node.is_some() || (clip && o.clip_w == 0) || o.fps == 0 {
+    let sources = [o.window.is_some(), o.output.is_some(), o.node.is_some(), clip];
+    if sources.iter().filter(|&&s| s).count() != 1 || (clip && o.clip_w == 0) || o.fps == 0 {
         usage()
     }
     if o.prev_box.1 == 0 {
@@ -1109,7 +1122,8 @@ fn run(o: Arc<Opts>) -> Result<()> {
         ))
     };
     // the GPU side first: EGL's modifiers for the device (what the cast is offered; not for --clip), then VA-API
-    let mods = match o.node.map(|_| cast::modifiers(&o.device)).transpose() {
+    let clip = !o.clip.is_empty();
+    let mods = match (!clip).then(|| cast::modifiers(&o.device)).transpose() {
         Ok(m) => m,
         Err(e) => {
             no_va();
@@ -1177,9 +1191,37 @@ fn run(o: Arc<Opts>) -> Result<()> {
         m: Mutex::new(state),
         cv: Condvar::new(),
     });
+
+    // the niri cast (stopped when dropped, at the end)
+    let source = match (o.window, &o.output) {
+        (Some(id), _) => Some(mutter::Source::Window(id)),
+        (_, Some(name)) => Some(mutter::Source::Output(name)),
+        _ => None,
+    };
+    let session = match source.map(|s| mutter::start(sh.clone(), s, o.cursor)).transpose() {
+        Ok(s) => s,
+        Err(e) => {
+            info("{\"type\":\"error\",\"message\":\"could not start the cast\"}");
+            return Err(e);
+        }
+    };
+    if let Some(s) = &session {
+        // the session's number is niri's cast session id: mincord stops the cast through niri's IPC should we die
+        info(&format!(
+            "{{\"type\":\"cast\",\"session\":\"{}\",\"sessionId\":{},\"node\":{}}}",
+            s.path,
+            s.session_id().unwrap_or("null"),
+            s.node
+        ));
+        let mut g = sh.m.lock().unwrap();
+        let t = now();
+        (g.st.t_start, g.st.t_tick, g.last_in) = (t, t, t);
+    }
+
     watch_stdin(sh.clone(), o.clone(), supported);
     let cast = o
         .node
+        .or(session.as_ref().map(|s| s.node))
         .zip(mods)
         .map(|(node, mods)| cast::spawn(sh.clone(), va.clone(), o.clone(), node, mods));
 
@@ -1194,7 +1236,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         ivf,
         ivf_frames: 0,
     };
-    let ran = if o.node.is_some() {
+    let ran = if !clip {
         w.run_cast();
         Ok(())
     } else {
@@ -1215,7 +1257,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         let msg = if why.is_empty() { "terminated" } else { &why };
         info(&format!("{{\"type\":\"error\",\"message\":\"{msg}\"}}"));
     }
-    let el = now() - t_start;
+    let el = now() - g.st.t_start;
     let cpu = cpu_s();
     let st = &g.st;
     eprintln!(
