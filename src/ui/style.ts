@@ -145,7 +145,8 @@ export const CSS = `
     content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
   }
   nav > a[data-mc^=dm] { min-height: 42px; font-size: 16px; line-height: 20px; }
-  nav > a > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
+  nav > a > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 14px; }
+  nav > a:has(> small) { align-content: center; }
   nav > a:has(> small)::before { grid-row: span 2; }
   & > header[style]::before { width: 24px; height: 24px; }
   /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
