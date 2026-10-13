@@ -47,7 +47,11 @@ export interface Author {
 // Discord's message list loads. A message starts a new group unless it continues the previous one: same author
 // (and, for webhooks, the same name) within 7 minutes on the same day, both user messages, matching flags.
 const GROUP_MS = 7 * 60 * 1000
-const USER_MESSAGE = new Set([0, 19, 20, 23, 26, 41, 45, 47, 68])
+// user messages (content as markdown); any other type is a system message (stock's text for it)
+export const USER_MESSAGE = new Set([0, 19, 20, 23, 26, 41, 45, 47, 68])
+// a blocked or ignored author's message (MessageStore keeps the flags current), which stock collapses in runs
+export const hiddenAs = (m?: Message): 'blocked' | 'ignored' | undefined =>
+  m?.blocked ? 'blocked' : m?.ignored ? 'ignored' : undefined
 const REPLY = 19
 const HAS_THREAD = 1 << 5,
   EPHEMERAL = 1 << 6,

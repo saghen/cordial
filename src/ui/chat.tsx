@@ -21,6 +21,8 @@ import {
   PERMS,
   type Reaction,
   startsGroup,
+  USER_MESSAGE,
+  hiddenAs,
   when,
 } from './lib/model'
 import { popAt } from './lib/popover'
@@ -37,11 +39,10 @@ export function resetContent() {
 function content(m: Message, channelId: Id) {
   let nodes = built.get(m)
   if (!nodes) {
-    // anything but a default message or a reply is a system message: its text, as a placeholder
-    const f =
-      m.type === 0 || m.type === 19
-        ? renderAST(contentAST(m, channelId), document.createDocumentFragment())
-        : document.createTextNode(m.content || `(message type ${m.type})`)
+    // a system message is stock's text for it (its formatter, as in notifications)
+    const f = USER_MESSAGE.has(m.type)
+      ? renderAST(contentAST(m, channelId), document.createDocumentFragment())
+      : document.createTextNode(A.systemMessages.stringify(m) ?? (m.content || `(message type ${m.type})`))
     built.set(m, (nodes = f instanceof DocumentFragment ? [...f.childNodes] : [f]))
     // as stock: emoji alone (up to 30) show large
     const shown = nodes.filter((n) => n.nodeType !== 3 || n.textContent!.trim())
@@ -136,13 +137,35 @@ export function Chat(p: { root: HTMLElement }) {
   const unread = createMemo(() => channelId() && $.ReadState.getOldestUnreadMessageId(channelId()!))
   const replying = createMemo(() => channelId() && $.PendingReply.getPendingReply(channelId()!)?.message.id)
 
+  // the runs of blocked or ignored messages shown, by their first message
+  const [shown, setShown] = createSignal<Record<Id, boolean>>({})
+
   const Row = (m: Message, i: () => number) => {
-    const head = createMemo(() => startsGroup(channel(), list()[i() - 1], m))
+    // as stock, a run of blocked (or ignored) messages is one line, "N blocked messages", until Show messages
+    const hid = hiddenAs(m)
+    const run = createMemo(() => {
+      if (!hid) return
+      let j = i()
+      while (j > 0 && hiddenAs(list()[j - 1]) === hid) j--
+      return list()[j].id
+    })
+    const count = createMemo(() => {
+      let n = 0
+      if (run() === m.id) while (hiddenAs(list()[i() + n]) === hid) n++
+      return n
+    })
+    const collapsed = () => !!hid && !shown()[run()!]
+    // a system message is a line of its own, without an author line (stock: an icon, the text, the time)
+    const head = createMemo(
+      () => !collapsed() && USER_MESSAGE.has(m.type) && startsGroup(channel(), list()[i() - 1], m),
+    )
     const author = createMemo(() => (head() ? authorOf(m, channel()?.guild_id) : null))
     // a new day always starts a group, so the author line carries the divider
     const day = createMemo(() => dayOf(list()[i() - 1], m))
     // a reply's message, once loaded (ReferencedMessageStore)
     const ref = createMemo(() => (m.type === 19 ? $.ReferencedMessage.getMessageByReference(m.messageReference) : null))
+    // an app's reply to a command: who used it, as stock's line above the message
+    const command = m.interaction ?? m.interactionMetadata
     // as stock: a message that's only the link of its image or GIF shows just the media
     const linkOnly =
       m.embeds?.length &&
@@ -155,96 +178,126 @@ export function Chat(p: { root: HTMLElement }) {
           sending: m.state === 'SENDING',
           failed: m.state === 'SEND_FAILED',
           head: head(),
-          system: m.type !== 0 && m.type !== 19,
+          system: !USER_MESSAGE.has(m.type),
           new: unread() === m.id,
           edited: !!m.editedTimestamp,
           day: !!day(),
-          reply: !!ref(),
+          reply: !!ref() || !!command,
           mention: m.mentioned,
           replying: replying() === m.id,
+          collapsed: collapsed(),
+          gone: collapsed() && !count(),
         }}
         style={author() ? { '--av': `url(${author()!.avatar})` } : undefined}
         data-t={head() ? undefined : clock(m.timestamp)}
       >
-        <Show when={ref()}>
-          {(r) => (
-            <q
-              data-mc="reply-to"
-              // as stock: a jump (a fetch around it when it isn't loaded), the list scrolls to it below
-              onClick={() =>
-                A.messages.jumpToMessage({
-                  channelId: m.messageReference.channel_id,
-                  messageId: m.messageReference.message_id,
-                  flash: true,
-                  returnMessageId: m.id,
-                })
-              }
-            >
-              <Show when={r().message} fallback="Original message was deleted or isn't loaded">
-                {(rm) => {
-                  // as stock: its author's avatar and name (with @ if the reply pings them), then its text
-                  const a = authorOf(rm() as Message, channel()?.guild_id)
-                  return (
-                    <>
-                      <img src={a.avatar} />
-                      <b style={{ color: a.color ?? undefined }}>
-                        {m.mentions?.includes(a.id) ? '@' : ''}
-                        {a.name}
-                      </b>
-                      {rm().content ? (
-                        <span ref={(s) => renderAST(contentAST(rm() as Message, rm().channel_id), s)} />
-                      ) : (
-                        'Click to see attachment'
-                      )}
-                    </>
-                  )
-                }}
-              </Show>
-            </q>
+        <Show when={count()}>
+          {(n) => (
+            <button data-mc={`${hid}:show`} onClick={() => setShown((s) => ({ ...s, [m.id]: !s[m.id] }))}>
+              {n()} {hid} message{n() > 1 ? 's' : ''} — {collapsed() ? 'Show' : 'Collapse'} message{n() > 1 ? 's' : ''}
+            </button>
           )}
         </Show>
-        <Show when={author()}>
-          {(a) => (
-            <>
-              <b data-mc={`author:${a().id}`} data-day={day()} style={{ color: a().color ?? undefined }}>
-                {a().name}
-                <Show when={a().bot}>
-                  <i>APP</i>
+        <Show when={!collapsed()}>
+          <Show when={ref()}>
+            {(r) => (
+              <q
+                data-mc="reply-to"
+                // as stock: a jump (a fetch around it when it isn't loaded), the list scrolls to it below
+                onClick={() =>
+                  A.messages.jumpToMessage({
+                    channelId: m.messageReference.channel_id,
+                    messageId: m.messageReference.message_id,
+                    flash: true,
+                    returnMessageId: m.id,
+                  })
+                }
+              >
+                <Show when={r().message} fallback="Original message was deleted or isn't loaded">
+                  {(rm) => {
+                    // as stock: its author's avatar and name (with @ if the reply pings them), then its text
+                    const a = authorOf(rm() as Message, channel()?.guild_id)
+                    return (
+                      <>
+                        <img src={a.avatar} />
+                        <b style={{ color: a.color ?? undefined }}>
+                          {m.mentions?.includes(a.id) ? '@' : ''}
+                          {a.name}
+                        </b>
+                        {rm().content ? (
+                          <span ref={(s) => renderAST(contentAST(rm() as Message, rm().channel_id), s)} />
+                        ) : (
+                          'Click to see attachment'
+                        )}
+                      </>
+                    )
+                  }}
                 </Show>
-              </b>
-              <time data-mc="ts">{when(m.timestamp)}</time>
-              {'\n'}
-            </>
-          )}
-        </Show>
-        {nodes}
-        {m.attachments?.map(attachment)}
-        {m.stickerItems?.map(sticker)}
-        {m.embeds?.map(embed)}
-        <Show when={m.reactions?.length}>
-          <p data-mc="reactions">
-            {m.reactions.map(react(m))}
-            <button
-              data-mc="reaction:add"
-              title="Add Reaction"
-              onClick={(e) =>
-                e.currentTarget.dispatchEvent(
-                  new MouseEvent('contextmenu', { bubbles: true, clientX: e.clientX, clientY: e.clientY }),
-                )
-              }
-            />
-          </p>
-        </Show>
-        <Show when={m.state === 'SEND_FAILED'}>
-          <p data-mc="failed">
-            Not sent.
-            <button data-mc="retry" onClick={() => resend(m.channel_id, m)}>
-              Retry
-            </button>
-            <button data-mc="discard" onClick={() => A.messages.deleteMessage(m.channel_id, m.id, true)}>
-              Delete
-            </button>
-          </p>
+              </q>
+            )}
+          </Show>
+          <Show when={command}>
+            {(i) => {
+              const user = i().user && $.User.getUser(i().user.id)
+              return (
+                <q data-mc="command">
+                  <img src={user?.getAvatarURL(channel()?.guild_id, 32)} />
+                  <b>{nameOf(user ?? i().user)}</b> used <span>/{i().displayName ?? i().name}</span>
+                </q>
+              )
+            }}
+          </Show>
+          <Show when={author()}>
+            {(a) => (
+              <>
+                <b data-mc={`author:${a().id}`} data-day={day()} style={{ color: a().color ?? undefined }}>
+                  {a().name}
+                  <Show when={a().bot}>
+                    <i>APP</i>
+                  </Show>
+                </b>
+                <time data-mc="ts">{when(m.timestamp)}</time>
+                {'\n'}
+              </>
+            )}
+          </Show>
+          {nodes}
+          {m.messageSnapshots?.map((f: { message: Message }) => (
+            // a forward: the message as it was, under stock's "Forwarded" line
+            <blockquote data-mc="forward">
+              <span ref={(s) => renderAST(contentAST(f.message, m.channel_id), s)} />
+              {f.message.attachments?.map(attachment)}
+              {f.message.embeds?.map(embed)}
+            </blockquote>
+          ))}
+          {m.attachments?.map(attachment)}
+          {m.stickerItems?.map(sticker)}
+          {m.embeds?.map(embed)}
+          <Show when={m.reactions?.length}>
+            <p data-mc="reactions">
+              {m.reactions.map(react(m))}
+              <button
+                data-mc="reaction:add"
+                title="Add Reaction"
+                onClick={(e) =>
+                  e.currentTarget.dispatchEvent(
+                    new MouseEvent('contextmenu', { bubbles: true, clientX: e.clientX, clientY: e.clientY }),
+                  )
+                }
+              />
+            </p>
+          </Show>
+          <Show when={m.state === 'SEND_FAILED'}>
+            <p data-mc="failed">
+              Not sent.
+              <button data-mc="retry" onClick={() => resend(m.channel_id, m)}>
+                Retry
+              </button>
+              <button data-mc="discard" onClick={() => A.messages.deleteMessage(m.channel_id, m.id, true)}>
+                Delete
+              </button>
+            </p>
+          </Show>
         </Show>
       </article>
     )

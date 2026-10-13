@@ -10,6 +10,7 @@ import type { Rec } from '../adapter/discord'
 import { dmName, kindOf } from './channels'
 import { authorOf, can as allowed, emojiSrc, type Message, nameOf, PERMS } from './lib/model'
 import { $, selected, selectedChannel } from './lib/store'
+import { EmojiPicker, GifPicker, StickerPicker } from './pickers'
 
 export function MessageInput() {
   const channelId = selected
@@ -96,6 +97,20 @@ export function MessageInput() {
     else if (!text) stopTyping(id)
   }
 
+  // a GIF's link, sent at once (stock's picker), leaving the box as it is
+  const sendLink = (url: string) => {
+    const id = channelId()!
+    const options = A.messages.getSendMessageOptionsForReply(S.PendingReply.getPendingReply(id))
+    A.messages.sendMessage(id, A.parser.parse(channel()!, url), undefined, { ...options, location: 'chat_input' })
+    if (reply()) A.replies.remove(id)
+  }
+  // a sticker, sent at once with nothing else
+  const sendSticker = (stickerId: string) => {
+    const id = channelId()!
+    const options = A.messages.getSendMessageOptionsForReply(S.PendingReply.getPendingReply(id))
+    A.messages.sendStickers(id, [stickerId], '', { ...options, location: 'chat_input' })
+    if (reply()) A.replies.remove(id)
+  }
   const send = () => {
     const id = channelId()!,
       c = channel()!,
@@ -228,6 +243,9 @@ export function MessageInput() {
         onKeyDown={key}
         onPaste={paste}
       />
+      <StickerPicker channel={() => (can() ? channel() : undefined)} send={sendSticker} />
+      <GifPicker channel={() => (can() ? channel() : undefined)} send={sendLink} />
+      <EmojiPicker box={() => box} channel={() => (can() ? channel() : undefined)} />
       {complete.view}
     </>
   )

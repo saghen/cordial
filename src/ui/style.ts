@@ -254,6 +254,10 @@ export const CSS = `
     background: var(--av) center / cover, var(--bg-raised);
   }
   article.system { color: var(--text-muted); font-style: italic; }
+  /* a collapsed run of blocked or ignored messages: one line on its first row, stock's "N blocked messages" */
+  article.gone { display: none; }
+  article > button[data-mc$=":show"] { padding: 0; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 14px; cursor: pointer; }
+  article > button[data-mc$=":show"]:hover { text-decoration: underline; }
   article.edited::after { content: " (edited)"; font-size: 10px; color: var(--text-muted); }
   /* the author line: the name (only it underlines on hover), its time, a line break */
   article > b { font-weight: 500; color: var(--text-strong); white-space: normal; cursor: pointer; }
@@ -301,6 +305,12 @@ export const CSS = `
     border: 2px solid var(--text-faint); border-width: 2px 0 0 2px; border-top-left-radius: 6px;
   }
   article.reply { --q: 22px; }
+  /* a command's line: not a link; the command in the link colour */
+  article > q[data-mc=command] { cursor: auto; }
+  article > q[data-mc=command] > span { color: var(--link); }
+  /* a forward: stock's "Forwarded" line, then the message inside a bar */
+  article > blockquote[data-mc=forward] { display: block; margin: 4px 0; padding-left: 12px; border-left: 4px solid var(--bg-raised); }
+  article > blockquote[data-mc=forward]::before { content: "Forwarded"; display: block; font-size: 14px; font-style: italic; color: var(--text-muted); }
   & > label {
     grid-area: reply; display: flex; align-items: center; gap: 8px; margin: 0 16px; padding: 6px 12px;
     border-radius: 8px 8px 0 0; background: var(--bg-floating); font-size: 14px; color: var(--text-muted);
@@ -337,6 +347,32 @@ export const CSS = `
   article > p > button:hover { border-color: var(--text-faint); }
   article > p > button > img:not(.media) { width: 20px; height: 20px; }
   article > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); }
+  /* the header's notification settings (header.tsx): mute with its durations on hover, then the levels as radios */
+  & > header > button[data-mc=notifications] { --i: var(--i-bell); }
+  & > header > button[data-mc=notifications].muted { --i: var(--i-bell-slash); }
+  menu[data-mc=notifications-menu] { margin: 8px 0 0; position-area: bottom span-left; overflow: visible; }
+  menu[data-mc=notifications-menu] > button { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; }
+  menu[data-mc=notifications-menu] > button > small { grid-column: 1; font-size: 12px; }
+  menu[data-mc=notifications-menu] > button.on::after, menu[data-mc=notifications-menu] > button[data-mc^="notifications:"]:not([data-mc*=mute])::after {
+    content: ""; grid-area: 1 / 2 / span 2; align-self: center; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%;
+  }
+  menu[data-mc=notifications-menu] > button.on::after { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+  menu[data-mc=notifications-menu] > menu { display: none; position: absolute; inset: 0 auto auto 100%; margin: 0; }
+  menu[data-mc=notifications-menu] > button:hover + menu, menu[data-mc=notifications-menu] > menu:hover { display: grid; }
+  /* the header's pins (header.tsx): a popover under the button with the channel's pinned messages as rows, Jump on hover */
+  & > header > button[data-mc=pins] { --i: var(--i-pin); position: relative; }
+  & > header > button[data-mc=pins].unread::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+  div[data-mc=pins-list] {
+    inset: auto; margin: 8px 0 0; position-area: bottom span-left; width: 420px; max-height: 70vh; overflow-y: auto; padding: 0 0 16px;
+    border: 0; border-radius: 8px; background: var(--bg-floating); color: var(--text); box-shadow: 0 8px 16px #0006;
+  }
+  div[data-mc=pins-list] > h2 { padding: 16px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
+  div[data-mc=pins-list] > p { padding: 16px; color: var(--text-muted); text-align: center; }
+  div[data-mc=pins-list] > article.head { margin: 0 8px 8px; padding-top: 8px; padding-bottom: 8px; border-radius: 4px; background: var(--bg); }
+  div[data-mc=pins-list] > article > button { position: absolute; top: 8px; right: 8px; display: none; }
+  div[data-mc=pins-list] > article:hover > button { display: block; }
+  div[data-mc=pins-list] button { padding: 2px 8px; border: 0; border-radius: 4px; background: var(--bg-raised); color: var(--text-strong); font: inherit; font-size: 12px; cursor: pointer; }
+  div[data-mc=pins-list] > button { display: block; margin: 0 auto; }
   /* the context menus: popovers at the pointer */
   menu:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=channel-menu], [data-mc=devices]) { position: fixed; margin: 0; }
   menu > button.danger { color: var(--danger); }
@@ -364,7 +400,9 @@ export const CSS = `
 
   /* the member list (members.tsx), and its toggle at the header's end */
   & > header.channel::before { width: 24px; height: 24px; color: var(--text-muted); }
-  & > header > button { --i: var(--i-members); display: grid; margin-left: auto; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; }
+  & > header > button { --i: var(--i-members); display: grid; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; }
+  & > header > button:first-of-type { margin-left: auto; }
+  & > header > button + button { margin-left: 8px; }
   & > header > button:hover, & > header > button.on { color: var(--text-strong); }
   section { grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised); }
   section > h3 { padding: 24px 8px 4px; font-size: 14px; font-weight: 500; color: var(--text-muted); }
@@ -411,6 +449,34 @@ export const CSS = `
   }
   & > button[data-mc=attach]:hover { color: var(--text-strong); }
   & > button[data-mc=attach][hidden] { display: none; }
+  /* the pickers (pickers.tsx) over the box's right edge, each opening above it */
+  & > button:is([data-mc=emoji], [data-mc=gif], [data-mc=sticker]) {
+    --i: var(--i-reaction); grid-area: compose; align-self: start; justify-self: end; z-index: 1; width: 24px; height: 24px; margin: 16px 32px 0 0;
+    padding: 0; border: 0; background: none; color: var(--text-muted); place-content: center; cursor: pointer;
+  }
+  /* GIF as a word in a box, as stock's button */
+  & > button[data-mc=gif] { width: auto; height: 20px; margin: 18px 64px 0 0; padding: 0 3px; border: 2px solid currentColor; border-radius: 4px; font: 800 10px/1 sans-serif; }
+  & > button[data-mc=gif]::before { display: none; }
+  & > button[data-mc=sticker] { --i: var(--i-sticker); margin-right: 104px; }
+  & > button:is([data-mc=emoji], [data-mc=gif], [data-mc=sticker]):hover { color: var(--text-strong); }
+  & > button:is([data-mc=emoji], [data-mc=gif], [data-mc=sticker])[hidden] { display: none; }
+  menu:is([data-mc=emoji-picker], [data-mc=gif-picker], [data-mc=sticker-picker]) { position-area: top span-left; width: 352px; }
+  menu[data-mc=gif-picker] { width: 424px; }
+  menu[data-mc=gif-picker] > p { grid-template-columns: 1fr 1fr; gap: 8px; max-height: 400px; overflow-y: auto; }
+  menu[data-mc=gif-picker] > p > button { display: grid; place-content: center; min-height: 100px; padding: 0; border-radius: 4px; overflow: hidden; background: center / cover var(--bg-raised); color: #fff; font-weight: 700; text-shadow: 0 1px 4px #000; }
+  menu[data-mc=gif-picker] > p > button > :is(img, video) { width: 100%; height: auto; }
+  menu[data-mc=emoji-picker] > p { grid-template-columns: repeat(8, 1fr); max-height: 320px; overflow-y: auto; }
+  menu:is([data-mc=emoji-picker], [data-mc=sticker-picker]) > nav { grid-area: auto; display: flex; flex-wrap: wrap; gap: 2px; padding: 0; }
+  menu:is([data-mc=emoji-picker], [data-mc=sticker-picker]) > nav > button { padding: 4px; border: 0; border-radius: 4px; background: none; cursor: pointer; }
+  menu:is([data-mc=emoji-picker], [data-mc=sticker-picker]) > nav > button:is(:hover, .on) { background: var(--bg-raised); }
+  menu:is([data-mc=emoji-picker], [data-mc=sticker-picker]) > nav > button > img { width: 20px; height: 20px; }
+  menu[data-mc=sticker-picker] { width: 424px; }
+  menu[data-mc=sticker-picker] > p { grid-template-columns: repeat(4, 1fr); max-height: 360px; overflow-y: auto; }
+  menu[data-mc=sticker-picker] > p > button > img { width: 88px; height: 88px; }
+  /* a Lottie sticker (or a pack of them) by its name, as the chat shows one */
+  menu[data-mc=sticker-picker] > p > button { min-height: 88px; color: var(--text-muted); font: inherit; font-size: 13px; }
+  menu[data-mc=sticker-picker] > nav > button { min-width: 28px; color: var(--text-muted); font: 700 11px/1 sans-serif; }
+  menu[data-mc=emoji-picker] > p > button > img { width: 28px; height: 28px; }
   & > ul { grid-area: uploads; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
   & > ul > button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
   /* back to the present, at the messages' bottom right */
@@ -436,8 +502,7 @@ export const CSS = `
   section[data-mc=call] > button, dialog[data-mc^=incoming] > button {
     padding: 8px 16px; border: 0; border-radius: 4px; background: var(--positive); color: #fff; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
   }
-  & > header > button[data-mc="call:start"] { --i: var(--i-voice); margin-left: auto; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; }
-  & > header > button[data-mc="call:start"]:hover { color: var(--text-strong); }
+  & > header > button[data-mc="call:start"] { --i: var(--i-voice); }
   /* a call ringing for you, at the top of the window */
   dialog[data-mc^=incoming] {
     position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; width: 280px;

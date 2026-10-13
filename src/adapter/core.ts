@@ -103,6 +103,7 @@ storeNeed(
   'getUnreadCount',
   'isEstimated',
   'ackMessageId',
+  'hasUnreadPins',
 )
 storeNeed(
   'GuildReadState',
@@ -115,12 +116,31 @@ storeNeed(
 )
 storeNeed('NotificationSettings', 'NotificationSettingsStore', 'getDisableUnreadBadge', 'isSoundDisabled')
 storeNeed('Soundpack', 'SoundpackStore', 'getSoundpack')
+storeNeed('ChannelPins', 'ChannelPinsStore', 'getPins')
+storeNeed('Stickers', 'StickersStore', 'getAllGuildStickers', 'getPremiumPacks')
+storeNeed('GIFPickerView', 'GIFPickerViewStore', 'getResultItems', 'getTrendingCategories')
+// the pins popout's fetch and ack (its chunk isn't loaded without stock's UI)
+dispatched('LOAD_PINNED_MESSAGES_SUCCESS', 'the pins fetch, as stock')
+dispatched('CHANNEL_PINS_ACK', "the pins popout's ack")
 storeNeed('PrivateChannelReadState', 'PrivateChannelReadStateStore', 'getUnreadPrivateChannelIds')
 storeNeed('Presence', 'PresenceStore', 'getStatus', 'getActivities')
 storeNeed('Relationship', 'RelationshipStore', 'getNickname', 'isBlocked', 'getPendingCount')
 storeNeed('Slowmode', 'SlowmodeStore', 'getSlowmodeCooldownGuess')
 storeNeed('Permission', 'PermissionStore', 'can')
-storeNeed('UserGuildSettings', 'UserGuildSettingsStore', 'isMuted', 'isChannelMuted')
+storeNeed(
+  'UserGuildSettings',
+  'UserGuildSettingsStore',
+  'isMuted',
+  'isChannelMuted',
+  'getChannelMuteConfig',
+  'getChannelOverrides',
+  'getChannelMessageNotifications',
+  'getMessageNotifications',
+  'resolveUnreadSetting',
+  'getChannelUnreadSetting',
+  'getGuildUnreadSetting',
+  'getChannelIdFlags',
+)
 storeNeed('GuildMember', 'GuildMemberStore', 'getMember')
 storeNeed('Typing', 'TypingStore', 'getTypingUsers')
 storeNeed('Draft', 'DraftStore', 'getDraft')
@@ -129,7 +149,8 @@ storeNeed('CategoryCollapse', 'CategoryCollapseStore', 'isCollapsed')
 storeNeed('PendingReply', 'PendingReplyStore', 'getPendingReply')
 storeNeed('ReferencedMessage', 'ReferencedMessageStore', 'getMessageByReference')
 storeNeed('MessageReactions', 'MessageReactionsStore', 'getReactions')
-storeNeed('Emoji', 'EmojiStore', 'searchWithoutFetchingLatest')
+storeNeed('Emoji', 'EmojiStore', 'searchWithoutFetchingLatest', 'getUsableGuildEmoji')
+byProps('unicodeEmoji', 'getCategories', 'getByCategory')
 storeNeed('UploadAttachment', 'UploadAttachmentStore', 'getUploads')
 storeNeed('ChannelSection', 'ChannelSectionStore', 'getSection')
 storeNeed('ChannelMember', 'ChannelMemberStore', 'getProps')
@@ -193,6 +214,7 @@ byProps(
   'jumpToPresent',
   'jumpToMessage',
   'getSendMessageOptionsForReply',
+  'sendStickers',
   'startEditMessageRecord',
   'updateEditMessage',
   'endEditMessage',
@@ -214,6 +236,34 @@ byProps('calls', 'call', 'ring', 'stopRinging')
 // stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone); play plays one
 mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e', play: 'disableSounds)return' })
 byProps('invites', 'resolveInvite', 'acceptInviteAndTransitionToInviteChannel')
+// stock's sticker packs fetch (once), and its rule for which stickers you can send
+moduleNeed(
+  'stickers',
+  'module "STICKER_PACKS_FETCH_START" { fetchPacks }, "SENDABLE_WITH_BOOSTED_GUILD" { sendability }',
+  () => {
+    const packs = findModuleId('type:"STICKER_PACKS_FETCH_START"'),
+      rule = findModuleId('SENDABLE_WITH_BOOSTED_GUILD"')
+    if (packs == null || rule == null) return null
+    const fetchPacks = Object.values(wreq(packs)).find(hasCode('STICKER_PACKS_FETCH_START')),
+      sendability = Object.values(wreq(rule)).find((e) => typeof e === 'function')
+    return fetchPacks && sendability ? { fetchPacks, sendability } : null
+  },
+)
+// stock's GIF picker actions (GIFPickerViewStore keeps what they fetch)
+mangled('gifs', 'type:"GIF_PICKER_INITIALIZE"', {
+  initialize: 'GIF_PICKER_INITIALIZE',
+  trendingCategories: 'GIF_PICKER_TRENDING_FETCH_SUCCESS',
+  trending: 'GIFS_TRENDING_GIFS',
+  search: 'GIF_PICKER_QUERY",query:e',
+  clear: 'GIF_PICKER_QUERY",query:""',
+  select: 'GIFS_SELECT',
+})
+// stock's text for a system message (joins, pins, boosts, calls...), as its notifications and reply previews use
+moduleNeed('systemMessages', 'the system message formatter { stringify }', () => {
+  const id = findModuleId('"234395307759108106":"https://groovy.bot/commands"')
+  const m = id != null && Object.values(wreq(id)).find((e: any) => typeof e?.stringify === 'function')
+  return m || null
+})
 // Discord's REST client and its endpoint paths: pins and Mark Unread are stock requests from its menu's chunk, which
 // isn't loaded without its UI
 moduleNeed(
@@ -221,7 +271,7 @@ moduleNeed(
   'the REST client: del, get, patch, post, put',
   () => find((e) => Object.keys(e).sort().join() === 'del,get,patch,post,put')?.[0],
 )
-byProps('endpoints', 'PIN', 'MESSAGE_ACK')
+byProps('endpoints', 'PIN', 'PINS', 'MESSAGE_ACK')
 // whether a message counts towards a channel's mentions (suppress settings; every message in a DM)
 mangled('readStates', '"ReadStateStore"', { countsAsMention: 'isSuppressRolesEnabled' })
 byProps(

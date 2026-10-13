@@ -105,6 +105,8 @@ export interface Stores {
     // the count is a guess (more than a page unread): stock shows it as "N+"
     isEstimated(channelId: Id): boolean
     ackMessageId(channelId: Id): Id | null
+    // pins newer than the last time the channel's pins were seen (the header's dot)
+    hasUnreadPins(channelId: Id): boolean
   }
   GuildReadState: FluxStore & {
     hasUnread(guildId: Id): boolean
@@ -116,6 +118,12 @@ export interface Stores {
   }
   NotificationSettings: FluxStore & { getDisableUnreadBadge(): boolean; isSoundDisabled(sound: string): boolean }
   Soundpack: FluxStore & { getSoundpack(): string }
+  // a channel's pins as fetched: { state: LOADING, LOADED_HAS_MORE, LOADING_FINISHED (sic) or FAILED, items: { message, pinnedAt } }
+  // the GIF picker's results ({ id, url, src, width, height }) and trending categories ({ type, name, src })
+  GIFPickerView: FluxStore & { getResultItems(): Rec[]; getTrendingCategories(): Rec[] }
+  // stickers by server id; Discord's packs once fetched ({ id, name, stickers })
+  Stickers: FluxStore & { getAllGuildStickers(): Map<Id, Rec[]>; getPremiumPacks(): Rec[] }
+  ChannelPins: FluxStore & { getPins(channelId: Id): { state: string; items: Rec[] } | undefined }
   PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[] }
   // activities: { type, name, state }; type 4 is the custom status
   // this client's own activities (games, Rich Presence, a custom status): { type, name, state, details }
@@ -131,7 +139,21 @@ export interface Stores {
   // ms left before the next message may be sent (type 0: messages)
   Slowmode: FluxStore & { getSlowmodeCooldownGuess(channelId: Id, type?: number): number }
   Permission: FluxStore & { can(permission: bigint, context: Rec): boolean }
-  UserGuildSettings: FluxStore & { isMuted(guildId: Id): boolean; isChannelMuted(guildId: Id, channelId: Id): boolean }
+  // levels (message_notifications): 0 all messages, 1 mentions, 2 nothing, 3 the default; unread settings: 0 unset, 1
+  // all messages, 2 mentions; overrides by channel id: { muted, mute_config: { end_time }, message_notifications, flags }
+  UserGuildSettings: FluxStore & {
+    isMuted(guildId: Id): boolean
+    isChannelMuted(guildId: Id, channelId: Id): boolean
+    getChannelMuteConfig(guildId: Id, channelId: Id): Rec | null
+    getChannelOverrides(guildId: Id): Record<Id, Rec>
+    getChannelMessageNotifications(guildId: Id, channelId: Id): number
+    getMessageNotifications(guildId: Id): number
+    resolveUnreadSetting(channel: Rec): number
+    getChannelUnreadSetting(guildId: Id, channelId: Id): number
+    getGuildUnreadSetting(guildId: Id): number
+    getChannelIdFlags(guildId: Id, channelId: Id): number
+    useNewNotifications: boolean
+  }
   GuildMember: FluxStore & { getMember(guildId: Id, userId: Id): Rec | null }
   // { userId: when they started typing }
   Typing: FluxStore & { getTypingUsers(channelId: Id): Record<Id, number> }
@@ -152,6 +174,8 @@ export interface Stores {
       unlocked: Rec[]
     }
     readonly emojiReactionFrecencyWithoutFetchingLatest: { frequently: Rec[] }
+    readonly emojiFrecencyWithoutFetchingLatest: { frequently: Rec[] }
+    getUsableGuildEmoji(guildId: Id): Rec[]
   }
   // files staged for the next message (draft type 0: the channel's composer); { id, filename, ... }
   UploadAttachment: FluxStore & { getUploads(channelId: Id, draftType: number): Rec[] }
@@ -179,6 +203,7 @@ export interface Actions {
   react: { createElement(type: unknown, props?: Rec | null, ...children: unknown[]): unknown; useEffect: unknown }
   messages: {
     sendMessage(channelId: Id, message: Rec, waitForReady?: boolean, options?: Rec): Promise<unknown>
+    sendStickers(channelId: Id, stickerIds: Id[], content?: string, options?: Rec): Promise<unknown>
     editMessage(channelId: Id, messageId: Id, message: Rec): Promise<unknown>
     // local: only the client's copy (a failed send)
     deleteMessage(channelId: Id, messageId: Id, local?: boolean): Promise<unknown>
@@ -274,6 +299,21 @@ export interface Actions {
   }
   // an invite by code: resolve (no write) gives { invite: { code, guild, channel, approximate_*_count } }; accepting
   // joins and opens the channel it points to
+  // sendability: 0 sendable, 1 with Nitro, 2 not, 3 with a boosted server
+  stickers: { fetchPacks(): void; sendability(sticker: Rec, user: Rec | undefined, channel: Rec | undefined): number }
+  // the unicode emoji by category: people, nature, food, activity, travel, objects, symbols, flags
+  unicodeEmoji: { getCategories(): string[]; getByCategory(category: string): Rec[] }
+  // type: the kind of result (Search, Category, Trending), for stock's analytics
+  gifs: {
+    initialize(): void
+    trendingCategories(): void
+    trending(limit: number): void
+    search(query: string, type: string, immediate?: boolean, limit?: number): void
+    clear(): void
+    select(o: Rec): void
+  }
+  // undefined for a type it has no text for
+  systemMessages: { stringify(message: Rec): string | undefined }
   invites: {
     resolveInvite(code: string, location?: string): Promise<{ invite?: Rec; code: string }>
     acceptInviteAndTransitionToInviteChannel(o: { inviteKey: string; context?: Rec }): Promise<unknown>
@@ -281,9 +321,20 @@ export interface Actions {
   channelInfo(guildId: Id): void
   rest: Record<
     'del' | 'get' | 'patch' | 'post' | 'put',
-    (o: { url: string; body?: Rec; oldFormErrors?: boolean; rejectWithError?: boolean }) => Promise<Rec>
+    (o: {
+      url: string
+      body?: Rec
+      query?: Rec
+      retries?: number
+      oldFormErrors?: boolean
+      rejectWithError?: boolean
+    }) => Promise<Rec>
   >
-  endpoints: { PIN(channelId: Id, messageId: Id): string; MESSAGE_ACK(channelId: Id, messageId: Id): string }
+  endpoints: {
+    PIN(channelId: Id, messageId: Id): string
+    PINS(channelId: Id): string
+    MESSAGE_ACK(channelId: Id, messageId: Id): string
+  }
   readStates: { countsAsMention(message: Rec, user: Rec): boolean }
   audio: {
     toggleSelfMute(): Promise<void>
