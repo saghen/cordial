@@ -467,7 +467,7 @@ export const CSS = `
   & > header > button:first-of-type { margin-left: auto; }
   & > header > button + button { margin-left: 8px; }
   & > header > button:hover, & > header > button.on { color: var(--text-strong); }
-  section { grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised); }
+  section[data-mc=members] { grid-area: members; width: 240px; overflow-y: auto; padding: 8px; border-left: 1px solid var(--bg-raised); }
   section > h3 { padding: 24px 8px 4px; font-size: 14px; font-weight: 500; color: var(--text-muted); }
   section > a {
     display: flex; align-items: center; gap: 12px; height: 44px;
@@ -563,6 +563,13 @@ export const CSS = `
   }
   /* a camera fills its tile, under the name */
   section[data-mc=call] > figure > video { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
+  /* someone's Go Live: Watch Stream until watched, then the stream, larger and letterboxed */
+  section[data-mc=call] > figure.stream { place-items: center; align-content: center; gap: 8px; background: var(--bg-raised); }
+  section[data-mc=call] > figure.stream.watching { width: 480px; height: 270px; place-items: end start; align-content: stretch; background: #000; }
+  section[data-mc=call] > figure.stream > video { object-fit: contain; }
+  section[data-mc=call] > figure.stream > span::after { content: " · LIVE"; color: var(--danger); font-weight: 700; }
+  section[data-mc=call] > figure.stream > button { padding: 4px 12px; border: 0; border-radius: 4px; background: var(--bg-selected); color: var(--text-strong); font: inherit; cursor: pointer; }
+  section[data-mc=call] > figure.stream.watching > button { position: absolute; inset: 6px 8px auto auto; opacity: .8; }
   section[data-mc=call] > figure.speaking { outline-color: var(--positive); }
   section[data-mc=call] > figure.mute { --i: var(--i-mic-off); }
   section[data-mc=call] > figure.deaf { --i: var(--i-deaf); }

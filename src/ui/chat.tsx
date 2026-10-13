@@ -36,13 +36,27 @@ export function resetContent() {
   built = new WeakMap()
 }
 
+// a DM call: stock's own component writes it (its strings, outside the formatter), here in its English. The call
+// record's duration is a moment duration (stock's "a few seconds", "15 minutes")
+const CALL = 3
+const callText = (m: Message) => {
+  const { participants = [], duration } = (m as any).call ?? {},
+    who = nameOf(m.author),
+    lasted = duration ? ` that lasted ${duration.humanize()}` : ''
+  return participants.includes(S.Auth.getId())
+    ? `${who} started a call${lasted}.`
+    : `You missed a call from ${who}${lasted}.`
+}
+
 function content(m: Message, channelId: Id) {
   let nodes = built.get(m)
   if (!nodes) {
     // a system message is stock's text for it (its formatter, as in notifications)
     const f = USER_MESSAGE.has(m.type)
       ? renderAST(contentAST(m, channelId), document.createDocumentFragment())
-      : document.createTextNode(A.systemMessages.stringify(m) ?? (m.content || `(message type ${m.type})`))
+      : document.createTextNode(
+          (m.type === CALL ? callText(m) : A.systemMessages.stringify(m)) ?? (m.content || `(message type ${m.type})`),
+        )
     built.set(m, (nodes = f instanceof DocumentFragment ? [...f.childNodes] : [f]))
     // as stock: emoji alone (up to 30) show large
     const shown = nodes.filter((n) => n.nodeType !== 3 || n.textContent!.trim())

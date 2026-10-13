@@ -26,21 +26,27 @@ export function CallView() {
             <For each={states()}>
               {(v) => {
                 const user = () => $.User.getUser(v.userId)
+                const name = () => nameOf(user(), c().guild_id && $.GuildMember.getMember(c().guild_id, v.userId)?.nick)
                 return (
-                  <figure
-                    data-mc={`tile:${v.userId}`}
-                    style={url(user()?.getAvatarURL(c().guild_id, 128))}
-                    class={{
-                      speaking: $.Speaking.isSpeaking(v.userId),
-                      mute: v.selfMute || v.mute,
-                      deaf: v.selfDeaf || v.deaf,
-                    }}
-                  >
-                    <Show when={$.VideoStream.getStreamId(v.userId, c().guild_id ?? null)}>
-                      {(id) => <Video id={id()} />}
+                  <>
+                    <figure
+                      data-mc={`tile:${v.userId}`}
+                      style={url(user()?.getAvatarURL(c().guild_id, 128))}
+                      class={{
+                        speaking: $.Speaking.isSpeaking(v.userId),
+                        mute: v.selfMute || v.mute,
+                        deaf: v.selfDeaf || v.deaf,
+                      }}
+                    >
+                      <Show when={$.VideoStream.getStreamId(v.userId, c().guild_id ?? null)}>
+                        {(id) => <Video id={id()} />}
+                      </Show>
+                      {name()}
+                    </figure>
+                    <Show when={v.selfStream && v.userId !== S.Auth.getId()}>
+                      <StreamTile ownerId={v.userId} guildId={c().guild_id ?? null} name={name()} />
                     </Show>
-                    {nameOf(user(), c().guild_id && $.GuildMember.getMember(c().guild_id, v.userId)?.nick)}
-                  </figure>
+                  </>
                 )
               }}
             </For>
@@ -53,6 +59,30 @@ export function CallView() {
         )
       }}
     </Show>
+  )
+}
+
+// someone's Go Live, beside their tile. Discord sends a stream's video only to its viewers: Watch Stream is stock's
+// watch (STREAM_WATCH), then the stream's video (its "stream" video context) fills a larger tile while shown, with Stop
+// Watching (stock's: STREAM_CLOSE then STREAM_STOP). In a call, Discord's core watches a stream the other person
+// starts by itself
+function StreamTile(p: { ownerId: Id; guildId: Id | null; name: string }) {
+  const watching = () => $.ApplicationStreaming.getActiveStreamForUser(p.ownerId, p.guildId)
+  const video = () => watching() && $.VideoStream.getStreamId(p.ownerId, p.guildId, 'stream')
+  const toggle = () => {
+    const w = S.ApplicationStreaming.getActiveStreamForUser(p.ownerId, p.guildId)
+    if (w) return A.streams.stop(streamKey(w), false)
+    const s = S.ApplicationStreaming.getStreamForUser(p.ownerId, p.guildId)
+    if (s) A.streams.watch(s, { noFocus: true })
+  }
+  return (
+    <figure data-mc={`stream:${p.ownerId}`} class={{ stream: true, watching: !!watching() }}>
+      <Show when={video()}>{(id) => <Video id={id()} />}</Show>
+      <span>{p.name}</span>
+      <button data-mc={`stream:${p.ownerId}:watch`} onClick={toggle}>
+        {watching() ? 'Stop Watching' : 'Watch Stream'}
+      </button>
+    </figure>
   )
 }
 

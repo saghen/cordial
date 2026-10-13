@@ -46,6 +46,9 @@ export interface Stores {
     getAllApplicationStreamsForChannel(channelId: Id): Rec[]
     getCurrentUserActiveStream(): Rec | null
     getViewerIds(streamKey: string): Id[]
+    // a user's Go Live in a server (or a call: guildId null), and the one you're connected to (watching)
+    getStreamForUser(userId: Id, guildId: Id | null): Rec | null
+    getActiveStreamForUser(userId: Id, guildId: Id | null): Rec | null
   }
   // voice handed to a console (Xbox, PlayStation)
   GameConsole: FluxStore & { getAwaitingRemoteSessionInfo(): Rec | null; getRemoteSessionId(): Id | null }
@@ -135,7 +138,10 @@ export interface Stores {
   // stickers by server id; Discord's packs once fetched ({ id, name, stickers })
   Stickers: FluxStore & { getAllGuildStickers(): Map<Id, Rec[]>; getPremiumPacks(): Rec[] }
   // a user's camera in a call: its stream id for the web engine (guildId null in DMs)
-  VideoStream: FluxStore & { getStreamId(userId: Id, guildId: Id | null): string | undefined }
+  // context: "default" (a camera) or "stream" (a Go Live)
+  VideoStream: FluxStore & {
+    getStreamId(userId: Id, guildId: Id | null, context?: 'default' | 'stream'): string | undefined
+  }
   // sounds by server id ("0": Discord's)
   Soundboard: FluxStore & { getSounds(): Map<Id, Rec[]>; isPlayingSound(soundId: Id): boolean }
   // a search's results by its id (the server's id, or the channel's): the matching messages, 25 a page
@@ -414,7 +420,12 @@ export interface Actions {
   canStreamWithSettings(preset: number, resolution: number, fps: number, user: unknown, tier?: number): boolean
   goLive: { start(guildId: Id | null, channelId: Id, analyticsLocations: string[]): void }
   // feedback: stock's stream feedback prompt after it ends
-  streams: { stopOwn(feedback?: boolean): void }
+  // streamKey: "guild:{guildId}:{channelId}:{ownerId}" or "call:{channelId}:{ownerId}"
+  streams: {
+    stopOwn(feedback?: boolean): void
+    watch(stream: Rec, o?: { noFocus?: boolean }): void
+    stop(streamKey: string, feedback?: boolean): void
+  }
   // stock's login actions: each dispatches its result (LOGIN_MFA_STEP, LOGIN_SUCCESS, LOGIN_FAILURE...) and rejects with
   // the request's error (its fields' messages) on a failure
   auth: {

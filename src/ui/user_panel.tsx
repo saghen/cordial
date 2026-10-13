@@ -7,7 +7,7 @@ import * as screen from '../../screen-capture/src/renderer'
 
 import { A, S } from '../adapter/core'
 import type { Rec } from '../adapter/discord'
-import { url } from './channels'
+import { dmName, url } from './channels'
 import { emojiSrc, nameOf } from './lib/model'
 import { popAt } from './lib/popover'
 import { $ } from './lib/store'
@@ -83,9 +83,7 @@ function VoicePanel() {
       {(c) => (
         <footer data-mc="voice-panel" data-state={$.RTCConnection.getState()}>
           {STATES[$.RTCConnection.getState()] ?? 'Connecting…'}
-          <small>
-            {c().name} / {$.Guild.getGuild(c().guild_id)?.name}
-          </small>
+          <small>{c().guild_id ? `${c().name} / ${$.Guild.getGuild(c().guild_id)?.name}` : dmName(c())}</small>
           <button
             data-mc="voice:camera"
             class={{ on: $.MediaEngine.isVideoEnabled() }}
