@@ -8,7 +8,7 @@ import { setMount } from './adapter/anchor'
 import './adapter/native'
 import './adapter/screen'
 import { expose } from './api/lab'
-import { $ } from './api/store'
+import { loggedIn } from './api/session'
 import { App, CSS } from './app'
 import { resetContent } from './views/chat'
 import { Login } from './views/login'
@@ -20,7 +20,7 @@ setMount((host) =>
     () => (
       <>
         <style>{CSS}</style>
-        <Show when={$.Auth.isAuthenticated()} fallback={<Login />}>
+        <Show when={loggedIn()} fallback={<Login />}>
           <App root={host} />
         </Show>
       </>

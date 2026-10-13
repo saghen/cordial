@@ -1,0 +1,8 @@
+/* logged out: the form alone, centred */
+form.login {
+  grid-area: 1 / 1 / -1 / -1; place-self: center; display: grid; gap: 16px; width: min(480px, 100% - 32px); padding: 32px;
+  border-radius: 8px; background: var(--bg-floating); font-size: 14px;
+  > h2 { font-size: 24px; text-align: center; color: var(--text-strong); }
+  > p[role=alert] { color: var(--danger); }
+  > .link { justify-self: start; }
+}

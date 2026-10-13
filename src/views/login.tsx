@@ -1,67 +1,42 @@
-// Logged out: our form on stock's login actions. Email and password, then a code when the account has two-factor
-// (an authenticator's or a backup code). Stock's request layer shows its captcha when the server asks for one (a modal
-// in Discord's layers, over ours) and retries. Everything else (passkeys, SMS codes, the QR code, a disabled account or
-// a phone check, registering, a forgotten password) is Discord's own login screen, one click away.
+// Logged out: our form on stock's login actions (api/session.ts). Email and password, then a code when the account has
+// two-factor (an authenticator's or a backup code). Stock's request layer shows its captcha when the server asks for
+// one (a modal in Discord's layers, over ours) and retries. Everything else (passkeys, SMS codes, the QR code, a
+// disabled account or a phone check, registering, a forgotten password) is Discord's own login screen, one click away.
 
 import { createSignal, Show } from 'solid-js'
 
-import { G } from '../adapter/anchor'
-import { A, S } from '../adapter/needs'
-import { $ } from '../api/store'
+import * as session from '../api/session'
+import { text } from '../api/strings'
 import { TextField } from '../primitives/fields'
 import { Button } from '../primitives/button'
-
-// the steps stock's own screen takes over (AuthenticationStore's login status)
-const DISCORDS = [
-  'ACCOUNT_SCHEDULED_FOR_DELETION',
-  'ACCOUNT_DISABLED',
-  'PHONE_IP_AUTHORIZATION',
-  'PASSWORD_RECOVERY_PHONE_VERIFICATION',
-]
-
-// a failed request's text: the fields' messages (a wrong password, a new login location), else the error's
-const say = (e: any) =>
-  [...Object.values(e?.fields ?? {})].flat().join(' ') || e?.message || 'Something went wrong. Try again.'
 
 export function Login() {
   const [error, setError] = createSignal('')
   const [busy, setBusy] = createSignal(false)
-  const status = () => $.Auth.getLoginStatus()
-  const mfa = () => status() === 'MFA_STEP' || status() === 'LOGGING_IN_MFA'
-  // the code kinds we take: an authenticator's, then backup codes
-  const kinds = () =>
-    (mfa() ? $.Auth.getMFAMethods().map((m: any) => m.type) : []).filter((t: string) => t === 'totp' || t === 'backup')
-  const [kind, setKind] = createSignal<string>()
-  const mfaType = () => kind() ?? kinds()[0]
+  const [picked, setPicked] = createSignal<session.CodeKind>()
+  const kind = () => picked() ?? session.codeKinds()[0]
   const submit = async (e: SubmitEvent) => {
     e.preventDefault()
     const f = new FormData(e.currentTarget as HTMLFormElement)
     setBusy(true)
     setError('')
     try {
-      if (!mfa()) await A.auth.login({ login: f.get('email'), password: f.get('password'), source: null })
-      else
-        await A.auth.loginMFAv2({
-          code: String(f.get('code')).replace(/\s/g, ''),
-          ticket: S.Auth.getMFATicket(),
-          mfaType: mfaType(),
-          loginInstanceId: S.Auth.getLoginInstanceId(),
-          source: null,
-        })
+      if (!session.mfa()) await session.login(String(f.get('email')), String(f.get('password')))
+      else await session.loginCode(String(f.get('code')), kind()!)
     } catch (err) {
-      setError(say(err))
+      setError(session.errorText(err))
     }
     setBusy(false)
   }
   return (
     <form class="login" onSubmit={submit}>
-      <h2>{mfa() ? 'Multi-Factor Authentication' : 'Welcome back!'}</h2>
+      <h2>{text(session.mfa() ? 'MFA_V2_HEADER' : 'LOGIN_TITLE')}</h2>
       <Show
-        when={mfa()}
+        when={session.mfa()}
         fallback={
           <>
             <TextField
-              label="Email or Phone Number"
+              label={text('FORM_LABEL_EMAIL_OR_PHONE_NUMBER')}
               class="login-email"
               name="email"
               type="text"
@@ -70,7 +45,7 @@ export function Login() {
               autofocus
             />
             <TextField
-              label="Password"
+              label={text('FORM_LABEL_PASSWORD')}
               class="login-password"
               name="password"
               type="password"
@@ -80,13 +55,9 @@ export function Login() {
           </>
         }
       >
-        <Show when={mfaType()} fallback={<p>This account's two-factor needs Discord's login screen.</p>}>
+        <Show when={kind()} fallback={<p>{text('LOGIN_DISCORDS_MFA')}</p>}>
           <TextField
-            label={
-              mfaType() === 'backup'
-                ? 'Enter one of your 8-digit backup codes'
-                : 'Enter the code from your authenticator app'
-            }
+            label={text(kind() === 'backup' ? 'MFA_V2_BACKUP' : 'MFA_V2_TOTP')}
             class="login-code"
             name="code"
             inputmode="numeric"
@@ -94,26 +65,26 @@ export function Login() {
             required
             autofocus
           />
-          <Show when={kinds().length > 1}>
+          <Show when={session.codeKinds().length > 1}>
             <Button
               type="button"
               variant="link"
               class="login-kind"
-              onClick={() => setKind(mfaType() === 'backup' ? 'totp' : 'backup')}
+              onClick={() => setPicked(kind() === 'backup' ? 'totp' : 'backup')}
             >
-              {mfaType() === 'backup' ? 'Use your authenticator app' : 'Use a backup code'}
+              {text(kind() === 'backup' ? 'MFA_V2_TOTP_NAME' : 'MFA_V2_BACKUP_NAME')}
             </Button>
           </Show>
         </Show>
       </Show>
-      <Show when={error() || DISCORDS.includes(status())}>
-        <p role="alert">{error() || "Discord's login screen continues from here."}</p>
+      <Show when={error() || session.discordsStep()}>
+        <p role="alert">{error() || text('LOGIN_DISCORDS_STEP')}</p>
       </Show>
-      <Button variant="primary" class="login-submit" disabled={busy() || (mfa() && !mfaType())}>
-        {busy() ? 'Logging in…' : 'Log In'}
+      <Button variant="primary" class="login-submit" disabled={busy() || (session.mfa() && !kind())}>
+        {text(busy() ? 'LOGGING_IN' : '_LOGIN')}
       </Button>
-      <Button type="button" variant="link" class="login-discord" onClick={() => G.discordLogin()}>
-        Use Discord's login screen
+      <Button type="button" variant="link" class="login-discord" onClick={session.discordLogin}>
+        {text('LOGIN_DISCORDS')}
       </Button>
     </form>
   )
