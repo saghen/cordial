@@ -1,0 +1,5 @@
+# the lab's Python as discord-uiprof's ./py runs it (its interpreter, websockets beside it, cdp.py), for ai/lab,
+# ai/atlas/scripts and screen-capture/lab
+[environment]
+python = "../discord-uiprof/.env/python"
+extra-paths = ["../discord-uiprof/.env/websockets/lib/python3.14/site-packages", "../discord-uiprof", "ai/lab", "screen-capture/lab"]
