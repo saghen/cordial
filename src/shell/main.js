@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron')
+const { app, BrowserWindow, globalShortcut, ipcMain, Menu, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -14,18 +14,28 @@ app.commandLine.appendSwitch(
   'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication',
 )
 app.commandLine.appendSwitch('js-flags', '--heap-growing-percent=50')
+// global shortcuts through the desktop's portal on Wayland (Chrome's own, X11, elsewhere)
+app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
 
 // Chrome's zoom steps between 0.5 and 3
 const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]
 
-// <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none)
-ipcMain.on('mincord:config', (e) => {
+// <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none);
+// { "keybinds": { "Ctrl+Shift+M": "TOGGLE_MUTE", ... } } are global shortcuts (read at start)
+const config = () => {
   try {
-    e.returnValue = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8'))
+    return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8'))
   } catch {
-    e.returnValue = {}
+    return {}
   }
-})
+}
+ipcMain.on('mincord:config', (e) => (e.returnValue = config()))
+
+// what a global shortcut does (stock's keybind actions): presses only, so no push to talk (ai/LOG.md question 8)
+const KEYBINDS = {
+  TOGGLE_MUTE: 'mincord.adapter.A.audio.toggleSelfMute()',
+  TOGGLE_DEAFEN: 'mincord.adapter.A.audio.toggleSelfDeaf()',
+}
 
 // game detection (adapter/games.ts): game-detection/ watches for Discord's list of games, one list at a time, and
 // prints the running ones whenever they change, a line each and an empty line after
@@ -118,6 +128,12 @@ app.whenReady().then(() => {
   // hidden rather than auto-hidden: Alt doesn't show it, its shortcuts (DevTools, reload) still work
   win.setMenuBarVisibility(false)
   win.loadURL(`https://discord.com${linkPath(process.argv) ?? '/app'}`)
+  for (const [keys, action] of Object.entries(config().keybinds ?? {})) {
+    const run = KEYBINDS[action]
+    if (!run || !globalShortcut.register(keys, () => win.webContents.executeJavaScript(run).catch(() => {})))
+      console.error(`[mincord] keybind ${keys} (${action}) not registered`)
+  }
 })
 
 app.on('window-all-closed', () => app.quit())
+app.on('will-quit', () => globalShortcut.unregisterAll())
