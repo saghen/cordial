@@ -94,7 +94,7 @@ export const CSS = `
   }
   & > button::before, menu > b::before { grid-row: span 2; align-self: center; }
   & > button > small, menu > b > small { font-size: 12px; }
-  /* mute and deafen over the panel's end (voice.tsx) */
+  /* mute and deafen over the panel's end (user_panel.tsx) */
   & > button[data-mc=me] { padding-right: 88px; }
   & > button:is([data-mc=mute], [data-mc=deafen]) {
     justify-self: end; align-self: center; width: 32px; height: 32px; margin-right: 8px; padding: 0; border: 0; border-radius: 4px;
@@ -206,7 +206,7 @@ export const CSS = `
   menu > p > button:hover { background: var(--bg-raised); }
   menu > p > button > img { width: 24px; height: 24px; }
 
-  /* the member list (members.tsx), and its toggle at the header's end */
+  /* the member list (members_list.tsx), and its toggle at the header's end */
   & > header > button { margin-left: auto; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 14px; cursor: pointer; }
   & > header > button.on { color: var(--text-strong); }
   section {
@@ -221,13 +221,13 @@ export const CSS = `
   section > a:hover { background: var(--bg-raised); }
   section > a::before { content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon, var(--bg-raised)) center / cover; }
 
-  /* the composer (composer.tsx): grows with its text, up to half the window */
+  /* the message input (message_input.tsx): grows with its text, up to half the window */
   textarea {
     grid-area: compose; margin: 0 16px 16px; min-height: 56px; max-height: 50vh; padding: 16px 16px 16px 56px; resize: none;
     field-sizing: content; anchor-name: --box; border: 0; border-radius: 8px; outline: 0; background: var(--bg-raised); color: inherit; font: inherit;
   }
   textarea.editing { box-shadow: 0 0 0 2px var(--accent); }
-  /* autocomplete (autocomplete.tsx): a list over the messages, as wide as the box, just above it */
+  /* autocomplete (message_input.tsx): a list over the messages, as wide as the box, just above it */
   menu[data-mc=autocomplete] { position-anchor: --box; width: anchor-size(width); margin: 0 0 8px; }
   menu[data-mc=autocomplete] > button > img { width: 24px; height: 24px; border-radius: 50%; }
   /* the attach button over the box's left edge, the files waiting to go as chips above it */
@@ -240,7 +240,7 @@ export const CSS = `
   & > ul > button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
   textarea::placeholder { color: var(--text-faint); }
 
-  /* content (content.ts) */
+  /* content (lib/content.ts) */
   article h1, article h2, article h3 { margin: 8px 0 0; line-height: 1.25; color: var(--text-strong); }
   article h1 { font-size: 24px; } article h2 { font-size: 20px; } article h3 { font-size: 16px; }
   article small { display: block; font-size: 12px; }

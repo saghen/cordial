@@ -1,44 +1,49 @@
-// Voice: channel rows with who's in them, joining by a click (stock's selectVoiceChannel: Discord's own voice engine
-// makes the call), and the panel above the user panel while connected.
+// The user panel: the account and its status picker, mute and deafen with their device menus, and the voice panel
+// above it while connected (stock's selectVoiceChannel: Discord's own voice engine makes the call).
 
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 
-import { A } from "../adapter/core";
-import type { Id, Rec } from "../adapter/discord";
-import { popAt } from "./menu";
-import { nameOf } from "./model";
-import { $ } from "./store";
+import { A, S } from "../adapter/core";
+import type { Rec } from "../adapter/discord";
+import { url } from "./channels";
+import { nameOf } from "./lib/model";
+import { popAt } from "./lib/popover";
+import { $ } from "./lib/store";
 
-// as stock's voice rows: a server's voice channel statuses, once until a resume clears them (op 43)
-export function useChannelInfo(guildId: () => Id | null) {
-    createEffect(() => {
-        const id = guildId();
-        return id && $.GuildChannel.getChannels(id).VOCAL?.length && !$.ChannelStatus.hasRequestedStatuses(id) ? id : null;
-    }, id => {
-        if (id) A.channelInfo(id);
-    });
-}
+export const UserPanel = () => <>
+    <VoicePanel />
+    <Me />
+    <AudioButtons />
+</>;
 
-export function VoiceRow(p: { channel: Rec; }) {
-    const users = () => Object.values($.VoiceState.getVoiceStatesForChannel(p.channel.id)) as Rec[];
+const STATUSES = { online: "Online", idle: "Idle", dnd: "Do Not Disturb", invisible: "Invisible" } as Record<string, string>;
+
+// the user panel, and its account popout with the status picker: a popover the panel opens, placed by CSS anchor
+// positioning. A pick calls stock's status setter as its menu does (a synced setting)
+function Me() {
+    const me = () => $.User.getCurrentUser();
+    const status = () => $.SelfPresence.getStatus();
+    let menu!: HTMLMenuElement;
+    const pick = (next: string) => {
+        menu.hidePopover();
+        const prevStatus = S.SelfPresence.getStatus();
+        if (next !== prevStatus) A.setStatus({ nextStatus: next, prevStatus });
+    };
     return <>
-        <a data-mc={`voice:${p.channel.id}`} class={{ voice: true, sel: $.RTCConnection.getChannelId() === p.channel.id }}
-            onClick={() => A.voice.selectVoiceChannel(p.channel.id)}>
-            {p.channel.name}<small>{$.ChannelStatus.getChannelStatus(p.channel)}</small>
-        </a>
-        <For each={users()}>{v => {
-            const user = () => $.User.getUser(v.userId);
-            return <a data-mc={`voice-user:${v.userId}`} style={{ "--icon": `url(${user()?.getAvatarURL(p.channel.guild_id, 32)})` }}
-                class={{ speaking: $.Speaking.isSpeaking(v.userId), muted: v.selfMute || v.mute, deaf: v.selfDeaf || v.deaf }}>
-                {nameOf(user(), $.GuildMember.getMember(p.channel.guild_id, v.userId)?.nick)}
-            </a>;
-        }}</For>
+        <button data-mc="me" popovertarget="mc-account" style={url(me()?.getAvatarURL(undefined, 64))} data-status={status()}>
+            {nameOf(me())}<small>{STATUSES[status()] ?? status()}</small>
+        </button>
+        <menu ref={menu} id="mc-account" data-mc="account" popover>
+            <b style={url(me()?.getAvatarURL(undefined, 128))}>{nameOf(me())}<small>{me()?.username}</small></b>
+            {Object.entries(STATUSES).map(([value, label]) =>
+                <button value={value} data-mc={`status:${value}`} class={{ sel: status() === value }} onClick={() => pick(value)}>{label}</button>)}
+        </menu>
     </>;
 }
 
 const STATES: Record<string, string> = { RTC_CONNECTED: "Voice Connected", NO_ROUTE: "No Route", DISCONNECTED: "Disconnected" };
 
-export function VoicePanel() {
+function VoicePanel() {
     const channel = () => $.Channel.getChannel($.RTCConnection.getChannelId()!);
     return <Show when={channel()}>{c =>
         <footer data-mc="voice-panel" data-state={$.RTCConnection.getState()}>
@@ -51,7 +56,7 @@ export function VoicePanel() {
 
 // the user panel's mute and deafen, in or out of a call (stock's: a local setting, and the voice state while in one);
 // a right click picks the input or the output device, as on stock's
-export function AudioButtons() {
+function AudioButtons() {
     const [output, setOutput] = createSignal(false);
     let menu!: HTMLMenuElement;
     const M = () => $.MediaEngine;

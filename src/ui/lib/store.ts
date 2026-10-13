@@ -4,8 +4,8 @@
 
 import { createSignal } from "solid-js";
 
-import { S } from "../adapter/core";
-import type { FluxStore } from "../adapter/discord";
+import { S } from "../../adapter/core";
+import type { FluxStore } from "../../adapter/discord";
 
 const reads = new Map<FluxStore, () => void>();
 
@@ -23,3 +23,6 @@ function track(store: FluxStore) {
 }
 
 export const $ = new Proxy(S, { get: (s, k) => track(s[k as keyof typeof S]) }) as typeof S;
+
+export const selected = () => $.SelectedChannel.getChannelId();
+export const selectedGuild = () => $.SelectedGuild.getGuildId();

@@ -17,8 +17,8 @@ import { A, check, S } from "../adapter/core";
 import * as triggers from "../adapter/triggers";
 import { byCode, byProps, find, findModuleId, inModule, wreq } from "../adapter/webpack";
 import { App } from "./app";
-import { resetContent } from "./messages";
-import * as model from "./model";
+import { resetContent } from "./chat";
+import * as model from "./lib/model";
 
 // for lab scripts over CDP
 Object.assign(G, {

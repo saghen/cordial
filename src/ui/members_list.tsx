@@ -4,16 +4,16 @@
 
 import { createEffect, createMemo, For, Show } from "solid-js";
 
-import { A, S } from "../adapter/core";
+import { A } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
-import { nameOf } from "./model";
-import { $ } from "./store";
+import { nameOf } from "./lib/model";
+import { $ } from "./lib/store";
 
 const ROW = 44;
 
 export const membersOpen = () => !!$.SelectedGuild.getGuildId() && $.ChannelSection.getSection($.SelectedChannel.getChannelId()!, false) === "MEMBERS";
 
-export function Members() {
+export function MembersList() {
     let list!: HTMLElement;
     const ids = () => [$.SelectedGuild.getGuildId(), $.SelectedChannel.getChannelId()] as [Id, Id];
     const props = () => $.ChannelMember.getProps(...ids());

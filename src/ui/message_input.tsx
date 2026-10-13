@@ -1,16 +1,16 @@
-// The composer: one textarea calling stock's chat input actions in stock's order. Enter sends, Shift+Enter is a new
+// The message input: one textarea calling stock's chat input actions in stock's order. Enter sends, Shift+Enter is a new
 // line, Up in an empty box edits the last own message in place (Enter saves, Escape leaves). Its text is the draft.
-// Files from + wait as chips above it and go with the next message. Autocomplete: autocomplete.tsx.
+// Files from + wait as chips above it and go with the next message.
 
-import { createEffect, createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import { startTyping, stopTyping } from "../adapter/triggers";
-import { createAutocomplete } from "./autocomplete";
-import { authorOf, can as allowed, type Message, PERMS } from "./model";
-import { $ } from "./store";
+import type { Rec } from "../adapter/discord";
+import { authorOf, can as allowed, type Message, nameOf, PERMS } from "./lib/model";
+import { $ } from "./lib/store";
 
-export function Composer() {
+export function MessageInput() {
     const channelId = createMemo(() => $.SelectedChannel.getChannelId());
     const editing = createMemo(() => channelId() ? $.EditMessage.getEditingMessageId(channelId()!) : undefined);
     const can = createMemo(() => {
@@ -119,4 +119,80 @@ export function Composer() {
         onInput={input} onKeyDown={key} />
         {complete.view}
     </>;
+}
+
+// autocomplete: `@` users and roles, `#` channels, `:` emoji (two letters at least, as stock), from
+// stock's own queries. One list above the box; Up and Down move, Tab or Enter put the pick in the box as text the
+// parser turns back into a mention, Escape closes
+
+interface Item { text: string; label: string; icon?: string; }
+
+const TOKEN = /(?:^|\s)([@#:])([^\s@#:]*)$/;
+
+function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec | undefined) {
+    const [token, setToken] = createSignal<{ kind: string; query: string; at: number; } | null>(null);
+    const [sel, setSel] = createSignal(0);
+    let menu!: HTMLMenuElement;
+
+    const items = createMemo((): Item[] => {
+        const t = token(), c = channel();
+        if (!t || !c) return [];
+        if (t.kind === "@") {
+            // as stock's box: @everyone, @here and every role with the permission to mention everyone
+            const everyone = !c.isPrivate() && S.Permission.can(PERMS.MENTION_EVERYONE, c);
+            const r = A.autocomplete.queryMentionResults({ query: t.query, channel: c, canMentionEveryone: everyone, request: true });
+            return [
+                ...r.users.map((u: Rec) => ({ text: `@${u.user.username}`, label: nameOf(u.user, u.nick), icon: u.user.getAvatarURL(c.guild_id, 32) })),
+                ...r.roles.map((role: Rec) => ({ text: `@${role.name}`, label: `@${role.name}` })),
+                ...r.globals.filter((g: Rec) => g.text === "@everyone" || g.text === "@here").map((g: Rec) => ({ text: g.text, label: g.text }))
+            ].slice(0, 10);
+        }
+        if (t.kind === "#") return A.autocomplete.queryChannelResults({ query: t.query, channel: c }).channels
+            .slice(0, 10).map((ch: Rec) => ({ text: `#${ch.name}`, label: `#${ch.name}` }));
+        if (t.query.length < 2) return [];
+        return A.autocomplete.queryEmojiResults({ query: t.query, channel: c, intention: 3, maxCount: 10 }).emojis.unlocked
+            .map((e: Rec) => ({ text: `:${e.name}:`, label: `:${e.name}:`, icon: e.url ?? undefined }));
+    });
+
+    // after each input: the token the caret ends
+    const update = () => {
+        const b = box(), m = TOKEN.exec(b.value.slice(0, b.selectionStart));
+        setToken(m ? { kind: m[1], query: m[2], at: b.selectionStart - m[2].length - 1 } : null);
+        setSel(0);
+    };
+    // open while there's something to pick (writes apply in a microtask: read them in an effect)
+    createEffect(() => items().length > 0, open => {
+        if (open) menu.showPopover();
+        else if (menu.matches(":popover-open")) menu.hidePopover();
+    });
+
+    const pick = (item: Item) => {
+        const b = box(), t = token()!;
+        b.setRangeText(`${item.text} `, t.at, b.selectionStart, "end");
+        b.dispatchEvent(new Event("input", { bubbles: true }));
+        b.focus();
+    };
+
+    // true when the key was the list's
+    const key = (e: KeyboardEvent) => {
+        const n = items().length;
+        if (!n || !menu.matches(":popover-open")) return false;
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") setSel((sel() + (e.key === "ArrowDown" ? 1 : n - 1)) % n);
+        else if (e.key === "Tab" || e.key === "Enter") pick(items()[sel()]);
+        else if (e.key === "Escape") menu.hidePopover();
+        else return false;
+        e.preventDefault();
+        return true;
+    };
+
+    const view = <menu ref={menu} data-mc="autocomplete" popover="manual">
+        <For each={items()}>{(item, i) =>
+            <button data-mc={`complete:${item.text}`} class={{ sel: i() === sel() }}
+                onPointerDown={e => e.preventDefault()} onClick={() => pick(item)}>
+                {item.icon ? <img alt="" src={item.icon} /> : null}{item.label}
+            </button>
+        }</For>
+    </menu>;
+
+    return { view, update, key };
 }

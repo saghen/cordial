@@ -1,10 +1,10 @@
-// The message list's scroll container (messages.tsx). column-reverse keeps the view at the bottom (scrollTop 0 is the
+// The message list's scroll container (chat.tsx). column-reverse keeps the view at the bottom (scrollTop 0 is the
 // bottom). Like stock's list, it reports its position, turns automatic acks on for its channel and loads more history
 // near either end: without a UI nothing else does.
 
-import { A, S } from "../adapter/core";
-import type { Id } from "../adapter/discord";
-import { automaticAck, channelDimensions } from "../adapter/triggers";
+import { A, S } from "../../adapter/core";
+import type { Id } from "../../adapter/discord";
+import { automaticAck, channelDimensions } from "../../adapter/triggers";
 
 // stock's cap on a fetch's limit
 const MAX_FETCH = 30;
