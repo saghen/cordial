@@ -47,6 +47,27 @@ export const CSS = `
   nav > a:hover, nav > a.sel { background: var(--bg-raised); color: var(--text-strong); }
   nav > a.unread { color: var(--text-strong); font-weight: 600; }
   nav > a.muted { color: var(--text-faint); }
+  nav > a.voice::before { content: "🔊"; font-size: 14px; }
+  nav > a.voice > small { grid-column: 2; font-size: 12px; }
+  nav > a[data-mc^=voice-user] { min-height: 28px; padding-left: 36px; font-size: 14px; }
+  nav > a[data-mc^=voice-user]::before { width: 24px; height: 24px; }
+  nav > a.speaking::before { box-shadow: 0 0 0 2px var(--positive); }
+  nav > a.muted[data-mc^=voice-user]::after { content: "muted"; font-size: 11px; color: var(--text-faint); }
+  nav > a.deaf[data-mc^=voice-user]::after { content: "deafened"; }
+  /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size */
+  &:has(> footer) > nav { padding-bottom: 64px; }
+  & > footer {
+    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr auto; padding: 8px; border-top: 1px solid var(--bg-raised);
+    font-size: 14px; font-weight: 600; color: var(--warning);
+  }
+  & > footer[data-state=RTC_CONNECTED] { color: var(--positive); }
+  & > footer > small { grid-column: 1; font-weight: 400; font-size: 12px; color: var(--text-muted); }
+  & > footer > button {
+    grid-area: 1 / 2 / 3; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
+    color: var(--text-muted); font-size: 18px;
+  }
+  & > footer > button::before { content: "✆"; }
+  & > footer > button:hover { background: var(--bg-raised); color: var(--danger); }
   nav > a.cat { margin-top: 16px; min-height: 24px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
   nav > a.cat::before { content: "⌄"; font-size: 12px; }
   nav > a.cat.collapsed::before { content: "›"; }
@@ -73,6 +94,17 @@ export const CSS = `
   }
   & > button::before, menu > b::before { grid-row: span 2; align-self: center; }
   & > button > small, menu > b > small { font-size: 12px; }
+  /* mute and deafen over the panel's end (voice.tsx) */
+  & > button[data-mc=me] { padding-right: 88px; }
+  & > button:is([data-mc=mute], [data-mc=deafen]) {
+    justify-self: end; align-self: center; width: 32px; height: 32px; margin-right: 8px; padding: 0; border: 0; border-radius: 4px;
+    place-content: center;
+  }
+  & > button[data-mc=mute] { margin-right: 44px; }
+  & > button:is([data-mc=mute], [data-mc=deafen]):hover { background: var(--bg-raised); }
+  & > button:is([data-mc=mute], [data-mc=deafen]).on { background: color-mix(in srgb, var(--danger) 35%, transparent); }
+  & > button:is([data-mc=mute], [data-mc=deafen])::before { content: "🎙"; width: auto; height: auto; grid-row: auto; font-size: 16px; }
+  & > button[data-mc=deafen]::before { content: "🔊"; }
 
   /* the account popout, above the panel (popovertarget makes the panel its anchor) */
   menu {
@@ -153,7 +185,7 @@ export const CSS = `
   article > p > button.me { border-color: var(--accent); color: var(--text-strong); }
   article > p > button > img { width: 16px; height: 16px; }
   /* the context menus: popovers at the pointer */
-  menu:is([data-mc=message-menu], [data-mc=server-menu]) { position: fixed; margin: 0; }
+  menu:is([data-mc=message-menu], [data-mc=server-menu], [data-mc=devices]) { position: fixed; margin: 0; }
   menu > button.danger { color: var(--danger); }
   menu > button:disabled { opacity: 0.5; cursor: default; }
   menu > input { padding: 6px 8px; border: 0; border-radius: 4px; outline: 0; background: var(--bg-deep); color: inherit; font: inherit; }

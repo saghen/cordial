@@ -17,6 +17,17 @@ export interface Stores {
     Guild: FluxStore & { getGuild(id: Id): Rec | undefined; };
     // the server bar: single servers are folders without a folderId
     SortedGuild: FluxStore & { getGuildFolders(): { folderId?: number; folderName?: string; folderColor?: number; guildIds: Id[]; }[]; };
+    // voice states by user id
+    VoiceState: FluxStore & { getVoiceStatesForChannel(channelId: Id): Record<Id, Rec>; };
+    Speaking: FluxStore & { isSpeaking(userId: Id): boolean; };
+    // getState: CONNECTING, AUTHENTICATING, AWAITING_ENDPOINT, RTC_CONNECTING, RTC_CONNECTED, NO_ROUTE, DISCONNECTED...
+    RTCConnection: FluxStore & { getState(): string; getChannelId(): Id | null; };
+    ChannelStatus: FluxStore & { hasRequestedStatuses(guildId: Id): boolean; getChannelStatus(channel: Rec): string | undefined; };
+    // devices by id: { id, name, disabled }
+    MediaEngine: FluxStore & {
+        isSelfMute(): boolean; isSelfDeaf(): boolean; getInputDevices(): Record<string, Rec>; getOutputDevices(): Record<string, Rec>;
+        getInputDeviceId(): string; getOutputDeviceId(): string;
+    };
     ExpandedGuildFolder: FluxStore & { isFolderExpanded(folderId: number): boolean; };
     Channel: FluxStore & { getChannel(id: Id): Rec | undefined; };
     GuildChannel: FluxStore & { getChannels(guildId: Id): Rec; };
@@ -119,6 +130,9 @@ export interface Actions {
     guilds: { toggleGuildFolderExpand(folderId: number): void; };
     // reason: the analytics label stock passes ("muted", "unmuted")
     notifications: { updateGuildNotificationSettings(guildId: Id, settings: Rec, reason?: string): void; };
+    voice: { selectVoiceChannel(channelId: Id | null): void; disconnect(): void; };
+    channelInfo(guildId: Id): void;
+    audio: { toggleSelfMute(): Promise<void>; toggleSelfDeaf(): void; setInputDevice(id: string): void; setOutputDevice(id: string): void; };
     markGuildsRead(guildIds: Id[], source: string): void;
     channelSections: { toggleMembersSection(): void; toggleUserProfileSidebarSection(): void; };
     memberSubscriptions: { range(o: { guildId: Id; channelId: Id; y: number; height: number; rowHeight: number; }): void; };

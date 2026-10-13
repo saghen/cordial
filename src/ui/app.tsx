@@ -8,6 +8,7 @@ import type { Id, Rec } from "../adapter/discord";
 import { Composer } from "./composer";
 import { Members, MembersToggle } from "./members";
 import { ServerMenu } from "./menu";
+import { AudioButtons, useChannelInfo, VoicePanel, VoiceRow } from "./voice";
 import { Messages } from "./messages";
 import { $ } from "./store";
 import { CSS } from "./style";
@@ -90,23 +91,26 @@ function Servers() {
     </aside>;
 }
 
-// text and announcement channels under their categories (the uncategorized ones first, as GuildChannelStore lists
-// the "null" category). A collapsed category keeps the selected channel. Collapsing is a user guild setting: it syncs
+// text and announcement channels, then voice channels, under their categories (the uncategorized ones first, as
+// GuildChannelStore lists the "null" category). A collapsed category keeps the selected channel. Collapsing is a user
+// guild setting: it syncs
 function channelRows(guildId: Id) {
     const all = $.GuildChannel.getChannels(guildId);
     const text: Rec[] = (all.SELECTABLE ?? []).map((x: Rec) => x.channel).filter((c: Rec) => c.type === 0 || c.type === 5);
+    const voice: Rec[] = (all.VOCAL ?? []).map((x: Rec) => x.channel).filter((c: Rec) => c.type === 2);
     return (all[4] ?? []).flatMap(({ channel: cat }: Rec) => {
-        const rows = text.filter(c => (c.parent_id ?? "null") === cat.id);
+        const rows = [...text, ...voice].filter(c => (c.parent_id ?? "null") === cat.id);
         const shut = $.CategoryCollapse.isCollapsed(cat.id);
         return [...cat.id === "null" || !rows.length ? [] : [cat], ...rows.filter(c => !shut || c.id === selected())];
     });
 }
 
 function Nav() {
+    useChannelInfo(selectedGuild);
     return <nav>
         <Show when={selectedGuild()} keyed fallback={
             <For each={$.PrivateChannelSort.getSortedChannels().flat().slice(0, 100)}>{c => <Dm id={c.channelId} />}</For>
-        }>{guildId => <For each={channelRows(guildId)}>{c => c.type === 4
+        }>{guildId => <For each={channelRows(guildId)}>{c => c.type === 2 ? <VoiceRow channel={c} /> : c.type === 4
             ? <a data-mc={`category:${c.id}`} class={["cat", { collapsed: $.CategoryCollapse.isCollapsed(c.id) }]}
                 onClick={() => A.dispatcher.dispatch({ type: S.CategoryCollapse.isCollapsed(c.id) ? "CATEGORY_EXPAND" : "CATEGORY_COLLAPSE", id: c.id })}>
                 {c.name}
@@ -169,7 +173,9 @@ export function App(p: { root: HTMLElement; }) {
         <Servers />
         <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : "Direct Messages"}</h1>
         <Nav />
+        <VoicePanel />
         <Me />
+        <AudioButtons />
         <header style={channel()?.guild_id ? undefined : url(dmIcon(channel()))} data-status={channel()?.guild_id ? undefined : dmStatus(channel())}>
             <Show when={channel()}>{c => <>{c().guild_id ? `# ${c().name}` : dmName(c())}<small>{c().topic}</small></>}</Show>
             <MembersToggle />

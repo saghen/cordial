@@ -110,6 +110,12 @@ storeNeed("Emoji", "EmojiStore", "searchWithoutFetchingLatest");
 storeNeed("UploadAttachment", "UploadAttachmentStore", "getUploads");
 storeNeed("ChannelSection", "ChannelSectionStore", "getSection");
 storeNeed("ChannelMember", "ChannelMemberStore", "getProps");
+storeNeed("VoiceState", "VoiceStateStore", "getVoiceStatesForChannel");
+storeNeed("Speaking", "SpeakingStore", "isSpeaking");
+storeNeed("RTCConnection", "RTCConnectionStore", "getState", "getChannelId");
+storeNeed("ChannelStatus", "ChannelStatusStore", "hasRequestedStatuses", "getChannelStatus");
+storeNeed("MediaEngine", "MediaEngineStore", "isSelfMute", "isSelfDeaf", "getInputDevices", "getOutputDevices",
+    "getInputDeviceId", "getOutputDeviceId");
 storeNeed("SelfPresence", "SelfPresenceStore", "getStatus");
 storeNeed("DefaultRoute", "DefaultRouteStore");
 needs.push({
@@ -128,6 +134,10 @@ byProps("guilds", "toggleGuildFolderExpand");
 byProps("notifications", "updateGuildNotificationSettings");
 // stock's Mark As Read for servers: every channel, thread and event read state up to its last message, as BULK_ACK
 byCode("markGuildsRead", "getActiveJoinedThreadsForGuild", "GUILD_ONBOARDING_QUESTION");
+byProps("voice", "selectVoiceChannel", "disconnect");
+byProps("audio", "toggleSelfMute", "toggleSelfDeaf", "setInputDevice", "setOutputDevice");
+// stock's voice rows: FETCH_CHANNEL_INFO and op 43 for a server's voice channel statuses, once until a resume
+byCode("channelInfo", 'type:"FETCH_CHANNEL_INFO"', "requestChannelInfo");
 byProps("channelSections", "toggleMembersSection", "toggleUserProfileSidebarSection");
 // stock's member list range helper: the rows in view, in pages of 100, as GUILD_SUBSCRIPTIONS_CHANNEL
 mangled("memberSubscriptions", 'GUILD_SUBSCRIPTIONS_MEMBERS_REMOVE",guildId', { range: "rowHeight" });

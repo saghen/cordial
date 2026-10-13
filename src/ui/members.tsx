@@ -2,7 +2,7 @@
 // state says MEMBERS. Discord fills the list only for the ranges a client subscribes to: as stock's list, ours asks
 // for the rows in view (stock's own range helper) when it opens and as it scrolls.
 
-import { createEffect, For, Show } from "solid-js";
+import { createEffect, createMemo, For, Show } from "solid-js";
 
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
@@ -24,7 +24,9 @@ export function Members() {
         const [guildId, channelId] = ids();
         A.memberSubscriptions.range({ guildId, channelId, y: list.scrollTop, height: list.clientHeight, rowHeight: ROW });
     });
-    createEffect(() => membersOpen() && ids().join(), on => {
+    // a memo: the effect alone runs again on every store change, even with the same value
+    const shown = createMemo(() => membersOpen() && ids().join());
+    createEffect(shown, on => {
         if (on) subscribe();
     });
 
