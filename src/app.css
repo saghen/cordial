@@ -38,13 +38,8 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 & > h1 { grid-area: side; }
 
 /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
-nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
 section.call > figure:is(.mute, .deaf)::after, menu.autocomplete > button.ch::before, article.call::before, menu > nav > button[style]::before {
   content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
-}
-/* avatars (DMs, the user panel) are round, with the status as a ring */
-nav > a[style]::before, & > header[style]::before {
-  content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover;
 }
 /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
    hole, idle's bite, dnd's bar; inside the dot, so XOR removes it), the dot, the avatar less a ring, the avatar */
@@ -58,61 +53,12 @@ nav > a[style]::before, & > header[style]::before {
 [data-status=online] { --status: var(--positive); --cut: initial; }
 [data-status=idle] { --status: var(--warning); --cut: var(--idle-cut) 100% 100% / 32% 32% no-repeat; }
 [data-status=dnd] { --status: var(--danger); --cut: linear-gradient(#000 0 0) 91.5% 86.2% / 18% 6% no-repeat; }
-a[data-n]::after {
-  content: attr(data-n); box-sizing: border-box; min-width: 16px; padding: 0 4px; border-radius: 8px; background: var(--danger);
-  font: 700 12px/16px "gg sans", sans-serif; color: #fff; text-align: center;
-}
-:is(nav > a, & > header, menu > button.ch) {
+menu > button.ch {
   &.news { --i: var(--i-announce); }
   &.nsfw { --i: var(--i-hash-nsfw); }
   &.lock { --i: var(--i-hash-lock); }
 }
 
-
-/* the channel list and the DMs. A row reaches the list's edge with a clear left border, where the unread pill goes;
-   its colour stays in the padding box */
-nav { grid-area: nav; display: grid; align-content: start; overflow-y: auto; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px; padding: 8px; }
-nav > a {
-  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: 8px;
-  min-height: 32px; margin-left: -8px; padding: 0 8px; border-left: 8px solid #0000; border-radius: 16px 8px 8px 16px / 8px;
-  background-clip: padding-box; color: var(--text-muted); font-size: 16px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden;
-  &:not([style])::before { width: 18px; height: 18px; }
-  &.unread {
-    background: radial-gradient(circle at 0 50%, var(--text-strong) 3.5px, #0000 4px) 0 50% / 4px 8px no-repeat border-box, none padding-box;
-    color: var(--text-strong); font-weight: 600;
-  }
-  &:hover, &.sel { background-color: var(--bg-raised); color: var(--text-strong); }
-  &.sel { background-color: var(--bg-selected); }
-  &.muted { color: var(--text-faint); }
-  &.voice { --i: var(--i-voice); }
-  &.voice.lock { --i: var(--i-voice-lock); }
-  /* someone in it: the icon green, how long the call has gone on at the end */
-  &.live::before { color: var(--positive); }
-  &.voice[data-time]::after { content: attr(data-time); grid-column: 3; font: 12px "gg mono", ui-monospace, monospace; color: var(--positive); }
-  /* who's in it: the avatar under the channel's name */
-  &.voice-user { display: flex; gap: 8px; min-height: 30px; padding-left: 36px; font-size: 14px; }
-  &[style].voice-user::before { flex: none; width: 24px; height: 24px; }
-  &.speaking::before { box-shadow: 0 0 0 2px var(--positive); }
-  &.elsewhere { opacity: 0.5; }
-  /* muted: the mic off; deafened: the mic and headphones off; by the server: in red */
-  &.voice-user > .badge { margin-left: auto; }
-  &.mute::after { --i: var(--i-mic-off); width: 16px; height: 16px; }
-  &.deaf::after { width: 36px; mask: var(--i-mic-off) left / 16px no-repeat, var(--i-deaf) right / 16px no-repeat; }
-  &.forced::after { background: var(--danger); }
-  &.voice-user:not(:has(> .badge))::after { margin-left: auto; }
-  /* a category: its name and a chevron, lit on hover (no background) */
-  &.cat { --i: var(--i-chevron); display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; line-height: 16px; font-weight: 500; }
-  &.cat:first-child { margin-top: 0; }
-  &.cat:hover { background: none; }
-  &.cat::before { display: none; }
-  &.cat::after { width: 12px; height: 12px; }
-  &.cat.collapsed::after { rotate: -90deg; }
-  /* a DM's second line is its status or size */
-  &.dm { min-height: 42px; }
-  > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
-  &:has(> small) { align-content: center; }
-  &:has(> small)::before { grid-row: span 2; }
-}
 
 /* the side column: the channel list or the DMs, then the voice panel and the user panel, each in its own row, so
    neither panel covers the list */
@@ -182,7 +128,17 @@ menu {
   inset: auto; margin: 0 0 8px; position-area: top span-right; width: 224px; padding: 8px;
   &:popover-open { display: grid; gap: 2px; }
   > button { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; color: inherit; font: inherit; font-size: 14px; text-align: left; }
-  > button:hover, > button.sel, > button[aria-checked=true] { background: var(--bg-raised); color: var(--text-strong); }
+  > button:hover, > button.sel { background: var(--bg-raised); color: var(--text-strong); }
+  /* a radio item: its ring at the end, filled while checked */
+  > button[role=menuitemradio]::after {
+    content: ""; flex: none; margin-left: auto; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%;
+  }
+  > button[aria-checked=true]::after { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, #0000 50%); }
+  /* a submenu: beside its item while the item or the submenu is hovered or focused. Fixed, so it's placed against the
+     window, not inside its menu; hidden by opacity, so its items stay focusable (focus moving in blurs the item first,
+     and an item that's display: none then can't take it) */
+  > .submenu { display: grid; position: fixed; margin: 0; position-area: right span-bottom; opacity: 0; pointer-events: none; }
+  > button:is(:hover, :focus-visible) + .submenu, > .submenu:is(:hover, :focus-within) { opacity: 1; pointer-events: auto; }
   > button.danger { color: var(--danger); }
   > button:disabled { opacity: 0.5; cursor: default; }
   > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
@@ -320,8 +276,7 @@ article {
 /* the header: the channel's name and topic; its buttons, the member list's toggle last */
 & > header {
   grid-area: head;
-  &[style]::before { width: 24px; height: 24px; }
-  &.channel::before { width: 24px; height: 24px; color: var(--text-muted); }
+  > .icon { --icon-size: 24px; color: var(--text-muted); }
   > button { color: var(--text-muted); }
   > button:first-of-type { margin-left: auto; }
   > button + button { margin-left: 16px; }
@@ -335,16 +290,12 @@ article {
     &:focus { width: 240px; }
   }
 }
+/* the bell's menu: an item's second line (when a mute ends, what the default is) under its label */
 menu.notifications-menu {
-  margin: 8px 0 0; position-area: bottom span-left; overflow: visible;
+  margin: 8px 0 0; position-area: bottom span-left;
   > button { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; }
   > button > small { grid-column: 1; font-size: 12px; }
-  > button.on::after, > button.notifications-level::after {
-    content: ""; grid-area: 1 / 2 / span 2; align-self: center; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%;
-  }
-  > button.on::after { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
-  > menu { display: none; position: absolute; inset: 0 auto auto 100%; margin: 0; }
-  > button:hover + menu, > menu:hover { display: grid; }
+  > button::after { grid-area: 1 / 2 / span 2; align-self: center; }
 }
 /* the pins under their button, the search results down the right side under the header: messages as cards, Jump on
    hover */

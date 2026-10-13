@@ -17,8 +17,6 @@ const ALLOWED = new Set([
   'components/pickers.tsx -> adapter/needs',
   'views/call.tsx -> adapter/discord',
   'views/call.tsx -> adapter/needs',
-  'views/channels.tsx -> adapter/discord',
-  'views/channels.tsx -> adapter/needs',
   'views/chat.tsx -> adapter/discord',
   'views/chat.tsx -> adapter/needs',
   'views/composer.tsx -> adapter/discord',
@@ -29,8 +27,6 @@ const ALLOWED = new Set([
   'views/members.tsx -> adapter/needs',
   'views/scroller.ts -> adapter/discord',
   'views/scroller.ts -> adapter/needs',
-  'views/server_bar.tsx -> adapter/discord',
-  'views/server_bar.tsx -> adapter/needs',
   'views/user_panel.tsx -> adapter/discord',
   'views/user_panel.tsx -> adapter/needs',
 ])

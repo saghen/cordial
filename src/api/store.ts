@@ -6,6 +6,7 @@ import { createSignal } from 'solid-js'
 
 import { S } from '../adapter/needs'
 import type { FluxStore } from '../adapter/discord'
+import type { Channel } from './records'
 
 const reads = new Map<FluxStore, () => void>()
 
@@ -26,5 +27,5 @@ function track(store: FluxStore) {
 export const $ = new Proxy(S, { get: (s, k) => track(s[k as keyof typeof S]) }) as typeof S
 
 export const selected = () => $.SelectedChannel.getChannelId()
-export const selectedChannel = () => $.Channel.getChannel(selected()!)
+export const selectedChannel = () => $.Channel.getChannel(selected()!) as Channel | undefined
 export const selectedGuild = () => $.SelectedGuild.getGuildId()

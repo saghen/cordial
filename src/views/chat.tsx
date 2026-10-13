@@ -189,7 +189,7 @@ export function Chat(p: { root: HTMLElement }) {
     const head = createMemo(
       () => !collapsed() && USER_MESSAGE.has(m.type) && startsGroup(channel(), list()[i() - 1], m),
     )
-    const author = createMemo(() => (head() ? authorOf(m, channel()?.guild_id) : null))
+    const author = createMemo(() => (head() ? authorOf(m, channel()?.guild_id ?? null) : null))
     // a new day always starts a group, so the author line carries the divider
     const day = createMemo(() => dayOf(list()[i() - 1], m))
     // a reply's message, once loaded (ReferencedMessageStore)

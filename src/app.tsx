@@ -2,13 +2,18 @@
 
 import { createEffect, createMemo, Show } from 'solid-js'
 
-import { Channels, dmIcon, dmName, dmStatus, kindOf, url } from './views/channels'
+import { Channels } from './views/channels'
 import { CallButtons, CallView, IncomingCalls, voiceSounds } from './views/call'
 import { NotificationBell, Pins, Search } from './views/header'
 import { Chat } from './views/chat'
+import * as channels from './api/channels'
 import { warm } from './api/preload'
+import type { PrivateChannel } from './api/records'
 import * as session from './api/session'
 import { $, selectedChannel, selectedGuild } from './api/store'
+import { text } from './api/strings'
+import { ChannelIcon } from './components/channel_icon'
+import { DmIcon } from './components/dm_icon'
 import { MembersList, MembersToggle } from './views/members'
 import { MessageInput } from './views/composer'
 import { ServerBar } from './views/server_bar'
@@ -48,20 +53,21 @@ export function App(p: { root: HTMLElement }) {
     <>
       <Connection />
       <ServerBar />
-      <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : 'Direct Messages'}</h1>
+      <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : text('DIRECT_MESSAGES')}</h1>
       <section class="side">
         <Channels />
         <UserPanel />
       </section>
-      <header
-        style={dm() ? url(dmIcon(channel())) : undefined}
-        data-status={dm() ? dmStatus(channel()) : undefined}
-        class={channel() && !dm() ? ['channel', kindOf(channel()!)] : undefined}
-      >
+      <header>
         <Show when={channel()}>
           {(c) => (
             <>
-              {c().guild_id ? c().name : dmName(c())}
+              {c().guild_id ? (
+                <ChannelIcon channel={c()} />
+              ) : (
+                <DmIcon channel={c() as PrivateChannel} size={24} status />
+              )}
+              {c().guild_id ? c().name : channels.dmName(c() as PrivateChannel)}
               <small>{c().topic}</small>
             </>
           )}
@@ -69,7 +75,7 @@ export function App(p: { root: HTMLElement }) {
         <Show when={dm()}>
           <CallButtons channel={channel()!} />
         </Show>
-        <Show when={channel()?.guild_id && channel()}>{(c) => <NotificationBell channel={c()} />}</Show>
+        <Show when={channel()?.guild_id ? channel() : undefined}>{(c) => <NotificationBell channel={c()} />}</Show>
         <Show when={channel()}>{(c) => <Pins channel={c()} />}</Show>
         <MembersToggle />
         <Show when={channel()}>{(c) => <Search channel={c()} />}</Show>

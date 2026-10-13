@@ -33,6 +33,29 @@ const STOCK = [
   'MUTE_SERVER',
   'UNMUTE_SERVER',
   'COPY_ID_GUILD',
+  // channels and DMs
+  'GROUP_DM_MEMBER_COUNT',
+  'MUTE_CHANNEL_GENERIC',
+  'UNMUTE_CHANNEL_GENERIC',
+  'MUTE_CATEGORY',
+  'UNMUTE_CATEGORY',
+  'COPY_LINK',
+  'COPY_ID_CHANNEL',
+  // notification settings
+  'NOTIFICATION_SETTINGS',
+  'MUTE_DURATION_15_MINUTES',
+  'MUTE_DURATION_1_HOUR',
+  'MUTE_DURATION_3_HOURS',
+  'MUTE_DURATION_8_HOURS',
+  'MUTE_DURATION_24_HOURS',
+  'MUTE_DURATION_ALWAYS',
+  'MUTED_UNTIL_TIME',
+  'FORM_LABEL_DEFAULT',
+  'FORM_LABEL_DEFAULT_CATEGORY',
+  'FORM_LABEL_ALL_MESSAGES',
+  'NOTIFICATION_PRESET_HYBRID',
+  'FORM_LABEL_ONLY_MENTIONS_PLAIN',
+  'FORM_LABEL_NOTHING',
 ] as const
 textNeed(STOCK)
 
@@ -41,6 +64,8 @@ const OURS = {
   LOGIN_DISCORDS: "Use Discord's login screen",
   LOGIN_DISCORDS_STEP: "Discord's login screen continues from here.",
   LOGIN_DISCORDS_MFA: "This account's two-factor needs Discord's login screen.",
+  // stock's text, under a name we haven't found
+  ALL_LIVE_STAGES: 'All Live Stages',
 }
 
 const keys = new Map<string, string>()

@@ -6,12 +6,13 @@ import { createEffect, createMemo, For, Show } from 'solid-js'
 
 import { A, S } from '../adapter/needs'
 import type { FluxStore, Id, Rec } from '../adapter/discord'
-import { url } from './channels'
 import { nameOf } from '../api/users'
 import { $, selectedChannel } from '../api/store'
 import { Button, IconButton } from '../primitives/button'
 
 // a DM's call with someone in it (a call record can outlive its last participant)
+const url = (src?: string | null) => (src ? { '--icon': `url(${src})` } : undefined)
+
 const going = (id: Id) => !!$.Call.getCall(id) && Object.keys($.VoiceState.getVoiceStatesForChannel(id)).length > 0
 
 // voice and stage channels, and DMs with a call going
@@ -30,7 +31,8 @@ export function CallView() {
             <For each={states()}>
               {(v) => {
                 const user = () => $.User.getUser(v.userId)
-                const name = () => nameOf(user(), c().guild_id && $.GuildMember.getMember(c().guild_id, v.userId)?.nick)
+                const name = () =>
+                  nameOf(user(), c().guild_id && $.GuildMember.getMember(c().guild_id!, v.userId)?.nick)
                 return (
                   <>
                     <figure

@@ -1,0 +1,47 @@
+/* the channel list and the DMs: rows on three columns (icon, label, end), each a subgrid. A row reaches the list's
+   edge with a clear left border, where the unread pill goes; its colour stays in the padding box */
+nav {
+  grid-area: nav; display: grid; align-content: start; overflow-y: auto; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px; padding: 8px;
+  > .row {
+    grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: 8px;
+    min-height: 32px; margin-left: -8px; padding: 0 8px; border-left: 8px solid #0000; border-radius: 16px 8px 8px 16px / 8px;
+    background-clip: padding-box; color: var(--text-muted); font-size: 16px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden;
+    > .icon { --icon-size: 18px; }
+    > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
+    > .end { grid-column: 3; display: flex; align-items: center; gap: 4px; }
+  }
+  /* a second line (a DM's status or size, a voice channel's status): the icon and the end beside both */
+  > .row:has(> small) {
+    align-content: center;
+    > :is(.icon, .avatar) { grid-row: span 2; }
+    > .end { grid-row: 1 / span 2; }
+  }
+  > .unread {
+    background: radial-gradient(circle at 0 50%, var(--text-strong) 3.5px, #0000 4px) 0 50% / 4px 8px no-repeat border-box, none padding-box;
+    color: var(--text-strong); font-weight: 600;
+  }
+  > .row:is(:hover, .sel) { background-color: var(--bg-raised); color: var(--text-strong); }
+  > .row.sel { background-color: var(--bg-selected); }
+  > .muted { color: var(--text-faint); }
+  > .dm { min-height: 42px; }
+  /* a voice channel with someone in it: the icon green, how long the call has gone on at the end */
+  > .live > .icon { color: var(--positive); }
+  > .voice time { font: 12px "gg mono", ui-monospace, monospace; color: var(--positive); }
+  /* who's in it, under the channel's name: their avatar, LIVE while streaming; muted, the mic off; deafened, the mic
+     and headphones off; by the server, in red */
+  > .voice-user {
+    display: flex; gap: 8px; min-height: 30px; padding-left: 36px; font-size: 14px;
+    > .end { margin-left: auto; --icon-size: 16px; }
+    > .end > .badge { margin-right: 4px; }
+  }
+  > .forced > .end > .icon { color: var(--danger); }
+  > .elsewhere { opacity: 0.5; }
+  /* a category: its name and a chevron, lit on hover (no background) */
+  > .cat {
+    display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; line-height: 16px;
+    &:first-child { margin-top: 0; }
+    &:hover { background: none; }
+    > .end { --icon-size: 12px; }
+    &.collapsed > .end > .icon { rotate: -90deg; }
+  }
+}

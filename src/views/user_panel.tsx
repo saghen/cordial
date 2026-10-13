@@ -7,8 +7,9 @@ import * as screen from '../../screen-capture/src/renderer'
 
 import { A, S } from '../adapter/needs'
 import type { Rec } from '../adapter/discord'
-import { dmName } from './channels'
+import * as channels from '../api/channels'
 import { emojiSrc } from '../api/model'
+import type { PrivateChannel } from '../api/records'
 import { me, nameOf } from '../api/users'
 import { Avatar } from '../components/avatar'
 import { contextMenu, Items } from '../primitives/menu'
@@ -60,7 +61,7 @@ function Me() {
             id: value,
             label,
             status: value,
-            checked: status() === value,
+            class: { sel: status() === value },
             run: () => pick(value),
           }))}
         />
@@ -87,7 +88,11 @@ function VoicePanel() {
             <VoiceSettings />
           </Show>
           <b>{STATES[$.RTCConnection.getState()] ?? 'Connecting…'}</b>
-          <small>{c().guild_id ? `${c().name} / ${$.Guild.getGuild(c().guild_id)?.name}` : dmName(c())}</small>
+          <small>
+            {c().guild_id
+              ? `${c().name} / ${$.Guild.getGuild(c().guild_id)?.name}`
+              : channels.dmName(c() as PrivateChannel)}
+          </small>
           <Toggle
             class="voice-camera"
             on={$.MediaEngine.isVideoEnabled()}

@@ -1,8 +1,8 @@
 // Menus as data. An item is a button (its class, the id of what it's for, label and state); a click closes the
 // popover around it, unless it keeps it open, then runs it. One with `confirm` runs on a second click, showing that
-// label after the first; one with `checked` is a radio; `status` puts a presence status before the label. '-' is a
-// divider; false or null leaves an item out. A context menu's target is what the right click was on, the menu shown at
-// the pointer.
+// label after the first; one with `checked` is a radio; `status` puts a presence status before the label; one with a
+// `submenu` shows it beside itself while hovered or focused. '-' is a divider; false or null leaves an item out. A
+// context menu's target is what the right click was on, the menu shown at the pointer.
 
 import { createSignal, flush, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
@@ -25,6 +25,7 @@ export type Item = {
   title?: string
   status?: string
   keep?: boolean
+  submenu?: Item[]
 }
 
 export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
@@ -37,23 +38,33 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
         i === '-' ? (
           <hr />
         ) : (
-          <button
-            class={[i.name, i.class]}
-            data-id={i.id}
-            role={i.checked == null ? undefined : 'menuitemradio'}
-            aria-checked={i.checked == null ? undefined : i.checked ? 'true' : 'false'}
-            disabled={i.disabled}
-            title={i.title}
-            onClick={(e) => {
-              if (i.confirm && armed() !== key(i)) return setArmed(key(i))
-              if (!i.keep) e.currentTarget.closest<HTMLElement>('[popover]')!.hidePopover()
-              i.run(e)
-            }}
-          >
-            <Show when={i.icon}>{(name) => <Icon name={name()} />}</Show>
-            <Show when={i.status}>{(kind) => <Status kind={kind()} />}</Show>
-            {armed() === key(i) ? i.confirm : i.label}
-          </button>
+          <>
+            <button
+              class={[i.name, i.class]}
+              style={i.submenu && { 'anchor-name': `--${i.name}` }}
+              data-id={i.id}
+              role={i.checked == null ? undefined : 'menuitemradio'}
+              aria-checked={i.checked == null ? undefined : i.checked ? 'true' : 'false'}
+              disabled={i.disabled}
+              title={i.title}
+              onClick={(e) => {
+                if (i.confirm && armed() !== key(i)) return setArmed(key(i))
+                if (!i.keep) e.currentTarget.closest<HTMLElement>('[popover]')!.hidePopover()
+                i.run(e)
+              }}
+            >
+              <Show when={i.icon}>{(name) => <Icon name={name()} />}</Show>
+              <Show when={i.status}>{(kind) => <Status kind={kind()} />}</Show>
+              {armed() === key(i) ? i.confirm : i.label}
+            </button>
+            <Show when={i.submenu}>
+              {(items) => (
+                <menu class="submenu" style={{ 'position-anchor': `--${i.name}` }}>
+                  <Items items={items()} />
+                </menu>
+              )}
+            </Show>
+          </>
         )
       }
     </For>

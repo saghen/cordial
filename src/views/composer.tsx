@@ -7,10 +7,11 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'so
 import { A, S } from '../adapter/needs'
 import { startTyping, stopTyping } from '../api/triggers'
 import type { Rec } from '../adapter/discord'
-import { dmName, kindOf } from './channels'
 import { useFileDrop } from '../api/hooks'
 import { authorOf, can as allowed, emojiSrc, type Message, PERMS } from '../api/model'
 import { nameOf } from '../api/users'
+import * as channels from '../api/channels'
+import type { Channel, PrivateChannel } from '../api/records'
 import { $, selected, selectedChannel } from '../api/store'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
 import { Button, IconButton } from '../primitives/button'
@@ -25,7 +26,7 @@ export function MessageInput() {
     const c = channel()
     if (!c) return null
     if (!allowed(PERMS.SEND_MESSAGES, c)) return 'You do not have permission to send messages in this channel.'
-    if (c.type === 1 && $.Relationship.isBlocked(c.recipients[0]))
+    if (c.type === 1 && $.Relationship.isBlocked((c as PrivateChannel).recipients[0]))
       return 'You cannot send messages to a user you have blocked.'
     const until =
       c.guild_id && $.GuildMember.getMember(c.guild_id, S.User.getCurrentUser()!.id)?.communicationDisabledUntil
@@ -86,7 +87,7 @@ export function MessageInput() {
   // as stock: "Message #channel", "Message @user"
   const target = () => {
     const c = channel()
-    return !c ? '' : c.guild_id ? ` #${c.name}` : c.type === 1 ? ` @${dmName(c)}` : ` ${dmName(c)}`
+    return c ? ` ${channels.title(c)}` : ''
   }
 
   const input = () => {
@@ -366,7 +367,7 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec |
           text: `#${ch.name}`,
           label: ch.name,
           hint: S.Channel.getChannel(ch.parent_id)?.name,
-          kind: kindOf(ch) ?? '',
+          kind: channels.kindOf(ch as Channel) ?? '',
           head: i ? undefined : heading(t.query ? 'Text channels' : 'Text Channels', t),
         }))
     if (t.query.length < 2) return []

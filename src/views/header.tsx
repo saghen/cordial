@@ -6,150 +6,79 @@ import { createEffect, createSignal, For, Show } from 'solid-js'
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { renderAST } from '../components/markdown'
+import * as channels from '../api/channels'
 import { authorOf, contentAST, type Message } from '../api/model'
+import * as notifications from '../api/notifications'
+import type { Channel } from '../api/records'
 import { Time } from '../components/time'
 import { $ } from '../api/store'
+import { text } from '../api/strings'
 import { Button, IconButton } from '../primitives/button'
+import { Items } from '../primitives/menu'
 import { Popout } from '../primitives/popout'
 import { SearchInput } from '../primitives/search'
 
-// message_notifications: ALL_MESSAGES 0, ONLY_MENTIONS 1, NO_MESSAGES 2, NULL 3 (the category's or server's)
-const LEVELS = ['All Messages', 'Only @mentions', 'Nothing']
-// unread settings (new notifications): ONLY_MENTIONS 2 with ALL_MESSAGES 1 unreads is "hybrid"
-const UNREADS_ALL = 1024,
-  UNREADS_MENTIONS = 512
-const MUTE = [
-  [900, 'For 15 Minutes'],
-  [3600, 'For 1 Hour'],
-  [10800, 'For 3 Hours'],
-  [28800, 'For 8 Hours'],
-  [86400, 'For 24 Hours'],
-  [-1, 'Until I turn it back on'],
-] as const
-
-export function NotificationBell(p: { channel: Rec }) {
+export function NotificationBell(p: { channel: Channel }) {
   const c = () => p.channel
-  const muted = () => $.UserGuildSettings.isChannelMuted(c().guild_id, c().id)
-  const update = (settings: Rec, label: string) =>
-    A.notifications.updateChannelOverrideSettings({ guildId: c().guild_id, channelId: c().id, settings, label })
-  const mute = (on: boolean) => update({ muted: on }, on ? 'muted' : 'unmuted')
-  const until = () => {
-    const end = $.UserGuildSettings.getChannelMuteConfig(c().guild_id, c().id)?.end_time
-    return (
-      end &&
-      `Muted until ${new Date(end).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-    )
-  }
-  // stock's levels: none for voice channels, no All Messages in stage channels; with new notifications (and a text-like
-  // channel) a level also sets the unread flags, and "@Mentions + Unreads" joins them
-  const fresh = () => $.UserGuildSettings.useNewNotifications && [0, 4, 5, 15, 21].includes(c().type)
-  const items = (): { level: number; label: string; unreads?: boolean }[] => {
-    if (c().type === 2) return []
-    const all = c().type === 13 ? [] : [{ level: 0, label: LEVELS[0] }]
-    const hybrid = fresh() ? [{ level: 1, label: '@Mentions + Unreads', unreads: true }] : []
-    return [
-      { level: 3, label: c().parent_id ? 'Use Category Default' : 'Use Server Default' },
-      ...all,
-      ...hybrid,
-      { level: 1, label: c().type === 13 ? 'All Live Stages' : LEVELS[1] },
-      { level: 2, label: LEVELS[2] },
-    ]
-  }
-  const level = () => $.UserGuildSettings.getChannelOverrides(c().guild_id)[c().id]?.message_notifications ?? 3
-  const unreadAll = () => $.UserGuildSettings.resolveUnreadSetting(c()) === 1
-  // what the default is: the category's, or the server's
-  const fallback = () => {
-    const U = $.UserGuildSettings,
-      g = c().guild_id,
-      parent = c().parent_id ? U.getChannelMessageNotifications(g, c().parent_id) : 3,
-      unread = c().parent_id ? U.getChannelUnreadSetting(g, c().parent_id) : 0
-    const level = parent !== 3 ? parent : U.getMessageNotifications(g)
-    return fresh() && level === 1 && (unread || U.getGuildUnreadSetting(g)) === 1
-      ? '@Mentions + Unreads'
-      : LEVELS[level]
-  }
-  const set = (level: number, unreads = false) => {
-    const label = `notifications set to ${['all messages', 'mentions', 'nothing', 'the default'][level]}`
-    if (!fresh()) return update({ message_notifications: level }, label)
-    const flags = S.UserGuildSettings.getChannelIdFlags(c().guild_id, c().id) & ~(UNREADS_ALL | UNREADS_MENTIONS)
-    const unread = level === 3 ? 0 : unreads || level === 0 ? UNREADS_ALL : UNREADS_MENTIONS
-    update({ message_notifications: level, flags: flags | unread }, label)
-  }
-  let menu!: HTMLMenuElement
+  const muted = () => channels.muted(c())
   return (
     <>
       <IconButton
         class={['notifications', { muted: muted() }]}
         icon={muted() ? 'bell-slash' : 'bell'}
-        title="Notification Settings"
+        title={text('NOTIFICATION_SETTINGS')}
         popovertarget="mc-notifications"
         // as stock: shift+click mutes or unmutes
         onClick={(e) => {
           if (!e.shiftKey) return
           e.preventDefault()
-          mute(!muted())
+          channels.setMuted(c(), !muted())
         }}
       />
-      <Popout ref={menu} name="notifications" class="notifications-menu">
-        <Show
-          when={muted()}
-          fallback={
-            <>
-              <button class="notifications-mute" onClick={() => (mute(true), menu.hidePopover())}>
-                Mute Channel
-              </button>
-              <menu>
-                <For each={MUTE}>
-                  {([secs, label]) => (
-                    <button
-                      class="notifications-mute-for"
-                      data-id={secs}
-                      onClick={() => {
-                        const end = secs > 0 ? new Date(Date.now() + secs * 1000).toISOString() : null
-                        update({ muted: true, mute_config: { selected_time_window: secs, end_time: end } }, 'muted')
-                        menu.hidePopover()
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )}
-                </For>
-              </menu>
-            </>
-          }
-        >
-          <button class="notifications-unmute" onClick={() => (mute(false), menu.hidePopover())}>
-            Unmute Channel
-            <small>{until()}</small>
-          </button>
-        </Show>
-        <Show when={items().length}>
-          <hr />
-        </Show>
-        <For each={items()}>
-          {(i) => (
-            <button
-              class={[
-                'notifications-level',
-                {
-                  on: i.unreads
-                    ? level() === 1 && unreadAll()
-                    : fresh() && i.level === 1
-                      ? level() === 1 && !unreadAll()
-                      : i.level === level(),
+      <Popout name="notifications" class="notifications-menu">
+        <Items
+          items={[
+            muted()
+              ? {
+                  name: 'notifications-unmute',
+                  label: (
+                    <>
+                      {text('UNMUTE_CHANNEL_GENERIC')}
+                      <small>{notifications.mutedUntil(c())}</small>
+                    </>
+                  ),
+                  run: () => channels.setMuted(c(), false),
+                }
+              : {
+                  name: 'notifications-mute',
+                  label: text('MUTE_CHANNEL_GENERIC'),
+                  run: () => channels.setMuted(c(), true),
+                  submenu: notifications.DURATIONS.map(([secs, name]) => ({
+                    name: 'notifications-mute-for',
+                    id: String(secs),
+                    label: text(name),
+                    run: () => notifications.muteFor(c(), secs),
+                  })),
                 },
-              ]}
-              data-id={`${i.level}${i.unreads ? ':unreads' : ''}`}
-              // as stock, the menu stays open
-              onClick={() => set(i.level, i.unreads)}
-            >
-              {i.label}
-              <Show when={i.level === 3}>
-                <small>{fallback()}</small>
-              </Show>
-            </button>
-          )}
-        </For>
+            notifications.choices(c()).length > 0 && '-',
+            // as stock, the menu stays open
+            ...notifications.choices(c()).map((choice) => ({
+              name: 'notifications-level',
+              id: `${choice.level}${choice.unreads ? ':unreads' : ''}`,
+              label: (
+                <>
+                  {choice.label}
+                  <Show when={choice.level === notifications.Level.Default}>
+                    <small>{notifications.fallback(c())}</small>
+                  </Show>
+                </>
+              ),
+              checked: notifications.chosen(c(), choice),
+              keep: true,
+              run: () => notifications.choose(c(), choice),
+            })),
+          ]}
+        />
       </Popout>
     </>
   )

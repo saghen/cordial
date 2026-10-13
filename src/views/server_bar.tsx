@@ -3,11 +3,13 @@
 import { createSignal, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
-import type { Id, Invite } from '../api/records'
+import * as channels from '../api/channels'
+import type { Id, Invite, PrivateChannel } from '../api/records'
 import * as guilds from '../api/guilds'
 import { onHover } from '../api/preload'
-import { $, selected, selectedGuild } from '../api/store'
+import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
+import { DmIcon } from '../components/dm_icon'
 import { GuildIcon } from '../components/guild_icon'
 import { Badge } from '../primitives/badge'
 import { Button, IconButton } from '../primitives/button'
@@ -15,8 +17,6 @@ import { TextField } from '../primitives/fields'
 import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
 import { Popout } from '../primitives/popout'
-import { lastDm, openDms } from '../api/channels'
-import { dmIcon, dmName } from './channels'
 
 // a row of the bar: the pill (unread, hovered, selected), its icon, and the mention count over the icon's corner
 function Tile(p: {
@@ -67,20 +67,20 @@ function Guild(p: { id: Id }) {
   )
 }
 
-function Dm(p: { id: Id }) {
-  const c = () => $.Channel.getChannel(p.id)
+function Dm(p: { channel: PrivateChannel }) {
+  const c = () => p.channel
   return (
     <Tile
       name="dm"
-      id={p.id}
-      title={dmName(c())}
-      sel={selected() === p.id}
-      unread={$.ReadState.hasUnread(p.id)}
-      mentions={$.ReadState.getMentionCount(p.id)}
-      go={() => openDms(p.id)}
-      pre={() => p.id}
+      id={c().id}
+      title={channels.dmName(c())}
+      sel={selected() === c().id}
+      unread={channels.unread(c())}
+      mentions={channels.mentions(c())}
+      go={() => channels.open(c())}
+      pre={() => c().id}
     >
-      <img class="dm-icon" src={dmIcon(c())} alt="" />
+      <DmIcon channel={c()} size={40} />
     </Tile>
   )
 }
@@ -141,10 +141,16 @@ export function ServerBar() {
   let bar!: HTMLElement
   return (
     <aside ref={bar}>
-      <Tile name="dms" title={text('DIRECT_MESSAGES')} sel={!selectedGuild()} pre={lastDm} go={() => openDms(lastDm())}>
+      <Tile
+        name="dms"
+        title={text('DIRECT_MESSAGES')}
+        sel={!selectedGuild()}
+        pre={channels.lastDm}
+        go={() => channels.openDms(channels.lastDm())}
+      >
         <Icon name="chat" />
       </Tile>
-      <For each={$.PrivateChannelReadState.getUnreadPrivateChannelIds()}>{(id) => <Dm id={id} />}</For>
+      <For each={channels.unreadDms()}>{(c) => <Dm channel={c} />}</For>
       <hr />
       <For each={guilds.folders()}>
         {(f) => (f.folderId == null ? <Guild id={f.guildIds[0]} /> : <Folder folder={f} />)}
