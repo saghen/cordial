@@ -75,11 +75,16 @@ const STATES: Record<string, string> = {
 
 function VoicePanel() {
   const channel = () => $.Channel.getChannel($.RTCConnection.getChannelId()!)
+  // the voice settings open as a section above the panel's line
+  const [settings, setSettings] = createSignal(false)
   return (
     <Show when={channel()}>
       {(c) => (
         <footer data-mc="voice-panel" data-state={$.RTCConnection.getState()}>
-          {STATES[$.RTCConnection.getState()] ?? 'Connecting…'}
+          <Show when={settings()}>
+            <VoiceSettings />
+          </Show>
+          <b>{STATES[$.RTCConnection.getState()] ?? 'Connecting…'}</b>
           <small>{c().guild_id ? `${c().name} / ${$.Guild.getGuild(c().guild_id)?.name}` : dmName(c())}</small>
           <button
             data-mc="voice:camera"
@@ -98,9 +103,13 @@ function VoicePanel() {
             }
           />
           <button data-mc="voice:soundboard" title="Open Soundboard" popovertarget="mc-soundboard" />
-          <button data-mc="voice:settings" title="Voice Settings" popovertarget="mc-voice-settings" />
+          <button
+            data-mc="voice:settings"
+            class={{ on: settings() }}
+            title="Voice Settings"
+            onClick={() => setSettings((on) => !on)}
+          />
           <button data-mc="voice:disconnect" title="Disconnect" onClick={() => A.voice.disconnect()} />
-          <VoiceSettings />
           <Soundboard channel={c()} />
           <ScreenPicker />
         </footer>
@@ -174,7 +183,7 @@ function VoiceSettings() {
     </label>
   )
   return (
-    <form id="mc-voice-settings" data-mc="voice-settings" popover onSubmit={(e) => e.preventDefault()}>
+    <form data-mc="voice-settings" onSubmit={(e) => e.preventDefault()}>
       <label>
         Input Device
         <select onChange={(e) => A.audio.setInputDevice(e.currentTarget.value)}>

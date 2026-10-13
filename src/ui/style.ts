@@ -191,21 +191,22 @@ export const CSS = `
     &:has(> small)::before { grid-row: span 2; }
   }
 
-  /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size. The status
-     text takes the first cell, the buttons a column each */
+  /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size. Rows: the
+     voice settings when open, the status, the channel; the buttons a column each beside the last two */
   &:has(> footer) > nav { padding-bottom: 64px; }
   & > footer {
-    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr repeat(5, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
-    font-size: 14px; font-weight: 600; color: var(--warning);
-    &[data-state=RTC_CONNECTED] { color: var(--positive); }
-    > small { grid-area: 2 / 1; font-weight: 400; font-size: 12px; color: var(--text-muted); }
+    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid: auto auto auto / 1fr repeat(5, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
+    font-size: 14px;
+    > b { grid-area: 2 / 1; font-weight: 600; color: var(--warning); }
+    &[data-state=RTC_CONNECTED] > b { color: var(--positive); }
+    > small { grid-area: 3 / 1; font-size: 12px; color: var(--text-muted); }
     > button:nth-of-type(2) { grid-column: 3; } > button:nth-of-type(3) { grid-column: 4; }
     > button:nth-of-type(4) { grid-column: 5; } > button:nth-of-type(5) { grid-column: 6; }
     > button[data-mc="voice:camera"] { --i: var(--i-video-slash); }
     > button[data-mc="voice:camera"].on { --i: var(--i-video); color: var(--positive); }
     > button[data-mc="voice:camera"]:hover { color: var(--text-strong); }
     > button {
-      --i: var(--i-hangup); grid-area: 1 / 2 / 3; display: grid; place-content: center; width: 32px; height: 32px; border-radius: 4px;
+      --i: var(--i-hangup); grid-area: 2 / 2 / 4; display: grid; place-content: center; width: 32px; height: 32px; border-radius: 4px;
       color: var(--text-muted);
     }
     > button:hover { background: var(--bg-raised); color: var(--danger); }
@@ -213,7 +214,7 @@ export const CSS = `
     > button[data-mc="voice:soundboard"] { --i: var(--i-soundboard); }
     > button[data-mc="voice:screen"] { --i: var(--i-screen); }
     > button[data-mc="voice:screen"].on { --i: var(--i-screen-x); color: var(--positive); }
-    > button:is([data-mc="voice:screen"], [data-mc="voice:soundboard"], [data-mc="voice:settings"]):hover { color: var(--text-strong); }
+    > button:is([data-mc="voice:screen"], [data-mc="voice:soundboard"], [data-mc="voice:settings"]):hover, > button[data-mc="voice:settings"].on { color: var(--text-strong); }
   }
   /* Go Live's picker: a list of the sources, modal */
   dialog[data-mc=screen-picker] {
@@ -238,10 +239,10 @@ export const CSS = `
     > p > button:disabled { opacity: 0.4; cursor: default; }
     > p > button > img { width: 20px; height: 20px; object-fit: contain; }
   }
-  /* the voice settings: a column of labelled controls over the panel */
+  /* the voice settings: a column of labelled controls, a section of the voice panel above its line */
   form[data-mc=voice-settings] {
-    position: fixed; inset: auto auto 72px 80px; width: 320px; max-height: 80vh; overflow-y: auto; padding: 16px; font-size: 14px; font-weight: 500;
-    &:popover-open { display: grid; gap: 12px; }
+    grid-area: 1 / 1 / 2 / -1; display: grid; gap: 12px; max-height: 60vh; overflow-y: auto; margin: 0 -8px 8px; padding: 4px 8px 12px;
+    border-bottom: 1px solid var(--bg-raised); font-weight: 500;
     :is(label:has(> select), label:has(> [type=range]), fieldset) { display: grid; gap: 4px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
     fieldset { margin: 0; padding: 0; border: 0; }
     fieldset > label { text-transform: none; font-size: 14px; color: var(--text); }
