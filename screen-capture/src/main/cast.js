@@ -29,6 +29,15 @@ const path = require('node:path')
 const { startCapture } = require('./capture.js')
 const { loadFdsock, rawRelay } = require('./raw.js')
 
+// WebRTC paces video at 1.1 x the bandwidth target (1.0 for screen content), so a big frame (a switch to a new
+// screen of text) waits in the pacer: 80-160 ms live at 1.1, 54-94 at 2.5 (LOG Key finds, "A jump's pause is the
+// pacer"; Liam picked 2.5). Every video stream of the process, the camera too; set before app ready (the shell
+// requires this file at its top level).
+app.commandLine.appendSwitch(
+  'force-fieldtrials',
+  'WebRTC-Video-Pacing/factor:2.5/WebRTC-ProbingScreenshareBwe/2.5,2875,80,40,-60,3/',
+)
+
 /**
  * @typedef {{ id: number, title: string | null, app_id: string | null, pid: number | null,
  *   workspace_id: number | null, is_focused: boolean, layout?: { window_size?: [number, number] } }} NiriWindow
