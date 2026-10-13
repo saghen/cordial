@@ -239,6 +239,11 @@ export const CSS = `
      arrive while scrolled up */
   .messages { grid-area: main; overflow-y: auto; display: flex; flex-direction: column-reverse; }
   .messages > div { padding: 16px 0 24px; }
+  /* loading: skeleton message groups, a tile repeated down a screen's height */
+  .messages > div > div[data-mc=placeholder] {
+    height: 100vh; margin: 0 16px; background: var(--bg-raised);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='336'%3E%3Ccircle cx='36' cy='26' r='20'/%3E%3Crect x='72' y='8' width='96' height='14' rx='7'/%3E%3Crect x='72' y='32' width='420' height='14' rx='7'/%3E%3Crect x='72' y='56' width='260' height='14' rx='7'/%3E%3Ccircle cx='36' cy='122' r='20'/%3E%3Crect x='72' y='104' width='130' height='14' rx='7'/%3E%3Crect x='72' y='128' width='300' height='14' rx='7'/%3E%3Ccircle cx='36' cy='194' r='20'/%3E%3Crect x='72' y='176' width='80' height='14' rx='7'/%3E%3Crect x='72' y='200' width='520' height='14' rx='7'/%3E%3Crect x='72' y='224' width='380' height='14' rx='7'/%3E%3Crect x='72' y='248' width='200' height='14' rx='7'/%3E%3Ccircle cx='36' cy='290' r='20'/%3E%3Crect x='72' y='272' width='110' height='14' rx='7'/%3E%3Crect x='72' y='296' width='240' height='14' rx='7'/%3E%3C/svg%3E") 0 0 / 640px 336px repeat-y;
+  }
   article {
     position: relative; padding: 2px 16px 2px 72px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
     /* offscreen rows skip style and layout until scrolled to (ai/LOG.md, Key finds) */
@@ -419,6 +424,8 @@ export const CSS = `
   }
   section > a > i { margin-left: -8px; }
   section > a::before { content: ""; flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--icon, var(--bg-raised)) center / cover; }
+  /* a row not loaded yet (outside the ranges Discord has sent): a skeleton name */
+  section > a:not([data-mc])::after { content: ""; width: 50%; height: 14px; border-radius: 7px; background: var(--bg-raised); }
 
   /* the message input (message_input.tsx): grows with its text, up to half the window */
   textarea {

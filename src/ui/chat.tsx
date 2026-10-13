@@ -316,6 +316,10 @@ export function Chat(p: { root: HTMLElement }) {
       }}
     >
       <div>
+        {/* as stock, skeleton messages while the first page loads, and above the oldest while there are older ones */}
+        <Show when={messages() && (!messages()!.ready || messages()!.hasMoreBefore)}>
+          <div data-mc="placeholder" />
+        </Show>
         <For each={list()}>{Row}</For>
       </div>
     </div>
