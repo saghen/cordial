@@ -6,6 +6,7 @@ import { createSignal, For, Show } from "solid-js";
 import { A, S } from "../adapter/core";
 import type { Id, Rec } from "../adapter/discord";
 import { Composer } from "./composer";
+import { Members, MembersToggle } from "./members";
 import { Messages } from "./messages";
 import { $ } from "./store";
 import { CSS } from "./style";
@@ -147,8 +148,10 @@ export function App(p: { root: HTMLElement; }) {
         <Me />
         <header style={channel()?.guild_id ? undefined : url(dmIcon(channel()))} data-status={channel()?.guild_id ? undefined : dmStatus(channel())}>
             <Show when={channel()}>{c => <>{c().guild_id ? `# ${c().name}` : dmName(c())}<small>{c().topic}</small></>}</Show>
+            <MembersToggle />
         </header>
         <Messages root={p.root} />
         <Composer />
+        <Members />
     </>;
 }

@@ -106,6 +106,8 @@ storeNeed("ReferencedMessage", "ReferencedMessageStore", "getMessageByReference"
 storeNeed("MessageReactions", "MessageReactionsStore", "getReactions");
 storeNeed("Emoji", "EmojiStore", "searchWithoutFetchingLatest");
 storeNeed("UploadAttachment", "UploadAttachmentStore", "getUploads");
+storeNeed("ChannelSection", "ChannelSectionStore", "getSection");
+storeNeed("ChannelMember", "ChannelMemberStore", "getProps");
 storeNeed("SelfPresence", "SelfPresenceStore", "getStatus");
 storeNeed("DefaultRoute", "DefaultRouteStore");
 needs.push({
@@ -120,6 +122,9 @@ byProps("parser", "parse", "unparse");
 byProps("drafts", "saveDraft", "changeDraft");
 byProps("uploads", "addFiles", "remove", "clearAll");
 byProps("autocomplete", "queryMentionResults", "queryChannelResults", "queryEmojiResults");
+byProps("channelSections", "toggleMembersSection", "toggleUserProfileSidebarSection");
+// stock's member list range helper: the rows in view, in pages of 100, as GUILD_SUBSCRIPTIONS_CHANNEL
+mangled("memberSubscriptions", 'GUILD_SUBSCRIPTIONS_MEMBERS_REMOVE",guildId', { range: "rowHeight" });
 // stock's file chooser handler: size and count limits, then the files staged in UploadAttachmentStore
 mangled("promptToUpload", "Unexpected mismatch between files and file metadata", { prompt: "requireConfirm" });
 byCode("setStatus", "nextStatus:", "statusExpiresAtMs=");

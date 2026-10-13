@@ -57,6 +57,11 @@ export interface Stores {
     };
     // files staged for the next message (draft type 0: the channel's composer); { id, filename, ... }
     UploadAttachment: FluxStore & { getUploads(channelId: Id, draftType: number): Rec[]; };
+    // "MEMBERS" while the member list is open (isPrivate false for a guild channel)
+    ChannelSection: FluxStore & { getSection(channelId: Id, isPrivate: boolean): string; };
+    // { groups, rows }: GROUP rows { title, count }, MEMBER rows { userId, nick, colorString, status, user }, empty
+    // slots for rows not subscribed to
+    ChannelMember: FluxStore & { getProps(guildId: Id, channelId: Id): Rec; };
     // who reacted, by user id; the first read fetches them (type 0: normal reactions)
     MessageReactions: FluxStore & { getReactions(channelId: Id, messageId: Id, emoji: Rec, limit: number, type: number): Map<Id, Rec>; };
     SelfPresence: FluxStore & { getStatus(): string; };
@@ -109,6 +114,8 @@ export interface Actions {
         queryChannelResults(o: { query: string; channel: Rec; }): { channels: Rec[]; };
         queryEmojiResults(o: { query: string; channel: Rec; intention: number; maxCount?: number; }): { emojis: { unlocked: Rec[]; }; };
     };
+    channelSections: { toggleMembersSection(): void; toggleUserProfileSidebarSection(): void; };
+    memberSubscriptions: { range(o: { guildId: Id; channelId: Id; y: number; height: number; rowHeight: number; }): void; };
     setStatus(options: { nextStatus: string; prevStatus?: string; durationMillis?: number; }): Promise<void>;
     nav: { transitionTo(path: string, state?: Rec): void; transitionToGuild(guildId: Id, channelId?: Id): void; replaceWith(path: string): void; };
     // stock's page size: the messages that fit the window's height (at least 10, at most 30), from its window size,

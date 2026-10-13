@@ -7,8 +7,9 @@ export const CSS = `
   --text: #efeff1; --text-strong: #fbfbfb; --text-muted: #96979e; --text-faint: #4f505a;
   --mention-bg: #5f8cfb3d; --mention-fg: #a9bbff; --danger: #da3e44; --positive: #3d9e60; --warning: #fdb833;
   position: fixed; inset: 0; z-index: 1; display: grid;
-  grid: "notice notice notice" auto "servers side head" 48px "servers nav main" 1fr "servers nav uploads" auto "servers nav reply" auto "servers nav compose" auto
-    "servers me compose" 52px / 72px 240px minmax(0, 1fr);
+  grid: "notice notice notice notice" auto "servers side head head" 48px "servers nav main members" 1fr
+    "servers nav uploads members" auto "servers nav reply members" auto "servers nav compose members" auto
+    "servers me compose members" 52px / 72px 240px minmax(0, 1fr) auto;
   background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
 
   & * { margin: 0; box-sizing: border-box; }
@@ -154,6 +155,21 @@ export const CSS = `
   menu > p > button { padding: 4px; border: 0; border-radius: 4px; background: none; font-size: 22px; line-height: 1; cursor: pointer; }
   menu > p > button:hover { background: var(--bg-raised); }
   menu > p > button > img { width: 24px; height: 24px; }
+
+  /* the member list (members.tsx), and its toggle at the header's end */
+  & > header > button { margin-left: auto; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 14px; cursor: pointer; }
+  & > header > button.on { color: var(--text-strong); }
+  section {
+    grid-area: members; width: 240px; overflow-y: auto; padding: 8px; background: var(--bg-deep);
+    display: grid; grid-template-columns: auto 1fr; align-content: start;
+  }
+  section > h3 { grid-column: 1 / -1; padding: 24px 8px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+  section > a {
+    grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; gap: 12px; height: 44px;
+    padding: 0 8px; border-radius: 4px; color: var(--text-muted); white-space: nowrap; overflow: hidden;
+  }
+  section > a:hover { background: var(--bg-raised); }
+  section > a::before { content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon, var(--bg-raised)) center / cover; }
 
   /* the composer (composer.tsx): grows with its text, up to half the window */
   textarea {
