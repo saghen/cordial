@@ -14,6 +14,8 @@ export const settings = {
   bweProbeNudge: false,
   /** a floor under the Go Live connection's bandwidth estimate (streamQuality.ts; experimental) */
   goLiveMinBitrate: false,
+  /** how long a fallback capture's first frames are held back, so Chromium's encoder learns their rate (cast.ts) */
+  fallbackWarmupMs: 1000,
   /** the per-frame and rate trace (zeroCopy.ts), for the lab: set to collect it */
   streamLog: null as ((events: object[]) => void) | null,
 }

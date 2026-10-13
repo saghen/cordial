@@ -13,6 +13,7 @@
 
 import { host } from './host'
 import { logger as makeLogger } from './log'
+import { settings } from './settings'
 import {
   applyToStreamConnection,
   AutoQuality,
@@ -92,7 +93,6 @@ export const takeFallbackPick = () => {
 }
 
 const START_TIMEOUT_MS = 6000
-const FALLBACK_WARMUP_MS = 2000
 // Discord's track gets a frame at most this often (30 fps: its preview tile needs no more)
 const SHOW_INTERVAL_MS = 30
 
@@ -359,11 +359,11 @@ export class CastSession {
     this.fallbackTrack = track
     track.addEventListener('ended', () => this.end('the capture ended'))
     // Warm-up: Chromium's encoder had the preview at 1 fps, and sizes its first frames by the input rate it last
-    // saw (lab: 17-52 fps received for 4 s after a fallback). So the first FALLBACK_WARMUP_MS of frames go in 2 px
+    // saw (lab: 15-35 fps received for 3 s after a fallback, over the bitrate cap). So the first settings.fallbackWarmupMs of frames go in 2 px
     // narrower and aren't sent (zeroCopy.ts); then the full size makes the encoder start over on a keyframe,
     // knowing the real rate.
     const reader = new MediaStreamTrackProcessor({ track }).readable.getReader()
-    const warmUntil = performance.now() + FALLBACK_WARMUP_MS
+    const warmUntil = performance.now() + settings.fallbackWarmupMs
     ;(async () => {
       for (;;) {
         const { value, done } = await reader.read()
