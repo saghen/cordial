@@ -84,6 +84,12 @@ function VoicePanel() {
           <small>
             {c().name} / {$.Guild.getGuild(c().guild_id)?.name}
           </small>
+          <button
+            data-mc="voice:camera"
+            class={{ on: $.MediaEngine.isVideoEnabled() }}
+            title={$.MediaEngine.isVideoEnabled() ? 'Turn Off Camera' : 'Turn On Camera'}
+            onClick={() => A.audio.setVideoEnabled(!S.MediaEngine.isVideoEnabled())}
+          />
           <button data-mc="voice:soundboard" title="Open Soundboard" popovertarget="mc-soundboard" />
           <button data-mc="voice:settings" title="Voice Settings" popovertarget="mc-voice-settings" />
           <button data-mc="voice:disconnect" title="Disconnect" onClick={() => A.voice.disconnect()} />

@@ -36,6 +36,9 @@ export function CallView() {
                       deaf: v.selfDeaf || v.deaf,
                     }}
                   >
+                    <Show when={$.VideoStream.getStreamId(v.userId, c().guild_id ?? null)}>
+                      {(id) => <Video id={id()} />}
+                    </Show>
                     {nameOf(user(), c().guild_id && $.GuildMember.getMember(c().guild_id, v.userId)?.nick)}
                   </figure>
                 )
@@ -51,6 +54,23 @@ export function CallView() {
       }}
     </Show>
   )
+}
+
+// a camera in the call: the web engine's stream, viewed while shown (as stock's Video component)
+function Video(p: { id: string }) {
+  const el = (<video autoplay muted playsinline />) as HTMLVideoElement
+  createEffect(
+    () => p.id,
+    (id) => {
+      A.video.watch(id)
+      el.srcObject = A.video.stream(id) ?? null
+      return () => {
+        A.video.unwatch(id)
+        el.srcObject = null
+      }
+    },
+  )
+  return el
 }
 
 // stock's DM header button: a call to the DM (ringing its recipients), or to a 1:1 DM's user

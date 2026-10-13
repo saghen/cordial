@@ -123,6 +123,8 @@ export interface Stores {
   GIFPickerView: FluxStore & { getResultItems(): Rec[]; getTrendingCategories(): Rec[] }
   // stickers by server id; Discord's packs once fetched ({ id, name, stickers })
   Stickers: FluxStore & { getAllGuildStickers(): Map<Id, Rec[]>; getPremiumPacks(): Rec[] }
+  // a user's camera in a call: its stream id for the web engine (guildId null in DMs)
+  VideoStream: FluxStore & { getStreamId(userId: Id, guildId: Id | null): string | undefined }
   // sounds by server id ("0": Discord's)
   Soundboard: FluxStore & { getSounds(): Map<Id, Rec[]>; isPlayingSound(soundId: Id): boolean }
   // a search's results by its id (the server's id, or the channel's): the matching messages, 25 a page
@@ -327,6 +329,11 @@ export interface Actions {
     canPlay(channel: Rec): boolean
   }
   soundboardSounds: { fetch(): Promise<unknown> }
+  video: {
+    stream(streamId: string): MediaStream | undefined
+    watch(streamId: string): void
+    unwatch(streamId: string): void
+  }
   // stock's message search, from its lazy chunks (loaded the first time): fetchMessages runs a search (stock's parser
   // reads from:, in:, has: and the rest out of searchQueryString) into SearchMessageStore under the context's id
   search: {
@@ -370,6 +377,8 @@ export interface Actions {
   }
   readStates: { countsAsMention(message: Rec, user: Rec): boolean }
   audio: {
+    // the camera (stock's: MEDIA_ENGINE_SET_VIDEO_ENABLED)
+    setVideoEnabled(on: boolean): void
     toggleSelfMute(): Promise<void>
     toggleSelfDeaf(): void
     setInputDevice(id: string): void

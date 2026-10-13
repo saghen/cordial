@@ -119,6 +119,7 @@ storeNeed('NotificationSettings', 'NotificationSettingsStore', 'getDisableUnread
 storeNeed('Soundpack', 'SoundpackStore', 'getSoundpack')
 storeNeed('Search', 'SearchMessageStore', 'getMessages', 'getTotalCount', 'getIsFetching', 'getError')
 storeNeed('Soundboard', 'SoundboardStore', 'getSounds', 'isPlayingSound')
+storeNeed('VideoStream', 'VideoStreamStore', 'getStreamId')
 storeNeed('ChannelPins', 'ChannelPinsStore', 'getPins')
 storeNeed('Stickers', 'StickersStore', 'getAllGuildStickers', 'getPremiumPacks')
 storeNeed('GIFPickerView', 'GIFPickerViewStore', 'getResultItems', 'getTrendingCategories')
@@ -261,6 +262,18 @@ mangled('gifs', 'type:"GIF_PICKER_INITIALIZE"', {
   clear: 'GIF_PICKER_QUERY",query:""',
   select: 'GIFS_SELECT',
 })
+// the web engine's video: a stream id's MediaStream, and its count of views (the first asks for the video, the last
+// stops it), as its own Video component uses them
+moduleNeed('video', 'modules ("VideoStream") { stream }, (?.(e,!0),i[e]=t+1) { watch, unwatch }', () => {
+  const streams = findModuleId('("VideoStream")'),
+    views = findModuleId('?.(e,!0),i[e]=t+1')
+  if (streams == null || views == null) return null
+  const fns = (id: string) => Object.values(wreq(id)).filter((e) => typeof e === 'function') as Function[]
+  const stream = fns(streams).find((f) => !/VideoStream|delete/.test(String(f))),
+    watch = fns(views).find((f) => String(f).includes('+1')),
+    unwatch = fns(views).find((f) => String(f).includes('--'))
+  return stream && watch && unwatch ? { stream, watch, unwatch } : null
+})
 // stock's soundboard: play (its request, then the sound here), its rules for which sounds you can use and whether you
 // can play in a channel, and its fetch of the sounds (Discord's over REST, the servers' over the gateway)
 mangled('soundboard', 'SEND_SOUNDBOARD_SOUND(', {
@@ -304,6 +317,7 @@ byProps('endpoints', 'PIN', 'PINS', 'MESSAGE_ACK')
 mangled('readStates', '"ReadStateStore"', { countsAsMention: 'isSuppressRolesEnabled' })
 byProps(
   'audio',
+  'setVideoEnabled',
   'toggleSelfMute',
   'toggleSelfDeaf',
   'setInputDevice',

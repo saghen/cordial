@@ -147,7 +147,7 @@ export const CSS = `
   /* the voice panel: over the channel list's end, which makes room for it, so the chat keeps its size */
   &:has(> footer) > nav { padding-bottom: 64px; }
   & > footer {
-    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr auto auto auto; padding: 8px; border-top: 1px solid var(--bg-raised);
+    grid-area: nav; align-self: end; display: grid; background: var(--bg); grid-template-columns: 1fr repeat(4, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
     font-size: 14px; font-weight: 600; color: var(--warning);
   }
   & > footer[data-state=RTC_CONNECTED] { color: var(--positive); }
@@ -155,6 +155,10 @@ export const CSS = `
   & > footer > small { grid-area: 2 / 1; font-weight: 400; font-size: 12px; color: var(--text-muted); }
   & > footer > button:nth-of-type(2) { grid-column: 3; }
   & > footer > button:nth-of-type(3) { grid-column: 4; }
+  & > footer > button:nth-of-type(4) { grid-column: 5; }
+  & > footer > button[data-mc="voice:camera"] { --i: var(--i-video-slash); }
+  & > footer > button[data-mc="voice:camera"].on { --i: var(--i-video); color: var(--positive); }
+  & > footer > button[data-mc="voice:camera"]:hover { color: var(--text-strong); }
   & > footer > button {
     --i: var(--i-hangup); grid-area: 1 / 2 / 3; display: grid; place-content: center; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; cursor: pointer;
     color: var(--text-muted);
@@ -530,7 +534,10 @@ export const CSS = `
   section[data-mc=call] > figure {
     display: grid; place-items: end start; width: 160px; height: 90px; padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 500;
     background: var(--icon, none) center / 48px no-repeat, var(--bg-raised); outline: 2px solid transparent; outline-offset: -2px;
+    position: relative; z-index: 0;
   }
+  /* a camera fills its tile, under the name */
+  section[data-mc=call] > figure > video { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
   section[data-mc=call] > figure.speaking { outline-color: var(--positive); }
   section[data-mc=call] > figure.mute { --i: var(--i-mic-off); }
   section[data-mc=call] > figure.deaf { --i: var(--i-deaf); }
