@@ -9,6 +9,7 @@ import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
 import { nameOf } from '../api/model'
 import { $, selectedChannel } from '../api/store'
+import { Toggle } from '../primitives/button'
 
 const ROW = 44
 const GROUP_DM = 3
@@ -84,8 +85,10 @@ export function MembersList() {
 
 export const MembersToggle = () => (
   <Show when={listed()}>
-    <button
-      class={['members-toggle', { on: membersOpen() }]}
+    <Toggle
+      class="members-toggle"
+      on={membersOpen()}
+      icon="members"
       title="Member list"
       onClick={() => A.channelSections.toggleMembersSection()}
     />

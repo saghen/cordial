@@ -12,6 +12,7 @@ import { useFileDrop } from '../api/hooks'
 import { authorOf, can as allowed, emojiSrc, type Message, nameOf, PERMS } from '../api/model'
 import { $, selected, selectedChannel } from '../api/store'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
+import { IconButton } from '../primitives/button'
 
 export function MessageInput() {
   const channelId = selected
@@ -227,7 +228,7 @@ export function MessageInput() {
         }}
       />
       <div class="box" hidden={!channelId()}>
-        <button class="attach" title="Upload a file" hidden={!can()} onClick={() => files.click()} />
+        <IconButton class="attach" icon="plus" title="Upload a file" hidden={!can()} onClick={() => files.click()} />
         <textarea
           ref={box}
           id="mc-composer"

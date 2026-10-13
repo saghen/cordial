@@ -9,6 +9,7 @@ import type { FluxStore, Id, Rec } from '../adapter/discord'
 import { url } from './channels'
 import { nameOf } from '../api/model'
 import { $, selectedChannel } from '../api/store'
+import { IconButton } from '../primitives/button'
 
 // a DM's call with someone in it (a call record can outlive its last participant)
 const going = (id: Id) => !!$.Call.getCall(id) && Object.keys($.VoiceState.getVoiceStatesForChannel(id)).length > 0
@@ -68,12 +69,18 @@ export function CallView() {
                     </button>
                   }
                 >
-                  <button
+                  <IconButton
                     class="call-join-video"
+                    icon="video"
                     title="Join Call with Video"
                     onClick={() => A.calls.call(c().id, true, false)}
                   />
-                  <button class="call-join" title="Join Call" onClick={() => A.calls.call(c().id, false, false)} />
+                  <IconButton
+                    class="call-join"
+                    icon="call"
+                    title="Join Call"
+                    onClick={() => A.calls.call(c().id, false, false)}
+                  />
                 </Show>
               </footer>
             </Show>
@@ -137,8 +144,8 @@ export function CallButtons(p: { channel: Rec }) {
     )
   return (
     <Show when={$.RTCConnection.getChannelId() !== p.channel.id}>
-      <button class="call-start" title="Start Voice Call" onClick={() => call(false)} />
-      <button class="call-video" title="Start Video Call" onClick={() => call(true)} />
+      <IconButton class="call-start" icon="call" title="Start Voice Call" onClick={() => call(false)} />
+      <IconButton class="call-video" icon="video" title="Start Video Call" onClick={() => call(true)} />
     </Show>
   )
 }
@@ -165,15 +172,21 @@ export function IncomingCalls() {
         >
           {nameOf($.User.getUser(call.senderId))}
           <small>Incoming Call…</small>
-          <button
+          <IconButton
             class="incoming-accept"
+            icon="voice"
             title="Accept"
             onClick={() => {
               A.voice.selectVoiceChannel(call.channel.id)
               A.nav.transitionTo(`/channels/@me/${call.channel.id}`)
             }}
           />
-          <button class="incoming-decline" title="Decline" onClick={() => A.calls.stopRinging(call.channel.id)} />
+          <IconButton
+            class="incoming-decline"
+            icon="hangup"
+            title="Decline"
+            onClick={() => A.calls.stopRinging(call.channel.id)}
+          />
         </dialog>
       )}
     </For>

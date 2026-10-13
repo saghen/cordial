@@ -11,6 +11,9 @@ import type { Id, Rec } from '../adapter/discord'
 import { emojiSrc } from '../api/model'
 import { $ } from '../api/store'
 import { guildIcon } from '../views/server_bar'
+import { IconButton } from '../primitives/button'
+import { Popout } from '../primitives/popout'
+import { SearchInput } from '../primitives/search'
 
 const COUNT = 48
 
@@ -137,34 +140,15 @@ function Sections(p: {
   )
 }
 
-const searchInput = (
-  name: string,
-  placeholder: string,
-  query: () => string,
-  set: (q: string) => void,
-  enter?: () => void,
-) => (
-  <input
-    class={`${name}-search`}
-    type="search"
-    placeholder={placeholder}
-    value={query()}
-    onInput={(e) => set(e.currentTarget.value)}
-    onKeyDown={(e) => e.key === 'Enter' && enter?.()}
-  />
-)
-
 export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => Rec | undefined }) {
   const [query, setQuery] = createSignal('')
-  let menu!: HTMLMenuElement
-  // read again on each open (the stores' frecency isn't a dependency); kept while closed, so opening again reuses the
-  // rows
-  const [opened, setOpened] = createSignal(0)
+  // the picker's contents mount on each open, reading the stores' frecency again (it isn't a dependency)
+  let menu!: HTMLElement
   const guild = () => p.channel()?.guild_id as string | undefined
   // as stock without Nitro: custom emoji only this server's, and not animated
   const usable = (e: Rec) => !e.id || !!S.User.getCurrentUser()?.premiumType || (e.guildId === guild() && !e.animated)
   const all = (): Section[] => {
-    if (!opened() || !p.channel()) return []
+    if (!p.channel()) return []
     const ctx = S.Emoji.getDisambiguatedEmojiContext(guild())
     const guilds = [...ctx.getGroupedCustomEmoji()]
       .sort(([a]) => (a === guild() ? -1 : 0))
@@ -201,27 +185,37 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
   }
   return (
     <>
-      <button class="emoji-button" title="Select emoji" popovertarget="mc-emoji" hidden={!p.channel()} />
-      <menu
+      <IconButton
+        class="emoji-button"
+        icon="reaction"
+        title="Select emoji"
+        popovertarget="mc-emoji"
+        hidden={!p.channel()}
+      />
+      <Popout
         ref={menu}
-        id="mc-emoji"
+        name="emoji"
         class="emoji-picker"
-        popover
-        onToggle={(e) => {
-          if (e.newState === 'open') {
-            setOpened((n) => n + 1)
-            return menu.querySelector('input')!.focus()
-          }
+        onClose={() => {
           setQuery('')
           p.box().focus()
         }}
       >
         <Sections
-          search={searchInput('emoji', 'Find the perfect emoji', query, setQuery, () => {
-            if (!found()[0]) return
-            pick(found()[0])
-            menu.hidePopover()
-          })}
+          search={
+            <SearchInput
+              class="emoji-search"
+              placeholder="Find the perfect emoji"
+              autofocus
+              value={query()}
+              onInput={setQuery}
+              onEnter={() => {
+                if (!found()[0]) return
+                pick(found()[0])
+                menu.hidePopover()
+              }}
+            />
+          }
           all={all()}
           shown={query() ? [{ id: 'results', name: '', items: found() }] : all()}
           info={(e) => ({
@@ -239,7 +233,7 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
             </button>
           )}
         />
-      </menu>
+      </Popout>
     </>
   )
 }
@@ -291,25 +285,32 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
   )
   return (
     <>
-      <button class="gif-button" title="Open GIF picker" popovertarget="mc-gif" hidden={!p.channel()} />
-      <menu
+      <IconButton class="gif-button" icon="gif" title="Open GIF picker" popovertarget="mc-gif" hidden={!p.channel()} />
+      <Popout
         ref={menu}
-        id="mc-gif"
+        name="gif"
         class="gif-picker"
-        popover
-        onToggle={(e) => {
-          if (e.newState === 'open') {
-            A.gifs.initialize()
-            A.gifs.trendingCategories()
-            return menu.querySelector('input')?.focus()
-          }
-          back()
+        onOpen={() => {
+          A.gifs.initialize()
+          A.gifs.trendingCategories()
         }}
+        onClose={back}
       >
-        <Show when={view()} fallback={searchInput('gif', 'Search Klipy', query, (q) => search(q, 'Search'))}>
+        <Show
+          when={view()}
+          fallback={
+            <SearchInput
+              class="gif-search"
+              placeholder="Search Klipy"
+              autofocus
+              value={query()}
+              onInput={(q) => search(q, 'Search')}
+            />
+          }
+        >
           {(v) => (
             <h3>
-              <button class="gif-back" title="Back" onClick={back} />
+              <IconButton class="gif-back" icon="back" title="Back" onClick={back} />
               {v().name}
             </h3>
           )}
@@ -356,7 +357,7 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
             </div>
           </div>
         </Show>
-      </menu>
+      </Popout>
     </>
   )
 }
@@ -366,12 +367,10 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
 // matches by name and tags. A click sends it at once
 export function StickerPicker(p: { channel: () => Rec | undefined; send: (stickerId: string) => void }) {
   const [query, setQuery] = createSignal('')
-  const [opened, setOpened] = createSignal(0)
-  let menu!: HTMLMenuElement
+  let menu!: HTMLElement
   const sendable = (st: Rec | undefined): st is Rec =>
     !!st && A.stickers.sendability(st, S.User.getCurrentUser(), p.channel()) === 0
   const all = (): Section[] => {
-    if (!opened()) return []
     const byId = (ids: Id[] = []) => ids.map((id) => S.Stickers.getStickerById(id)).filter(sendable)
     const guilds = [...$.Stickers.getAllGuildStickers()].map(([id, list]) => guildSection(id, list.filter(sendable)))
     const packs = $.Stickers.getPremiumPacks().map((pk) => ({ id: pk.id, name: pk.name, items: pk.stickers }))
@@ -401,21 +400,30 @@ export function StickerPicker(p: { channel: () => Rec | undefined; send: (sticke
     st.guild_id ? S.Guild.getGuild(st.guild_id)?.name : S.Stickers.getStickerPack(st.pack_id)?.name
   return (
     <>
-      <button class="sticker-button" title="Open sticker picker" popovertarget="mc-sticker" hidden={!p.channel()} />
-      <menu
+      <IconButton
+        class="sticker-button"
+        icon="sticker"
+        title="Open sticker picker"
+        popovertarget="mc-sticker"
+        hidden={!p.channel()}
+      />
+      <Popout
         ref={menu}
-        id="mc-sticker"
+        name="sticker"
         class="sticker-picker"
-        popover
-        onToggle={(e) => {
-          if (e.newState !== 'open') return setQuery('')
-          setOpened((n) => n + 1)
-          A.stickers.fetchPacks()
-          menu.querySelector('input')!.focus()
-        }}
+        onOpen={() => A.stickers.fetchPacks()}
+        onClose={() => setQuery('')}
       >
         <Sections
-          search={searchInput('sticker', 'Find the perfect sticker', query, setQuery)}
+          search={
+            <SearchInput
+              class="sticker-search"
+              placeholder="Find the perfect sticker"
+              autofocus
+              value={query()}
+              onInput={setQuery}
+            />
+          }
           all={all()}
           shown={query() ? [{ id: 'results', name: '', items: found() }] : all()}
           info={(st) => ({
@@ -430,7 +438,7 @@ export function StickerPicker(p: { channel: () => Rec | undefined; send: (sticke
             </button>
           )}
         />
-      </menu>
+      </Popout>
     </>
   )
 }

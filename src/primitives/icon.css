@@ -1,0 +1,5 @@
+/* a mask over the text colour, 20 px unless the parent sets --icon-size */
+.icon {
+  flex: none; display: block; width: var(--icon-size, 20px); height: var(--icon-size, 20px);
+  background: currentColor; mask: var(--i) center / contain no-repeat;
+}

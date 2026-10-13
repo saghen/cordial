@@ -39,9 +39,7 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 
 /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
 nav > a:not([style])::before, nav > a.cat::after, nav > a:is(.mute, .deaf)::after, & > header.channel::before,
-& > header > button::before, section.side > footer > button::before, & > button:not(.user-panel)::before, section.side > button:not(.user-panel)::before, div.box > button::before, div.open > a.folder::before, aside > button.add-server::before, dialog.incoming > button::before, section.call > figure:is(.mute, .deaf)::after, section.call > footer > button[title]::before,
-menu.message-menu > button::before, menu.autocomplete > button.ch::before, article > p > button.reaction-add::before,
-div.search-results > h2 > button::before, article.call::before, menu > nav > button[style]::before, menu > h3 > button::before {
+div.open > a.folder::before, section.call > figure:is(.mute, .deaf)::after, menu.autocomplete > button.ch::before, article.call::before, menu > nav > button[style]::before {
   content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
 }
 /* avatars (DMs, the user panel) are round, with the status as a ring */
@@ -115,11 +113,7 @@ aside {
   }
   > hr { width: 32px; margin-top: -5px; border: 0; border-top: 1px solid var(--bg-raised); }
   /* Add a Server: a + tile at the bar's end, its form beside the bar */
-  > button.add-server {
-    --i: var(--i-plus); display: grid; place-content: center; width: 40px; height: 40px; border-radius: 12px; background: var(--bg-raised);
-    color: var(--positive);
-  }
-  > button.add-server::before { width: 20px; height: 20px; }
+  > button.add-server { width: 40px; height: 40px; border-radius: 12px; background: var(--bg-raised); color: var(--positive); }
   > button.add-server:hover { background: var(--positive); color: #fff; }
 }
 form:is(.join, .login) {
@@ -204,18 +198,11 @@ section.side > footer {
   > small { grid-area: 3 / 1; font-size: 12px; color: var(--text-muted); }
   > button:nth-of-type(2) { grid-column: 3; } > button:nth-of-type(3) { grid-column: 4; }
   > button:nth-of-type(4) { grid-column: 5; } > button:nth-of-type(5) { grid-column: 6; }
-  > button.voice-camera { --i: var(--i-video-slash); }
-  > button.voice-camera.on { --i: var(--i-video); color: var(--positive); }
+  > button.voice-camera.on { color: var(--positive); }
   > button.voice-camera:hover { color: var(--text-strong); }
-  > button {
-    --i: var(--i-hangup); grid-area: 2 / 2 / 4; display: grid; place-content: center; width: 32px; height: 32px; border-radius: 4px;
-    color: var(--text-muted);
-  }
+  > button { grid-area: 2 / 2 / 4; width: 32px; height: 32px; border-radius: 4px; color: var(--text-muted); }
   > button:hover { background: var(--bg-raised); color: var(--danger); }
-  > button.voice-settings-button { --i: var(--i-settings); }
-  > button.voice-soundboard { --i: var(--i-soundboard); }
-  > button.voice-screen { --i: var(--i-screen); }
-  > button.voice-screen.on { --i: var(--i-screen-x); color: var(--positive); }
+  > button.voice-screen.on { color: var(--positive); }
   > button:is(.voice-screen, .voice-soundboard, .voice-settings-button):hover, > button.voice-settings-button.on { color: var(--text-strong); }
 }
 /* Go Live's picker: a list of the sources, modal */
@@ -266,10 +253,7 @@ section.side > button {
     &:hover { background: var(--bg-raised); }
     &.on { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
   }
-  &.self-mute { --i: var(--i-mic); margin-right: 44px; }
-  &.self-mute.on { --i: var(--i-mic-off); }
-  &.self-deafen { --i: var(--i-headphones); }
-  &.self-deafen.on { --i: var(--i-deaf); }
+  &.self-mute { margin-right: 44px; }
 }
 
 /* menus: the account popout above the panel (popovertarget makes the panel its anchor), the context menus at the
@@ -278,16 +262,11 @@ menu {
   inset: auto; margin: 0 0 8px; position-area: top span-right; width: 224px; padding: 8px;
   &:popover-open { display: grid; gap: 2px; }
   > button { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; color: inherit; font: inherit; font-size: 14px; text-align: left; }
-  > button:hover, > button.sel { background: var(--bg-raised); color: var(--text-strong); }
+  > button:hover, > button.sel, > button[aria-checked=true] { background: var(--bg-raised); color: var(--text-strong); }
   > button[data-status]::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--status); }
   > button.danger { color: var(--danger); }
   > button:disabled { opacity: 0.5; cursor: default; }
   > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
-  > button.menu-react { --i: var(--i-reaction); }
-  > button.menu-edit { --i: var(--i-pencil); } > button.menu-reply { --i: var(--i-reply); }
-  > button.menu-copy { --i: var(--i-copy); } > button.menu-pin { --i: var(--i-pin); }
-  > button.menu-unread { --i: var(--i-unread); } > button.menu-link { --i: var(--i-link); }
-  > button.menu-delete { --i: var(--i-trash); }
   > input { padding: 6px 8px; outline: 0; color: inherit; }
   > p { display: grid; grid-template-columns: repeat(6, 1fr); }
   > p > button { padding: 4px; border-radius: 4px; }
@@ -297,8 +276,7 @@ menu {
 }
 /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
 menu.message-menu {
-  > button { padding: 8px; font-weight: 500; }
-  > button::before { width: 18px; height: 18px; }
+  > button { --icon-size: 18px; padding: 8px; font-weight: 500; }
   > p:first-child { grid-template-columns: repeat(4, 1fr); gap: 6px; padding-bottom: 4px; }
   > p:first-child > button { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); }
 }
@@ -409,7 +387,6 @@ article {
   > p > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
   > p > button:hover { border-color: var(--text-faint); }
   > p > button > img:not(.media) { width: 20px; height: 20px; object-fit: contain; }
-  > p > button.reaction-add::before { --i: var(--i-reaction); }
 }
 /* the reply bar above the composer */
 & > label {
@@ -425,17 +402,12 @@ article {
   grid-area: head;
   &[style]::before { width: 24px; height: 24px; }
   &.channel::before { width: 24px; height: 24px; color: var(--text-muted); }
-  > button { --i: var(--i-members); display: grid; padding: 0; color: var(--text-muted); }
+  > button { color: var(--text-muted); }
   > button:first-of-type { margin-left: auto; }
   > button + button { margin-left: 16px; }
   > button:hover, > button.on { color: var(--text-strong); }
-  > button.call-start { --i: var(--i-call); }
-  > button.call-video { --i: var(--i-video); }
-  /* notification settings (header.tsx): mute with its durations on hover, then the levels as radios */
-  > button.notifications { --i: var(--i-bell); }
-  > button.notifications.muted { --i: var(--i-bell-slash); }
   /* pins: a dot while there are new ones, cut out of the icon by a ring of the header's background */
-  > button.pins { --i: var(--i-pin); position: relative; }
+  > button.pins { position: relative; }
   > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
   /* search: a box at the header's end, wider while in use */
   > input.search {
@@ -473,7 +445,7 @@ div.search-results {
   inset: 48px 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
   color: var(--text);
   > h2 { display: flex; }
-  > h2 > button { --i: var(--i-close); margin-left: auto; padding: 0; background: none; color: var(--text-muted); }
+  > h2 > button { margin-left: auto; padding: 0; background: none; color: var(--text-muted); }
   > :is(p, nav) { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 16px; color: var(--text-muted); }
   > article > small { margin-left: 8px; color: var(--text-muted); font-size: 12px; }
   button:disabled { opacity: 0.5; cursor: default; }
@@ -512,12 +484,10 @@ div.box {
     border: 0; outline: 0; background: none; color: inherit; font: inherit;
   }
   > textarea::placeholder { color: var(--text-faint); }
-  > button { --i: var(--i-reaction); grid-area: emoji; display: grid; place-content: center; width: 24px; height: 24px; margin-top: 16px; padding: 0; border: 0; color: var(--text-muted); }
-  > button:hover { color: var(--text-strong); }
-  > button[hidden] { display: none; }
-  > button.attach { --i: var(--i-plus); grid-area: attach; }
-  > button.gif-button { --i: var(--i-gif); grid-area: gif; }
-  > button.sticker-button { --i: var(--i-sticker); grid-area: sticker; }
+  > button { grid-area: emoji; width: 24px; height: 24px; margin-top: 16px; }
+  > button.attach { grid-area: attach; }
+  > button.gif-button { grid-area: gif; }
+  > button.sticker-button { grid-area: sticker; }
 }
 &:has(> label) > div.box { border-top-left-radius: 0; border-top-right-radius: 0; }
 /* autocomplete: a list over the messages, as wide as the box, just above it; stock's sizes: headings 12/600 caps,
@@ -576,8 +546,6 @@ menu.sticker-picker {
 }
 menu.gif-picker {
   > h3 { display: flex; align-items: center; gap: 12px; margin: 12px; min-height: 36px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
-  > h3 > button { --i: var(--i-back); display: grid; padding: 0; color: var(--text-muted); }
-  > h3 > button:hover { color: var(--text-strong); }
   > :is(p, div) { height: 400px; overflow-y: auto; padding: 0 12px 12px; }
   > p { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 110px; gap: 8px; align-content: start; }
   > p > button {
@@ -597,11 +565,8 @@ menu.gif-picker {
 & > ul > button[style]::before { content: ""; height: 168px; background: var(--preview) center / contain no-repeat; }
 /* back to the present, at the messages' bottom right */
 & > button.jump {
-  --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: end; z-index: 2; display: grid; grid: auto / auto; width: 48px; height: 48px;
-  margin: 0 28px 40px 0; padding: 0; border: 0; border-radius: 50%; background: var(--bg-floating); color: var(--text-muted);
-  place-content: center; box-shadow: 0 4px 8px #0006;
-  &::before { width: 28px; height: 28px; }
-  &:hover { color: var(--text-strong); }
+  --icon-size: 28px; grid-area: main; align-self: end; justify-self: end; z-index: 2; width: 48px; height: 48px;
+  margin: 0 28px 40px 0; border-radius: 50%; background: var(--bg-floating); box-shadow: 0 4px 8px #0006;
 }
 
 /* the call view: a tile per person (avatar, name, a ring while speaking), Join below them; a camera fills its tile,
@@ -634,8 +599,7 @@ section.call {
 }
 /* Join on a row of its own below the tiles; a DM's are icons */
 section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; }
-section.call > footer > button[title] { display: grid; place-content: center; width: 56px; height: 40px; padding: 0; --i: var(--i-call); }
-section.call > footer > button.call-join-video { --i: var(--i-video); }
+section.call > footer > button[title] { width: 56px; height: 40px; padding: 0; }
 section.call > footer > button, dialog.incoming > button {
   padding: 8px 16px; border-radius: 4px; background: var(--positive); color: #fff; font: inherit; font-size: 14px; font-weight: 500;
 }
@@ -644,8 +608,8 @@ dialog.incoming {
   position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; width: 280px;
   padding: 16px 16px 16px 80px; background: var(--icon) 16px center / 48px no-repeat, var(--bg-floating);
   > small { grid-column: 1; color: var(--text-muted); }
-  > button { --i: var(--i-voice); display: grid; place-content: center; grid-row: 1 / 3; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
-  > button.incoming-decline { --i: var(--i-hangup); background: var(--danger); }
+  > button { grid-row: 1 / 3; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+  > button.incoming-decline { background: var(--danger); }
 }
 /* the new messages bar, across the messages' top */
 & > div.new-messages {

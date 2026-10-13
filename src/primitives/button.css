@@ -1,0 +1,5 @@
+/* an icon alone: muted, lit while hovered or on. A base (no specificity of its own): each place sets its size and
+   colours over it */
+:where(.icon-button) { display: grid; place-content: center; padding: 0; color: var(--text-muted); }
+:where(.icon-button:hover, .icon-button.on) { color: var(--text-strong); }
+:where(.icon-button[hidden]) { display: none; }

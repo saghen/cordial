@@ -9,6 +9,9 @@ import { renderAST } from '../components/markdown'
 import { authorOf, contentAST, type Message } from '../api/model'
 import { when } from '../api/strings'
 import { $ } from '../api/store'
+import { IconButton } from '../primitives/button'
+import { Popout } from '../primitives/popout'
+import { SearchInput } from '../primitives/search'
 
 // message_notifications: ALL_MESSAGES 0, ONLY_MENTIONS 1, NO_MESSAGES 2, NULL 3 (the category's or server's)
 const LEVELS = ['All Messages', 'Only @mentions', 'Nothing']
@@ -75,8 +78,9 @@ export function NotificationBell(p: { channel: Rec }) {
   let menu!: HTMLMenuElement
   return (
     <>
-      <button
+      <IconButton
         class={['notifications', { muted: muted() }]}
+        icon={muted() ? 'bell-slash' : 'bell'}
         title="Notification Settings"
         popovertarget="mc-notifications"
         // as stock: shift+click mutes or unmutes
@@ -86,7 +90,7 @@ export function NotificationBell(p: { channel: Rec }) {
           mute(!muted())
         }}
       />
-      <menu ref={menu} id="mc-notifications" class="notifications-menu" popover>
+      <Popout ref={menu} name="notifications" class="notifications-menu">
         <Show
           when={muted()}
           fallback={
@@ -146,7 +150,7 @@ export function NotificationBell(p: { channel: Rec }) {
             </button>
           )}
         </For>
-      </menu>
+      </Popout>
     </>
   )
 }
@@ -220,18 +224,18 @@ export function Pins(p: { channel: Rec }) {
   let pop!: HTMLDivElement
   return (
     <>
-      <button
+      <IconButton
         class={['pins', { unread: $.ReadState.hasUnreadPins(id()) }]}
+        icon="pin"
         title="Pinned Messages"
         popovertarget="mc-pins"
       />
-      <div
+      <Popout
         ref={pop}
-        id="mc-pins"
+        name="pins"
+        as="div"
         class="pins-list"
-        popover
-        onToggle={(e) => {
-          if (e.newState !== 'open') return
+        onOpen={() => {
           fetchPins(id())
           if (S.ReadState.hasUnreadPins(id())) A.dispatcher.dispatch({ type: 'CHANNEL_PINS_ACK', channelId: id() })
         }}
@@ -252,7 +256,7 @@ export function Pins(p: { channel: Rec }) {
             Load More
           </button>
         </Show>
-      </div>
+      </Popout>
     </>
   )
 }
@@ -290,14 +294,13 @@ export function Search(p: { channel: Rec }) {
   const total = () => $.Search.getTotalCount(id()) ?? 0
   return (
     <>
-      <input
+      <SearchInput
         class="search"
-        type="search"
         placeholder={guildId() ? `Search ${$.Guild.getGuild(guildId()!)?.name}` : 'Search'}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') return pop.hidePopover()
-          if (e.key !== 'Enter' || !e.currentTarget.value.trim()) return
-          query = e.currentTarget.value.trim()
+        onEscape={() => pop.hidePopover()}
+        onEnter={(q) => {
+          if (!q.trim()) return
+          query = q.trim()
           run(0)
         }}
       />
@@ -312,7 +315,7 @@ export function Search(p: { channel: Rec }) {
       >
         <h2>
           {$.Search.getIsFetching(id()) ? 'Searching…' : `${total().toLocaleString()} Results`}
-          <button class="search-close" title="Close" onClick={() => pop.hidePopover()} />
+          <IconButton class="search-close" icon="close" title="Close" onClick={() => pop.hidePopover()} />
         </h2>
         <Show when={$.Search.getError(id())}>
           <p>Something went wrong. Try again.</p>

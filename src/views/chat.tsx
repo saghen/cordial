@@ -27,6 +27,9 @@ import { clock, when } from '../api/strings'
 import { contextMenu, Items } from '../primitives/menu'
 import { createScroller } from './scroller'
 import { $, selected, selectedChannel } from '../api/store'
+import { IconButton } from '../primitives/button'
+import { modal } from '../primitives/modal'
+import { SearchInput } from '../primitives/search'
 
 let built = new WeakMap<Message, globalThis.Node[]>()
 
@@ -299,8 +302,9 @@ export function Chat(p: { root: HTMLElement }) {
           <Show when={m.reactions?.length}>
             <p class="reactions">
               {m.reactions.map(react(m))}
-              <button
+              <IconButton
                 class="reaction-add"
+                icon="reaction"
                 title="Add Reaction"
                 onClick={(e) =>
                   e.currentTarget.dispatchEvent(
@@ -388,7 +392,7 @@ export function Chat(p: { root: HTMLElement }) {
       {view}
       <NewMessages channelId={channelId} />
       <Show when={up() || messages()?.hasMoreAfter}>
-        <button class="jump" title="Jump to Present" onClick={present} />
+        <IconButton class="jump" icon="chevron" title="Jump to Present" onClick={present} />
       </Show>
       <MessageMenu list={view} channelId={channelId} />
       <Viewer list={view} />
@@ -447,28 +451,22 @@ function NewMessages(p: { channelId: () => Id | null }) {
 // stock's media viewer, roughly: an image large over a dimmed window, with a link to the original. Escape or a click
 // outside the image closes it
 function Viewer(p: { list: HTMLElement }) {
-  const [shown, setShown] = createSignal<{ src: string; url: string }>()
-  let dialog!: HTMLDialogElement
+  const viewer = modal<{ src: string; url: string }>({
+    class: 'viewer',
+    children: (s) => (
+      <>
+        <img alt="" src={s().src} />
+        <a href={s().url} target="_blank" rel="noreferrer noopener">
+          Open in Browser
+        </a>
+      </>
+    ),
+  })
   p.list.addEventListener('click', (e) => {
     const i = e.target as HTMLElement
-    if (!i.matches('img[data-full]')) return
-    setShown({ src: i.dataset.full!, url: i.dataset.url! })
-    dialog.showModal()
+    if (i.matches('img[data-full]')) viewer.open({ src: i.dataset.full!, url: i.dataset.url! })
   })
-  return (
-    <dialog ref={dialog} class="viewer" onClick={(e) => e.target === dialog && dialog.close()}>
-      <Show when={shown()}>
-        {(s) => (
-          <>
-            <img alt="" src={s().src} />
-            <a href={s().url} target="_blank" rel="noreferrer noopener">
-              Open in Browser
-            </a>
-          </>
-        )}
-      </Show>
-    </dialog>
-  )
+  return viewer.view
 }
 
 // stock's Mark Unread: a manual ack of the message before this one (or of the millisecond before it), with the
@@ -487,26 +485,27 @@ function markUnread(channelId: Id, messageId: Id) {
   })
 }
 
-// the message menu (right click on a message)
+// the message menu (right click on a message); from the add-reaction chip, straight to the emoji search
 function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
-  // deleting takes a second click
-  const [sure, setSure] = createSignal(false)
-  // the four most used reactions on top, as stock; React swaps the items for an emoji search: the most used, then
-  // what the query matches
-  const [query, setQuery] = createSignal<string | null>(null)
-  const menu = contextMenu((e) => {
-    const id = (e.target as Element).closest('article')?.dataset.id,
-      channelId = p.channelId()
-    const m = id && channelId ? (S.Message.getMessage(channelId, id) as Message | undefined) : undefined
-    if (!m) return
-    setSure(false)
-    // the add-reaction chip opens the emoji search
-    setQuery((e.target as Element).closest('.reaction-add') ? '' : null)
-    return m
+  const menu = contextMenu({
+    class: 'message-menu',
+    find(e) {
+      const id = (e.target as Element).closest('article')?.dataset.id,
+        channelId = p.channelId()
+      const m = id && channelId ? (S.Message.getMessage(channelId, id) as Message | undefined) : undefined
+      return m && { m, react: !!(e.target as Element).closest('.reaction-add') }
+    },
+    children: (t) => <MessageItems message={t().m} react={t().react} />,
   })
   p.list.addEventListener('contextmenu', menu.open)
+  return menu.view
+}
 
-  const target = () => menu.target()!
+// the four most used reactions on top, as stock; React swaps the items for an emoji search: the most used, then what
+// the query matches
+function MessageItems(p: { message: Message; react: boolean }) {
+  const [query, setQuery] = createSignal<string | null>(p.react ? '' : null)
+  const target = () => p.message
   const channel = () => S.Channel.getChannel(target().channel_id)!
   const own = () => target().author.id === S.User.getCurrentUser()?.id
   const can = (permission: bigint) => allowed(permission, channel())
@@ -548,68 +547,94 @@ function MessageMenu(p: { list: HTMLElement; channelId: () => Id | null }) {
   const deletable = () => own() || can(PERMS.MANAGE_MESSAGES)
 
   return (
-    <menu ref={menu.ref} class="message-menu" popover onToggle={(e) => e.newState === 'closed' && setQuery(null)}>
-      <Show when={menu.target() && query() != null}>
-        <input
-          class="react-search"
-          placeholder="Find an emoji"
-          ref={(i) => queueMicrotask(() => i.focus())}
-          onInput={(e) => setQuery(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || !emojis()[0]) return
-            e.currentTarget.closest('menu')!.hidePopover()
-            react(emojis()[0])
-          }}
-        />
-        <Emojis each={emojis()} />
+    <Show
+      when={query() == null}
+      fallback={
+        <>
+          <SearchInput
+            class="react-search"
+            placeholder="Find an emoji"
+            autofocus
+            onInput={setQuery}
+            onEnter={() => {
+              if (!emojis()[0]) return
+              document.querySelector<HTMLElement>('.message-menu')!.hidePopover()
+              react(emojis()[0])
+            }}
+          />
+          <Emojis each={emojis()} />
+        </>
+      }
+    >
+      <Show when={can(PERMS.ADD_REACTIONS)}>
+        <Emojis each={recent().slice(0, 4)} />
       </Show>
-      <Show when={menu.target() && query() == null}>
-        <Show when={can(PERMS.ADD_REACTIONS)}>
-          <Emojis each={recent().slice(0, 4)} />
-        </Show>
-        <Items
-          items={[
-            can(PERMS.ADD_REACTIONS) && {
-              name: 'menu-react',
-              label: 'Add Reaction',
-              keep: true,
-              run: () => setQuery(''),
+      <Items
+        items={[
+          can(PERMS.ADD_REACTIONS) && {
+            name: 'menu-react',
+            icon: 'reaction',
+            label: 'Add Reaction',
+            keep: true,
+            run: () => setQuery(''),
+          },
+          can(PERMS.ADD_REACTIONS) && '-',
+          own() && {
+            name: 'menu-edit',
+            icon: 'pencil',
+            label: 'Edit Message',
+            run: () => (A.messages.startEditMessageRecord(channel().id, target()), box()),
+          },
+          can(PERMS.SEND_MESSAGES) && {
+            name: 'menu-reply',
+            icon: 'reply',
+            label: 'Reply',
+            run: () => {
+              A.replies.create({
+                message: target(),
+                channel: channel(),
+                shouldMention: !own(),
+                showMentionToggle: !own(),
+              })
+              box()
             },
-            can(PERMS.ADD_REACTIONS) && '-',
-            own() && {
-              name: 'menu-edit',
-              label: 'Edit Message',
-              run: () => (A.messages.startEditMessageRecord(channel().id, target()), box()),
-            },
-            can(PERMS.SEND_MESSAGES) && {
-              name: 'menu-reply',
-              label: 'Reply',
-              run: () => {
-                A.replies.create({
-                  message: target(),
-                  channel: channel(),
-                  shouldMention: !own(),
-                  showMentionToggle: !own(),
-                })
-                box()
-              },
-            },
-            '-',
-            { name: 'menu-copy', label: 'Copy Text', run: () => navigator.clipboard.writeText(target().content) },
-            pinnable() && { name: 'menu-pin', label: target().pinned ? 'Unpin Message' : 'Pin Message', run: pin },
-            { name: 'menu-unread', label: 'Mark Unread', run: () => markUnread(channel().id, target().id) },
-            { name: 'menu-link', label: 'Copy Message Link', run: () => navigator.clipboard.writeText(link()) },
-            deletable() && '-',
-            deletable() && {
-              name: 'menu-delete',
-              class: 'danger',
-              label: sure() ? 'Click again to delete' : 'Delete Message',
-              keep: !sure(),
-              run: () => (sure() ? A.messages.deleteMessage(channel().id, target().id) : setSure(true)),
-            },
-          ]}
-        />
-      </Show>
-    </menu>
+          },
+          '-',
+          {
+            name: 'menu-copy',
+            icon: 'copy',
+            label: 'Copy Text',
+            run: () => navigator.clipboard.writeText(target().content),
+          },
+          pinnable() && {
+            name: 'menu-pin',
+            icon: 'pin',
+            label: target().pinned ? 'Unpin Message' : 'Pin Message',
+            run: pin,
+          },
+          {
+            name: 'menu-unread',
+            icon: 'unread',
+            label: 'Mark Unread',
+            run: () => markUnread(channel().id, target().id),
+          },
+          {
+            name: 'menu-link',
+            icon: 'link',
+            label: 'Copy Message Link',
+            run: () => navigator.clipboard.writeText(link()),
+          },
+          deletable() && '-',
+          deletable() && {
+            name: 'menu-delete',
+            icon: 'trash',
+            class: 'danger',
+            label: 'Delete Message',
+            confirm: 'Click again to delete',
+            run: () => A.messages.deleteMessage(channel().id, target().id),
+          },
+        ]}
+      />
+    </Show>
   )
 }

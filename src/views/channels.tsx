@@ -191,48 +191,44 @@ export function Channels() {
 
 // a right click on a channel or a category: stock's Mark As Read, Mute, Copy Link and Copy Channel ID
 function channelMenu() {
-  const menu = contextMenu((e) => {
-    const row = (e.target as Element).closest<HTMLElement>('nav > .channel, nav > .cat')
-    return row && (S.Channel.getChannel(row.dataset.id!) as Rec | undefined)
-  })
   const muted = (c: Rec) => $.UserGuildSettings.isChannelMuted(c.guild_id, c.id)
   const what = (c: Rec) => (c.type === 4 ? 'Category' : 'Channel')
-  const view = (
-    <menu ref={menu.ref} class="channel-menu" popover>
-      <Show when={menu.target()}>
-        {(c) => (
-          <Items
-            items={[
-              {
-                name: 'menu-read',
-                label: text('MARK_AS_READ'),
-                disabled: c().type !== 4 && !$.ReadState.hasUnread(c().id),
-                run: () => A.acks.markRead(c()),
-              },
-              {
-                name: 'menu-mute',
-                label: `${muted(c()) ? 'Unmute' : 'Mute'} ${what(c())}`,
-                run: () =>
-                  A.notifications.updateChannelOverrideSettings({
-                    guildId: c().guild_id,
-                    channelId: c().id,
-                    settings: { muted: !muted(c()) },
-                    label: muted(c()) ? 'unmuted' : 'muted',
-                  }),
-              },
-              {
-                name: 'menu-copy-link',
-                label: 'Copy Link',
-                run: () => navigator.clipboard.writeText(`https://discord.com/channels/${c().guild_id}/${c().id}`),
-              },
-              { name: 'menu-copy-id', label: 'Copy Channel ID', run: () => navigator.clipboard.writeText(c().id) },
-            ]}
-          />
-        )}
-      </Show>
-    </menu>
-  )
-  return { open: menu.open, view }
+  return contextMenu({
+    class: 'channel-menu',
+    find(e) {
+      const row = (e.target as Element).closest<HTMLElement>('nav > .channel, nav > .cat')
+      return row && (S.Channel.getChannel(row.dataset.id!) as Rec | undefined)
+    },
+    children: (c) => (
+      <Items
+        items={[
+          {
+            name: 'menu-read',
+            label: text('MARK_AS_READ'),
+            disabled: c().type !== 4 && !$.ReadState.hasUnread(c().id),
+            run: () => A.acks.markRead(c()),
+          },
+          {
+            name: 'menu-mute',
+            label: `${muted(c()) ? 'Unmute' : 'Mute'} ${what(c())}`,
+            run: () =>
+              A.notifications.updateChannelOverrideSettings({
+                guildId: c().guild_id,
+                channelId: c().id,
+                settings: { muted: !muted(c()) },
+                label: muted(c()) ? 'unmuted' : 'muted',
+              }),
+          },
+          {
+            name: 'menu-copy-link',
+            label: 'Copy Link',
+            run: () => navigator.clipboard.writeText(`https://discord.com/channels/${c().guild_id}/${c().id}`),
+          },
+          { name: 'menu-copy-id', label: 'Copy Channel ID', run: () => navigator.clipboard.writeText(c().id) },
+        ]}
+      />
+    ),
+  })
 }
 
 // as stock's voice rows: a server's voice channel statuses, once until a resume clears them (op 43)

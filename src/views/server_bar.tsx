@@ -8,6 +8,8 @@ import { Dm, Item, url } from './channels'
 import { contextMenu, Items } from '../primitives/menu'
 import { $, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
+import { IconButton } from '../primitives/button'
+import { Popout } from '../primitives/popout'
 
 // as stock's click: the channel Discord remembers for the server (persisted across restarts), else its default
 const channel = (id: Id) => S.SelectedChannel.getChannelId(id) ?? undefined
@@ -108,7 +110,7 @@ const code = (text: string) =>
   text.trim().match(/(?:discord(?:app)?\.com\/invite|discord\.gg)\/([\w-]+)/)?.[1] ?? text.trim().match(/^[\w-]+$/)?.[0]
 function AddServer() {
   const [invite, setInvite] = createSignal<Rec | null | undefined>()
-  let form!: HTMLFormElement
+  let form!: HTMLElement
   const resolve = (text: string) => {
     const c = code(text)
     if (!c) return setInvite(undefined)
@@ -116,13 +118,13 @@ function AddServer() {
   }
   return (
     <>
-      <button class="add-server" title="Add a Server" popovertarget="mc-join" />
-      <form
+      <IconButton class="add-server" icon="plus" title="Add a Server" popovertarget="mc-join" />
+      <Popout
         ref={form}
-        id="mc-join"
+        name="join"
+        as="form"
         class="join"
-        popover
-        onSubmit={(e) => {
+        onSubmit={(e: SubmitEvent) => {
           e.preventDefault()
           const i = invite()
           if (!i) return
@@ -154,42 +156,40 @@ function AddServer() {
           </Show>
         </Show>
         <button disabled={!invite()}>Join Server</button>
-      </form>
+      </Popout>
     </>
   )
 }
 
 function ServerMenu(p: { bar: HTMLElement }) {
-  const menu = contextMenu((e) => (e.target as Element).closest<HTMLElement>('.guild')?.dataset.id)
-  p.bar.addEventListener('contextmenu', menu.open)
   const muted = (id: Id) => $.UserGuildSettings.isMuted(id)
-  return (
-    <menu ref={menu.ref} class="server-menu" popover>
-      <Show when={menu.target()}>
-        {(id) => (
-          <Items
-            items={[
-              {
-                name: 'menu-read',
-                label: text('MARK_AS_READ'),
-                disabled: !$.GuildReadState.getGuildHasUnreadIgnoreMuted(id()),
-                run: () => A.markGuildsRead([id()], 'Guild List'),
-              },
-              {
-                name: 'menu-mute',
-                label: muted(id()) ? 'Unmute Server' : 'Mute Server',
-                run: () =>
-                  A.notifications.updateGuildNotificationSettings(
-                    id(),
-                    { muted: !muted(id()) },
-                    muted(id()) ? 'unmuted' : 'muted',
-                  ),
-              },
-              { name: 'menu-copy-id', label: 'Copy Server ID', run: () => navigator.clipboard.writeText(id()) },
-            ]}
-          />
-        )}
-      </Show>
-    </menu>
-  )
+  const menu = contextMenu({
+    class: 'server-menu',
+    find: (e) => (e.target as Element).closest<HTMLElement>('.guild')?.dataset.id,
+    children: (id) => (
+      <Items
+        items={[
+          {
+            name: 'menu-read',
+            label: text('MARK_AS_READ'),
+            disabled: !$.GuildReadState.getGuildHasUnreadIgnoreMuted(id()),
+            run: () => A.markGuildsRead([id()], 'Guild List'),
+          },
+          {
+            name: 'menu-mute',
+            label: muted(id()) ? 'Unmute Server' : 'Mute Server',
+            run: () =>
+              A.notifications.updateGuildNotificationSettings(
+                id(),
+                { muted: !muted(id()) },
+                muted(id()) ? 'unmuted' : 'muted',
+              ),
+          },
+          { name: 'menu-copy-id', label: 'Copy Server ID', run: () => navigator.clipboard.writeText(id()) },
+        ]}
+      />
+    ),
+  })
+  p.bar.addEventListener('contextmenu', menu.open)
+  return menu.view
 }
