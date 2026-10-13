@@ -11,9 +11,10 @@ import { $, selected, selectedGuild } from "./lib/store";
 
 export const url = (src?: string | null) => src ? { "--icon": `url(${src})` } : undefined;
 
-// a text channel's icon (style.ts): announcements, age-restricted and private ones (hidden from @everyone) have their own
+// a channel's icon (style.ts): announcements, age-restricted and private ones have their own. Private as stock: hidden
+// from @everyone, or for voice also closed to it (View Channel 1 << 10, Connect 1 << 20)
 export const kindOf = (c: Rec) => c.type === 5 ? "news" : c.nsfw ? "nsfw"
-    : BigInt(c.permissionOverwrites?.[c.guild_id]?.deny ?? 0) & 1024n ? "lock" : undefined;
+    : BigInt(c.permissionOverwrites?.[c.guild_id]?.deny ?? 0) & (c.type === 2 ? 1049600n : 1024n) ? "lock" : undefined;
 
 export function Item(p: {
     mc?: string; label?: string; sub?: string; title?: string; icon?: string | null; status?: string; kind?: string;
@@ -23,7 +24,7 @@ export function Item(p: {
 }) {
     let t = 0;
     return <a data-mc={p.mc} title={p.title} style={url(p.icon)} data-status={p.status} data-n={p.mentions || undefined}
-        class={[p.kind, { sel: !!p.sel, unread: !!p.unread, muted: !!p.muted }]} onClick={p.go}
+        class={[p.kind, { sel: !!p.sel, unread: !!p.unread && !p.muted, muted: !!p.muted }]} onClick={p.go}
         onPointerEnter={() => p.pre && (t = setTimeout(() => preload(p.pre!()), 100))} onPointerLeave={() => clearTimeout(t)}>
         {p.label}<Show when={p.sub}><small>{p.sub}</small></Show>
     </a>;
@@ -120,7 +121,7 @@ function VoiceRow(p: { channel: Rec; }) {
         return () => clearInterval(timer);
     });
     return <>
-        <a data-mc={`voice:${p.channel.id}`} class={{ voice: true, live: users().length > 0, sel: $.RTCConnection.getChannelId() === p.channel.id }}
+        <a data-mc={`voice:${p.channel.id}`} class={{ voice: true, lock: kindOf(p.channel) === "lock", live: users().length > 0, sel: $.RTCConnection.getChannelId() === p.channel.id }}
             data-time={start() ? elapsed(now() - start()!) : undefined} onClick={() => A.voice.selectVoiceChannel(p.channel.id)}>
             {p.channel.name}<Show when={$.ChannelStatus.getChannelStatus(p.channel)}>{s => <small>{s()}</small>}</Show>
         </a>

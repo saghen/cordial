@@ -107,6 +107,7 @@ export const CSS = `
   nav > a.sel { background-color: var(--bg-selected); }
   nav > a.muted { color: var(--text-faint); }
   nav > a.voice { --i: var(--i-voice); }
+  nav > a.voice.lock { --i: var(--i-voice-lock); }
   /* someone in it: the icon green, how long the call has gone on at the end */
   nav > a.live::before { color: var(--positive); }
   nav > a.voice[data-time]::after { content: attr(data-time); grid-column: 3; font: 12px "gg mono", ui-monospace, monospace; color: var(--positive); }
