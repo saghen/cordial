@@ -142,7 +142,7 @@ export const CSS = `
   nav > a.cat::after { content: ""; width: 12px; height: 12px; background: currentColor; mask: var(--i-chevron) center / contain no-repeat; }
   nav > a.cat.collapsed::after { rotate: -90deg; }
   /* avatars (DMs, the user panel) are round, with the status as a ring; a DM's second line is its status or size */
-  nav > a[style]::before, & > header[style]::before, & > button[data-mc=me]::before, menu > b::before {
+  nav > a[style]::before, & > header[style]::before, & > button[data-mc=me]::before {
     content: ""; width: 32px; height: 32px; border-radius: 50%; background: var(--icon) center / cover; mask: none;
   }
   nav > a[data-mc^=dm] { min-height: 42px; font-size: 16px; line-height: 20px; }
@@ -167,15 +167,15 @@ export const CSS = `
   }
   aside a[data-n]::after { position: absolute; right: -4px; bottom: -4px; box-shadow: 0 0 0 3px var(--bg); }
   /* the user panel (a button: it opens the account popout) */
-  & > button, menu > b {
+  & > button {
     display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; text-align: left;
     font: inherit; font-weight: 500; color: var(--text-strong);
   }
   & > button {
     grid-area: me; padding: 0 8px; border: 0; border-top: 1px solid var(--bg-raised); background: none; cursor: pointer;
   }
-  & > button[data-mc=me]::before, menu > b::before { grid-row: span 2; align-self: center; }
-  & > button > small, menu > b > small { font-size: 12px; }
+  & > button[data-mc=me]::before { grid-row: span 2; align-self: center; }
+  & > button > small { font-size: 12px; }
   /* mute and deafen over the panel's end (user_panel.tsx) */
   & > button[data-mc=me] { padding-right: 88px; }
   & > button:is([data-mc=mute], [data-mc=deafen]) {
@@ -197,7 +197,6 @@ export const CSS = `
     border-radius: 8px; background: var(--bg-floating); color: var(--text); box-shadow: 0 8px 16px #0006;
   }
   menu:popover-open { display: grid; gap: 2px; }
-  menu > b { padding: 4px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--bg-raised); }
   menu > button {
     display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 4px; background: none;
     color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer;

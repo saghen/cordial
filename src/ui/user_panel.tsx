@@ -34,7 +34,6 @@ function Me() {
             {nameOf(me())}<small>{STATUSES[status()] ?? status()}</small>
         </button>
         <menu ref={menu} id="mc-account" data-mc="account" popover>
-            <b style={url(me()?.getAvatarURL(undefined, 128))}>{nameOf(me())}<small>{me()?.username}</small></b>
             {Object.entries(STATUSES).map(([value, label]) =>
                 <button value={value} data-mc={`status:${value}`} class={{ sel: status() === value }} onClick={() => pick(value)}>{label}</button>)}
         </menu>
