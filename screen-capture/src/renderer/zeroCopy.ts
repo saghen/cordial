@@ -271,6 +271,11 @@ class Swap implements CastConsumer {
     return this.traced.get(frame)
   }
 
+  /** the rate capture was last asked for */
+  get kbps() {
+    return this.lastKbps
+  }
+
   /** capture is gone (cast.ts' fallback, or the stream ended). */
   stop() {
     this.timers.forEach(clearInterval)
@@ -591,8 +596,11 @@ async function negotiated(sender: RTCRtpSender) {
     })
 }
 
-/** A Go Live track is on `sender`: send capture's video in place of Chromium's encode, if the track is a cast's. */
-export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrack) {
+/**
+ * A Go Live track is on `sender`: send capture's video in place of Chromium's encode, if the track is a cast's.
+ * `kbps`: the rate to start at (a resume after capture was started again keeps the one it had).
+ */
+export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrack, kbps?: number) {
   const session = castSessionFor(track)
   const swap = swaps.get(sender)
   // (Discord can have the track before capture is up: it's handed over at once, cast.ts)
@@ -616,8 +624,14 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   }
   if (sender.track !== track || session.state !== 'cast') return active.delete(sender)
   const max = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
-  swap.start(session, sender, Math.min(6000, (max * 0.7) / 1000), codec)
+  swap.start(session, sender, kbps ?? Math.min(6000, (max * 0.7) / 1000), codec)
   logger.info(`Streaming capture's ${CODEC_NAMES[codec]} (zero-copy)`)
+  // capture was started again (cast.ts' recast): the same sender, the rate it had
+  session.resume = () => {
+    clearInterval(timer)
+    active.delete(sender)
+    startZeroCopy(sender, track, swap.kbps)
+  }
   let lastHeight = 0 // capture starts at its --size (0); a scale Discord set before the session is sent at once
   let prev: { at: number; bytes: number; packets: number; delay: number } | null = null
   const timer = setInterval(async () => {

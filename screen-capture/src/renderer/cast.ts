@@ -9,7 +9,7 @@
 //   hands its scaled frames over instead ("raw": GPU buffers, imported by main/raw.js and preload/raw.js), they're
 //   piped into the encoder track and Chromium encodes them; no second source, no dialog;
 // - if capture dies or stalls: it's started again once on the same source (niri's, the clip, the portal's restore
-//   token: no dialog) and its frames go raw as above;
+//   token: no dialog); zero-copy resumes if it was on (recast()), else its frames go raw as above;
 // - if capture fails to start, can't be restarted, or raw doesn't come up: a normal getDisplayMedia (the portal's
 //   dialog, Chromium reading the full-size cast) is piped into the encoder track instead. Either way Discord's track shows
 //   the same frames, and neither track object ever changes.
@@ -115,6 +115,8 @@ export class CastSession {
   width: number
   height: number
   consumer: CastConsumer | null = null
+  /** zeroCopy.ts: sends capture's video again after capture was started again (recast) */
+  resume: (() => void) | null = null
   /** what capture encodes (zeroCopy.ts sets it from the negotiated codec, setCodec) */
   codec: 'av1' | 'h264' = 'av1'
   private decoderCodec: 'av1' | 'h264' = 'av1'
@@ -253,7 +255,7 @@ export class CastSession {
       this.decode(m)
     } else if (m.type === 'closed') {
       this.started(false)
-      if (this.state === 'cast') this.fallback(`capture ${m.why}`, 'restart')
+      if (this.state === 'cast') this.recast(`capture ${m.why}`)
       return
     }
     this.consumer?.message(m)
@@ -449,6 +451,24 @@ export class CastSession {
         await this.feed(value, warmUntil)
       }
     })().catch((e) => logger.error('Fallback relay failed', e))
+  }
+
+  /**
+   * capture died while it streamed: once per session, start it again on the same source and send its video again
+   * (zeroCopy.ts' resume); without zero-copy on (nothing to resume) or a restart, its frames go raw.
+   */
+  private async recast(why: string) {
+    const resume = this.consumer && this.resume
+    if (!resume || this.restarted || this.pick.source === 'portal:choose') return this.fallback(why, 'restart')
+    this.restarted = true
+    logger.warn(`${why}: starting capture again on the same source`)
+    this.state = 'starting'
+    this.closeCast()
+    if (await this.run()) return resume()
+    if (this.state === 'starting') {
+      this.state = 'cast'
+      this.fallback("capture didn't start again", 'portal')
+    }
   }
 
   /**
