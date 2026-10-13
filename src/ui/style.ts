@@ -293,13 +293,13 @@ export const CSS = `
   /* reactions as stock: a chip per emoji (Discord's images), mine ringed, then a chip to add one */
   article > p { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; white-space: normal; }
   article > p > button {
-    display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 6px; border: 1px solid transparent; border-radius: 8px;
-    background: var(--bg-raised); color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border: 1px solid transparent; border-radius: 8px;
+    background: var(--bg-raised); color: var(--text-muted); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
   }
   article > p > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
   article > p > button:hover { border-color: var(--text-faint); }
-  article > p > button > img:not(.media) { width: 16px; height: 16px; }
-  article > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); width: 18px; height: 18px; }
+  article > p > button > img:not(.media) { width: 20px; height: 20px; }
+  article > p > button[data-mc="reaction:add"]::before { --i: var(--i-reaction); }
   /* the age gate (app.tsx): over the messages and the composer */
   & > figure {
     grid-area: main / main / compose / main; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 16px;
@@ -374,11 +374,11 @@ export const CSS = `
   & > ul > button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
   /* back to the present, at the messages' bottom right */
   & > button[data-mc=jump] {
-    --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: end; z-index: 2; display: grid; grid: auto / auto; width: 40px; height: 40px;
+    --i: var(--i-chevron); grid-area: main; align-self: end; justify-self: end; z-index: 2; display: grid; grid: auto / auto; width: 48px; height: 48px;
     margin: 0 28px 40px 0; padding: 0; border: 0; border-radius: 50%; background: var(--bg-floating); color: var(--text-muted);
     place-content: center; box-shadow: 0 4px 8px #0006; cursor: pointer;
   }
-  & > button[data-mc=jump]::before { width: 24px; height: 24px; }
+  & > button[data-mc=jump]::before { width: 28px; height: 28px; }
   & > button[data-mc=jump]:hover { color: var(--text-strong); }
   /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
      on the background with a fade above, over what scrolls under it */
