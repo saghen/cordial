@@ -1,8 +1,10 @@
 // The fallback's frames from capture ("raw", capture's main.rs) into a renderer: each of capture's NV12 buffers is
-// imported once with Electron's sharedTexture and sent to the page's frame under its id; then one IPC message per frame,
-// mincord:cast-raw (id, seq, t). preload/raw.js makes a VideoFrame on the import for each, which Chromium encodes.
-// Imports live as long as the session: releasing one while a frame from it was still in the encoder or compositor
-// crashed the renderer (approach B: the last reference then drops off the main thread).
+// imported once with Electron's sharedTexture and sent to the page's frame under a key of its own; then one IPC
+// message per frame, mincord:cast-raw (key, seq, t). preload/raw.js makes a VideoFrame on the import for each, which
+// Chromium encodes. A new size is a new ring under the same ids: its buffers get new keys (a frame never lands on the
+// old buffer of its id), and the old imports are released 2 s later (mincord:cast-raw-drop for the page's): releasing
+// one while a frame from it was still in the encoder or compositor crashed the renderer (approach B: the last
+// reference then drops off the main thread).
 
 const { sharedTexture } = require('electron')
 
@@ -26,10 +28,15 @@ function loadFdsock() {
  * @returns {{ message(m: import('./capture.js').RawMessage, fds: number[]): void, close(): void }}
  */
 function rawRelay(contents) {
+  /** capture's buffer id → its import and key */
   const imports = new Map()
+  let keys = 0
   return {
     message(m, fds) {
-      if (m.type === 'frame') return contents.send('mincord:cast-raw', m.id, m.seq, m.t)
+      if (m.type === 'frame') {
+        const b = imports.get(m.id)
+        return b && contents.send('mincord:cast-raw', b.key, m.seq, m.t)
+      }
       if (m.type !== 'buffer') return
       let imported
       try {
@@ -53,15 +60,19 @@ function rawRelay(contents) {
       } finally {
         for (const fd of fds) fdsock.close(fd) // Electron dup'd them
       }
-      // (a new size: capture's new ring reuses the ids)
-      imports.get(m.id)?.release()
-      imports.set(m.id, imported)
+      const old = imports.get(m.id)
+      if (old) {
+        if (!contents.isDestroyed()) contents.send('mincord:cast-raw-drop', old.key)
+        setTimeout(() => old.imported.release(), 2000)
+      }
+      const key = ++keys
+      imports.set(m.id, { imported, key })
       sharedTexture
-        .sendSharedTexture({ frame: contents.mainFrame, importedSharedTexture: imported }, m.id)
+        .sendSharedTexture({ frame: contents.mainFrame, importedSharedTexture: imported }, key)
         .catch((e) => console.error('[cast] raw send:', e))
     },
     close() {
-      for (const i of imports.values()) i.release()
+      for (const b of imports.values()) b.imported.release()
       imports.clear()
       if (!contents.isDestroyed()) contents.send('mincord:cast-raw-end')
     },
