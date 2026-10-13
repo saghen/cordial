@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -15,6 +16,29 @@ ipcMain.on('mincord:config', (e) => {
   } catch {
     e.returnValue = {}
   }
+})
+
+// game detection (adapter/games.ts): game-detection/ watches for Discord's list of games, one list at a time, and
+// prints the running ones whenever they change, a line each and an empty line after
+let observer = null
+ipcMain.on('mincord:games', (e, list) => {
+  observer?.kill()
+  const bin =
+    process.env.MINCORD_GAME_DETECTION ?? path.join(__dirname, '../../game-detection/target/release/game-detection')
+  const p = (observer = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] }))
+  p.on('error', (err) => console.error('[mincord] no game detection:', err.message))
+  p.stdin.on('error', () => {})
+  p.stdin.end(list)
+  let rest = '',
+    games = []
+  p.stdout.on('data', (d) => {
+    const lines = (rest + d).split('\n')
+    rest = lines.pop()
+    for (const l of lines) {
+      if (l) games.push(l)
+      else if (!e.sender.isDestroyed()) e.sender.send('mincord:games', games.splice(0))
+    }
+  })
 })
 
 app.whenReady().then(() => {

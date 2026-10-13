@@ -5,6 +5,14 @@ const { readFileSync } = require('node:fs')
 const path = require('node:path')
 
 const src = readFileSync(path.join(__dirname, '../../dist/mincord.js'), 'utf8') + '\n//# sourceURL=mincord.js'
+// game detection (adapter/games.ts, shell/main.js)
+contextBridge.exposeInMainWorld('mincordNative', {
+  observeGames(list, cb) {
+    ipcRenderer.removeAllListeners('mincord:games')
+    ipcRenderer.on('mincord:games', (_, games) => cb(games))
+    ipcRenderer.send('mincord:games', list)
+  },
+})
 contextBridge.executeInMainWorld({
   func: (src, config) => ((0, eval)(src), (window.mincord.config = config)),
   args: [src, ipcRenderer.sendSync('mincord:config')],

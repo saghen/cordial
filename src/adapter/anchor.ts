@@ -102,6 +102,7 @@ Object.assign(G, {
               : 'logged out',
     adapter: checked ? check() : null,
     mounted: !!unmount,
+    games: G.gamesApplied?.() ?? false,
   }),
 })
 
