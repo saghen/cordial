@@ -4,7 +4,7 @@
 // arguments, where a bindgen struct with ..Default::default() reads like the C. So: ids, owned by small RAII types
 // that hold the Arc<Display> (Send), and one check() for every status.
 
-use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+use std::os::fd::{FromRawFd, OwnedFd, RawFd};
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
@@ -176,10 +176,59 @@ impl Va {
     }
 }
 
+impl Va {
+    /// a DMA-BUF in XRGB8888 (the cast's buffer) as a BGRx surface; `planes`: fd, offset, stride. The fds stay the
+    /// caller's.
+    pub fn import(&self, w: u32, h: u32, modifier: u64, planes: &[(i32, u32, u32)]) -> Result<Surfaces> {
+        const DRM_FORMAT_XRGB8888: u32 = 0x34325258; // "XR24"
+        if planes.len() > 4 {
+            bail!("{} planes", planes.len());
+        }
+        let mut d = sys::VADRMPRIMESurfaceDescriptor {
+            fourcc: sys::VA_FOURCC_BGRX,
+            width: w,
+            height: h,
+            num_layers: 1,
+            ..Default::default()
+        };
+        d.layers[0].drm_format = DRM_FORMAT_XRGB8888;
+        d.layers[0].num_planes = planes.len() as u32;
+        for (i, &(fd, offset, pitch)) in planes.iter().enumerate() {
+            let obj = match d.objects[..d.num_objects as usize].iter().position(|o| o.fd == fd) {
+                Some(o) => o,
+                None => {
+                    let o = d.num_objects as usize;
+                    d.num_objects += 1;
+                    // SAFETY: lseek on a fd we were handed; only its size is read
+                    let size = unsafe { libc::lseek(fd, 0, libc::SEEK_END) };
+                    d.objects[o].fd = fd;
+                    d.objects[o].size = size.max(0) as u32;
+                    d.objects[o].drm_format_modifier = modifier;
+                    o
+                }
+            };
+            d.layers[0].object_index[i] = obj as u32;
+            d.layers[0].offset[i] = offset;
+            d.layers[0].pitch[i] = pitch;
+        }
+        let mut desc = surface_attr(sys::VASurfaceAttribType::VASurfaceAttribExternalBufferDescriptor, 0);
+        desc.value.type_ = sys::VAGenericValueType::VAGenericValueTypePointer;
+        desc.value.value.p = &mut d as *mut _ as *mut std::ffi::c_void;
+        let mut attrs = [
+            surface_attr(
+                sys::VASurfaceAttribType::VASurfaceAttribMemoryType,
+                sys::VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
+            ),
+            desc,
+        ];
+        self.surfaces(sys::VA_RT_FORMAT_RGB32, w, h, 1, &mut attrs)
+    }
+}
+
 /// wait up to timeout_ms for the fences in a DMA-BUF's reservation (POLLOUT: all of them, the VPP's write among them)
-pub fn fence_wait(fd: &OwnedFd, timeout_ms: i32) {
+pub fn fence_wait(fd: RawFd, timeout_ms: i32) {
     let mut p = libc::pollfd {
-        fd: fd.as_raw_fd(),
+        fd,
         events: libc::POLLOUT,
         revents: 0,
     };

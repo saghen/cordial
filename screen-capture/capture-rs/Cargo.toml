@@ -14,6 +14,8 @@ path = "src/main.rs"
 # vendored: its pinned headers (libva 2.22); the fork does not build against nixpkgs 2.24 headers (new VP9 fields)
 cros-libva = { git = "https://github.com/discord/cros-libva", rev = "896a248e003caae7a7120812f7eaa423c93a920d", features = ["vendored"] }
 anyhow = "1"
+# the cast's input; v1_2_0 for the modifier's DONT_FIXATE flag
+pipewire = { version = "0.10", features = ["v1_2_0"] }
 libc = "0.2"
 
 [profile.release]
