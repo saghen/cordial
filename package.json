@@ -5,7 +5,7 @@
   "scripts": {
     "build": "vite build",
     "watch": "vite build --watch",
-    "check": "tsc",
+    "check": "tsc && node boundary.mjs",
     "format": "prettier --write ."
   },
   "prettier": {
