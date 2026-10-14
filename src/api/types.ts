@@ -25,7 +25,7 @@ export const enum MessageType {
   ChatInputCommand = 20,
 }
 
-/// BigInt permission bit flags
+// BigInt permission bit flags
 export const Permission = {
   VIEW_CHANNEL: 1n << 10n,
   MANAGE_CHANNELS: 1n << 4n,
@@ -46,7 +46,7 @@ export interface Channel {
   parent_id: Id | null
   topic?: string
   nsfw?: boolean
-  /// slowmode, in seconds
+  // slowmode, in seconds
   rateLimitPerUser?: number
   permissionOverwrites?: Record<Id, { id: Id; allow: bigint | string; deny: bigint | string }>
   isPrivate(): boolean
@@ -55,9 +55,9 @@ export interface Channel {
   getApplicationId(): Id | undefined
 }
 
-/// DMs and group DMs
+// DMs and group DMs
 export interface PrivateChannel extends Channel {
-  /// everyone except the user
+  // everyone but you
   recipients: Id[]
   icon: string | null
 }

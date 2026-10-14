@@ -1,7 +1,7 @@
-// Go Live on niri: cordial owns the capture. getDisplayMedia shows cordial's picker (host.pick) with niri's windows and
-// outputs (or skips it for "Stream <game>"), the main process starts capture on the pick (src/main/cast.js), and Discord gets a
-// MediaStreamTrackGenerator as its video track. The Go Live sender gets another one in its place (the hooks at the
-// bottom), the encoder track:
+// Go Live through capture: cordial owns the capture. getDisplayMedia shows cordial's picker (host.pick) with capture's
+// sources (niri's windows and outputs, or the portal's; skipped for "Stream <game>"), the main process starts capture
+// on the pick (src/main/cast.js), and Discord gets a MediaStreamTrackGenerator as its video track. The Go Live sender
+// gets another one in its place (the hooks at the bottom), the encoder track:
 // - while capture streams, the encoder track carries capture's 1 fps preview, upscaled to the stream's size.
 //   Chromium encodes those frames, but only as templates: zeroCopy.ts sends capture's AV1 in their place. Discord's
 //   track (its own preview and thumbnail) shows the same preview;
@@ -111,7 +111,7 @@ export class CastSession {
   width: number
   height: number
   consumer: CastConsumer | null = null
-  /** capture's last per-second stats (the lab's) */
+  /** capture's last per-second stats */
   stats: any = null
   /** the fallback capture has fed the track long enough for Chromium's encoder to see its frame rate */
   warmedUp = false
@@ -409,7 +409,7 @@ export class CastSession {
 
   /**
    * A fallback frame into the encoder track (and, at most every SHOW_INTERVAL_MS, Discord's). Warm-up: Chromium's
-   * encoder had the preview at 1 fps, and sizes its first frames by the input rate it last saw (lab: 15-35 fps
+   * encoder had the preview at 1 fps, and sizes its first frames by the input rate it last saw (measured: 15-35 fps
    * received for 3 s after a fallback, over the bitrate cap). So the frames before `warmUntil` go in 2 px narrower
    * and aren't sent (zeroCopy.ts); then the full size makes the encoder start over on a key frame, knowing the rate.
    */
@@ -483,7 +483,7 @@ RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, 
 }
 
 let available = false
-/** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on); a no is asked again. */
+/** Whether getDisplayMedia goes through capture (a source, capture installed, the setting on); a no is asked again. */
 export const castAvailable = async () => (available ||= (await host.native?.available().catch(() => false)) ?? false)
 
 let codecs: string[] | null = null
@@ -497,7 +497,7 @@ export const probeCaptureCodecs = () =>
   )
 
 let latest: CastSession | null = null
-/** The newest cast session (live or ended), for stats and the lab. */
+/** The newest cast session (live or ended), for stats and scripts. */
 export const currentCast = () => latest
 
 let pending: { pick: CastPick; at: number } | null = null

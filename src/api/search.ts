@@ -35,7 +35,7 @@ export const total = (c: Channel) => ($.Search.getTotalCount(searchId(c)) ?? 0) 
 export const failed = (c: Channel) => !!$.Search.getError(searchId(c))
 export const results = (c: Channel) => ($.Search.getMessages(searchId(c)) ?? []) as Message[]
 
-// the field's placeholder: "Search lab" in a server
+// the field's placeholder: "Search {server}" in a server
 export const placeholder = (c: Channel) => {
   const g = c.guild_id && guilds.get(c.guild_id)
   return g ? text('SEARCH_IN', { name: g.name }) : text('SEARCH')

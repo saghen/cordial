@@ -26,7 +26,7 @@ const STUFF = {
   MAX_PER_FRAME: 40_000,
   /** time between frames counted at most (a stall doesn't make one huge stuffing) */
   MAX_GAP_MS: 50,
-  /** what we sent over the budget (a key frame) is paid back by later frames, at most this much of it, in ms of target */
+  /** what went over the budget (a key frame) is paid back by later frames, at most this many ms of the target */
   MAX_CREDIT_MS: 500,
 }
 

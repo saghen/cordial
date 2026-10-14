@@ -40,8 +40,8 @@ section.call > .call-bar {
 /* the call over the layout and back: stock's chevron at the bottom left, up while expanded */
 section.call > .call-expand { position: absolute; inset: auto auto 28px 24px; color: #fff; }
 section.call.expanded > .call-expand > .icon { rotate: 180deg; }
-/* someone's Go Live: Watch Stream until watched, then the stream letterboxed, its quality, LAG and LIVE at the top right,
-   Full Screen at the bottom right */
+/* someone's Go Live: Watch Stream until watched, then the stream letterboxed, its quality, LAG and LIVE at the top
+   right, Full Screen at the bottom right */
 section.call > figure.stream {
   place-items: center; background: var(--bg-raised);
   > video { object-fit: contain; }

@@ -1,6 +1,6 @@
-// --clip: a raw I420 file as the source (the lab's: the same frames every run, each frame's index stamped as the
-// bench's barcode), played in real time. A reader thread reads it, stamps the barcode and converts it to NV12
-// CLIP_RING frames ahead; the worker uploads each and VPPs it into the encode ring like a cast frame.
+// --clip: a raw I420 file as the source (the same frames every run, each frame's index stamped as a barcode), played in
+// real time. A reader thread reads it, stamps the barcode and converts it to NV12 CLIP_RING frames ahead; the worker
+// uploads each and VPPs it into the encode ring like a cast frame.
 
 use std::fs::File;
 use std::os::unix::fs::FileExt;
@@ -112,8 +112,8 @@ impl Worker<'_> {
             g.st.n_in += 1;
             let t = now();
             let uploaded = img.put(src.ids[0]).is_ok();
-            // the clip plays in real time at --fps; the stream takes frames at its rate ("fps N"), as from a cast. Counted
-            // in clip frames, not wall time: at an equal rate every frame is taken, whatever the sleep's jitter
+            // the clip plays in real time at --fps; the stream takes frames at its rate ("fps N"), as from a cast.
+            // Counted in clip frames, not wall time: at an equal rate every frame is taken, whatever the sleep's jitter
             g.credit = (g.credit + g.fps as f64 / o.fps as f64).min(2.0);
             let due = g.credit >= 1.0;
             if due {

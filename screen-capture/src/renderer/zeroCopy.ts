@@ -6,8 +6,8 @@
 // Chromium 150 lets a sender's encoded writable take any RTCEncodedVideoFrame, but a frame can only be made by
 // cloning one (`new RTCEncodedVideoFrame(frame, { metadata })`), and the clone keeps the original's type (key/delta,
 // which sets the AV1 aggregation header's N bit), payload type, SSRC and codec. So:
-// - the sender encodes the Go Live track (cast.ts: capture's 1 fps preview, 2 px narrower than the stream) and its newest
-//   key and delta frame are the templates for ours; Chromium's own frames are dropped;
+// - the sender encodes the Go Live track (cast.ts: capture's 1 fps preview, 2 px narrower than the stream) and its
+//   newest key and delta frame are the templates for ours; Chromium's own frames are dropped;
 // - each capture frame is a clone of the template of its type with its own rtpTimestamp, frameId and
 //   dependencies, and capture's payload, written as it comes. The RTP timestamp is capture's capture time on
 //   Chromium's RTP clock (both monotonic: one offset, taken from the first template), so the stream's timing doesn't
@@ -201,7 +201,7 @@ class Swap implements CastConsumer {
   }
 
   // changes under 4 % wait while the target moves; once it holds still it is sent whatever the step (a climb in small
-  // steps otherwise left capture short of it for good: 3233 of 3325 kbps for 13 minutes, lab watch-long)
+  // steps otherwise leaves capture short of it for good: 3233 of 3325 kbps for 13 minutes, measured)
   private setBitrate(bps: number, settled: boolean) {
     const kbps = Math.round(bps / 1000)
     if (this.state !== 'active' || !kbps || kbps === this.lastKbps) return
@@ -214,7 +214,7 @@ class Swap implements CastConsumer {
     const prev = this.rate
     this.rate = next
     this.setBitrate(next.target, next.target === prev.target)
-    // the stream log (streamLog.ts; the lab's: settings.streamLog): every change of the controller's state
+    // the stream log (streamLog.ts, and settings.streamLog): every change of the controller's state
     if (next.reason !== prev.reason) logRate({ reason: next.reason, target: next.target, bwe: this.bwe, wire, queue: sendDelay })
     if (next.reason !== prev.reason)
       settings.streamLog?.([
@@ -424,7 +424,7 @@ export function attachSwap(pc: RTCPeerConnection, sender: RTCRtpSender) {
 }
 
 export const isZeroCopy = (sender: RTCRtpSender) => swaps.get(sender)?.state === 'active'
-/** The swap's counters (for the lab's bench). */
+/** The swap's counters. */
 export const zeroCopyStats = (sender: RTCRtpSender) => swaps.get(sender)?.stats
 
 const sendCodec = (sender: RTCRtpSender) => sender.getParameters().codecs?.[0]?.mimeType?.toLowerCase()

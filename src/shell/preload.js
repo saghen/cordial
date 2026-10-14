@@ -7,7 +7,7 @@ const path = require('node:path')
 
 const src = fs.readFileSync(path.join(__dirname, '../../dist/cordial.js'), 'utf8') + '\n//# sourceURL=cordial.js'
 // Discord desktop's native modules (adapter/native.ts). CORDIAL_PRESENCE=0 leaves them out: no game detection, no Rich
-// Presence (the lab's read-only accounts)
+// Presence
 
 // game detection: shell/main.js runs game-detection/ on Discord's list of games
 function observeGames(list, cb) {
@@ -16,8 +16,8 @@ function observeGames(list, cb) {
   ipcRenderer.send('cordial:games', list)
 }
 
-// Rich Presence: apps connect to discord-ipc-N (in CORDIAL_IPC_DIR, for the lab, else as Discord desktop), and Discord's
-// own RPC server in the page speaks the protocol; this only carries each connection's bytes
+// Rich Presence: apps connect to discord-ipc-N (in CORDIAL_IPC_DIR if set, else where Discord desktop puts it), and
+// Discord's own RPC server in the page speaks the protocol; this only carries each connection's bytes
 const dir = process.env.CORDIAL_IPC_DIR ?? process.env.XDG_RUNTIME_DIR ?? process.env.TMPDIR ?? '/tmp'
 const sockets = new Map()
 const rpc = {

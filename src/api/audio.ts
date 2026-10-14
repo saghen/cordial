@@ -1,6 +1,5 @@
 // Your audio and camera: mute and deafen (a local setting, and the voice state while in a call), the camera, the
-// devices, volumes, input mode and audio processing, through stock's setters. MediaEngineStore keeps them on this
-// client.
+// devices, volumes, input mode and audio processing, through stock's setters. MediaEngineStore keeps them per client.
 
 import type { Rec } from '../adapter/discord'
 import { A, S } from '../adapter/needs'

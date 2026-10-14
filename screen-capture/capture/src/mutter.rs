@@ -1,6 +1,5 @@
-// The cast itself (capture.c's cast_start / cast_stop / bus_poll): a niri screen cast of a window or an output through
-// the Mutter ScreenCast D-Bus API niri implements, on the session bus. zbus's blocking API; its signals are read on
-// threads of their own.
+// The cast itself: a niri screen cast of a window or an output through the Mutter ScreenCast D-Bus API niri implements,
+// on the session bus. zbus's blocking API; its signals are read on threads of their own.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};

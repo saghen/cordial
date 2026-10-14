@@ -1,5 +1,4 @@
-/* the messages: column-reverse keeps the view at the bottom (scroller.ts); scroll anchoring keeps it still when rows
-   arrive while scrolled up */
+/* the messages: column-reverse keeps the view at the bottom; scrolled up, scroller.ts keeps the reader's place */
 .messages { grid-area: chat; overflow-y: auto; display: flex; flex-direction: column-reverse; }
 .messages > div { padding: 16px 0 24px; }
 /* the new messages bar, across the messages' top */

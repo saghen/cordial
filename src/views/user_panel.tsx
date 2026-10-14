@@ -120,7 +120,7 @@ function VoicePanel() {
   )
 }
 
-// the stream's numbers once a second, as the screen share patch's overlay had them; a click shows one line
+// the stream's numbers, asked each second; a click shows one line
 function StreamStats() {
   const [status, setStatus] = createSignal<screen.StreamStatus | null>(null)
   const [short, setShort] = createSignal(false)

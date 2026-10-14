@@ -1,8 +1,8 @@
 // The fallback's frames for the page (main/raw.js sends them): capture's NV12 buffers arrive once each as imported
 // shared textures under their key, then (key, seq, t) per frame (dropped while its buffer's import is still on its
-// way); each becomes a VideoFrame (on the buffer, no copy) posted on a
-// MessagePort the page gets as a window message ({ cordialRawPort: true }) with the session's first buffer
-// (renderer/cast.ts takes it). Runs in the preload (cordial's shell/preload.js) or a page with Node (the lab bench).
+// way); each becomes a VideoFrame (on the buffer, no copy) posted on a MessagePort the page gets as a window message
+// ({ cordialRawPort: true }) with the session's first buffer (renderer/cast.ts takes it). Runs in the preload
+// (src/shell/preload.js) or a page with Node.
 
 const { ipcRenderer, sharedTexture } = require('electron')
 

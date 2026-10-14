@@ -19,7 +19,7 @@
 
 const isAv1 = (f: any) => f.getMetadata().mimeType === 'video/AV1'
 
-/** What the receive stages did (lab): AV1 frames unsized, frames that went back as the receiver's own, and the last
+/** What the receive stages did: AV1 frames unsized, frames that went back as the receiver's own, and the last
  * error (the frame then goes on as it was: a stage that throws would end the receiver's stream for good). */
 export const av1ReceiveStats = { unsized: 0, own: 0, errors: 0, lastError: '' }
 const failed = (e: unknown) => {

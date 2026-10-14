@@ -15,9 +15,9 @@ import * as users from './users'
 export const list = (channelId: Id) => $.Message.getMessages(channelId)
 export const get = (channelId: Id, id: Id) => S.Message.getMessage(channelId, id) as Message | undefined
 
-// Grouping, ported from Discord's module with "IS_SCHEDULED)!==" (2026-10): it lives in a chunk only Discord's message
-// list loads. A message starts a new group unless it continues the previous one: same author (and, for webhooks, the
-// same name) within 7 minutes on the same day, both user messages, matching flags
+// Grouping, ported from Discord's module with "IS_SCHEDULED)!==": it lives in a chunk only Discord's message list
+// loads. A message starts a new group unless it continues the previous one: same author (and, for webhooks, the same
+// name) within 7 minutes on the same day, both user messages, matching flags
 
 const GROUP_MS = 7 * 60 * 1000
 // user messages (content as markdown); any other type is a system message (stock's text for it)
@@ -83,7 +83,7 @@ export const embedAST = (text: string): any[] =>
 // a system message: stock's text for it (its formatter, as in notifications)
 export const systemText = (m: Message) => A.systemMessages.stringify(m) ?? (m.content || `(message type ${m.type})`)
 
-// a DM call that I wasn't in
+// a DM call you weren't in
 export const missed = (m: Message) => !(m.call?.participants ?? []).includes(S.Auth.getId())
 // the replied-to message, and its state (stock's ReferencedMessageState: 0 loaded, 1 not loaded, 2 deleted)
 export const replied = (m: Message) =>

@@ -1,5 +1,5 @@
 // What cordial supplies to the renderer side (its glue sets these): Discord's stores and functions the quality rules
-// read, the main process's cast IPC (shell/preload.js), and the source picker (cordial's UI).
+// read, the main process's cast IPC (src/shell/preload.js), and the source picker (cordial's UI).
 
 import type { CastSource, CastStart } from './cast'
 
@@ -18,7 +18,7 @@ export interface Discord {
 }
 
 export interface Native {
-  /** niri and capture are there: Go Live captures through capture */
+  /** a source and capture are there: Go Live captures through capture */
   available(): Promise<boolean>
   /** what capture encodes on this machine's GPU (capture --probe): ['av1'], or none */
   codecs(): Promise<string[]>

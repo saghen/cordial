@@ -5,7 +5,7 @@
 //
 // raw (cordial's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
 // LINEAR NV12 surfaces that cordial imports (Electron's sharedTexture) and Chromium encodes. On the socket of
-// --socket-fd (SOCK_SEQPACKET, JSON text, the C castscale's protocol): each surface once, with its fd,
+// --socket-fd (SOCK_SEQPACKET, JSON text): each surface once, with its fd,
 //   {"type":"buffer","id":N,"width":W,"height":H,"modifier":"M","planes":[{"offset":O,"stride":S,"size":Z},..]}
 // then a message per frame, {"type":"frame","id":N,"seq":S,"t":us} (t: the VPP submit's CLOCK_MONOTONIC). A surface
 // isn't written again for RAW_HOLD_S after it was handed out. A new size sends a new set (the same ids).
@@ -44,8 +44,8 @@ use av1enc::Av1Enc;
 use va::{fence_wait, surface_attr, sys, vpp_submit, Context, Image, Surfaces, Va};
 
 const RING: usize = 3;
-// raw (the fallback, "raw"): the ring cordial imports, and how long a handed-out slot isn't written again (Chromium
-// reads it back for its encoder long before: README's fallback)
+// raw (the fallback): the ring cordial imports, and how long a handed-out slot isn't written again (Chromium reads it
+// back for its encoder well within that)
 const RAW_RING: usize = 8;
 const RAW_HOLD_S: f64 = 0.1;
 // nothing new from the cast for this long: the last frame again (Worker::repeat)
@@ -82,7 +82,7 @@ struct Opts {
     ivf: Option<String>,
     probe: bool,
     socket: Option<i32>,          // --socket-fd N: raw's socket (SOCK_SEQPACKET, cordial's fdsock)
-    audio: Option<audio::Target>, // --audio SPEC: the stream's sound from the start (the lab; cordial sends "audio")
+    audio: Option<audio::Target>, // --audio SPEC: the stream's sound from the start (cordial sends "audio" instead)
 }
 
 fn usage() -> ! {
@@ -116,13 +116,13 @@ fn opts() -> Opts {
         clip: String::new(),
         clip_w: 0,
         clip_h: 0,
-        max_w: NO_BOX, // no box: the source's own size
+        max_w: NO_BOX,
         max_h: NO_BOX,
         fps: 60,
         device: "auto".into(),
         kbps: 6000,
         refs: 2,
-        // (a floor of 10 let still content's scene cut cost half a second of bitrate)
+        // a floor of 10 lets a scene cut in still content cost half a second of bitrate
         min_qindex: 50,
         drop_ms: 300.0,
         stats_ms: 1000.0,
@@ -379,7 +379,7 @@ impl Preview {
                 .img
                 .read(|p, off, pitch| {
                     // X forced to 0xff: radeonsi's VPP leaves the red channel there, which Chromium takes for
-                    // premultiplied alpha and divides by (dark colours came out near white)
+                    // premultiplied alpha and divides by (dark colours come out near white)
                     for y in 0..h {
                         let row = &p[off[0] as usize + y * pitch[0] as usize..][..w * 4];
                         for px in row.as_chunks::<4>().0 {
@@ -625,7 +625,7 @@ impl State {
     }
 }
 
-/// commands from a pipe (cordial); stdin from /dev/null or a terminal isn't watched (lab and cost runs)
+/// commands from a pipe (cordial); stdin from /dev/null or a terminal isn't watched (standalone runs)
 fn watch_stdin(sh: Arc<Shared>, o: Arc<Opts>) {
     let piped =
         std::fs::metadata("/proc/self/fd/0").is_ok_and(|m| m.file_type().is_fifo() || m.file_type().is_socket());
@@ -1212,7 +1212,7 @@ fn sock_send(sock: i32, text: &str, fds: &[i32]) -> bool {
 
 fn main() {
     let mut o = opts();
-    // what we inherited past stdio (Electron's CDP and other sockets reached capture: they'd stay open as long as
+    // what we inherited past stdio (Electron's CDP and other sockets reach capture: they'd stay open as long as
     // capture runs), except raw's socket
     let keep = o.socket.map_or(u32::MAX, |s| s as u32);
     // SAFETY: close_range on fds nothing here has opened yet

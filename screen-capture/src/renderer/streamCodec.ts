@@ -40,7 +40,7 @@ export function codecConnection(c: typeof connection) {
  * - our own Go Live connection: AV1, VP9, H.264 when capture encodes AV1; else VP9, H.264, the rest, AV1 last
  *   (Chromium encodes AV1 on the CPU: WebRtcAV1HWEncode is off);
  * - every other connection (voice and camera, watching): AV1, VP9, H.264. The camera is AV1 on the CPU then; VP9 for
- *   it would mean VP9 first for the whole voice connection (Open questions).
+ *   it would mean VP9 first for the whole voice connection.
  * VP9 and H.264 are Chromium's encoders, which take the GPU's when there is one (no AMD GPU encodes VP9).
  */
 export function orderCodecs(list: string[]): string[] {

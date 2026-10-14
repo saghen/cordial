@@ -72,7 +72,7 @@ export function useComposer(channelId: () => Id | null) {
           ? text('CHANNEL_SLOWMODE_COOLDOWN', { seconds: cooldown() })
           : text('TEXTAREA_PLACEHOLDER', { channel: channel() ? channels.title(channel()!) : '' })))
 
-  // as stock: the draft is saved at most every 500 ms while it changes (first and last change included), and on a switch
+  // as stock: the draft saves at most every 500 ms while it changes (first and last change included), and on a switch
   let last = 0,
     timer: ReturnType<typeof setTimeout> | undefined
   const save = (id: Id) => {

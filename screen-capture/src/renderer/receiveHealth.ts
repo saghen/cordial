@@ -58,7 +58,7 @@ export async function receiveHealth(userId: string): Promise<ReceiveHealth | nul
   return pc ? pcHealth(pc) : null
 }
 
-/** The same for any connection's inbound video (the lab's bench). */
+/** The same for any connection's inbound video. */
 export async function pcHealth(pc: RTCPeerConnection): Promise<ReceiveHealth | null> {
   const rtp = [...(await pc.getStats()).values()]
     .filter((s) => s.type === 'inbound-rtp' && s.kind === 'video')

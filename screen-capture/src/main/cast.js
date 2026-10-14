@@ -11,18 +11,18 @@
 // capture: $CORDIAL_CAPTURE, else `cordial-capture` on PATH. Without it, with neither niri nor Wayland, or with
 // "capture": false in <userData>/config.json, Go Live is Chromium's own capture (the portal).
 //
-// The lab: $CORDIAL_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no niri
-// needed. $CORDIAL_CAPTURE_AUDIO=TARGET takes the sound from capture's TARGET (pid=N...) whatever the source.
-// $CORDIAL_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture alone talks to that bus (a lab portal on its
+// For testing: $CORDIAL_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no
+// niri needed. $CORDIAL_CAPTURE_AUDIO=TARGET takes the sound from capture's TARGET (pid=N...) whatever the source.
+// $CORDIAL_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture alone talks to that bus (a test portal on its
 // own bus, never the desktop's).
 //
 // getDisplayMedia (Chromium's own capture: Go Live without capture, and capture's fallback) gets the portal's source:
-// on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. The lab answers with the asking
-// frame itself, no portal (the lab sway's portal would ask the desktop's compositor).
+// on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. With the clip it answers with the
+// asking frame itself, no portal (a nested compositor's portal would ask the desktop's).
 //
-// IPC (shell/preload.js): invoke cordial:cast-available () -> boolean, cordial:cast-codecs () -> 'av1'[],
-// cordial:cast-sources () -> CastSource[],
-// cordial:cast-start (CastStart) -> boolean; on true the port follows as cordial:cast-port.
+// IPC (src/shell/preload.js): invoke cordial:cast-available () -> boolean, cordial:cast-codecs () -> 'av1'[],
+// cordial:cast-sources () -> CastSource[], cordial:cast-start (CastStart) -> boolean; on true the port follows as
+// cordial:cast-port.
 
 const { app, desktopCapturer, ipcMain, MessageChannelMain, session } = require('electron')
 const { execFile } = require('node:child_process')
@@ -100,12 +100,12 @@ function niri(request) {
   })
 }
 
-// The lab (see the top of the file): its clip, its portal's bus, a sound target
+// for testing (see the top of the file): a clip, a portal's bus, a sound target
 const clip = /^(.+):(\d+)x(\d+)$/.exec(process.env.CORDIAL_CAPTURE_CLIP ?? '')
 const portalBus = process.env.CORDIAL_CAPTURE_PORTAL_BUS || null
 const labAudio = process.env.CORDIAL_CAPTURE_AUDIO || null
 
-/** The source kind: the lab's clip, the lab's portal, niri, the desktop's portal (any Wayland desktop), or none. */
+/** The source kind: the test clip, the test portal, niri, the desktop's portal (any Wayland desktop), or none. */
 function via() {
   if (clip) return 'clip'
   if (portalBus) return 'portal'
@@ -343,7 +343,7 @@ function startCast(e, opts) {
       if (open) port1.postMessage(m)
       if (m.type === 'closed') cast.close()
     },
-    // the lab portal's bus for capture alone (cordial stays on the desktop's)
+    // the test portal's bus for capture alone (cordial stays on the desktop's)
     portalBus && kind === 'portal' ? { ...process.env, DBUS_SESSION_BUS_ADDRESS: portalBus } : undefined,
     fdsock,
   )

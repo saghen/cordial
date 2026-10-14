@@ -115,7 +115,7 @@ function Folder(p: { folder: guilds.Folder }) {
       }
       unread={!open() && ids().some((g) => guilds.unread(g) && !guilds.muted(g))}
       mentions={open() ? 0 : ids().reduce((n, g) => n + guilds.mentions(g), 0)}
-      // as stock: closed, the server you're connected in
+      // as stock: closed, the voice badge of the server you're connected in, if any
       activity={
         open()
           ? undefined

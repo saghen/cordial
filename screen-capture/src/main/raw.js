@@ -3,8 +3,8 @@
 // message per frame, cordial:cast-raw (key, seq, t). preload/raw.js makes a VideoFrame on the import for each, which
 // Chromium encodes. A new size is a new ring under the same ids: its buffers get new keys (a frame never lands on the
 // old buffer of its id), and the old imports are released 2 s later (cordial:cast-raw-drop for the page's): releasing
-// one while a frame from it was still in the encoder or compositor crashed the renderer (approach B: the last
-// reference then drops off the main thread).
+// one while a frame from it is still in the encoder or compositor crashes the renderer (the last reference then drops
+// off the main thread).
 
 const { sharedTexture } = require('electron')
 const { closeSync } = require('node:fs')

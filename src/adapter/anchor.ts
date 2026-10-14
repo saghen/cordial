@@ -12,7 +12,7 @@ import { patch } from './webpack'
 type Mount = (host: HTMLElement) => () => void
 type App = { handleHistoryChange(location: Location, ...rest: unknown[]): void; forceUpdate(): void }
 
-// the one global: the patched App calls into it, lab scripts read it
+// the one global: the patched App calls into it, scripts read it over CDP
 export const G: Record<string, any> = ((window as any).cordial = {})
 
 let mount: Mount | null = null
@@ -24,7 +24,7 @@ let app: App | null = null
 
 const anchor = patch(
   'addRouteRewriter(this.ensureChannelMatchesGuild)',
-  // App.render: Discord's route switch, from "/channels" redirect on
+  // App.render, found by its route switch's "/channels" redirect
   [/render\(\)\{(?=return.{0,120}?from:"\/channels",to:"\/")/, 'render(){if(cordial.own())return cordial.root();'],
   // with no routes mounted, nothing runs the route handler for the URL we start on: didMount does. listen wraps the
   // handler before the App registers it
@@ -97,7 +97,7 @@ Object.assign(G, {
   },
 
   didMount(a: App) {
-    // the check runs in stock mode too: the lab reads stores through the adapter in both
+    // the check runs in stock mode too: scripts read stores through the adapter in both
     if (adapterFailed() || stock()) return
     app = a
     let was = active()
@@ -106,8 +106,8 @@ Object.assign(G, {
       if (active() === was) return
       was = !was
       if (!was) return a.forceUpdate()
-      // logged in. Through Discord's screen, it navigates away from /login and the route listener runs on its own; through
-      // our form, nothing navigates: /app, where stock's login lands, which the listener redirects to the default route
+      // logged in. Through Discord's screen, it navigates away from /login and the route listener runs on its own;
+      // through our form, nothing navigates: to /app (where stock's login lands), redirected to the default route
       discords ? (discords = false) : A.nav.replaceWith('/app')
       a.forceUpdate()
     })

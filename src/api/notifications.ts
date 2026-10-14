@@ -1,5 +1,5 @@
-// A server channel's notification settings, as stock's bell: muting it (for a while, or until it's unmuted) and its level,
-// which can defer to its category's or server's. Settings are user guild settings: they sync.
+// A server channel's notification settings, as stock's bell: muting it (for a while, or until it's unmuted) and its
+// level, which can defer to its category's or server's. Settings are user guild settings: they sync.
 
 import { A, S } from '../adapter/needs'
 import type { Rec } from '../adapter/discord'

@@ -1,7 +1,8 @@
 // The renderer side of screen-capture, imported by cordial's bundle (it runs before Discord's scripts). Importing it
 // installs the hooks: getDisplayMedia (here), the Go Live sender's track (cast.ts), its encoded frames (zeroCopy.ts),
-// its parameters and SDP (streamQuality.ts), and AV1 streams' frames received (av1Receive.ts). cordial then sets `host` (Discord's pieces, the native bridge, the
-// picker), registers `codecPatch` with its webpack patcher and puts this module on its global as `cordial.screen`.
+// its parameters and SDP (streamQuality.ts), and AV1 streams' frames received (av1Receive.ts). cordial then sets `host`
+// (Discord's pieces, the native bridge, the picker), registers `codecPatch` with its webpack patcher and puts this
+// module on its global as `cordial.screen`.
 
 import './av1Receive'
 import { castAvailable, castDisplayMedia } from './cast'
@@ -19,7 +20,7 @@ export { codecConnection, codecPatch, orderCodecs } from './streamCodec'
 export { currentStreamQuality } from './streamQuality'
 export { zeroCopyStats } from './zeroCopy'
 
-// on niri with capture: our own capture (cast.ts), Chromium's only as its fallback; without capture, Discord's own
+// with capture: our own capture (cast.ts), Chromium's only as its fallback; without capture, Discord's own
 // getDisplayMedia, untouched
 if (navigator.userAgent.includes('Linux')) {
   const original = navigator.mediaDevices.getDisplayMedia

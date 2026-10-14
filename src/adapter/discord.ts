@@ -27,8 +27,7 @@ export interface Stores {
   SortedGuild: FluxStore & {
     getGuildFolders(): { folderId?: number; folderName?: string; folderColor?: number; guildIds: Id[] }[]
   }
-  // voice states by user id
-  // userHasBeenMovedVersion: bumped when someone moves you to another channel
+  // voice states by user id; userHasBeenMovedVersion is bumped when someone moves you to another channel
   VoiceState: FluxStore & {
     getVoiceStatesForChannel(channelId: Id): Record<Id, Rec>
     isInChannel(channelId: Id): boolean
@@ -142,7 +141,6 @@ export interface Stores {
   }
   NotificationSettings: FluxStore & { getDisableUnreadBadge(): boolean; isSoundDisabled(sound: string): boolean }
   Soundpack: FluxStore & { getSoundpack(): string }
-  // a channel's pins as fetched: { state: LOADING, LOADED_HAS_MORE, LOADING_FINISHED (sic) or FAILED, items: { message, pinnedAt } }
   // the GIF picker's results ({ id, url, src, width, height }) and trending categories ({ type, name, src })
   GIFPickerView: FluxStore & { getResultItems(): Rec[]; getTrendingCategories(): Rec[] }
   // stickers by server id; Discord's packs once fetched ({ id, name, stickers })
@@ -168,11 +166,12 @@ export interface Stores {
     getIsFetching(id: Id): boolean
     getError(id: Id): Rec | null
   }
+  // a channel's pins: items { message, pinnedAt }, state LOADING, LOADED_HAS_MORE, LOADING_FINISHED (sic) or FAILED
   ChannelPins: FluxStore & { getPins(channelId: Id): { state: string; items: Rec[] } | undefined }
   PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[] }
-  // activities: { type, name, state }; type 4 is the custom status
   // this client's own activities (games, Rich Presence, a custom status): { type, name, state, details }
   LocalActivity: FluxStore & { getPrimaryActivity(): Rec | null }
+  // activities: { type, name, state }; type 4 is the custom status
   Presence: FluxStore & { getStatus(userId: Id): string; getActivities(userId: Id): Rec[] }
   // friend nicknames
   Relationship: FluxStore & {
@@ -184,8 +183,8 @@ export interface Stores {
   // ms left before the next message may be sent (type 0: messages)
   Slowmode: FluxStore & { getSlowmodeCooldownGuess(channelId: Id, type?: number): number }
   Permission: FluxStore & { can(permission: bigint, context: Rec): boolean }
-  // levels (message_notifications): 0 all messages, 1 mentions, 2 nothing, 3 the default; unread settings: 0 unset, 1
-  // all messages, 2 mentions; overrides by channel id: { muted, mute_config: { end_time }, message_notifications, flags }
+  // levels (message_notifications): 0 all messages, 1 mentions, 2 nothing, 3 the default; unread settings: 0 unset,
+  // 1 all messages, 2 mentions; overrides by channel: { muted, mute_config.end_time, message_notifications, flags }
   UserGuildSettings: FluxStore & {
     isMuted(guildId: Id): boolean
     isChannelMuted(guildId: Id, channelId: Id): boolean
@@ -460,8 +459,8 @@ export interface Actions {
     watch(stream: Rec, o?: { noFocus?: boolean }): void
     stop(streamKey: string, feedback?: boolean): void
   }
-  // stock's login actions: each dispatches its result (LOGIN_MFA_STEP, LOGIN_SUCCESS, LOGIN_FAILURE...) and rejects with
-  // the request's error (its fields' messages) on a failure
+  // stock's login actions: each dispatches its result (LOGIN_MFA_STEP, LOGIN_SUCCESS, LOGIN_FAILURE...) and rejects
+  // with the request's error (its fields' messages) on a failure
   auth: {
     login(o: { login: unknown; password: unknown; source: null }): Promise<void>
     loginMFAv2(o: {

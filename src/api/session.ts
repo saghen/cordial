@@ -29,8 +29,7 @@ export function useConnection() {
       : text(!S.Gateway.isTryingToConnect() ? 'CONNECTION_STATUS_DISCONNECTED' : once ? 'RECONNECTING' : 'CONNECTING')
 }
 
-// stock's badge, in the window title as on the web: mentions and friend requests as "(N)", a dot for anything else
-// unread
+// stock's badge, in the window title as on the web: mentions and friend requests as "(N)", a dot for any other unread
 export function badge() {
   const n = $.GuildReadState.getTotalMentionCount() + $.Relationship.getPendingCount()
   if (n) return `(${n}) `

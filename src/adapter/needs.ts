@@ -252,10 +252,10 @@ byCode('markGuildsRead', 'getActiveJoinedThreadsForGuild', 'GUILD_ONBOARDING_QUE
 byProps('voice', 'selectVoiceChannel', 'disconnect')
 // DM calls: call selects the DM's voice and rings, stopRinging declines
 byProps('calls', 'call', 'ring', 'stopRinging')
-// stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone); play plays one
 // stock's push to talk: the state (PUSH_TO_TALK_STATE_CHANGE: SpeakingStore, the ptt sounds) and each voice
 // connection's forced input while active (its release delay is the connection's); the shell's global keybind holds it
 mangled('ptt', 'type:"PUSH_TO_TALK_STATE_CHANGE",isActive', { set: 'setForceAudioInput(' })
+// stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone); play plays one
 mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e', play: 'disableSounds)return' })
 byProps('invites', 'resolveInvite', 'acceptInviteAndTransitionToInviteChannel')
 // stock's login: email and password, then a two-factor code (its request layer asks for a captcha when needed)
@@ -360,11 +360,12 @@ mangled('promptToUpload', 'Unexpected mismatch between files and file metadata',
 byCode('setStatus', 'nextStatus:', 'statusExpiresAtMs=')
 byCode('canStreamWithSettings', 'location:"canStreamWithSettings"')
 // stock's Go Live on the web engine: the stream settings by its rule, then getDisplayMedia (screen-capture's picker,
-// views/user_panel.tsx), then the stream; ending your own stream, and watching and stopping others' (stop: STREAM_CLOSE, then STREAM_STOP, which
-// keeps Discord's core from watching it again in a call)
+// views/user_panel.tsx), then the stream
 mangled('goLive', '.getDesktopSource(', { start: 'getDesktopSource(' })
 // a server's initials where it has no icon ("Mini Time" MT, "The Cat's Den" TCD)
 mangled('names', ".replace(/'s /g,\" \")", { acronym: ".replace(/'s /g" })
+// stock's streams: ending your own, and watching and stopping others' (stop: STREAM_CLOSE, then STREAM_STOP, which
+// keeps Discord's core from watching it again in a call)
 mangled('streams', 'type:"STREAM_START"', {
   stopOwn: 'getCurrentUserActiveStream();null!=',
   watch: 'forceMultiple',

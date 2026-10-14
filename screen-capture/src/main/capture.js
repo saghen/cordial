@@ -1,5 +1,5 @@
 // capture (screen-capture/capture) as a child process: its stdout messages parsed, commands written to its stdin. No
-// Electron in here: the lab bench runs the same code.
+// Electron in here, so it runs under plain Node too.
 
 const { spawn } = require('node:child_process')
 const { closeSync } = require('node:fs')

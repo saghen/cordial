@@ -6,7 +6,7 @@ license = "MIT"
 description = "cordial's Go Live encoder"
 
 [dependencies]
-# Discord's fork (crates.md): Display is Arc + Send + Sync; the raw bindings are re-exported
+# Discord's fork: Display is Arc + Send + Sync; the raw bindings are re-exported
 # vendored: its pinned headers (libva 2.22); the fork does not build against nixpkgs 2.24 headers (new VP9 fields)
 cros-libva = { git = "https://github.com/discord/cros-libva", rev = "896a248e003caae7a7120812f7eaa423c93a920d", features = ["vendored"] }
 anyhow = "1"

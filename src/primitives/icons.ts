@@ -1,5 +1,5 @@
-// Discord's own icons (paths from its icon modules, 2026-10), as CSS mask images: `mask: var(--i-hash)` over a
-// currentColor background.
+// Discord's own icons (paths from its icon modules), as CSS mask images: `mask: var(--i-hash)` over a currentColor
+// background.
 
 const PATHS = {
   hash: [
@@ -156,8 +156,8 @@ const svg = (ds: string[], fill = 'black', box = 24) =>
 const uri = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 
 // each icon as --i-NAME (a mask: Icon draws it in the text colour); images: the pickers' search field's magnifier, the
-// call lines' 18 px icons, the idle status's moon (a mask: the dot less stock's bite, whole;
-// a bite cut from the dot by mask-composite left a faint arc where the bite meets the rim)
+// call lines' 18 px icons, the idle status's moon (a mask: the dot less stock's bite, whole, since cutting the bite
+// from the dot with mask-composite leaves a faint arc where it meets the rim)
 export const ICONS =
   Object.entries(PATHS)
     .map(([name, ds]) => `--i-${name}: ${uri(svg(ds))};`)

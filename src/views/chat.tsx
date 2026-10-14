@@ -142,7 +142,7 @@ export function Chat(p: { root: HTMLElement }) {
     })
   }
 
-  // after the rows are in the DOM: the scroller, and the lab's marker that this channel is shown
+  // after the rows are in the DOM: the scroller, and `data-view` on the root, which scripts wait on for a shown channel
   const rendered = createScroller(view, channelId)
   createEffect(
     () => [channelId(), list(), loaded()?.ready] as const,

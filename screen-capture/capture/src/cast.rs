@@ -1,7 +1,6 @@
-// The cast's input (capture.c's "input stream" and query_modifiers): a PipeWire stream on its own thread, taking the
-// cast as DMA-BUF. Its callbacks lock the shared state as the C's run with the loop lock: the newest buffer is
-// imported into VA (once per buffer), VPP'd into a free slot of the encode ring and the preview when one is due, and
-// requeued at once; the worker (main.rs) encodes.
+// The cast's input: a PipeWire stream on its own thread, taking the cast as DMA-BUF. Its callbacks run under the
+// shared state's lock: the newest buffer is imported into VA (once per buffer), VPP'd into a free slot of the encode
+// ring and the preview when one is due, and requeued at once; the worker (main.rs) encodes.
 
 use std::ffi::{c_char, c_int, c_void, CStr};
 use std::os::fd::OwnedFd;
@@ -435,8 +434,8 @@ impl Input {
     /// pacing, a free slot, import and VPP of buffer b into the slot (and into the preview when one is due); never
     /// waits for the GPU. False if b doesn't import (b requeued, renegotiating).
     fn submit_frame(&mut self, g: &mut State, stream: &Stream, b: *mut pw::sys::pw_buffer) -> bool {
-        // pacing: at most the frame rate (--fps, "fps N") on average, but tolerate jitter (niri on a 240 Hz output delivers a 60 fps cast at
-        // 12.5/16.7/20.8 ms intervals). Frames over budget go back untouched.
+        // pacing: at most the frame rate (--fps, "fps N") on average, but tolerate jitter (niri on a 240 Hz output
+        // delivers a 60 fps cast at 12.5/16.7/20.8 ms intervals). Frames over budget go back untouched.
         let t0 = now();
         g.credit = (g.credit + (t0 - g.last_in) * g.fps as f64).min(2.0);
         g.last_in = t0;

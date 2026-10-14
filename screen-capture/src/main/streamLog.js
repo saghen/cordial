@@ -3,7 +3,7 @@
 // within 10 MB are kept (the newest whatever its size); a finished file is compressed with zstd if it's on PATH (one
 // left open by a crash or a quit, at the next stream's start). Past 10 MB a stream keeps one tick in four.
 //
-// IPC (shell/preload.js): send cordial:stream-log ('open', firstLine) | ('line', text) | ('close')
+// IPC (src/shell/preload.js): send cordial:stream-log ('open', firstLine) | ('line', text) | ('close')
 
 const { app, ipcMain } = require('electron')
 const { execFile } = require('node:child_process')

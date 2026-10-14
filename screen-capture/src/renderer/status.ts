@@ -1,6 +1,5 @@
-// The stream's status, as the screen share patch's overlay showed it: what goes to Discord, from the sender's stats
-// once a second. When capture encodes (zeroCopy.ts) the encoder's numbers are capture's: Chromium's encoder only makes
-// the frames capture's replace.
+// The stream's status: what goes to Discord, from the sender's stats once a second. When capture encodes (zeroCopy.ts)
+// the encoder's numbers are capture's: Chromium's encoder only makes the frames capture's replace.
 
 import { castSessionFor } from './cast'
 import { streamSender } from './streamQuality'

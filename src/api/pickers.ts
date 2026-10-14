@@ -36,7 +36,7 @@ const guildSection = <T>(id: Id, items: T[]): Section<T> => {
   const guild = guilds.get(id)
   return { id, name: guild?.name ?? '', guild, items }
 }
-// the server an emoji or sticker is from, as the picker's footer names it ("from lab")
+// the server an emoji or sticker is from, as the picker's footer names it
 const from = (id: Id | null | undefined, name = id ? guilds.get(id)?.name : undefined) =>
   name ? text('EMOJI_FROM_GUILD', { guildName: name }) : undefined
 
@@ -147,7 +147,7 @@ export const openGifs = () => {
 }
 export const gifCategories = () => $.GIFPickerView.getTrendingCategories() as GifCategory[]
 export const gifResults = () => $.GIFPickerView.getResultItems() as Gif[]
-// kind: stock's kind of result (Search, Category, Trending); now skips the search's wait for more typing
+// kind: stock's kind of result (Search, Category, Trending); `now` skips the search's wait for more typing
 export const searchGifs = (query: string, kind: string, now = false) => A.gifs.search(query, kind, now)
 export const trendingGifs = () => A.gifs.trending(50)
 export const clearGifs = () => A.gifs.clear()

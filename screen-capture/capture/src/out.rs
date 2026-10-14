@@ -1,6 +1,6 @@
-// stdout to cordial (capture.c's send_msg): a message is a 24-byte header (u32 LE: magic "CSZ1", type, payload size,
-// seq, then u64 µs of CLOCK_MONOTONIC) + payload. frame: u32 flags (1: key), u32 w | h << 16, u32 qindex (0: none),
-// u32 submit -> encoded µs, then the temporal unit (OBUs, no temporal delimiter); its time is the frame's VPP submit.
+// stdout to cordial: a message is a 24-byte header (u32 LE: magic "CSZ1", type, payload size, seq, then u64 µs of
+// CLOCK_MONOTONIC) + payload. frame: u32 flags (1: key), u32 w | h << 16, u32 qindex (0: none), u32 submit ->
+// encoded µs, then the temporal unit (OBUs, no temporal delimiter); its time is the frame's VPP submit.
 // preview: u32 w | h << 16, then w x h BGRx, rows packed. info: JSON. audio (audio.rs): u32 rate, u32 channels, then
 // s16 samples, interleaved; its time is when it was taken from PipeWire. Plus the log (stderr) and the startup stages.
 

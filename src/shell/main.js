@@ -6,9 +6,9 @@ const path = require('node:path')
 // Discord's web client, as Chrome would load it
 app.userAgentFallback = app.userAgentFallback.replace(/ (cordial|Electron)\/\S+/g, '')
 
-// Trims (measured as each process's USS): the audio service in the browser process (one process
-// less, 10 MB), Chrome services Discord doesn't use; and V8's heap growing by half rather than doubling, which halves
-// the full GCs that cause switch spikes at the same memory
+// Trims (measured as each process's USS): the audio service in the browser process (one process less, 10 MB), Chrome
+// services Discord doesn't use; and V8's heap growing by half rather than doubling, which halves the full GCs that
+// cause switch spikes at the same memory
 app.commandLine.appendSwitch(
   'disable-features',
   'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication' +
@@ -53,9 +53,9 @@ const KEYBINDS = {
   PUSH_TO_TALK: { down: PTT(true), up: PTT(false) },
 }
 
-// global keybinds: global-keybinds/ binds config.json's through the desktop's GlobalShortcuts
-// portal and prints their presses and releases ("down Ctrl+Shift+M", "up ..."); Electron's globalShortcut reports
-// presses only. Off a desktop whose portal has GlobalShortcuts (wlroots, X11) there are none
+// global keybinds: global-keybinds/ binds config.json's through the desktop's GlobalShortcuts portal and prints their
+// presses and releases ("down Ctrl+Shift+M", "up ..."); Electron's globalShortcut reports presses only. Off a desktop
+// whose portal has GlobalShortcuts (wlroots, X11) there are none
 let keybinds = null
 function bindKeys(binds) {
   const known = Object.entries(binds).filter(([keys, action]) => {
@@ -83,7 +83,7 @@ function bindKeys(binds) {
   })
 }
 
-// game detection (adapter/games.ts): game-detection/ watches for Discord's list of games, one list at a time, and
+// game detection (adapter/native.ts): game-detection/ watches for Discord's list of games, one list at a time, and
 // prints the running ones whenever they change, a line each and an empty line after
 let observer = null
 ipcMain.on('cordial:games', (e, list) => {

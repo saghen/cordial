@@ -21,9 +21,9 @@ export function useRingtone() {
   })
 }
 
-// Stock's voice sounds, which its UI plays (its sound hooks, b9 and Me...Ma in the app module): each watches some
-// stores, and a change from the last state names a sound, played unless its sound is off. Not ported: stage
-// channels' request to speak, and Activities
+// Stock's voice sounds, which its UI plays (its sound hooks in the app module): each watches some stores, and a change
+// from the last state names a sound, played unless its sound is off. Not ported: stage channels' request to speak, and
+// Activities
 function sound<T>(stores: FluxStore[], state: () => T, pick: (prev: T, next: T) => string | void) {
   let prev = state()
   const check = () => {

@@ -1,5 +1,4 @@
-// What Discord's UI does that its core doesn't do by itself: without the UI, nothing else does it. Each one is checked
-// against stock in the conformance diff.
+// What Discord's UI does that its core doesn't do by itself: without the UI, nothing else does it.
 
 import { A } from '../adapter/needs'
 import type { Id } from '../adapter/discord'

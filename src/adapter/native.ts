@@ -1,7 +1,7 @@
 // Discord desktop's native modules, the two cordial stands in for: discord_utils' process observer (game detection)
 // and discord_rpc's socket (Rich Presence). Discord's own code does the rest as on desktop. RunningGameStore matches
 // games and sets the "Playing" activity; its RPC server does the handshake, checks the app, runs SET_ACTIVITY and
-// sets the app's activity. requireModule() answers for these two when DiscordNative is missing (off desktop it threw
+// sets the app's activity. requireModule() answers for these two when DiscordNative is missing (off desktop it throws
 // for every module), and two gates that are desktop-only open for them.
 //
 // window.cordialNative (shell/preload.js) is absent with CORDIAL_PRESENCE=0, and then none of this runs.
@@ -31,8 +31,8 @@ const games = patch('static displayName="RunningGameStore"', [
   /(!__OVERLAY__&&\(\(0,[\w$]+\.isDesktop\)\(\)\|\|[\w$]+\.[\w$]+)\)/,
   '$1||null!=window.cordialNative)',
 ])
-// the RPC server registers its socket transports on desktop only, after loading discord_rpc; here only the IPC one
-// (998921 in Discord's build of 2026-10), not the WebSocket one for websites
+// the RPC server registers its socket transports on desktop only, after loading discord_rpc; here only the IPC one, not
+// the WebSocket one for websites
 const rpc = patch(
   'registerTransportsForEmbeddedPlatform:function(){',
   [

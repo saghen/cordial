@@ -5,7 +5,7 @@
 // last saw acknowledged (delay-based back-off is beta x the acked rate; a low probe result replaces the estimate).
 // So when the sender is application limited, the estimate falls to our own rate; a target that follows it lowers
 // the rate we send, and the next cut lands lower still: a ratchet (live: 4.9 Mbps -> 70 kbps). Pinning the target
-// at Discord's cap instead built pacer queues of up to 1.1 s after real cuts (the pacer then drains above the
+// at Discord's cap instead builds pacer queues of up to 1.1 s after real cuts (the pacer then drains above the
 // estimate, which cuts again).
 //
 // The controller:
@@ -28,7 +28,7 @@ export const RATE = {
   BUSY_RATIO: 0.8,
   /**
    * pacer delay (ms, mean per packet) above which the target goes under the estimate: two updates in a row (a
-   * single key frame holds a quiet second's packets 160-230 ms in the bench), or one at 3x
+   * single key frame holds a quiet second's packets 160-230 ms), or one at 3x
    */
   QUEUE_MS: 100,
   QUEUE_CUT: 0.85,

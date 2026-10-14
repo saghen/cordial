@@ -192,7 +192,7 @@ function Search(p: { channel: Channel }) {
     search.run(c(), query, at)
     pop.showPopover()
   }
-  // another server or DM: its own search
+  // another server or DM has its own search: the results close
   createEffect(
     () => search.searchId(c()),
     () => pop.hidePopover(),

@@ -5,7 +5,7 @@
 // stdin: a shortcut a line, `ACCELERATOR\tDESCRIPTION` in Electron's accelerator syntax ("Ctrl+Shift+M"), until EOF.
 // stdout: `bound ACCELERATOR\tTRIGGER` for each shortcut once the portal has bound it (TRIGGER: the desktop's own
 // description of the keys, which the user may have changed), then `down ACCELERATOR` and `up ACCELERATOR` as they are
-// pressed and released. On a failure, `error MESSAGE` and exit 1. Runs until stdin's other end goes (the shell quits).
+// pressed and released. On a failure, `error MESSAGE` and exit 1. Runs until the shell stops it.
 
 use std::io::{BufRead, Write};
 

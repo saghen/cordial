@@ -63,7 +63,6 @@ export function CallView() {
   }
   document.addEventListener('pointermove', move)
   document.addEventListener('pointerout', out)
-  // the room for the tiles: inside the section's padding, which leaves the top bar's and the buttons'
   // Electron leaves full screen on Escape only when the page asks
   const escape = (e: KeyboardEvent) => {
     if (e.key !== 'Escape' || !full()) return
@@ -71,6 +70,7 @@ export function CallView() {
     document.exitFullscreen()
   }
   document.addEventListener('keydown', escape)
+  // the room for the tiles: the section's content box, inside the padding left for the top bar and the buttons
   const observer = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
   onCleanup(() => {
     document.removeEventListener('pointermove', move)
@@ -252,11 +252,11 @@ function JoinButtons(p: { channel: Channel }) {
   )
 }
 
-// someone's Go Live, beside their tile: Watch Stream until watched (in a call, Discord's core watches a stream the other
-// person starts by itself), then the stream with its quality, LAG while the network troubles it (screen-capture's
-// receiveHealth, asked each second) and LIVE, and Full Screen (or a double click on it): the call view full screen
-// with the stream filling it; Stop Watching is in the call's buttons. Your own: its preview (the core's local video, watched while
-// you stream)
+// someone's Go Live, beside their tile: Watch Stream until watched (in a call, Discord's core watches a stream the
+// other person starts by itself), then the stream with its quality, LAG while the network troubles it (screen-capture's
+// receiveHealth, asked each second) and LIVE, and Full Screen (or a double click on it): the call view full screen with
+// the stream filling it; Stop Watching is in the call's buttons. Your own: its preview (the core's local video, watched
+// while you stream)
 function StreamTile(p: {
   state: VoiceState
   channel: Channel

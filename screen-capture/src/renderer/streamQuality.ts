@@ -95,7 +95,7 @@ function withSoundRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
 
 // As soon as someone watches, Discord's quality manager sets the stream to about 600 kbps per megapixel at 30 fps
 // (2.2 Mbps for 1440p), and a scale for a viewer that shows it small. The stream stays at its quality whoever watches;
-// on a live call the same stream ran at 7-9.6 Mbps with no loss once this was lifted. Discord's server still holds the
+// with that lifted the same stream runs at 7-9.6 Mbps with no loss on a live call. Discord's server still holds the
 // stream to the account's rate (its feedback keeps the bandwidth estimate at it).
 function withQuality(sender: RTCRtpSender, params: RTCRtpSendParameters) {
   const enc = params.encodings?.[0]

@@ -1,5 +1,5 @@
 // A search field: the query as it's typed, Enter with it, Escape. autofocus focuses it once it's shown (a popover
-// shows after mounting its contents; the react search mounts in a menu already open)
+// shows after mounting its contents; the message menu's reaction search mounts in a menu already open)
 
 export const SearchInput = (p: {
   class: string
