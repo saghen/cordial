@@ -132,9 +132,10 @@ nix build            # the package: the build and nixpkgs' Electron; update npmD
   of change it is (add, fix, drop, move, rework, swap, speed up), never a bare topic; identifiers in backticks.
   `ui(chat): fix the jump button covering the last message`, `capture: default the AV1 quantizer floor to 50`,
   ``core(adapter): find `fetchMessages` by its code``.
-- **The body** whenever there are numbers (budgets, memory, conformance), and otherwise when the why isn't obvious:
-  what changed, how it was checked, the numbers with how they were measured. No references to git-ignored files,
-  plans or their numbering (phases, slices, questions), and no personal names.
+- **The body** only for what the diff and the subject can't tell: a performance change (the numbers, and how they
+  were measured) or reasoning a reader wouldn't guess. Most commits have none. Never test or check results, nor a
+  restatement of what the diff or the subject already says. No references to git-ignored files, plans or their
+  numbering (phases, slices, questions), and no personal names.
 
 ## Rules
 
