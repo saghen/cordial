@@ -4,5 +4,5 @@
   mask: radial-gradient(closest-side, #0000 calc(44% - 0.5px), #000 44%);
 }
 :where(.status.online) { --status: var(--positive); mask: none; }
-:where(.status.idle) { --status: var(--warning); mask: linear-gradient(#000 0 0), var(--idle-cut) center / 100% no-repeat; mask-composite: exclude; }
+:where(.status.idle) { --status: var(--warning); border-radius: 0; mask: var(--idle-moon) center / 100% no-repeat; }
 :where(.status.dnd) { --status: var(--danger); mask: linear-gradient(#000 0 0), linear-gradient(#000 0 0) center / 56% 19% no-repeat; mask-composite: exclude; }

@@ -109,6 +109,12 @@ const PATHS = {
     'M2 5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V5Zm6.3.3a1 1 0 0 1 1.4 0L12 7.58l2.3-2.3a1 1 0 1 1 1.4 1.42L13.42 9l2.3 2.3a1 1 0 0 1-1.42 1.4L12 10.42l-2.3 2.3a1 1 0 0 1-1.4-1.42L10.58 9l-2.3-2.3a1 1 0 0 1 0-1.4Z',
     'M13 19.5c0 .28.22.5.5.5H15a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h1.5a.5.5 0 0 0 .5-.5v-2c0-.28.22-.5.5-.5h1c.28 0 .5.22.5.5v2Z',
   ],
+  fullscreen: [
+    'M4 6c0-1.1.9-2 2-2h3a1 1 0 0 0 0-2H6a4 4 0 0 0-4 4v3a1 1 0 0 0 2 0V6ZM4 18c0 1.1.9 2 2 2h3a1 1 0 1 1 0 2H6a4 4 0 0 1-4-4v-3a1 1 0 1 1 2 0v3ZM18 4a2 2 0 0 1 2 2v3a1 1 0 1 0 2 0V6a4 4 0 0 0-4-4h-3a1 1 0 1 0 0 2h3ZM20 18a2 2 0 0 1-2 2h-3a1 1 0 1 0 0 2h3a4 4 0 0 0 4-4v-3a1 1 0 1 0-2 0v3Z',
+  ],
+  'fullscreen-exit': [
+    'M8 6a2 2 0 0 1-2 2H3a1 1 0 0 0 0 2h3a4 4 0 0 0 4-4V3a1 1 0 0 0-2 0v3ZM8 18a2 2 0 0 0-2-2H3a1 1 0 1 1 0-2h3a4 4 0 0 1 4 4v3a1 1 0 1 1-2 0v-3ZM18 8a2 2 0 0 1-2-2V3a1 1 0 1 0-2 0v3a4 4 0 0 0 4 4h3a1 1 0 1 0 0-2h-3ZM16 18c0-1.1.9-2 2-2h3a1 1 0 1 0 0-2h-3a4 4 0 0 0-4 4v3a1 1 0 1 0 2 0v-3Z',
+  ],
   sticker: [
     'M6 2h12a4 4 0 0 1 4 4v7.5a.5.5 0 0 1-.5.5H19a5 5 0 0 0-5 5v2.5a.5.5 0 0 1-.5.5H6a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4Zm.5 8a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM19 8.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-9.91 2.94a1 1 0 0 0-1.66 1.12 5.5 5.5 0 0 0 9.14 0 1 1 0 0 0-1.66-1.12 3.5 3.5 0 0 1-5.82 0Z',
     'M21.66 16c.03 0 .05.03.04.06a3 3 0 0 1-.58.82l-4.24 4.24a3 3 0 0 1-.82.58.04.04 0 0 1-.06-.04V19a3 3 0 0 1 3-3h2.66Z',
@@ -150,11 +156,12 @@ const svg = (ds: string[], fill = 'black', box = 24) =>
 const uri = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 
 // each icon as --i-NAME (a mask: Icon draws it in the text colour); images: the pickers' search field's magnifier, the
-// call lines' 18 px icons, the idle status's bite (a mask: stock's, kept inside the dot)
+// call lines' 18 px icons, the idle status's moon (a mask: the dot less stock's bite, whole;
+// a bite cut from the dot by mask-composite left a faint arc where the bite meets the rim)
 export const ICONS =
   Object.entries(PATHS)
     .map(([name, ds]) => `--i-${name}: ${uri(svg(ds))};`)
     .join(' ') +
   ` --img-search: ${uri(svg(PATHS.search, '#96979e'))};` +
   ` --i-call-joined: ${uri(svg(CALLS.joined, 'black', 18))}; --i-call-missed: ${uri(svg(CALLS.missed, 'black', 18))};` +
-  ` --idle-cut: ${uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'><clipPath id='d'><circle cx='.5' cy='.5' r='.5'/></clipPath><circle cx='.25' cy='.25' r='.375' clip-path='url(#d)'/></svg>")};`
+  ` --idle-moon: ${uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'><mask id='m'><circle cx='.5' cy='.5' r='.5' fill='white'/><circle cx='.25' cy='.25' r='.375'/></mask><rect width='1' height='1' mask='url(#m)'/></svg>")};`

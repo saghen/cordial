@@ -11,6 +11,11 @@ section.call > figure.stream {
   > button { padding: 4px 12px; }
   &.watching { width: 480px; height: 270px; place-items: end start; align-content: stretch; background: #000; }
   &.watching > button { position: absolute; inset: 6px 8px auto auto; opacity: .8; }
+  &.watching > .stream-full { inset: auto 8px 6px auto; width: 32px; height: 32px; padding: 0; border-radius: 4px; background: #0008; color: #fff; }
+  /* full screen: the stream alone, the window's size */
+  &:fullscreen { width: 100%; height: 100%; padding: 0; border-radius: 0; }
+  &:fullscreen > video { border-radius: 0; }
+  &:fullscreen > span { display: none; }
 }
 /* Join on a row of its own below the tiles; a DM's are icons */
 section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; font-size: 14px; }

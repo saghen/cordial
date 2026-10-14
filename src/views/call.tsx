@@ -2,7 +2,7 @@
 // channel's text chat), with Join below them while elsewhere; the DM header's call buttons; incoming calls with Accept
 // and Decline.
 
-import { For, Show } from 'solid-js'
+import { createSignal, For, onCleanup, Show } from 'solid-js'
 
 import * as calls from '../api/calls'
 import * as channels from '../api/channels'
@@ -84,14 +84,46 @@ export function CallView() {
   )
 }
 
-// someone's Go Live, beside their tile: Watch Stream until watched, then the stream, larger, with Stop Watching. In a
-// call, Discord's core watches a stream the other person starts by itself
+// someone's Go Live, beside their tile: Watch Stream until watched, then the stream, larger, with Stop Watching and
+// Full Screen (or a double click on it; Escape leaves). In a call, Discord's core watches a stream the other person
+// starts by itself
 function StreamTile(p: { state: VoiceState; guildId: Id | null; name: string }) {
   const owner = () => p.state.userId
   const watching = () => !!streams.watching(owner(), p.guildId)
+  const [full, setFull] = createSignal(false)
+  let tile!: HTMLElement
+  const toggleFull = () => (full() ? document.exitFullscreen() : tile.requestFullscreen())
+  // Electron leaves full screen on Escape only when the page asks
+  const escape = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || !full()) return
+    e.preventDefault()
+    document.exitFullscreen()
+  }
+  document.addEventListener('keydown', escape)
+  onCleanup(() => document.removeEventListener('keydown', escape))
   return (
-    <figure class={{ stream: true, watching: watching() }} data-id={owner()}>
-      <Show when={watching() && streams.videoOf(owner(), p.guildId, 'stream')}>{(id) => <Video id={id()} />}</Show>
+    <figure
+      ref={(f) => {
+        tile = f
+        f.addEventListener('fullscreenchange', () => setFull(document.fullscreenElement === f))
+      }}
+      class={{ stream: true, watching: watching() }}
+      data-id={owner()}
+      onDblClick={(e) => e.target instanceof HTMLVideoElement && toggleFull()}
+    >
+      <Show when={watching() && streams.videoOf(owner(), p.guildId, 'stream')}>
+        {(id) => (
+          <>
+            <Video id={id()} />
+            <IconButton
+              class="stream-full"
+              icon={full() ? 'fullscreen-exit' : 'fullscreen'}
+              title={text(full() ? 'EXIT_FULL_SCREEN' : 'FULL_SCREEN')}
+              onClick={toggleFull}
+            />
+          </>
+        )}
+      </Show>
       <span>{p.name}</span>
       <Button class="stream-watch" onClick={() => streams.toggleWatch(owner(), p.guildId)}>
         {text(watching() ? 'STOP_WATCHING' : 'WATCH_STREAM')}
