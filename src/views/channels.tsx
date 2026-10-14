@@ -75,7 +75,7 @@ const Category = (p: { channel: Channel }) => (
 function VoiceChannel(p: { channel: Channel }) {
   const c = () => p.channel
   const start = () => channels.callStart(c())
-  const now = useNow(() => !!start())
+  const now = useNow(() => (start() ? Infinity : 0))
   return (
     <>
       <Row

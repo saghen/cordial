@@ -11,8 +11,7 @@
   --i: var(--i-hash);
   position: fixed; inset: 0; z-index: 1; display: grid;
   grid: "notice notice notice notice" auto "servers side head head" 48px "servers panels call members" auto "servers panels main members" 1fr
-    "servers panels uploads members" auto "servers panels reply members" auto "servers panels compose members" auto
-    / 72px 300px minmax(0, 1fr) auto;
+    "servers panels compose members" auto / 72px 300px minmax(0, 1fr) auto;
   background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
 }
 & * { margin: 0; box-sizing: border-box; }
@@ -38,7 +37,7 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 & > h1 { grid-area: side; }
 
 /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
-section.call > figure:is(.mute, .deaf)::after, menu.autocomplete > button.ch::before, menu > nav > button[style]::before {
+section.call > figure:is(.mute, .deaf)::after, menu > nav > button[style]::before {
   content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
 }
 /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
@@ -53,11 +52,6 @@ section.call > figure:is(.mute, .deaf)::after, menu.autocomplete > button.ch::be
 [data-status=online] { --status: var(--positive); --cut: initial; }
 [data-status=idle] { --status: var(--warning); --cut: var(--idle-cut) 100% 100% / 32% 32% no-repeat; }
 [data-status=dnd] { --status: var(--danger); --cut: linear-gradient(#000 0 0) 91.5% 86.2% / 18% 6% no-repeat; }
-menu > button.ch {
-  &.news { --i: var(--i-announce); }
-  &.nsfw { --i: var(--i-hash-nsfw); }
-  &.lock { --i: var(--i-hash-lock); }
-}
 
 
 /* the side column: the channel list or the DMs, then the voice panel and the user panel, each in its own row, so
@@ -156,15 +150,6 @@ menu.message-menu {
   > p:first-child > button { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); }
 }
 
-/* the reply bar above the composer */
-& > label {
-  grid-area: reply; display: flex; align-items: center; gap: 8px; margin: 0 16px; padding: 6px 12px;
-  border-radius: 8px 8px 0 0; background: var(--bg-floating); font-size: 14px; color: var(--text-muted);
-  > b { color: var(--text-strong); font-weight: 600; margin-right: auto; }
-  > .reply-mention { color: inherit; }
-  > .reply-mention.on { color: var(--accent); font-weight: 700; }
-  > .reply-cancel { --icon-size: 16px; }
-}
 
 /* the header: the channel's name and topic; its buttons, the member list's toggle last */
 & > header {
@@ -230,40 +215,6 @@ section.members {
 }
 section.members > a > .badge { margin-left: -8px; vertical-align: 2px; }
 
-/* the message box (views/composer.tsx): a grid of the attach button, the text, then the pickers (pickers.tsx) in
-   stock's order, GIF, sticker, emoji, each in a column of its own, so the text never runs under them. The text grows
-   with its lines, up to half the window; the buttons stay on the first line; the pickers open above */
-div.box {
-  grid-area: compose; display: grid; grid: "attach text gif sticker emoji" auto / auto minmax(0, 1fr) auto auto auto;
-  column-gap: 16px; align-items: start; margin: 0 16px 16px; padding: 0 16px; anchor-name: --box; border-radius: 8px;
-  background: var(--bg-raised);
-  &[hidden] { display: none; }
-  &:has(> textarea.editing) { box-shadow: 0 0 0 2px var(--accent); }
-  > textarea {
-    grid-area: text; min-height: 56px; max-height: 50vh; padding: 16px 0; resize: none; field-sizing: content;
-    border: 0; outline: 0; background: none; color: inherit; font: inherit;
-  }
-  > textarea::placeholder { color: var(--text-faint); }
-  > button { grid-area: emoji; width: 24px; height: 24px; margin-top: 16px; }
-  > button.attach { grid-area: attach; }
-  > button.gif-button { grid-area: gif; }
-  > button.sticker-button { grid-area: sticker; }
-}
-&:has(> label) > div.box { border-top-left-radius: 0; border-top-right-radius: 0; }
-/* autocomplete: a list over the messages, as wide as the box, just above it; stock's sizes: headings 12/600 caps,
-   rows 16 px with the hint at 12 px on the right, 24 px avatars (with the status), 20 px emoji, 16 px channel icons,
-   dividers between the @ list's sections */
-menu.autocomplete {
-  position-anchor: --box; width: anchor-size(width); margin: 0 0 8px; border-radius: 5px; gap: 0;
-  > h3 { margin: 0 0 8px; padding: 4px 0; font-size: 12px; font-weight: 600; line-height: 16px; text-transform: uppercase; color: var(--text-muted); }
-  > hr { margin: 8px 0; }
-  > button { padding: 8px; border-radius: 3px; color: var(--text-strong); font-size: 16px; line-height: 20px; }
-  > button:has(> img) { min-height: 31px; padding: 4px 8px; }
-  > button > img { width: 20px; height: 20px; object-fit: contain; }
-  > button[data-status]::before { content: ""; flex: none; width: 24px; height: 24px; }
-  > button.ch::before { width: 16px; height: 16px; color: var(--text-muted); }
-  > button > small { margin-left: auto; padding-left: 16px; font-size: 12px; font-weight: 400; line-height: 16px; white-space: nowrap; }
-}
 /* the pickers, as stock's: a search field with its magnifier; emoji and stickers as sections under sticky names,
    a rail of them on the left, the hovered one named below; GIFs as darkened tiles, then results in two columns */
 menu:is(.emoji-picker, .gif-picker, .sticker-picker) {
@@ -318,11 +269,6 @@ menu.gif-picker {
   > div > div > button { display: block; width: 100%; margin-bottom: 8px; padding: 0; border-radius: 8px; overflow: hidden; break-inside: avoid; }
   > div > div > button > :is(img, video) { display: block; width: 100%; height: auto; }
 }
-& > ul { grid-area: uploads; display: flex; flex-wrap: wrap; align-items: start; gap: 8px; margin: 0 16px; padding: 8px 0; list-style: none; }
-& > ul > button { padding: 8px 12px; border-radius: 8px; background: var(--bg-floating); color: inherit; font: inherit; font-size: 14px; }
-/* an image's card: the image above its name */
-& > ul > button[style] { display: grid; gap: 8px; width: 216px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
-& > ul > button[style]::before { content: ""; height: 168px; background: var(--preview) center / contain no-repeat; }
 /* the call view: a tile per person (avatar, name, a ring while speaking), Join below them; a camera fills its tile,
    under the name; someone's Go Live: Watch Stream until watched, then the stream, larger and letterboxed */
 & > section.call {
@@ -363,18 +309,3 @@ dialog.incoming {
   > button { grid-row: 1 / 3; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
   > button.incoming-decline { background: var(--danger); }
 }
-/* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
-   on the background with a fade above, over what scrolls under it */
-& > output {
-  grid-area: main; align-self: end; z-index: 1; margin: 0 16px; padding: 0 16px; font-size: 12px; line-height: 24px; color: var(--text-muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  &::before {
-    content: ""; display: inline-block; width: 22px; height: 6px; margin-right: 8px; vertical-align: middle;
-    background: radial-gradient(circle 3px at 3px 50%, var(--text-strong) 95%, #0000) 0 / 8px 6px;
-    mask: linear-gradient(90deg, #0006 33%, #000 50%, #0006 67%) 100% / 300% 100%; animation: mc-typing 1.2s linear infinite;
-  }
-  > b { font-weight: 700; color: var(--text-strong); }
-}
-&:has(> .messages.up) > output { background: var(--bg); box-shadow: 0 -8px 8px var(--bg); }
-
-@keyframes mc-typing { to { mask-position: 0; } }

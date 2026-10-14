@@ -1,0 +1,62 @@
+/* the composer: the reply bar on top of the box. The box is a grid: the files waiting to go across its top, then the
+   attach button, the text and the pickers (pickers.tsx) in stock's order, GIF, sticker, emoji, each in a column of its
+   own, so the text never runs under them. The text grows with its lines, up to half the window; the buttons stay on
+   the first line; the pickers open above */
+& > section.composer {
+  grid-area: compose; margin: 0 16px 16px; anchor-name: --composer;
+  &[hidden] { display: none; }
+}
+section.composer {
+  > .reply {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px 8px 0 0; background: var(--bg-floating);
+    font-size: 14px; color: var(--text-muted);
+    > span { margin-right: auto; }
+    > span > b { color: var(--text-strong); font-weight: 600; }
+    > .reply-mention { color: inherit; }
+    > .reply-mention.on { color: var(--accent); font-weight: 700; }
+    > .reply-cancel { --icon-size: 16px; }
+  }
+  > .box {
+    display: grid; grid: "uploads uploads uploads uploads uploads" auto "attach text gif sticker emoji" auto / auto minmax(0, 1fr) auto auto auto;
+    column-gap: 16px; align-items: start; padding: 0 16px; border-radius: 8px; background: var(--bg-raised);
+    &.editing { box-shadow: 0 0 0 2px var(--accent); }
+    > textarea {
+      grid-area: text; min-height: 56px; max-height: 50vh; padding: 16px 0; resize: none; field-sizing: content;
+      border: 0; outline: 0; background: none; color: inherit; font: inherit;
+    }
+    > textarea::placeholder { color: var(--text-faint); }
+    > button { grid-area: emoji; width: 24px; height: 24px; margin-top: 16px; }
+    > button.attach { grid-area: attach; }
+    > button.gif-button { grid-area: gif; }
+    > button.sticker-button { grid-area: sticker; }
+  }
+  > .reply + .box { border-top-left-radius: 0; border-top-right-radius: 0; }
+}
+/* the files: a card each, its name and Remove; an image's card shows the image above them */
+ul.uploads {
+  grid-area: uploads; display: flex; flex-wrap: wrap; align-items: start; gap: 8px; padding: 16px 0; border-bottom: 1px solid var(--bg-floating);
+  list-style: none;
+  > li { display: grid; grid: auto / minmax(0, 1fr) auto; align-items: center; gap: 8px; max-width: 216px; padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--bg-floating); font-size: 14px; }
+  > li > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  > li > button { --icon-size: 16px; color: var(--text-muted); }
+  > li > button:hover { color: var(--danger); }
+  > li[style] { width: 216px; grid: 168px auto / minmax(0, 1fr) auto; }
+  > li[style]::before { content: ""; grid-column: 1 / -1; height: 168px; background: var(--preview) center / contain no-repeat; }
+}
+/* autocomplete: a list over the messages, as wide as the composer, just above it; stock's sizes: headings 12/600 caps,
+   rows 16 px with the hint at 12 px at the end, 24 px avatars (with the status), 20 px emoji, 16 px channel icons,
+   dividers between the @ list's sections */
+menu.autocomplete {
+  position-anchor: --composer; width: anchor-size(width); margin: 0 0 8px; border-radius: 5px; gap: 0;
+  > h3 { margin: 0 0 8px; padding: 4px 0; font-size: 12px; font-weight: 600; line-height: 16px; text-transform: uppercase; color: var(--text-muted); }
+  > hr { margin: 8px 0; }
+  > .row {
+    display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 3px; color: var(--text-strong); font-size: 16px; line-height: 20px;
+    white-space: nowrap;
+  }
+  > .row:has(> .emoji) { min-height: 31px; padding: 4px 8px; }
+  > .row:is(:hover, .sel) { background: var(--bg-raised); }
+  > .row > .icon { --icon-size: 16px; color: var(--text-muted); }
+  > .row > .emoji { width: 20px; height: 20px; }
+  > .row > .end { margin-left: auto; padding-left: 16px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; color: var(--text-muted); }
+}

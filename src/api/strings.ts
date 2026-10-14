@@ -95,6 +95,28 @@ const STOCK = [
   'MARK_UNREAD',
   'COPY_MESSAGE_LINK',
   'DELETE_MESSAGE',
+  // the composer
+  'TEXTAREA_PLACEHOLDER',
+  'NO_SEND_MESSAGES_PERMISSION_PLACEHOLDER',
+  'GUILD_COMMUNICATION_DISABLED_BOTTOM_SHEET_TITLE',
+  'CHANNEL_SLOWMODE_COOLDOWN',
+  'REPLYING_TO',
+  'REPLY_MENTION_ON',
+  'REPLY_MENTION_OFF',
+  'CHAT_ATTACH_UPLOAD_A_FILE',
+  'REMOVE',
+  'ONE_USER_TYPING',
+  'TWO_USERS_TYPING',
+  'THREE_USERS_TYPING',
+  'SEVERAL_USERS_TYPING',
+  // autocomplete
+  'MEMBERS',
+  'MEMBERS_MATCHING',
+  'TEXT_CHANNELS',
+  'TEXT_CHANNELS_MATCHING',
+  'EMOJI',
+  'EMOJI_MATCHING',
+  'MENTION_USERS_WITH_ROLE',
 ] as const
 textNeed(STOCK)
 
@@ -105,9 +127,12 @@ const OURS = {
   LOGIN_DISCORDS_MFA: "This account's two-factor needs Discord's login screen.",
   NOT_SENT: 'Not sent.',
   CONFIRM_DELETE: 'Click again to delete',
+  EDITING: 'Editing: Enter saves, Escape cancels',
   // stock's text, under a name we haven't found
   ALL_LIVE_STAGES: 'All Live Stages',
   LOAD_MORE: 'Load More',
+  BLOCKED_DM: 'You cannot send messages to a user you have blocked.',
+  CANCEL_REPLY: 'Cancel reply',
 }
 
 const keys = new Map<string, string>()

@@ -12,13 +12,16 @@ export function onAction(type: string, fn: (action: Rec) => void) {
   if (getOwner()) onCleanup(() => A.dispatcher.unsubscribe(type, fn))
 }
 
-// the time, updated every second while `ticking` is true
-export function useNow(ticking: () => boolean) {
+// the time, updated every second until `until` (a time in ms: Infinity for good, 0 not at all)
+export function useNow(until: () => number) {
   const [now, setNow] = createSignal(Date.now())
-  createEffect(ticking, (on) => {
-    if (!on) return
+  createEffect(until, (end) => {
     setNow(Date.now())
-    const timer = setInterval(() => setNow(Date.now()), 1000)
+    if (end <= Date.now()) return
+    const timer = setInterval(() => {
+      setNow(Date.now())
+      if (Date.now() >= end) clearInterval(timer)
+    }, 1000)
     return () => clearInterval(timer)
   })
   return now

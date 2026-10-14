@@ -4,12 +4,13 @@
 import { createEffect, createMemo, createSignal, For, Show } from 'solid-js'
 
 import * as channels from '../api/channels'
+import { typingNames } from '../api/composer'
 import * as messages from '../api/messages'
 import * as pickers from '../api/pickers'
 import type { Emoji as EmojiRecord, Id, Message as Record } from '../api/records'
 import { Permission } from '../api/records'
 import { selected, selectedChannel } from '../api/store'
-import { text } from '../api/strings'
+import { text, textAround } from '../api/strings'
 import * as users from '../api/users'
 import { Emoji } from '../components/emoji'
 import { Message } from '../components/message/message'
@@ -17,6 +18,7 @@ import { Viewer } from '../components/viewer'
 import { Button, IconButton } from '../primitives/button'
 import { contextMenu, Items } from '../primitives/menu'
 import { SearchInput } from '../primitives/search'
+import { focus } from './composer'
 import { createScroller } from './scroller'
 
 export { resetContent } from '../components/message/content'
@@ -132,6 +134,7 @@ export function Chat(p: { root: HTMLElement }) {
     <>
       {view}
       <NewMessages channelId={channelId} />
+      <Typing channelId={channelId} />
       <Show when={up() || loaded()?.hasMoreAfter}>
         <IconButton class="jump" icon="chevron" title={text('JUMP_TO_PRESENT')} onClick={present} />
       </Show>
@@ -157,6 +160,24 @@ function NewMessages(p: { channelId: () => Id | null }) {
           </Button>
         </div>
       )}
+    </Show>
+  )
+}
+
+// who else is typing, in stock's words: "A is typing...", "A and B are...", "A, B, and C are...", then "Several
+// people are..."
+const TYPING = ['ONE_USER_TYPING', 'TWO_USERS_TYPING', 'THREE_USERS_TYPING'] as const
+function Typing(p: { channelId: () => Id | null }) {
+  const names = createMemo(() => (p.channelId() ? typingNames(p.channelId()!) : []))
+  return (
+    <Show when={names().length}>
+      <output class="typing">
+        {names().length > 3
+          ? text('SEVERAL_USERS_TYPING')
+          : textAround(TYPING[names().length - 1], {}, ['a', 'b', 'c'].slice(0, names().length)).map((part) =>
+              typeof part === 'number' ? <b>{names()[part]}</b> : part,
+            )}
+      </output>
     </Show>
   )
 }
@@ -196,8 +217,6 @@ function MessageItems(p: { message: Record; react: boolean }) {
       />
     </p>
   )
-  const box = () => document.querySelector<HTMLTextAreaElement>('#mc-composer')?.focus()
-
   return (
     <Show
       when={query() == null}
@@ -235,13 +254,13 @@ function MessageItems(p: { message: Record; react: boolean }) {
             name: 'menu-edit',
             icon: 'pencil',
             label: text('EDIT_MESSAGE'),
-            run: () => (messages.startEdit(m()), box()),
+            run: () => (messages.startEdit(m()), focus()),
           },
           can(Permission.SEND_MESSAGES) && {
             name: 'menu-reply',
             icon: 'reply',
             label: text('MESSAGE_ACTION_REPLY'),
-            run: () => (messages.reply(m(), channel()), box()),
+            run: () => (messages.reply(m(), channel()), focus()),
           },
           '-',
           {

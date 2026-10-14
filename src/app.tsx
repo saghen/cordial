@@ -15,7 +15,7 @@ import { text } from './api/strings'
 import { ChannelIcon } from './components/channel_icon'
 import { DmIcon } from './components/dm_icon'
 import { MembersList, MembersToggle } from './views/members'
-import { MessageInput } from './views/composer'
+import { Composer } from './views/composer'
 import { ServerBar } from './views/server_bar'
 import { ICONS } from './primitives/icons'
 import { UserPanel } from './views/user_panel'
@@ -83,7 +83,7 @@ export function App(p: { root: HTMLElement }) {
       <CallView />
       <Chat root={p.root} />
       <IncomingCalls />
-      <MessageInput />
+      <Composer />
       <MembersList />
     </>
   )

@@ -14,3 +14,18 @@
   --icon-size: 28px; grid-area: main; align-self: end; justify-self: end; z-index: 2; width: 48px; height: 48px;
   margin: 0 28px 40px 0; border-radius: 50%; background: var(--bg-floating); box-shadow: 0 4px 8px #0006;
 }
+/* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
+   on the background with a fade above, over what scrolls under it */
+& > output.typing {
+  grid-area: main; align-self: end; z-index: 1; margin: 0 16px; padding: 0 16px; font-size: 12px; line-height: 24px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  &::before {
+    content: ""; display: inline-block; width: 22px; height: 6px; margin-right: 8px; vertical-align: middle;
+    background: radial-gradient(circle 3px at 3px 50%, var(--text-strong) 95%, #0000) 0 / 8px 6px;
+    mask: linear-gradient(90deg, #0006 33%, #000 50%, #0006 67%) 100% / 300% 100%; animation: mc-typing 1.2s linear infinite;
+  }
+  > b { font-weight: 700; color: var(--text-strong); }
+}
+&:has(> .messages.up) > output.typing { background: var(--bg); box-shadow: 0 -8px 8px var(--bg); }
+
+@keyframes mc-typing { to { mask-position: 0; } }
