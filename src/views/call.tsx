@@ -7,7 +7,7 @@ import { createSignal, For, onCleanup, Show } from 'solid-js'
 import * as calls from '../api/calls'
 import * as channels from '../api/channels'
 import { useRingtone } from '../api/sounds'
-import type { Id, PrivateChannel, VoiceState } from '../api/records'
+import type { Channel, PrivateChannel, VoiceState } from '../api/records'
 import { selectedChannel } from '../api/store'
 import { text } from '../api/strings'
 import * as streams from '../api/streams'
@@ -43,8 +43,8 @@ export function CallView() {
                         video={streams.videoOf(v.userId, guildId())}
                         compact={compact()}
                       />
-                      <Show when={v.selfStream && v.userId !== users.me()?.id}>
-                        <StreamTile state={v} guildId={guildId()} name={users.displayName(user(), guildId())} />
+                      <Show when={v.selfStream}>
+                        <StreamTile state={v} channel={c()} name={users.displayName(user(), guildId())} />
                       </Show>
                     </>
                   )}
@@ -86,10 +86,12 @@ export function CallView() {
 
 // someone's Go Live, beside their tile: Watch Stream until watched, then the stream, larger, with Stop Watching and
 // Full Screen (or a double click on it; Escape leaves). In a call, Discord's core watches a stream the other person
-// starts by itself
-function StreamTile(p: { state: VoiceState; guildId: Id | null; name: string }) {
+// starts by itself. Your own: its preview (the core's local video, watched while you stream), with Stop Streaming
+function StreamTile(p: { state: VoiceState; channel: Channel; name: string }) {
   const owner = () => p.state.userId
-  const watching = () => !!streams.watching(owner(), p.guildId)
+  const guildId = () => p.channel.guild_id
+  const self = () => owner() === users.me()?.id
+  const watching = () => !!streams.watching(owner(), guildId())
   const [full, setFull] = createSignal(false)
   let tile!: HTMLElement
   const toggleFull = () => (full() ? document.exitFullscreen() : tile.requestFullscreen())
@@ -111,7 +113,7 @@ function StreamTile(p: { state: VoiceState; guildId: Id | null; name: string }) 
       data-id={owner()}
       onDblClick={(e) => e.target instanceof HTMLVideoElement && toggleFull()}
     >
-      <Show when={watching() && streams.videoOf(owner(), p.guildId, 'stream')}>
+      <Show when={watching() && streams.videoOf(owner(), guildId(), 'stream')}>
         {(id) => (
           <>
             <Video id={id()} />
@@ -125,9 +127,18 @@ function StreamTile(p: { state: VoiceState; guildId: Id | null; name: string }) 
         )}
       </Show>
       <span>{p.name}</span>
-      <Button class="stream-watch" onClick={() => streams.toggleWatch(owner(), p.guildId)}>
-        {text(watching() ? 'STOP_WATCHING' : 'WATCH_STREAM')}
-      </Button>
+      <Show
+        when={!self()}
+        fallback={
+          <Button class="stream-watch" onClick={() => streams.toggleLive(p.channel)}>
+            {text('STOP_STREAMING')}
+          </Button>
+        }
+      >
+        <Button class="stream-watch" onClick={() => streams.toggleWatch(owner(), guildId())}>
+          {text(watching() ? 'STOP_WATCHING' : 'WATCH_STREAM')}
+        </Button>
+      </Show>
     </figure>
   )
 }
