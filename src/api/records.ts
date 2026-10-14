@@ -102,6 +102,7 @@ export interface VoiceState {
   selfMute: boolean
   selfDeaf: boolean
   selfStream: boolean
+  selfVideo: boolean
 }
 
 export interface Emoji {

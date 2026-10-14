@@ -19,6 +19,9 @@ interface Native {
   }
 }
 const native = (window as any).mincordNative as Native | undefined
+// the shell's image actions (shell/main.js): one copied to the clipboard (false when it isn't PNG or JPEG), one saved
+export const image = (window as any).mincordNative?.image as
+  { copy(url: string): Promise<boolean>; save(url: string): void } | undefined
 
 const requireModule = patch('getDiscordUtils(){', [
   /requireModule\(([\w$]+)\)\{(?=if\([\w$]+\.hasOwnProperty\(\1\))/,

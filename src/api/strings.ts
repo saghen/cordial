@@ -81,6 +81,8 @@ const STOCK = [
   'RETRY',
   'DELETE',
   'OPEN_IN_BROWSER',
+  'COPY_IMAGE_MENU_ITEM',
+  'SAVE_IMAGE_MENU_ITEM',
   'PINNED_MESSAGES',
   'NO_PINS_IN_CHANNEL',
   'NO_PINS_IN_DM',
@@ -205,7 +207,7 @@ const OURS = {
   LOGIN_DISCORDS_MFA: "This account's two-factor needs Discord's login screen.",
   NOT_SENT: 'Not sent.',
   CONFIRM_DELETE: 'Click again to delete',
-  EDITING: 'Editing: Enter saves, Escape cancels',
+  EDITING: 'Editing message',
   // stock's text, under a name we haven't found
   ALL_LIVE_STAGES: 'All Live Stages',
   LOAD_MORE: 'Load More',

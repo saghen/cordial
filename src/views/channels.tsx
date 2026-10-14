@@ -19,7 +19,7 @@ import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
 import { Row } from '../primitives/row'
 
-// the mention count at a row's end
+// a channel's mention count at its row's end (a DM row has none, Liam: the server bar counts it)
 const count = (n: number) => n > 0 && <Badge kind="count">{n}</Badge>
 
 function Dm(p: { channel: PrivateChannel }) {
@@ -32,7 +32,6 @@ function Dm(p: { channel: PrivateChannel }) {
       class={{ sel: selected() === c().id, unread: channels.unread(c()) }}
       icon={<DmIcon channel={c()} size={32} status />}
       sub={channels.dmSub(c())}
-      end={count(channels.mentions(c()))}
       onClick={() => channels.open(c())}
       {...onHover(() => c().id)}
     >
@@ -82,7 +81,7 @@ function VoiceChannel(p: { channel: Channel }) {
       <Row
         name="voice"
         data-id={c().id}
-        class={{ live: voice.states(c().id).length > 0, sel: voice.connected(c()) }}
+        class={{ live: voice.states(c().id).length > 0, joined: voice.connected(c()) }}
         icon={<ChannelIcon channel={c()} />}
         sub={channels.voiceStatus(c())}
         end={start() && <time>{channels.elapsed(now() - start()!)}</time>}

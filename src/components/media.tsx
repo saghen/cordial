@@ -1,6 +1,7 @@
 // An image or video scaled into its box, from the media proxy at that size (Discord's transform drops media without a
 // size). As stock's default, GIFs play only while the window is focused: a GIF image swaps to a still from the media
-// proxy (format=webp is its first frame), a GIF video pauses. An image that isn't a link to a page opens in the viewer.
+// proxy (format=webp is its first frame), a GIF video pauses. An image that isn't a link to a page opens in the viewer,
+// its full size fetched while hovered.
 
 import { createEffect } from 'solid-js'
 
@@ -24,7 +25,8 @@ export function Media(p: { media: Source; box: Box; href?: string }) {
   const src = p.media.proxyURL
     ? `${p.media.proxyURL}${p.media.proxyURL.includes('?') ? '&' : '?'}width=${width}&height=${height}`
     : p.media.url
-  const href = p.href
+  const href = p.href,
+    full = p.media.proxyURL ?? p.media.url
   return (
     <img
       class={['media', { thumb: p.box === 'thumb', zoom: !href }]}
@@ -33,7 +35,8 @@ export function Media(p: { media: Source; box: Box; href?: string }) {
       height={height}
       loading="lazy"
       src={isGif && !windowFocused() ? `${src}&format=webp` : src}
-      onClick={() => (href ? window.open(href) : viewer.open(p.media.proxyURL ?? p.media.url, p.media.url))}
+      onPointerEnter={() => href || (new Image().src = full)}
+      onClick={() => (href ? window.open(href) : viewer.open(full, p.media.url))}
     />
   )
 }

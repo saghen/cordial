@@ -9,6 +9,7 @@ import * as guilds from '../api/guilds'
 import { onHover } from '../api/preload'
 import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
+import * as voice from '../api/voice'
 import { DmIcon } from '../components/dm_icon'
 import { GuildIcon } from '../components/guild_icon'
 import { Badge } from '../primitives/badge'
@@ -18,7 +19,8 @@ import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
 import { Popout } from '../primitives/popout'
 
-// a row of the bar: the pill (unread, hovered, selected), its icon, and the mention count over the icon's corner
+// a row of the bar: the pill (unread, hovered, selected), its icon, the mention count over the icon's lower corner and
+// what goes on in its voice over the upper one
 function Tile(p: {
   name: string
   id?: Id | number
@@ -26,6 +28,7 @@ function Tile(p: {
   sel?: boolean
   unread?: boolean
   mentions?: number
+  activity?: voice.Activity
   go(): void
   // the channel a click opens, preloaded on hover
   pre?(): Id | null | undefined
@@ -40,6 +43,13 @@ function Tile(p: {
       {...(p.pre ? onHover(p.pre) : {})}
     >
       {p.children}
+      <Show when={p.activity}>
+        {(a) => (
+          <span class={['activity', { connected: a().connected }]}>
+            <Icon name={a().icon} />
+          </span>
+        )}
+      </Show>
       <Show when={p.mentions}>{(n) => <Badge kind="count">{n()}</Badge>}</Show>
     </a>
   )
@@ -57,6 +67,7 @@ function Guild(p: { id: Id }) {
           sel={selectedGuild() === p.id}
           unread={guilds.unread(p.id) && !guilds.muted(p.id)}
           mentions={guilds.mentions(p.id)}
+          activity={voice.guildActivity(p.id)}
           go={() => guilds.open(p.id)}
           pre={() => guilds.lastChannel(p.id)}
         >
@@ -77,6 +88,7 @@ function Dm(p: { channel: PrivateChannel }) {
       sel={selected() === c().id}
       unread={channels.unread(c())}
       mentions={channels.mentions(c())}
+      activity={voice.callActivity(c())}
       go={() => channels.open(c())}
       pre={() => c().id}
     >
@@ -103,6 +115,14 @@ function Folder(p: { folder: guilds.Folder }) {
       }
       unread={!open() && ids().some((g) => guilds.unread(g) && !guilds.muted(g))}
       mentions={open() ? 0 : ids().reduce((n, g) => n + guilds.mentions(g), 0)}
+      // as stock: closed, the server you're connected in
+      activity={
+        open()
+          ? undefined
+          : ids()
+              .map(voice.guildActivity)
+              .find((a) => a?.connected)
+      }
       go={() => guilds.toggleFolder(id)}
     >
       {children}

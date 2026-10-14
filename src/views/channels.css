@@ -24,8 +24,10 @@ section.side > nav {
   > .row.sel { background-color: var(--bg-selected); }
   > .muted { color: var(--text-faint); }
   > .dm { min-height: 42px; }
-  /* a voice channel with someone in it: the icon green, how long the call has gone on at the end */
+  /* a voice channel with someone in it: the icon green, how long the call has gone on at the end; the one you're in
+     lit, without the selected background */
   > .live > .icon { color: var(--positive); }
+  > .joined { color: var(--text-strong); }
   > .voice time { font: 12px var(--mono); color: var(--positive); }
   /* who's in it, under the channel's name: their avatar, LIVE while streaming; muted, the mic off; deafened, the mic
      and headphones off; by the server, in red */

@@ -171,6 +171,7 @@ storeNeed('ChannelSection', 'ChannelSectionStore', 'getSection')
 storeNeed('ChannelMember', 'ChannelMemberStore', 'getProps')
 storeNeed('VoiceState', 'VoiceStateStore', 'getVoiceStatesForChannel', 'isInChannel')
 storeNeed('SortedVoiceState', 'SortedVoiceStateStore', 'countVoiceStatesForChannel')
+storeNeed('GuildMediaState', 'GuildMediaStateStore', 'getGuildMediaState')
 storeNeed('Speaking', 'SpeakingStore', 'isSpeaking', 'isCurrentUserPTTActive', 'isCurrentUserPrioritySpeaker')
 storeNeed(
   'ApplicationStreaming',

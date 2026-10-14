@@ -200,6 +200,7 @@ export function markUnread(m: Message) {
 
 export const own = (m: Message) => m.author.id === users.me()?.id
 export const pendingReply = (channelId: Id) => $.PendingReply.getPendingReply(channelId)?.message.id as Id | undefined
+export const editing = (channelId: Id) => $.EditMessage.getEditingMessageId(channelId) as Id | undefined
 
 // up to three who reacted, as stock's tooltip (the store fetches them on the first read)
 export function reactors(m: Message, r: Reaction) {

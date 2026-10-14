@@ -8,7 +8,9 @@ aside {
   > .add-server { grid-column: 2; justify-self: center; width: 40px; height: 40px; border-radius: 12px; background: var(--bg-raised); color: var(--positive); }
   > .add-server:hover { background: var(--positive); color: var(--on-color); }
 }
-/* a tile: the pill in the first column for unread, hovered and selected; the mention count over the icon's corner */
+/* a tile: the pill in the first column for unread, hovered and selected; the mention count over the icon's lower
+   corner, its voice's badge over the upper one (stock's: a 16 px circle, black, green where you're connected), each
+   ringed in the bar's colour and above the icon */
 aside a {
   grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; place-items: center; min-height: 40px;
   &::before {
@@ -19,10 +21,17 @@ aside a {
   &:hover::before { height: 20px; }
   &.sel::before { height: 40px; }
   > * { grid-area: 1 / 2; }
-  > .badge { place-self: end; margin: 0 0 -4px; box-shadow: 0 0 0 3px var(--surface); }
+  > :is(.badge, .activity) { position: relative; margin-right: 4px; box-shadow: 0 0 0 3px var(--surface); }
+  > .badge { place-self: end; }
+  > .activity {
+    place-self: start end; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
+    background: #000; color: var(--on-color); --icon-size: 12px;
+    &.connected { background: var(--positive); }
+  }
   /* stock's squircles (its BlobMask path, within 0.1 px); initials on the accent while hovered or open */
   > .guild-icon { border-radius: 13px; corner-shape: superellipse(1.3); transition: background-color 0.15s; }
   &:is(:hover, .sel) > .guild-icon:not(:has(img)) { background-color: var(--accent); }
+  > .guild-icon:has(img) { background: none; }
   /* the DMs button: a bare bubble (Liam's design), grey, lavender while hovered or open */
   &.dms > .icon { --icon-size: 24px; color: var(--text-muted); }
   &.dms:is(:hover, .sel) > .icon { color: #b5bfe7; }
@@ -33,8 +42,9 @@ aside {
   .folder-tiles {
     display: grid; grid: 1fr 1fr / 1fr 1fr; gap: 2px; width: 48px; height: 48px; padding: 4px; border-radius: 16px; background: color-mix(in srgb, var(--text-muted) 12%, transparent);
   }
-  .folder-tiles > .guild-icon { background-color: var(--bg); }
-  a.folder > .badge { margin-right: -4px; }
+  .folder-tiles > .guild-icon:not(:has(img)) { background-color: var(--bg); }
+  .folder-tiles > .guild-icon:has(img) { background: none; }
+  a.folder > :is(.badge, .activity) { margin-right: 0; }
   a.folder:hover > .folder-tiles { background-color: color-mix(in srgb, var(--text-muted) 20%, transparent); }
   > .folder-open {
     position: relative; grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; grid-template-rows: repeat(var(--n), auto);

@@ -13,6 +13,7 @@ import { selected, selectedChannel } from '../api/store'
 import { text, textAround } from '../api/strings'
 import * as users from '../api/users'
 import { Emoji } from '../components/emoji'
+import { flash } from '../components/message/head'
 import { Message } from '../components/message/message'
 import { Viewer } from '../components/viewer'
 import { Button, IconButton } from '../primitives/button'
@@ -28,6 +29,7 @@ export function Chat(p: { root: HTMLElement }) {
   const list = createMemo(() => (loaded()?.toArray() ?? []) as Record[])
   const unread = createMemo(() => channelId() && messages.oldestUnread(channelId()!))
   const replying = createMemo(() => channelId() && messages.pendingReply(channelId()!))
+  const editing = createMemo(() => channelId() && messages.editing(channelId()!))
   const menu = messageMenu()
 
   // the runs of blocked or ignored messages shown, by their first message
@@ -57,6 +59,7 @@ export function Chat(p: { root: HTMLElement }) {
         day={messages.dayOf(list()[i() - 1], m)}
         isNew={unread() === m.id}
         replying={replying() === m.id}
+        editing={editing() === m.id}
         collapsed={collapsed()}
         gone={collapsed() && !count()}
         run={
@@ -108,7 +111,7 @@ export function Chat(p: { root: HTMLElement }) {
       const row = view.querySelector<HTMLElement>(`[data-id="${jump.id}"]`)
       if (!row) return
       row.scrollIntoView({ block: jump.top ? 'start' : 'center' })
-      if (jump.flash) row.animate([{ background: 'var(--mention-bg)' }, {}], { duration: 2000 })
+      if (jump.flash) flash(row)
     })
   }
 

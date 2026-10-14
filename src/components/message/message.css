@@ -6,7 +6,7 @@ article {
   content-visibility: auto; contain-intrinsic-size: auto 26px;
   > * { grid-column: 2; }
   /* a row that continues a group: its time in the gutter while hovered */
-  &:not(.head):hover::before {
+  &[data-t]:hover::before {
     content: attr(data-t); grid-area: 1 / 1; padding-right: 8px; text-align: right; font-size: 11px; line-height: 22px; color: var(--text-muted);
   }
   &:has(> .divider)::before { grid-row: 2; }
@@ -33,9 +33,9 @@ article {
   > button:is(.blocked-show, .ignored-show) { justify-self: start; padding: 0; color: var(--text-muted); font: inherit; font-size: 14px; }
   > button:is(.blocked-show, .ignored-show):hover { text-decoration: underline; }
   .content > .edited { margin-left: 0.25em; font-size: 10px; color: var(--text-muted); }
-  /* mentions me: stock's tint and bar; the message being replied to, as stock */
+  /* mentions me: stock's tint and bar; the message being replied to, as stock, and the one being edited */
   &.mention { background-color: color-mix(in srgb, var(--warning) 8%, transparent); box-shadow: inset 2px 0 var(--warning); }
-  &.replying { background-color: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 2px 0 var(--accent); }
+  &:is(.replying, .editing) { background-color: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 2px 0 var(--accent); }
   /* sending, then failed with Retry and Delete */
   &.sending { color: var(--text-muted); }
   &.failed { color: var(--danger); }
@@ -63,16 +63,17 @@ article > .divider {
 /* a reply: the replied-to message on one line, the spine in the gutter from the avatar's column to it; a command's line
    (not a link; the command in the link colour) */
 article > q {
-  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; font-size: 14px; line-height: 20px; cursor: pointer; quotes: none;
+  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; font-size: 14px; line-height: 20px; quotes: none;
   /* the spine reaches down to the avatar's top without making the line taller */
   &::before {
     content: ""; grid-column: 1; justify-self: end; width: 32px; margin: 9px 6px -4px 0;
     border: 2px solid var(--text-faint); border-width: 2px 0 0 2px; border-top-left-radius: 6px;
   }
-  > span { grid-column: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* only the author and text take the click, lighter while hovered */
+  > span { grid-column: 2; justify-self: start; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &.reply-to > span { cursor: pointer; }
+  &.reply-to > span:hover { color: var(--text-strong); }
   .avatar { margin-right: 4px; vertical-align: text-bottom; }
   .name { margin-right: 4px; }
-  &:hover { color: var(--text-strong); }
-  &.command { cursor: auto; }
   .command-name { color: var(--link); }
 }

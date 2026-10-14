@@ -25,15 +25,28 @@ export const Head = (p: { m: Message; guildId?: Id | null; children?: JSX.Elemen
   </>
 )
 
+// a jump's target flashed, as stock
+export const flash = (row: Element) => row.animate([{ background: 'var(--mention-bg)' }, {}], { duration: 2000 })
+
+// a click on a reply: the replied-to message flashed where it is when it's in view, else jumped to
+function jump(e: MouseEvent, m: Message) {
+  const list = (e.currentTarget as Element).closest('.messages'),
+    row = list?.querySelector(`article[data-id="${m.messageReference!.message_id}"]`)
+  const r = row?.getBoundingClientRect(),
+    v = list?.getBoundingClientRect()
+  if (row && r!.top >= v!.top && r!.bottom <= v!.bottom) flash(row)
+  else messages.jumpToReplied(m)
+}
+
 // as stock: the replied-to message's author (with @ if the reply pings them) and its text on one line, the spine from
-// the avatar's column to it; a click jumps to it
+// the avatar's column to it; a click on them jumps to it
 export function ReplyPreview(p: { m: Message; guildId?: Id | null }) {
   const ref = () => messages.replied(p.m)
   return (
     <Show when={ref()}>
       {(r) => (
-        <q class="reply-to" onClick={() => messages.jumpToReplied(p.m)}>
-          <span>
+        <q class="reply-to">
+          <span onClick={(e) => jump(e, p.m)}>
             <Show
               when={r().message}
               fallback={text(r().state === 2 ? 'REPLY_QUOTE_MESSAGE_DELETED' : 'REPLY_QUOTE_MESSAGE_NOT_LOADED')}

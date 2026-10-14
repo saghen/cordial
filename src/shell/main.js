@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron')
+const { app, BrowserWindow, clipboard, ipcMain, Menu, nativeImage, net, shell } = require('electron')
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -29,6 +29,15 @@ const config = () => {
   }
 }
 ipcMain.on('mincord:config', (e) => (e.returnValue = config()))
+
+// an image's actions (the viewer's menu, Ctrl+C there): copied to the clipboard (PNG or JPEG: nativeImage reads no
+// other), saved through Electron's save dialog. Fetched here: the page's fetch is cross-origin to Discord's media
+ipcMain.handle('mincord:copy-image', async (_, url) => {
+  const image = nativeImage.createFromBuffer(Buffer.from(await (await net.fetch(url)).arrayBuffer()))
+  if (!image.isEmpty()) clipboard.writeImage(image)
+  return !image.isEmpty()
+})
+ipcMain.on('mincord:save', (e, url) => e.sender.downloadURL(url))
 
 // what a global shortcut does (stock's keybind actions) on its press and release. Push to talk is held while the
 // keys are down, in push to talk's input mode only (as stock's)

@@ -50,6 +50,7 @@ export function Message(p: {
   day?: string
   isNew: boolean
   replying: boolean
+  editing: boolean
   // a blocked or ignored run's first row carries its "N blocked messages" line; the run's rows are collapsed until
   // it's shown
   run?: JSX.Element
@@ -59,7 +60,8 @@ export function Message(p: {
 }) {
   const m = p.m,
     guildId = () => p.channel?.guild_id,
-    channelId = m.channel_id
+    channelId = m.channel_id,
+    hasText = !messages.linkOnly(m) && (!!m.content || !messages.isUser(m))
   return (
     <article
       data-id={m.id}
@@ -73,10 +75,13 @@ export function Message(p: {
         new: p.isNew,
         mention: m.mentioned,
         replying: p.replying,
+        editing: p.editing,
         collapsed: p.collapsed,
         gone: p.gone,
       }}
-      data-t={p.head || m.type === MessageType.Call ? undefined : clock(m.timestamp)}
+      // the hover time in the gutter: none on an author line, a call's line or a message without text (an image alone,
+      // Liam)
+      data-t={p.head || m.type === MessageType.Call || !hasText ? undefined : clock(m.timestamp)}
     >
       <Show when={p.day || p.isNew}>
         <Divider day={p.day} isNew={p.isNew} />
@@ -88,7 +93,7 @@ export function Message(p: {
         <Show when={p.head}>
           <Head m={m} guildId={guildId()} />
         </Show>
-        <Show when={!messages.linkOnly(m)}>
+        <Show when={hasText}>
           <Content m={m} channelId={channelId} cache />
         </Show>
         <For each={m.messageSnapshots}>{(f) => <Forward m={f.message} channelId={channelId} />}</For>

@@ -35,6 +35,16 @@ export interface Stores {
     userHasBeenMovedVersion: number
   }
   SortedVoiceState: FluxStore & { countVoiceStatesForChannel(channelId: Id): number }
+  // what goes on in a server's voice, as the server bar's badge shows it (stock leaves out muted servers' unless you're
+  // in one, AFK channels and blocked users)
+  GuildMediaState: FluxStore & {
+    getGuildMediaState(guildId: Id): {
+      audio: boolean
+      video: boolean
+      screenshare: boolean
+      isCurrentUserConnected: boolean
+    }
+  }
   Speaking: FluxStore & {
     isSpeaking(userId: Id): boolean
     isCurrentUserPTTActive(): boolean

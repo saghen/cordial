@@ -35,5 +35,27 @@ const STATES = {
 export const state = () => $.RTCConnection.getState()
 export const stateText = () => text(STATES[state() as keyof typeof STATES] ?? 'CONNECTION_STATUS_CONNECTING')
 
+// the server bar's badge on a server or a DM, as stock's: a stream, a camera, or someone in voice, green where you're
+// connected (stock's events, stages and activities aren't shown)
+export interface Activity {
+  icon: 'screen' | 'video' | 'voice'
+  connected: boolean
+}
+const activity = (screen: boolean, video: boolean, voice: boolean, connected: boolean): Activity | undefined =>
+  screen || video || voice ? { icon: screen ? 'screen' : video ? 'video' : 'voice', connected } : undefined
+export function guildActivity(id: Id) {
+  const m = $.GuildMediaState.getGuildMediaState(id)
+  return activity(m.screenshare, m.video, m.audio, m.isCurrentUserConnected)
+}
+export function callActivity(c: Channel) {
+  const s = states(c.id)
+  return activity(
+    $.ApplicationStreaming.getAllApplicationStreamsForChannel(c.id).length > 0,
+    s.some((v) => v.selfVideo),
+    s.length > 0,
+    connected(c),
+  )
+}
+
 export const join = (c: Channel) => A.voice.selectVoiceChannel(c.id)
 export const leave = () => A.voice.disconnect()

@@ -62,8 +62,15 @@ const cast = {
   start: (opts) => ipcRenderer.invoke('mincord:cast-start', opts),
 }
 
+// an image copied, or saved (shell/main.js)
+const image = {
+  copy: (url) => ipcRenderer.invoke('mincord:copy-image', url),
+  save: (url) => ipcRenderer.send('mincord:save', url),
+}
+
 contextBridge.exposeInMainWorld('mincordNative', {
   cast,
+  image,
   ...(process.env.MINCORD_PRESENCE !== '0' ? { observeGames, rpc } : {}),
 })
 contextBridge.executeInMainWorld({
