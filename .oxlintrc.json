@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // oxlint's recommended rules (the correctness category), plus CLAUDE.md's Code rules where a built-in rule checks them
+  "rules": {
+    "eslint/id-length": [
+      "error",
+      { "min": 2, "exceptions": ["$", "p", "e", "i", "_", "A", "S", "G", "T", "K", "U"], "properties": "never" }
+    ],
+    "eslint/no-console": ["error", { "allow": ["warn", "error"] }],
+    "eslint/no-implicit-coercion": ["error", { "boolean": true, "number": false, "string": false }],
+    "eslint/no-nested-ternary": "error",
+    "eslint/no-return-assign": ["error", "always"],
+    "eslint/no-sequences": ["error", { "allowInParentheses": false }],
+    "eslint/one-var": ["error", "never"]
+  },
+  "overrides": [
+    {
+      "files": ["src/*.ts", "src/*.tsx", "src/api/**", "src/views/**", "src/components/**", "src/primitives/**"],
+      "rules": { "typescript/no-explicit-any": "error" }
+    },
+    {
+      // Solid assigns `ref={el}` variables
+      "files": ["**/*.tsx"],
+      "rules": { "eslint/no-unassigned-vars": "off" }
+    }
+  ]
+}
