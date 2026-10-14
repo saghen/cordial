@@ -13,6 +13,7 @@ User-specific setup (accounts, the lab on this machine, the plan, decisions and 
 npm run build        # Vite lib build into dist/cordial.js (npm run watch to rebuild on change)
 npm run check        # tsc over src and screen-capture/src (the shell's .js isn't checked)
 npm run format       # prettier (config in package.json)
+npm run lint         # oxlint (config in .oxlintrc.json)
 nix build            # the package: the build and nixpkgs' Electron; update npmDepsHash when package-lock.json changes
 ```
 
@@ -60,6 +61,21 @@ nix build            # the package: the build and nixpkgs' Electron; update npmD
   position, no magic-number placement. Colours from tokens (`color-mix` for tints); `--surface` for anything that must
   match what's behind it. Stock's font sizes. Discord's own stylesheets leak globals (its reset, `body { user-select:
   none }`, `.emoji` at 22 px): don't reuse Discord's class names, and give selectable text `user-select: text`.
+- **Names** are words: `channel`, `message`, `selected`, `category`, `hidden`, not `c`, `m`, `sel`, `cat`, `hid`.
+  Single letters only for `$`, props `p`, an event `e`, an index `i`, an unused `_`, `A`/`S`/`G` and type parameters;
+  a short form only where it's universal (`id`, `prev`, `ms`, `px`, `opts`). Props too. Module-level fixed data is
+  CONSTANT_CASE. Don't shadow built-ins (`Message as Record`). Literals get a name: an enum member or a constant
+  (`MessageType.Reply`, `DAY_MS`).
+- **Expressions**: `Boolean(x)` over `!!x`; `??` for defaults, `||` only where empty strings or 0 fall through too. One
+  declaration per `const`/`let`. No nested ternaries, no comma operator, no assignment used as a value, no negated
+  comparison (`a >= b`, not `!(a < b)`). A ternary where `if (cond) return value` reads simpler becomes that. Few `!`
+  assertions: narrow with a check where it's cheap. An effect's source returns an object, not a tuple.
+- **Functions**: an arrow for one expression (`const id = (m: Message) => m.id`, `copy: (url) => invoke(url)`), a
+  `function` declaration or method shorthand for anything longer (`function startsGroup(...) {}`, `find(e) {}`).
+- **Types**: `any` stays in `src/adapter/`; the rest sees typed records. A global from the shell or Discord is cast
+  once, where it's read. No `console.log`: `console.warn`/`console.error` for what a user should see in the console.
+- **Tooling**: `npm run format` (prettier) and `npm run lint` (oxlint's recommended rules plus the above, in
+  `.oxlintrc.json`) before committing.
 - **Solid 2 (RC)**: memos, `class` objects or arrays, Show/For, split `createEffect(compute, apply)`; no `batch`, `on`
   or `classList` (`node_modules/solid-js/CHEATSHEET.md`). `createEffect`'s apply runs on every re-run even with an equal
   value: put a memo between. Signal writes apply in a microtask; memos over `$` update a microtask after a dispatch.
