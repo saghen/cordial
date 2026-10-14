@@ -169,6 +169,32 @@ const STOCK = [
   'WATCHING',
   'COMPETING',
   'DEFAULT',
+  // the pickers and the soundboard
+  'SELECT_EMOJI',
+  'GIF_BUTTON_LABEL',
+  'STICKER_BUTTON_LABEL',
+  'SEARCH_FOR_STICKER',
+  'SEARCH_KLIPY',
+  'SOUNDBOARD_SEARCH_PLACEHOLDER',
+  'FAVORITES',
+  'FREQUENTLY_USED',
+  'EMOJI_CATEGORY_PEOPLE',
+  'EMOJI_CATEGORY_NATURE',
+  'EMOJI_CATEGORY_FOOD',
+  'EMOJI_CATEGORY_ACTIVITY',
+  'EMOJI_CATEGORY_TRAVEL',
+  'EMOJI_CATEGORY_OBJECTS',
+  'EMOJI_CATEGORY_SYMBOLS',
+  'EMOJI_CATEGORY_FLAGS',
+  'EMOJI_FROM_GUILD',
+  'BACK',
+  // search
+  'SEARCH',
+  'SEARCHING',
+  'TOTAL_RESULTS',
+  'SEARCH_ERROR',
+  'NEXT',
+  'CLOSE',
 ] as const
 textNeed(STOCK)
 
@@ -186,13 +212,15 @@ const OURS = {
   BLOCKED_DM: 'You cannot send messages to a user you have blocked.',
   CANCEL_REPLY: 'Cancel reply',
   KRISP: 'Krisp',
+  // stock's (Search {guildName}), under a name we haven't found
+  SEARCH_IN: 'Search {name}',
 }
 
 const keys = new Map<string, string>()
 
 // stock's message, or ours; one with parameters needs its values ('TEXTAREA_PLACEHOLDER', { channel: '#general' })
 export function text(name: (typeof STOCK)[number] | keyof typeof OURS, values?: Record<string, unknown>) {
-  if (name in OURS) return OURS[name as keyof typeof OURS]
+  if (name in OURS) return OURS[name as keyof typeof OURS].replace(/\{(\w+)\}/g, (_, k) => String(values?.[k]))
   let key = keys.get(name)
   if (!key) keys.set(name, (key = A.messageKey.runtimeHashMessageKey(name)))
   const message = A.intl.t[key]

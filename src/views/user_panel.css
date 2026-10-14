@@ -34,15 +34,16 @@ dialog.screen-picker {
   > .source { display: grid; justify-items: start; padding: 8px 12px; font-weight: 600; }
   > .screen-cancel { justify-self: end; color: var(--text-muted); }
 }
-/* the soundboard: each server's sounds as tiles, over the panel */
+/* the soundboard: above its button, Sections of tiles three to a row */
 menu.soundboard {
-  inset: auto auto 72px 80px; width: 420px; max-height: 60vh; overflow-y: auto;
-  > h3 { padding: 8px 4px 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
-  > p { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  > p > button { display: flex; gap: 6px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg-raised); color: var(--text); font: inherit; font-size: 13px; text-align: left; overflow: hidden; }
-  > p > button.on { outline: 2px solid var(--positive); }
-  > p > button:disabled { opacity: 0.4; cursor: default; }
-  > p > button > img { width: 20px; height: 20px; object-fit: contain; }
+  position-area: top span-right; width: 480px; padding: 0; gap: 0; overflow: hidden;
+  --cols: 3; --row: 44px; --list: min(380px, 50vh);
+  .chunk { gap: 8px; padding-bottom: 8px; }
+  .chunk:empty { padding: 0; }
+  .sound { display: flex; justify-content: start; gap: 6px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg-raised); color: var(--text); font: inherit; font-size: 13px; text-align: left; overflow: hidden; white-space: nowrap; }
+  .sound.on { outline: 2px solid var(--positive); }
+  .sound:disabled { opacity: 0.4; cursor: default; }
+  .sound > img { width: 20px; height: 20px; object-fit: contain; }
 }
 /* the user panel (a button: it opens the account popout), then mute and deafen */
 section.side > .user-panel {

@@ -17,11 +17,15 @@ import * as users from '../api/users'
 import * as voice from '../api/voice'
 import { Avatar } from '../components/avatar'
 import { Emoji } from '../components/emoji'
+import { GuildIcon } from '../components/guild_icon'
 import { Button, IconButton, Toggle } from '../primitives/button'
 import { Check, Radios, Range, Select } from '../primitives/fields'
+import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
 import { modal } from '../primitives/modal'
 import { Popout } from '../primitives/popout'
+import { SearchInput } from '../primitives/search'
+import { Sections } from '../primitives/sections'
 
 export const UserPanel = () => (
   <>
@@ -113,34 +117,41 @@ function VoicePanel() {
   )
 }
 
-// the soundboard: each server's sounds, the ones you can't use greyed; a click plays one in the call
+// the soundboard: each server's sounds on Sections, with stock's search and a rail (stock's popout has neither), the
+// ones you can't use greyed; a click plays one in the call
 function Soundboard(p: { channel: Channel }) {
+  const [query, setQuery] = createSignal('')
+  const all = () => soundboard.sections(p.channel)
   return (
-    <Popout name="soundboard" class="soundboard" onOpen={soundboard.fetch}>
-      <For each={soundboard.sections(p.channel)}>
-        {(section) => (
-          <>
-            <h3>{section.name}</h3>
-            <p>
-              <For each={section.sounds}>
-                {(sound) => (
-                  <button
-                    class={['sound', { on: soundboard.playing(sound) }]}
-                    data-id={sound.soundId}
-                    disabled={!soundboard.usable(sound, p.channel)}
-                    onClick={() => soundboard.play(sound, p.channel)}
-                  >
-                    <Show when={sound.emojiId} fallback={sound.emojiName}>
-                      <Emoji emoji={{ id: sound.emojiId, name: sound.emojiName ?? '' }} />
-                    </Show>
-                    {sound.name}
-                  </button>
-                )}
-              </For>
-            </p>
-          </>
+    <Popout name="soundboard" class="soundboard" onOpen={soundboard.fetch} onClose={() => setQuery('')}>
+      <Sections
+        search={
+          <SearchInput
+            class="sound-search"
+            placeholder={text('SOUNDBOARD_SEARCH_PLACEHOLDER')}
+            autofocus
+            value={query()}
+            onInput={setQuery}
+          />
+        }
+        all={all()}
+        shown={query() ? [{ id: 'results', name: '', items: soundboard.search(p.channel, query()) }] : all()}
+        rail={(s) => (s.guild ? <GuildIcon guild={s.guild} size={24} /> : <Icon name="soundboard" />)}
+        chunk={30}
+        item={(sound) => (
+          <button
+            class={['sound', { on: soundboard.playing(sound) }]}
+            data-id={sound.soundId}
+            disabled={!soundboard.usable(sound, p.channel)}
+            onClick={() => soundboard.play(sound, p.channel)}
+          >
+            <Show when={sound.emojiId} fallback={sound.emojiName}>
+              <Emoji emoji={{ id: sound.emojiId, name: sound.emojiName ?? '' }} />
+            </Show>
+            {sound.name}
+          </button>
         )}
-      </For>
+      />
     </Popout>
   )
 }

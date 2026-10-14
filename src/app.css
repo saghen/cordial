@@ -36,10 +36,6 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 }
 & > h1 { grid-area: side; }
 
-/* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
-menu > nav > button[style]::before {
-  content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
-}
 /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
    hole, idle's bite, dnd's bar; inside the dot, so XOR removes it), the dot, the avatar less a ring, the avatar */
 [data-status][style]::before {
@@ -92,7 +88,7 @@ menu.message-menu {
 
 /* the header: the channel's name and topic; its buttons, the member list's toggle last */
 & > header {
-  grid-area: head;
+  grid-area: head; anchor-name: --header;
   > .icon { --icon-size: 24px; color: var(--text-muted); }
   > button { color: var(--text-muted); }
   > button:first-of-type { margin-left: auto; }
@@ -114,7 +110,7 @@ menu.notifications-menu {
   > button > small { grid-column: 1; font-size: 12px; }
   > button::after { grid-area: 1 / 2 / span 2; align-self: center; }
 }
-/* the pins under their button, the search results down the right side under the header: messages as cards, Jump on
+/* the pins under their button, the search results down the right side under the header (anchored to it): messages as cards, Jump on
    hover */
 div:is(.pins-list, .search-results) {
   overflow-y: auto; padding: 0 0 16px; font-weight: 400;
@@ -130,7 +126,7 @@ div.pins-list {
   > button { display: block; margin: 0 auto; }
 }
 div.search-results {
-  inset: 48px 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
+  position-anchor: --header; inset: anchor(bottom) 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
   color: var(--text);
   > h2 { display: flex; }
   > h2 > button { margin-left: auto; }
@@ -154,57 +150,3 @@ section.members {
 }
 section.members > a > .badge { margin-left: -8px; vertical-align: 2px; }
 
-/* the pickers, as stock's: a search field with its magnifier; emoji and stickers as sections under sticky names,
-   a rail of them on the left, the hovered one named below; GIFs as darkened tiles, then results in two columns */
-menu:is(.emoji-picker, .gif-picker, .sticker-picker) {
-  position-area: top span-left; width: 480px; padding: 0; gap: 0; overflow: hidden;
-  > input {
-    margin: 12px; padding: 8px 8px 8px 36px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--bg-raised);
-    background: var(--img-search) 10px center / 18px no-repeat, var(--bg-deep);
-  }
-  > input:focus { box-shadow: inset 0 0 0 1px var(--accent); }
-}
-menu:is(.emoji-picker, .sticker-picker):popover-open {
-  display: grid; grid: "search search" auto "rail list" 380px "foot foot" auto / 48px minmax(0, 1fr);
-  > input { grid-area: search; }
-  > nav { grid-area: rail; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-y: auto; padding: 4px 0 8px; scrollbar-width: none; }
-  > nav > button { display: grid; place-content: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; color: var(--text-muted); font: 600 11px/1 sans-serif; }
-  > nav > button:hover { background: var(--bg-raised); color: var(--text-strong); }
-  > nav > button > img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
-  > div { grid-area: list; overflow-y: auto; padding: 0 8px 8px 4px; }
-  > div > h3 { position: sticky; top: 0; z-index: 1; padding: 8px 4px; background: var(--bg-floating); font-size: 13px; font-weight: 600; color: var(--text-muted); }
-  /* a section not built yet: as tall as its rows (--n items, --cols to a row of --row) */
-  > div > p { display: grid; grid-template-columns: repeat(var(--cols), 1fr); margin: 0; }
-  > div > p:empty { height: calc(round(up, var(--n) / var(--cols), 1) * var(--row)); }
-  > div > p > button { display: grid; place-content: center; padding: 4px; border-radius: 6px; }
-  > div > p > button:hover { background: var(--bg-raised); }
-  > footer { grid-area: foot; display: grid; grid: auto auto / 28px 1fr; column-gap: 10px; align-items: center; min-height: 52px; padding: 8px 16px; background: var(--bg-deep); }
-  > footer > img { grid-row: span 2; width: 28px; height: 28px; object-fit: contain; }
-  > footer > b { grid-column: 2; font-size: 14px; font-weight: 600; color: var(--text-strong); }
-  > footer > small { grid-column: 2; font-size: 12px; color: var(--text-muted); }
-}
-menu.emoji-picker {
-  --cols: 9; --row: 40px;
-  > div > p > button > img { width: 32px; height: 32px; object-fit: contain; }
-}
-/* a Lottie sticker by its name, as the chat shows one */
-menu.sticker-picker {
-  --cols: 4; --row: 100px;
-  > div > p { gap: 4px; }
-  > div > p > button { aspect-ratio: 1; color: var(--text-muted); font: inherit; font-size: 13px; }
-  > div > p > button > img { width: 88px; height: 88px; }
-}
-menu.gif-picker {
-  > h3 { display: flex; align-items: center; gap: 12px; margin: 12px; min-height: 36px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
-  > :is(p, div) { height: 400px; overflow-y: auto; padding: 0 12px 12px; }
-  > p { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 110px; gap: 8px; align-content: start; }
-  > p > button {
-    display: grid; place-content: center; padding: 0; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 700;
-    background: linear-gradient(#0000008c 0 0), var(--img, linear-gradient(var(--accent) 0 0)) center / cover;
-  }
-  > p > button:hover { background: linear-gradient(#00000059 0 0), var(--img, linear-gradient(var(--accent) 0 0)) center / cover; }
-  /* results in two columns inside the scroller (a column box of fixed height would overflow into more columns) */
-  > div > div { columns: 2; column-gap: 8px; }
-  > div > div > button { display: block; width: 100%; margin-bottom: 8px; padding: 0; border-radius: 8px; overflow: hidden; break-inside: avoid; }
-  > div > div > button > :is(img, video) { display: block; width: 100%; height: auto; }
-}

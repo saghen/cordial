@@ -1,0 +1,21 @@
+/* Sections: the search field with its magnifier above; the rail on the left, the list beside it, sections under
+   sticky names; the footer below. Each picker sets the list's height and its items' grid: --cols to a row of --row */
+:where(.sections) { display: grid; grid: "search search" auto "rail list" var(--list, 380px) "foot foot" auto / 48px minmax(0, 1fr); }
+:where(.sections > input) {
+  grid-area: search; margin: 12px; padding: 8px 8px 8px 36px; outline: 0; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--bg-raised);
+  background: var(--img-search) 10px center / 18px no-repeat, var(--bg-deep); color: inherit;
+}
+:where(.sections > input:focus) { box-shadow: inset 0 0 0 1px var(--accent); }
+:where(.sections > .rail) { grid-area: rail; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-y: auto; padding: 4px 0 8px; scrollbar-width: none; }
+:where(.sections > .rail > button) { display: grid; place-content: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; color: var(--text-muted); font: 600 11px/1 sans-serif; --icon-size: 20px; }
+:where(.sections > .rail > button:hover) { background: var(--bg-raised); color: var(--text-strong); }
+:where(.sections > .rail > button > img) { width: 24px; height: 24px; object-fit: contain; }
+:where(.sections > .list) { grid-area: list; overflow-y: auto; padding: 0 8px 8px 4px; }
+:where(.sections > .list > h3) { position: sticky; top: 0; z-index: 1; padding: 8px 4px; background: var(--bg-floating); font-size: 13px; font-weight: 600; color: var(--text-muted); }
+/* a chunk: its items in --cols columns; not built yet, as tall as its rows (--n items) */
+:where(.sections .chunk) { display: grid; grid-template-columns: repeat(var(--cols), 1fr); }
+:where(.sections .chunk:empty) { height: calc(round(up, var(--n) / var(--cols), 1) * var(--row)); }
+:where(.sections .chunk > button) { display: grid; place-content: center; padding: 4px; border-radius: 6px; }
+:where(.sections .chunk > button:hover) { background: var(--bg-raised); }
+/* the footer, below: the picker lays out what it names */
+:where(.sections > footer) { grid-area: foot; min-height: 52px; padding: 8px 16px; background: var(--bg-deep); }

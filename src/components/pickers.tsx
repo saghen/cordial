@@ -1,182 +1,44 @@
-// The composer's pickers, as buttons at the box's right edge, laid out as stock's: emoji and stickers as sections in
-// one list (favorites, the most used, each server's, then unicode's categories or Discord's packs) with a rail of
-// them on the left and the hovered one named below; GIFs as tiles. An emoji is written into the box as its :name:,
-// which the parser turns into the emoji on send (as autocomplete does); a sticker or GIF is sent at once
+// The composer's pickers, as buttons at the box's right edge, laid out as stock's: emoji and stickers on Sections, with
+// the hovered one named below; GIFs as tiles. An emoji is written into the box as its :name:, which the parser turns
+// into the emoji on send (as autocomplete does); a sticker or GIF is sent at once
 
-import { createEffect, createSignal, For, Show } from 'solid-js'
+import { createSignal, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
-import { A, S } from '../adapter/needs'
-import type { Id, Rec } from '../adapter/discord'
-import { emojiSrc } from '../api/pickers'
-import { $ } from '../api/store'
 import * as guilds from '../api/guilds'
+import * as pickers from '../api/pickers'
+import type { Channel, Emoji as EmojiRecord, Gif, Sticker } from '../api/records'
+import { text } from '../api/strings'
 import { IconButton } from '../primitives/button'
+import { Icon } from '../primitives/icon'
 import { Popout } from '../primitives/popout'
 import { SearchInput } from '../primitives/search'
+import { Sections } from '../primitives/sections'
+import { Emoji } from './emoji'
+import { GuildIcon } from './guild_icon'
 
-const COUNT = 48
+// a section's rail button: the server's icon, favorites' and the most used's icons, else the picker's own (its first
+// item)
+const rail =
+  <T,>(other: (s: pickers.Section<T>) => JSX.Element) =>
+  (s: pickers.Section<T>) =>
+    s.guild ? <GuildIcon guild={s.guild} size={24} /> : s.icon ? <Icon name={s.icon} /> : other(s)
 
-// the frecency settings (stock's second settings proto): favorite GIFs, emoji and stickers
-const favorites = () => S.UserSettingsProto.frecencyWithoutFetchingLatest
+// the footer: the item's image, its name, where it's from
+const Named = (p: { img?: JSX.Element; name: string; from?: string }) => (
+  <>
+    {p.img}
+    <b>{p.name}</b>
+    <small>{p.from}</small>
+  </>
+)
 
-// a section: its rail button (an icon's name, else its image or its first item's, else its initials) and its items
-type Section = { id: string; name: string; icon?: string; img?: string; items: Rec[] }
-// an item as the footer names it
-type Info = { src?: string; name: string; from?: string }
-
-// 36: four rows of emoji, nine of stickers
-const chunks = (items: Rec[]) =>
-  Array.from({ length: Math.ceil(items.length / 36) }, (_, i) => items.slice(i * 36, i * 36 + 36))
-
-const guildSection = (id: Id, items: Rec[], g = guilds.get(id)): Section => ({
-  id,
-  name: g?.name ?? '',
-  img: (g && guilds.icon(g, 32)) || undefined,
-  items,
-})
-
-// a picker's search, rail, sections and footer: the footer names the hovered item, else the first shown; a rail
-// button scrolls to its section
-function Sections(p: {
-  search: JSX.Element
-  all: Section[]
-  shown: Section[]
-  info: (r: Rec) => Info
-  item: (r: Rec) => JSX.Element
-}) {
-  const [hovered, setHovered] = createSignal<Rec>()
-  createEffect(
-    () => p.shown,
-    () => setHovered(undefined),
-  )
-  const named = () => {
-    const r = hovered() ?? p.shown[0]?.items[0]
-    return r && p.info(r)
-  }
-  let list!: HTMLDivElement
-  // items are built in chunks, each once it comes near the view; until then it's empty, as tall as its rows
-  // (thousands of emoji would otherwise be styled again on every open)
-  const near = new Map<Element, () => void>()
-  let seeing: IntersectionObserver | undefined
-  const watch = (el: Element, show: () => void) => {
-    seeing ??= new IntersectionObserver(
-      (es) => es.forEach((e) => e.isIntersecting && (near.get(e.target)?.(), seeing!.unobserve(e.target))),
-      { root: list, rootMargin: '200px 0px' },
-    )
-    near.set(el, show)
-    seeing.observe(el)
-  }
-  return (
-    <>
-      {p.search}
-      <nav>
-        <For each={p.all}>
-          {(s) => (
-            <button
-              data-id={s.id}
-              title={s.name}
-              style={s.icon ? { '--i': `var(--i-${s.icon})` } : undefined}
-              onClick={() => list.querySelector(`[data-section="${s.id}"]`)?.scrollIntoView()}
-            >
-              <Show when={!s.icon}>
-                <Show
-                  when={s.img ?? p.info(s.items[0]).src}
-                  fallback={s.name
-                    .split(/\s+/)
-                    .map((w) => w[0])
-                    .join('')
-                    .slice(0, 3)}
-                >
-                  {(src) => <img alt="" src={src()} />}
-                </Show>
-              </Show>
-            </button>
-          )}
-        </For>
-      </nav>
-      <div ref={list}>
-        {/* by id: the sections are new each open, their items the same records */}
-        <For each={p.shown} keyed={(s) => s.id}>
-          {(s) => (
-            <>
-              <Show when={s().name}>
-                <h3 data-section={s().id}>{s().name}</h3>
-              </Show>
-              <For each={chunks(s().items)} keyed={false}>
-                {(chunk) => {
-                  const [seen, setSeen] = createSignal(false)
-                  return (
-                    <p ref={(el) => watch(el, () => setSeen(true))} style={{ '--n': chunk().length }}>
-                      <Show when={seen()}>
-                        <For each={chunk()}>
-                          {(r) => {
-                            const el = p.item(r) as HTMLElement
-                            el.addEventListener('pointerenter', () => setHovered(r))
-                            return el
-                          }}
-                        </For>
-                      </Show>
-                    </p>
-                  )
-                }}
-              </For>
-            </>
-          )}
-        </For>
-      </div>
-      <footer>
-        <Show when={named()}>
-          {(n) => (
-            <>
-              <Show when={n().src}>{(src) => <img alt="" src={src()} />}</Show>
-              <b>{n().name}</b>
-              <small>{n().from}</small>
-            </>
-          )}
-        </Show>
-      </footer>
-    </>
-  )
-}
-
-export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => Rec | undefined }) {
+export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => Channel | undefined }) {
   const [query, setQuery] = createSignal('')
-  // the picker's contents mount on each open, reading the stores' frecency again (it isn't a dependency)
   let menu!: HTMLElement
-  const guild = () => p.channel()?.guild_id as string | undefined
-  // as stock without Nitro: custom emoji only this server's, and not animated
-  const usable = (e: Rec) => !e.id || !!S.User.getCurrentUser()?.premiumType || (e.guildId === guild() && !e.animated)
-  const all = (): Section[] => {
-    if (!p.channel()) return []
-    const ctx = S.Emoji.getDisambiguatedEmojiContext(guild())
-    const guilds = [...ctx.getGroupedCustomEmoji()]
-      .sort(([a]) => (a === guild() ? -1 : 0))
-      .map(([id, list]) => guildSection(id, list.filter(usable)))
-    return [
-      {
-        id: 'favorites',
-        name: 'Favorites',
-        icon: 'star',
-        items: ctx.favoriteEmojisWithoutFetchingLatest.filter(usable),
-      },
-      {
-        id: 'frequent',
-        name: 'Frequently Used',
-        icon: 'clock',
-        items: ctx.getFrequentlyUsedEmojisWithoutFetchingLatest().filter(usable).slice(0, COUNT),
-      },
-      ...guilds,
-      ...A.unicodeEmoji.getCategories().map((c) => ({
-        id: c,
-        name: c[0].toUpperCase() + c.slice(1),
-        items: A.unicodeEmoji.getByCategory(c),
-      })),
-    ].filter((s) => s.items.length)
-  }
-  const found = () =>
-    S.Emoji.searchWithoutFetchingLatest({ channel: p.channel()!, query: query(), count: COUNT, intention: 3 }).unlocked
-  const pick = (e: Rec) => {
+  const all = () => (p.channel() ? pickers.emojiSections(p.channel()!) : [])
+  const found = () => pickers.searchEmoji(p.channel()!, query())
+  const pick = (e: EmojiRecord) => {
     const b = p.box()
     // a space before it when it would join a word
     const before = b.value.slice(0, b.selectionStart)
@@ -188,7 +50,7 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
       <IconButton
         class="emoji-button"
         icon="reaction"
-        title="Select emoji"
+        title={text('SELECT_EMOJI')}
         popovertarget="mc-emoji"
         hidden={!p.channel()}
       />
@@ -205,7 +67,7 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
           search={
             <SearchInput
               class="emoji-search"
-              placeholder="Find the perfect emoji"
+              placeholder={text('SEARCH_FOR_EMOJI')}
               autofocus
               value={query()}
               onInput={setQuery}
@@ -218,20 +80,19 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
           }
           all={all()}
           shown={query() ? [{ id: 'results', name: '', items: found() }] : all()}
-          info={(e) => ({
-            src: emojiSrc(e),
-            name: `:${e.name}:`,
-            from: e.guildId && `from ${S.Guild.getGuild(e.guildId)?.name ?? ''}`,
-          })}
+          rail={rail((s) => (
+            <Emoji emoji={s.items[0]} />
+          ))}
           item={(e) => (
             <button
               data-id={e.id ?? e.name}
               // shift keeps the picker open for more, as stock
               onClick={(ev) => (pick(e), ev.shiftKey || menu.hidePopover())}
             >
-              <img alt={e.name} src={emojiSrc(e)} loading="lazy" />
+              <img alt={e.name} src={pickers.emojiSrc(e)} loading="lazy" />
             </button>
           )}
+          footer={(e) => <Named img={<Emoji emoji={e} />} name={`:${e.name}:`} from={pickers.emojiFrom(e)} />}
         />
       </Popout>
     </>
@@ -240,43 +101,23 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
 
 // GIFs, as stock's picker: Favorites, Trending GIFs and the trending categories as tiles until a search; a tile opens
 // under its name with a way back (a category searches its name). A click sends the GIF's link at once, as stock (the
-// box keeps its text), after stock's select request (not for a favorite, which has no id)
-export function GifPicker(p: { channel: () => Rec | undefined; send: (text: string) => void }) {
+// box keeps its text), after stock's select request
+export function GifPicker(p: { channel: () => Channel | undefined; send: (text: string) => void }) {
   const [query, setQuery] = createSignal('')
   // the open tile's name and stock's kind of result: Search, Category (a trending category's search), Trending
   const [view, setView] = createSignal<{ name: string; kind: string }>()
   let menu!: HTMLMenuElement
-  const search = (q: string, kind: string, now = false) => {
-    setQuery(q)
-    A.gifs.search(q, kind, now)
-  }
-  // favorites newest first, as { url, src, width, height }
-  const saved = (): Rec[] =>
-    Object.entries(($.UserSettingsProto.frecencyWithoutFetchingLatest.favoriteGifs?.gifs ?? {}) as Record<string, Rec>)
-      .sort(([, a], [, b]) => b.order - a.order)
-      .map(([url, g]) => ({ ...g, url }))
   const items = () =>
-    view()?.kind === 'Favorites' ? saved() : query() || view() ? $.GIFPickerView.getResultItems() : []
-  const pick = (g: Rec, index: number) => {
-    const n = items().length
-    if (g.id)
-      A.gifs.select({
-        type: view()?.kind ?? 'Search',
-        index,
-        offset: 0,
-        limit: null,
-        results: n,
-        totalResults: n,
-        query: query() || view()?.name,
-        gifId: g.id,
-      })
+    view()?.kind === 'Favorites' ? pickers.favoriteGifs() : query() || view() ? pickers.gifResults() : []
+  const pick = (g: Gif, index: number) => {
+    pickers.selectGif(g, index, items(), view()?.kind ?? 'Search', query() || view()?.name)
     p.send(g.url)
     menu.hidePopover()
   }
   const back = () => {
     setView(undefined)
     setQuery('')
-    A.gifs.clear()
+    pickers.clearGifs()
   }
   const tile = (name: string, img: string | undefined, run: () => void) => (
     <button class="gif-category" data-id={name} style={img ? { '--img': `url(${img})` } : undefined} onClick={run}>
@@ -285,32 +126,32 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
   )
   return (
     <>
-      <IconButton class="gif-button" icon="gif" title="Open GIF picker" popovertarget="mc-gif" hidden={!p.channel()} />
-      <Popout
-        ref={menu}
-        name="gif"
-        class="gif-picker"
-        onOpen={() => {
-          A.gifs.initialize()
-          A.gifs.trendingCategories()
-        }}
-        onClose={back}
-      >
+      <IconButton
+        class="gif-button"
+        icon="gif"
+        title={text('GIF_BUTTON_LABEL')}
+        popovertarget="mc-gif"
+        hidden={!p.channel()}
+      />
+      <Popout ref={menu} name="gif" class="gif-picker" onOpen={pickers.openGifs} onClose={back}>
         <Show
           when={view()}
           fallback={
             <SearchInput
               class="gif-search"
-              placeholder="Search Klipy"
+              placeholder={text('SEARCH_KLIPY')}
               autofocus
               value={query()}
-              onInput={(q) => search(q, 'Search')}
+              onInput={(q) => {
+                setQuery(q)
+                pickers.searchGifs(q, 'Search')
+              }}
             />
           }
         >
           {(v) => (
             <h3>
-              <IconButton class="gif-back" icon="back" title="Back" onClick={back} />
+              <IconButton class="gif-back" icon="back" title={text('BACK')} onClick={back} />
               {v().name}
             </h3>
           )}
@@ -318,35 +159,35 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
         <Show
           when={query() || view()}
           fallback={
-            <p>
-              <Show when={saved()[0]}>
+            <div class="gif-categories">
+              <Show when={pickers.favoriteGifs()[0]}>
                 {(f) =>
-                  tile('Favorites', /\.(mp4|webm)(\?|$)/.test(f().src) ? undefined : f().src, () =>
-                    setView({ name: 'Favorites', kind: 'Favorites' }),
+                  tile(text('FAVORITES'), pickers.isVideo(f().src) ? undefined : f().src, () =>
+                    setView({ name: text('FAVORITES'), kind: 'Favorites' }),
                   )
                 }
               </Show>
-              <For each={$.GIFPickerView.getTrendingCategories()}>
+              <For each={pickers.gifCategories()}>
                 {(c) =>
                   tile(c.name, c.src, () => {
                     if (c.type !== 'Trending') {
                       setView({ name: c.name, kind: 'Category' })
-                      return A.gifs.search(c.name, 'Category', true)
+                      return pickers.searchGifs(c.name, 'Category', true)
                     }
                     setView({ name: c.name, kind: 'Trending' })
-                    A.gifs.trending(50)
+                    pickers.trendingGifs()
                   })
                 }
               </For>
-            </p>
+            </div>
           }
         >
-          <div>
-            <div>
+          <div class="gif-results">
+            <div class="gif-columns">
               <For each={items()}>
                 {(g, i) => (
-                  <button data-id={g.id ?? g.url} onClick={() => pick(g, i())}>
-                    {/\.(mp4|webm)(\?|$)/.test(g.src) ? (
+                  <button class="gif" data-id={g.id ?? g.url} onClick={() => pick(g, i())}>
+                    {pickers.isVideo(g.src) ? (
                       <video src={g.src} width={g.width} height={g.height} autoplay loop muted />
                     ) : (
                       <img alt="" src={g.src} width={g.width} height={g.height} loading="lazy" />
@@ -362,48 +203,23 @@ export function GifPicker(p: { channel: () => Rec | undefined; send: (text: stri
   )
 }
 
-// stickers, as stock's picker: the sendable ones (stock's rule: this server's, other servers' with Nitro and the
-// permission, Discord's packs once fetched): favorites, the most used, each server's and pack's, or what a search
-// matches by name and tags. A click sends it at once
-export function StickerPicker(p: { channel: () => Rec | undefined; send: (stickerId: string) => void }) {
+// stickers, as stock's picker: the sendable ones, in sections or what a search matches by name and tags. A click
+// sends it at once
+export function StickerPicker(p: { channel: () => Channel | undefined; send: (stickerId: string) => void }) {
   const [query, setQuery] = createSignal('')
   let menu!: HTMLElement
-  const sendable = (st: Rec | undefined): st is Rec =>
-    !!st && A.stickers.sendability(st, S.User.getCurrentUser(), p.channel()) === 0
-  const all = (): Section[] => {
-    const byId = (ids: Id[] = []) => ids.map((id) => S.Stickers.getStickerById(id)).filter(sendable)
-    const guilds = [...$.Stickers.getAllGuildStickers()].map(([id, list]) => guildSection(id, list.filter(sendable)))
-    const packs = $.Stickers.getPremiumPacks().map((pk) => ({ id: pk.id, name: pk.name, items: pk.stickers }))
-    return [
-      { id: 'favorites', name: 'Favorites', icon: 'star', items: byId(favorites().favoriteStickers?.stickerIds) },
-      {
-        id: 'frequent',
-        name: 'Frequently Used',
-        icon: 'clock',
-        items: S.StickersPersisted.stickerFrecencyWithoutFetchingLatest.frequently.filter(sendable).slice(0, 16),
-      },
-      ...guilds,
-      ...packs,
-    ].filter((s) => s.items.length)
+  const all = () => (p.channel() ? pickers.stickerSections(p.channel()!) : [])
+  // a Lottie sticker by its name, as the chat shows one
+  const image = (st: Sticker) => {
+    const src = pickers.stickerSrc(st)
+    return src ? <img alt={st.name} src={src} loading="lazy" /> : st.name
   }
-  const found = () => {
-    const q = query().toLowerCase()
-    const seen = new Set<Rec>()
-    for (const s of all())
-      for (const st of s.items)
-        if (st.name.toLowerCase().includes(q) || st.tags?.toLowerCase().includes(q)) seen.add(st)
-    return [...seen]
-  }
-  const src = (st: Rec) =>
-    `https://media.discordapp.net/stickers/${st.id}.${st.format_type === 4 ? 'gif' : 'png'}?size=160${st.format_type === 2 ? '&passthrough=true' : ''}`
-  const from = (st: Rec) =>
-    st.guild_id ? S.Guild.getGuild(st.guild_id)?.name : S.Stickers.getStickerPack(st.pack_id)?.name
   return (
     <>
       <IconButton
         class="sticker-button"
         icon="sticker"
-        title="Open sticker picker"
+        title={text('STICKER_BUTTON_LABEL')}
         popovertarget="mc-sticker"
         hidden={!p.channel()}
       />
@@ -411,31 +227,37 @@ export function StickerPicker(p: { channel: () => Rec | undefined; send: (sticke
         ref={menu}
         name="sticker"
         class="sticker-picker"
-        onOpen={() => A.stickers.fetchPacks()}
+        onOpen={pickers.fetchStickerPacks}
         onClose={() => setQuery('')}
       >
         <Sections
           search={
             <SearchInput
               class="sticker-search"
-              placeholder="Find the perfect sticker"
+              placeholder={text('SEARCH_FOR_STICKER')}
               autofocus
               value={query()}
               onInput={setQuery}
             />
           }
           all={all()}
-          shown={query() ? [{ id: 'results', name: '', items: found() }] : all()}
-          info={(st) => ({
-            src: st.format_type === 3 ? undefined : src(st),
-            name: st.name,
-            from: from(st) && `from ${from(st)}`,
+          shown={query() ? [{ id: 'results', name: '', items: pickers.searchStickers(p.channel()!, query()) }] : all()}
+          // a pack's first sticker, else its initials (a Lottie sticker has no image)
+          rail={rail((s) => {
+            const src = pickers.stickerSrc(s.items[0])
+            return src ? <img alt="" src={src} /> : guilds.acronym(s)
           })}
           item={(st) => (
             <button data-id={st.id} onClick={() => (p.send(st.id), menu.hidePopover())}>
-              {/* a Lottie sticker by its name, as the chat shows one */}
-              {st.format_type === 3 ? st.name : <img alt={st.name} src={src(st)} loading="lazy" />}
+              {image(st)}
             </button>
+          )}
+          footer={(st) => (
+            <Named
+              img={pickers.stickerSrc(st) && <img alt="" src={pickers.stickerSrc(st)} />}
+              name={st.name}
+              from={pickers.stickerFrom(st)}
+            />
           )}
         />
       </Popout>

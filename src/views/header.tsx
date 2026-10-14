@@ -3,13 +3,11 @@
 
 import { createEffect, createSignal, For, Show } from 'solid-js'
 
-import { A, S } from '../adapter/needs'
-import type { Id, Rec } from '../adapter/discord'
 import * as channels from '../api/channels'
 import * as messages from '../api/messages'
 import * as notifications from '../api/notifications'
-import type { Channel, Message } from '../api/records'
-import { $ } from '../api/store'
+import type { Channel, Id, Message } from '../api/records'
+import * as search from '../api/search'
 import { text } from '../api/strings'
 import { Attachment } from '../components/message/attachment'
 import { Content } from '../components/message/content'
@@ -112,7 +110,7 @@ function Card(p: { m: Message; guildId?: Id | null; jump: string; onJump?: () =>
 
 // the header's pins: the channel's pinned messages in a popover, newest pin first, each with Jump (stock's: to the
 // message's link); opening it acks the pins (stock's CHANNEL_PINS_ACK, the button's dot)
-export function Pins(p: { channel: Rec }) {
+export function Pins(p: { channel: Channel }) {
   const id = () => p.channel.id
   const pins = () => messages.pins(id())
   const items = () => pins()?.items ?? []
@@ -152,42 +150,29 @@ export function Pins(p: { channel: Rec }) {
   )
 }
 
-// search, as stock's header search bar: Enter searches the server (or the DM) through stock's own search, whose parser
-// reads from:, in:, has:, before: and the rest; the results open on the right, 25 a page, newest first
-const PAGE = 25
-
-export function Search(p: { channel: Rec }) {
-  const guildId = () => p.channel.guild_id as Id | undefined
-  // stock's search context and its id in SearchMessageStore
-  const context = () =>
-    guildId() ? { type: 'GUILD', guildId: guildId() } : { type: 'CHANNEL', channelId: p.channel.id }
-  const id = () => guildId() ?? (p.channel.id as Id)
+// search, as stock's header search bar: Enter searches the server (or the DM); the results open on the right, a page
+// at a time
+export function Search(p: { channel: Channel }) {
+  const c = () => p.channel
   const [offset, setOffset] = createSignal(0)
   let pop!: HTMLDivElement,
     query = ''
-  const run = async (at: number) => {
+  const run = (at: number) => {
     setOffset(at)
-    const search = await A.search.load()
-    search.fetchMessages({
-      searchContext: context(),
-      searchQueryString: query,
-      pagination: { offset: at },
-      searchMode: 'newest',
-      searchEverywhere: false,
-      searchAnalyticsIds: null,
-      // as stock: a page replaces the last
-      onFetchStart: () => search.clearSearchMessages(id()),
-    })
+    search.run(c(), query, at)
     pop.showPopover()
   }
   // another server or DM: its own search
-  createEffect(id, () => pop.hidePopover())
-  const total = () => $.Search.getTotalCount(id()) ?? 0
+  createEffect(
+    () => search.searchId(c()),
+    () => pop.hidePopover(),
+  )
+  const total = () => search.total(c())
   return (
     <>
       <SearchInput
         class="search"
-        placeholder={guildId() ? `Search ${$.Guild.getGuild(guildId()!)?.name}` : 'Search'}
+        placeholder={search.placeholder(c())}
         onEscape={() => pop.hidePopover()}
         onEnter={(q) => {
           if (!q.trim()) return
@@ -200,35 +185,37 @@ export function Search(p: { channel: Rec }) {
         id="mc-search"
         class="search-results"
         popover="manual"
-        onToggle={(e) => {
-          if (e.newState === 'closed') A.search.load().then((s) => s.clearSearchMessages(id()))
-        }}
+        onToggle={(e) => e.newState === 'closed' && search.clear(c())}
       >
         <h2>
-          {$.Search.getIsFetching(id()) ? 'Searching…' : `${total().toLocaleString()} Results`}
-          <IconButton class="search-close" icon="close" title="Close" onClick={() => pop.hidePopover()} />
+          {search.fetching(c()) ? text('SEARCHING') : text('TOTAL_RESULTS', { count: total() })}
+          <IconButton class="search-close" icon="close" title={text('CLOSE')} onClick={() => pop.hidePopover()} />
         </h2>
-        <Show when={$.Search.getError(id())}>
-          <p>Something went wrong. Try again.</p>
+        <Show when={search.failed(c())}>
+          <p>{text('SEARCH_ERROR')}</p>
         </Show>
-        <For each={($.Search.getMessages(id()) ?? []) as Message[]}>
+        <For each={search.results(c())}>
           {(m) => (
             <Card
               m={m}
-              guildId={guildId()}
+              guildId={c().guild_id}
               jump="search"
-              where={guildId() ? $.Channel.getChannel(m.channel_id)?.name : undefined}
+              where={c().guild_id ? channels.get(m.channel_id)?.name : undefined}
             />
           )}
         </For>
-        <Show when={total() > PAGE}>
+        <Show when={total() > search.PAGE}>
           <nav>
-            <Button class="search-prev" disabled={offset() === 0} onClick={() => run(offset() - PAGE)}>
-              Back
+            <Button class="search-prev" disabled={offset() === 0} onClick={() => run(offset() - search.PAGE)}>
+              {text('BACK')}
             </Button>
-            {offset() / PAGE + 1} / {Math.ceil(total() / PAGE)}
-            <Button class="search-next" disabled={offset() + PAGE >= total()} onClick={() => run(offset() + PAGE)}>
-              Next
+            {offset() / search.PAGE + 1} / {Math.ceil(total() / search.PAGE)}
+            <Button
+              class="search-next"
+              disabled={offset() + search.PAGE >= total()}
+              onClick={() => run(offset() + search.PAGE)}
+            >
+              {text('NEXT')}
             </Button>
           </nav>
         </Show>

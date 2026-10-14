@@ -1,6 +1,6 @@
 /* the channel list and the DMs: rows on three columns (icon, label, end), each a subgrid. A row reaches the list's
    edge with a clear left border, where the unread pill goes; its colour stays in the padding box */
-nav {
+section.side > nav {
   grid-area: nav; display: grid; align-content: start; overflow-y: auto; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px; padding: 8px;
   > .row {
     grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: 8px;

@@ -112,6 +112,25 @@ export interface Emoji {
   guildId?: Id
 }
 
+// a sticker: format 1 PNG, 2 APNG, 3 Lottie, 4 GIF; a server's (guild_id) or one of Discord's packs (pack_id)
+export interface Sticker {
+  id: Id
+  name: string
+  format_type: number
+  tags?: string
+  guild_id?: Id
+  pack_id?: Id
+}
+
+// a GIF: a search result (id) or a favorite (none); src is an image or a video
+export interface Gif {
+  id?: string
+  url: string
+  src: string
+  width: number
+  height: number
+}
+
 export interface Attachment {
   url: string
   proxy_url: string
