@@ -30,35 +30,35 @@ export type Item = {
 export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
   // the item waiting for its second click, by name and id (the items are rebuilt as their state changes)
   const [armed, setArmed] = createSignal<string>()
-  const key = (i: Item) => `${i.name} ${i.id ?? ''}`
+  const key = (item: Item) => `${item.name} ${item.id ?? ''}`
   return (
-    <For each={p.items.filter((i): i is Item | '-' => Boolean(i))}>
-      {(i) =>
-        i === '-' ? (
+    <For each={p.items.filter((item): item is Item | '-' => Boolean(item))}>
+      {(item) =>
+        item === '-' ? (
           <hr />
         ) : (
           <>
             <button
-              class={[i.name, i.class]}
-              style={i.submenu && { 'anchor-name': `--${i.name}` }}
-              data-id={i.id}
-              role={i.checked == null ? undefined : 'menuitemradio'}
-              aria-checked={i.checked == null ? undefined : (String(i.checked) as 'true' | 'false')}
-              disabled={i.disabled}
-              title={i.title}
+              class={[item.name, item.class]}
+              style={item.submenu && { 'anchor-name': `--${item.name}` }}
+              data-id={item.id}
+              role={item.checked == null ? undefined : 'menuitemradio'}
+              aria-checked={item.checked == null ? undefined : (String(item.checked) as 'true' | 'false')}
+              disabled={item.disabled}
+              title={item.title}
               onClick={(e) => {
-                if (i.confirm && armed() !== key(i)) return setArmed(key(i))
-                if (!i.keep) e.currentTarget.closest<HTMLElement>('[popover]')!.hidePopover()
-                i.run(e)
+                if (item.confirm && armed() !== key(item)) return setArmed(key(item))
+                if (!item.keep) e.currentTarget.closest<HTMLElement>('[popover]')!.hidePopover()
+                item.run(e)
               }}
             >
-              <Show when={i.icon}>{(name) => <Icon name={name()} />}</Show>
-              <Show when={i.status}>{(kind) => <Status kind={kind()} />}</Show>
-              {armed() === key(i) ? i.confirm : i.label}
+              <Show when={item.icon}>{(name) => <Icon name={name()} />}</Show>
+              <Show when={item.status}>{(kind) => <Status kind={kind()} />}</Show>
+              {armed() === key(item) ? item.confirm : item.label}
             </button>
-            <Show when={i.submenu}>
+            <Show when={item.submenu}>
               {(items) => (
-                <menu class="submenu" style={{ 'position-anchor': `--${i.name}` }}>
+                <menu class="submenu" style={{ 'position-anchor': `--${item.name}` }}>
                   <Items items={items()} />
                 </menu>
               )}
@@ -95,16 +95,16 @@ export function contextMenu<T>(p: {
 }) {
   const [target, setTarget] = createSignal<T>()
   let menu!: HTMLMenuElement
-  const show = (e: MouseEvent, t: T) => {
-    setTarget(() => t)
+  const show = (e: MouseEvent, value: T) => {
+    setTarget(() => value)
     // rendered before popAt measures it
     flush()
     popAt(menu, e)
   }
   return {
     open(e: MouseEvent) {
-      const t = p.find(e)
-      if (t != null) show(e, t)
+      const found = p.find(e)
+      if (found != null) show(e, found)
     },
     show,
     view: (
@@ -116,7 +116,7 @@ export function contextMenu<T>(p: {
         onToggle={(e) => e.newState === 'closed' && !menu.matches(':popover-open') && setTarget(undefined)}
       >
         <Show when={target()} keyed>
-          {(t) => p.children(() => t)}
+          {(shown) => p.children(() => shown)}
         </Show>
       </menu>
     ),

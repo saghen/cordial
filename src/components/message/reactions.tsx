@@ -8,25 +8,25 @@ import type { Message, Reaction } from '../../api/types'
 import { IconButton } from '../../primitives/button'
 import { Emoji } from '../emoji'
 
-function Chip(p: { m: Message; r: Reaction }) {
+function Chip(p: { message: Message; reaction: Reaction }) {
   const [hovered, setHovered] = createSignal(false)
   return (
     <button
-      class={['reaction', { me: p.r.me }]}
-      data-id={p.r.emoji.id ?? p.r.emoji.name}
-      title={hovered() ? messages.reactors(p.m, p.r) : undefined}
+      class={['reaction', { me: p.reaction.me }]}
+      data-id={p.reaction.emoji.id ?? p.reaction.emoji.name}
+      title={hovered() ? messages.reactors(p.message, p.reaction) : undefined}
       onPointerEnter={() => setHovered(true)}
-      onClick={() => messages.toggleReaction(p.m, p.r)}
+      onClick={() => messages.toggleReaction(p.message, p.reaction)}
     >
-      <Emoji emoji={p.r.emoji} />
-      {p.r.count}
+      <Emoji emoji={p.reaction.emoji} />
+      {p.reaction.count}
     </button>
   )
 }
 
-export const Reactions = (p: { m: Message; onAdd(e: MouseEvent): void }) => (
+export const Reactions = (p: { message: Message; onAdd(e: MouseEvent): void }) => (
   <p class="reactions">
-    <For each={p.m.reactions}>{(r) => <Chip m={p.m} r={r} />}</For>
+    <For each={p.message.reactions}>{(reaction) => <Chip message={p.message} reaction={reaction} />}</For>
     <IconButton class="reaction-add" icon="reaction" title="Add Reaction" onClick={p.onAdd} />
   </p>
 )

@@ -20,8 +20,8 @@ section.side > nav {
     background: radial-gradient(circle at 0 50%, var(--text-strong) 3.5px, #0000 4px) 0 50% / 4px 8px no-repeat border-box, none padding-box;
     color: var(--text-strong); font-weight: 600;
   }
-  > .row:is(:hover, .sel) { background-color: var(--bg-raised); color: var(--text-strong); }
-  > .row.sel { background-color: var(--bg-selected); }
+  > .row:is(:hover, .selected) { background-color: var(--bg-raised); color: var(--text-strong); }
+  > .row.selected { background-color: var(--bg-selected); }
   > .muted { color: var(--text-faint); }
   > .dm { min-height: 42px; }
   /* a voice channel with someone in it: the icon green, how long the call has gone on at the end; the one you're in
@@ -39,7 +39,7 @@ section.side > nav {
   > .forced > .end > .icon { color: var(--danger); }
   > .elsewhere { opacity: 0.5; }
   /* a category: its name and a chevron, lit on hover (no background) */
-  > .cat {
+  > .category {
     display: flex; gap: 2px; margin-top: 16px; min-height: 24px; font-size: 13px; line-height: 16px;
     &:first-child { margin-top: 0; }
     &:hover { background: none; }

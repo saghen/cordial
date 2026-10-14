@@ -24,7 +24,7 @@ export function expose(more: Record<string, unknown>) {
       get wreq() {
         return wreq
       },
-      store: (name: string) => A.flux.Store.getAll().find((s) => s.getName() === name),
+      store: (name: string) => A.flux.Store.getAll().find((store) => store.getName() === name),
       findByProps: (...props: string[]) => find(byProps(...props))?.[0],
       get rest() {
         return A.rest

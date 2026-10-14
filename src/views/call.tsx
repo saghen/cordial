@@ -40,13 +40,13 @@ export function CallView() {
   const [full, setFull] = createSignal(false)
   // the tile that filled the area before, back on leaving full screen
   let before: string | null = null
-  const [size, setSize] = createSignal({ w: 0, h: 0 })
+  const [size, setSize] = createSignal({ width: 0, height: 0 })
   let timer: ReturnType<typeof setTimeout> | undefined
   let section: HTMLElement | undefined
   // the UI shows while the pointer moves over the call or the top bar on it, and while it rests on the buttons or the
   // top bar; it hides as the pointer leaves both
-  const over = (t: EventTarget | null) =>
-    t instanceof Element && Boolean(t.closest('#cordial-root > :is(header, section.call)'))
+  const over = (target: EventTarget | null) =>
+    target instanceof Element && Boolean(target.closest('#cordial-root > :is(header, section.call)'))
   const sleep = () => {
     clearTimeout(timer)
     if (!section?.parentElement?.querySelector(':scope > header:hover, :scope > section.call > .call-bar:hover'))
@@ -74,7 +74,9 @@ export function CallView() {
   }
   document.addEventListener('keydown', escape)
   // the room for the tiles: the section's content box, inside the padding left for the top bar and the buttons
-  const observer = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
+  const observer = new ResizeObserver(([entry]) =>
+    setSize({ width: entry.contentRect.width, height: entry.contentRect.height }),
+  )
   onCleanup(() => {
     document.removeEventListener('pointermove', move)
     document.removeEventListener('pointerout', out)
@@ -84,45 +86,49 @@ export function CallView() {
   })
   return (
     <Show when={calls.callIn(selectedChannel())}>
-      {(c) => {
-        const guildId = () => c().guild_id
-        const states = () => voice.states(c().id)
-        const others = () => states().filter((v) => v.userId !== users.me()?.id)
+      {(channel) => {
+        const guildId = () => channel().guild_id
+        const states = () => voice.states(channel().id)
+        const others = () => states().filter((state) => state.userId !== users.me()?.id)
         // as stock's DM call without cameras or streams: round avatars alone (and an empty channel's Join, shorter)
         const compact = () =>
-          !states().length || (!guildId() && !states().some((v) => v.selfStream || streams.videoOf(v.userId, null)))
-        const watched = () => others().filter((v) => v.selfStream && streams.watching(v.userId, guildId()))
+          !states().length ||
+          (!guildId() && !states().some((state) => state.selfStream || streams.videoOf(state.userId, null)))
+        const watched = () => others().filter((state) => state.selfStream && streams.watching(state.userId, guildId()))
         const focus = () => {
-          const f = focused()
-          const id = f?.replace('stream:', '')
-          return states().some((v) => v.userId === id && (v.selfStream || f === id)) ? f : null
+          const tile = focused()
+          const id = tile?.replace('stream:', '')
+          return states().some((state) => state.userId === id && (state.selfStream || tile === id)) ? tile : null
         }
         // the column count giving the largest equal 16:9 tiles in the room left for them
         const grid = createMemo(() => {
-          const n = states().length + states().filter((v) => v.selfStream).length
-          const { w, h } = size()
-          let best = { cols: 1, width: 0 }
-          for (let cols = 1; cols <= n; cols++) {
-            const rows = Math.ceil(n / cols)
-            const width = Math.min((w - GAP * (cols - 1)) / cols, ((h - GAP * (rows - 1)) / rows) * TILE_ASPECT)
-            if (width > best.width) best = { cols, width }
+          const count = states().length + states().filter((state) => state.selfStream).length
+          const room = size()
+          let best = { columns: 1, width: 0 }
+          for (let columns = 1; columns <= count; columns++) {
+            const rows = Math.ceil(count / columns)
+            const width = Math.min(
+              (room.width - GAP * (columns - 1)) / columns,
+              ((room.height - GAP * (rows - 1)) / rows) * TILE_ASPECT,
+            )
+            if (width > best.width) best = { columns, width }
           }
           return best
         })
         return (
           <section
-            ref={(s) => {
-              section = s
-              observer.observe(s)
-              s.addEventListener('fullscreenchange', () => {
-                const on = document.fullscreenElement === s
+            ref={(element) => {
+              section = element
+              observer.observe(element)
+              element.addEventListener('fullscreenchange', () => {
+                const on = document.fullscreenElement === element
                 setFull(on)
                 if (!on) setFocused(before)
               })
               wake()
             }}
             class={['call', { compact: compact(), idle: !awake(), expanded: expanded(), focused: Boolean(focus()) }]}
-            style={{ '--cols': grid().cols, '--tile-width': `${Math.floor(grid().width)}px` }}
+            style={{ '--columns': grid().columns, '--tile-width': `${Math.floor(grid().width)}px` }}
             onClick={(e) => {
               const tile = (e.target as Element).closest('figure.tile')
               if (!tile || compact() || (e.target as Element).closest('button')) return
@@ -133,32 +139,32 @@ export function CallView() {
             }}
           >
             {/* by user: a voice state's update (mute, deafen) keeps the tiles, and their videos playing */}
-            <For each={states()} keyed={(v) => v.userId}>
-              {(v) => (
-                <Show when={users.get(v().userId)}>
+            <For each={states()} keyed={(state) => state.userId}>
+              {(state) => (
+                <Show when={users.get(state().userId)}>
                   {(user) => (
                     <>
                       <Tile
                         user={user()}
                         guildId={guildId()}
-                        speaking={voice.speaking(v().userId)}
-                        muted={voice.muted(v())}
-                        deafened={voice.deafened(v())}
-                        video={streams.videoOf(v().userId, guildId())}
+                        speaking={voice.speaking(state().userId)}
+                        muted={voice.muted(state())}
+                        deafened={voice.deafened(state())}
+                        video={streams.videoOf(state().userId, guildId())}
                         compact={compact()}
-                        focus={focus() === v().userId}
+                        focus={focus() === state().userId}
                       />
-                      <Show when={v().selfStream}>
+                      <Show when={state().selfStream}>
                         <StreamTile
-                          state={v()}
-                          channel={c()}
+                          state={state()}
+                          channel={channel()}
                           name={users.displayName(user(), guildId())}
-                          focus={focus() === `stream:${v().userId}`}
+                          focus={focus() === `stream:${state().userId}`}
                           full={full()}
                           onFull={() => {
                             if (full()) return document.exitFullscreen()
                             before = focused()
-                            setFocused(`stream:${v().userId}`)
+                            setFocused(`stream:${state().userId}`)
                             section!.requestFullscreen()
                           }}
                         />
@@ -170,7 +176,7 @@ export function CallView() {
             </For>
             {/* the call's buttons while you're in it; Join (a DM's video and voice) while you're elsewhere */}
             <footer class="call-bar">
-              <Show when={voice.connected(c())} fallback={<JoinButtons channel={c()} />}>
+              <Show when={voice.connected(channel())} fallback={<JoinButtons channel={channel()} />}>
                 <Toggle
                   class="call-mute"
                   on={audio.selfMuted()}
@@ -205,14 +211,14 @@ export function CallView() {
                   onIcon="screen-x"
                   title={text('SHARE_YOUR_SCREEN')}
                   onTitle={text('STOP_STREAMING')}
-                  onClick={() => streams.toggleLive(c())}
+                  onClick={() => streams.toggleLive(channel())}
                 />
                 <Show when={watched().length}>
                   <IconButton
                     class="call-stop-watching"
                     icon="screen-x"
                     title={text('STOP_WATCHING')}
-                    onClick={() => watched().forEach((v) => streams.toggleWatch(v.userId, guildId()))}
+                    onClick={() => watched().forEach((state) => streams.toggleWatch(state.userId, guildId()))}
                   />
                 </Show>
                 <IconButton
@@ -320,15 +326,15 @@ function StreamTile(p: {
         )}
       </Show>
       <span class="badges">
-        <Show when={streams.quality(owner(), guildId())}>{(q) => <i class="quality">{q()}</i>}</Show>
+        <Show when={streams.quality(owner(), guildId())}>{(quality) => <i class="quality">{quality()}</i>}</Show>
         <Show when={health()?.lag && health()}>
-          {(h) => (
+          {(lag) => (
             <i
               class="lag"
               title={text('LAG_DETAIL', {
-                loss: Math.round(h().loss * 1000) / 10,
-                pli: h().pli,
-                jitter: Math.round(h().jitterMs),
+                loss: Math.round(lag().loss * 1000) / 10,
+                pli: lag().pli,
+                jitter: Math.round(lag().jitterMs),
               })}
             >
               {text('LAG')}
@@ -373,10 +379,10 @@ export function IncomingCalls() {
       {(call) => (
         <dialog class="incoming" data-id={call.channel.id} open>
           <Show when={calls.caller(call)} fallback={channels.title(call.channel)}>
-            {(u) => (
+            {(user) => (
               <>
-                <Avatar user={u()} size={48} />
-                <Name user={u()} />
+                <Avatar user={user()} size={48} />
+                <Name user={user()} />
               </>
             )}
           </Show>

@@ -17,12 +17,12 @@ export function Login() {
   const kind = () => picked() ?? session.codeKinds()[0]
   const submit = async (e: SubmitEvent) => {
     e.preventDefault()
-    const f = new FormData(e.currentTarget as HTMLFormElement)
+    const form = new FormData(e.currentTarget as HTMLFormElement)
     setBusy(true)
     setError('')
     try {
-      if (!session.mfa()) await session.login(String(f.get('email')), String(f.get('password')))
-      else await session.loginCode(String(f.get('code')), kind()!)
+      if (!session.mfa()) await session.login(String(form.get('email')), String(form.get('password')))
+      else await session.loginCode(String(form.get('code')), kind()!)
     } catch (err) {
       setError(session.errorText(err))
     }

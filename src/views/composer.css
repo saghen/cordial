@@ -55,7 +55,7 @@ menu.autocomplete {
     white-space: nowrap;
   }
   > .row:has(> .emoji) { min-height: 31px; padding: 4px 8px; }
-  > .row:is(:hover, .sel) { background: var(--bg-raised); }
+  > .row:is(:hover, .selected) { background: var(--bg-raised); }
   > .row > .icon { --icon-size: 16px; color: var(--text-muted); }
   > .row > .emoji { width: 20px; height: 20px; }
   > .row > .end { margin-left: auto; padding-left: 16px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; color: var(--text-muted); }

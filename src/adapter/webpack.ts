@@ -13,9 +13,9 @@ const patches: Patch[] = []
 
 // registered at module top level; all replacements apply, or none do
 export function patch(find: string, ...replace: [RegExp, string][]) {
-  const p = { find, replace, applied: false }
-  patches.push(p)
-  return p
+  const entry = { find, replace, applied: false }
+  patches.push(entry)
+  return entry
 }
 
 const toString = Function.prototype.toString
@@ -27,52 +27,53 @@ Object.defineProperty(Function.prototype, 'm', {
     Object.defineProperty(this, 'm', { value: modules, configurable: true, writable: true, enumerable: true })
     if (!toString.call(this).includes('exports:{}')) return
     // Discord's is the biggest when set: the small ones grow later, through the chunk array they share with it
-    const n = Object.keys(modules).length
-    if (n > size) [wreq, size] = [this, n]
-    for (const p of patches.filter((p) => !p.applied)) {
-      const id = Object.keys(modules).find((id) => toString.call(modules[id]).includes(p.find))
+    const count = Object.keys(modules).length
+    if (count > size) [wreq, size] = [this, count]
+    for (const pending of patches.filter((entry) => !entry.applied)) {
+      const id = Object.keys(modules).find((id) => toString.call(modules[id]).includes(pending.find))
       if (id === undefined) continue
       let out = toString.call(modules[id])
-      p.applied = p.replace.every(([re, to]) => {
-        const next = out.replace(re, to)
+      pending.applied = pending.replace.every(([pattern, replacement]) => {
+        const next = out.replace(pattern, replacement)
         const changed = next !== out
         out = next
         return changed
       })
-      // oxlint-disable-next-line no-eval -- the patched factory's source, evaluated in global scope as webpack's own
-      if (p.applied) modules[id] = globalThis.eval(`0,${out.replace(/^\d+/, 'function')}\n//# sourceURL=cordial-${id}`)
+      if (pending.applied)
+        // oxlint-disable-next-line no-eval -- the patched factory's source, evaluated in global scope as webpack's own
+        modules[id] = globalThis.eval(`0,${out.replace(/^\d+/, 'function')}\n//# sourceURL=cordial-${id}`)
     }
   },
 })
 
 export const byProps =
   (...props: string[]) =>
-  (m: any) =>
-    props.every((p) => m[p] !== undefined)
+  (candidate: any) =>
+    props.every((prop) => candidate[prop] !== undefined)
 export const byCode =
   (...code: string[]) =>
-  (m: any) =>
-    typeof m === 'function' && code.every((c) => toString.call(m).includes(c))
+  (candidate: any) =>
+    typeof candidate === 'function' && code.every((snippet) => toString.call(candidate).includes(snippet))
 
 // some exports are proxies (Discord's i18n messages) that answer any key
-const real = (m: any) => m != null && m['cordial:probe'] === undefined
+const real = (candidate: any) => candidate != null && candidate['cordial:probe'] === undefined
 
 // a module's exports, or one of their members, that the filter accepts
-export function inModule(id: string, filter: (m: any) => boolean) {
+export function inModule(id: string, filter: (candidate: any) => boolean) {
   const exports = wreq.c[id]?.exports
   try {
     if (!real(exports)) return null
     if (filter(exports)) return exports
     if (typeof exports !== 'object') return null
-    for (const k in exports) if (real(exports[k]) && filter(exports[k])) return exports[k]
+    for (const key in exports) if (real(exports[key]) && filter(exports[key])) return exports[key]
   } catch {}
   return null
 }
 
-export function find(filter: (m: any) => boolean): [any, string] | null {
+export function find(filter: (candidate: any) => boolean): [any, string] | null {
   for (const id in wreq.c) {
-    const m = inModule(id, filter)
-    if (m != null) return [m, id]
+    const found = inModule(id, filter)
+    if (found != null) return [found, id]
   }
   return null
 }

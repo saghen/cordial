@@ -3,17 +3,17 @@
 // getDisplayMedia), and the web engine's videos by stream id (a camera's, or a watched stream's "stream" context),
 // asked for while viewed.
 
-import type { Rec } from '../adapter/discord'
+import type { AnyRecord } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
 import type { Channel, Id } from './types'
 import { $ } from './store'
 import { text } from './strings'
 
 // "guild:{guildId}:{channelId}:{ownerId}" or "call:{channelId}:{ownerId}"
-export const key = (s: Rec) =>
-  (s.streamType === 'call'
-    ? [s.streamType, s.channelId, s.ownerId]
-    : [s.streamType, s.guildId, s.channelId, s.ownerId]
+export const key = (stream: AnyRecord) =>
+  (stream.streamType === 'call'
+    ? [stream.streamType, stream.channelId, stream.ownerId]
+    : [stream.streamType, stream.guildId, stream.channelId, stream.ownerId]
   ).join(':')
 
 // the stream of a user's you're watching (connected to), in a server or a call (guildId null)
@@ -21,10 +21,10 @@ export const watching = (ownerId: Id, guildId: Id | null) =>
   $.ApplicationStreaming.getActiveStreamForUser(ownerId, guildId)
 // watched, or stopped: stock's watch, without taking the focus; stock's stop
 export function toggleWatch(ownerId: Id, guildId: Id | null) {
-  const w = S.ApplicationStreaming.getActiveStreamForUser(ownerId, guildId)
-  if (w) return A.streams.stop(key(w), false)
-  const s = S.ApplicationStreaming.getStreamForUser(ownerId, guildId)
-  if (s) A.streams.watch(s, { noFocus: true })
+  const watched = S.ApplicationStreaming.getActiveStreamForUser(ownerId, guildId)
+  if (watched) return A.streams.stop(key(watched), false)
+  const stream = S.ApplicationStreaming.getStreamForUser(ownerId, guildId)
+  if (stream) A.streams.watch(stream, { noFocus: true })
 }
 
 // a user's camera, or (context "stream") the stream you watch: its video's stream id
@@ -32,13 +32,13 @@ export const videoOf = (userId: Id, guildId: Id | null, context?: 'stream') =>
   $.VideoStream.getStreamId(userId, guildId, context) as string | undefined
 // the quality the owner of a stream you watch announced, as stock's badge: "720p 30FPS" (or "Source 60FPS")
 export function quality(userId: Id, guildId: Id | null) {
-  const d = $.VideoStream.getUserStreamData(userId, guildId, 'stream')
-  if (!d?.maxResolution || !d.maxFrameRate) return null
-  const res =
-    d.maxResolution.type === 'source'
+  const data = $.VideoStream.getUserStreamData(userId, guildId, 'stream')
+  if (!data?.maxResolution || !data.maxFrameRate) return null
+  const resolution =
+    data.maxResolution.type === 'source'
       ? text('SCREENSHARE_SOURCE')
-      : text('SCREENSHARE_RESOLUTION_ABBREVIATED', { resolution: d.maxResolution.height })
-  return `${res} ${text('SCREENSHARE_FPS_ABBREVIATED', { fps: d.maxFrameRate })}`
+      : text('SCREENSHARE_RESOLUTION_ABBREVIATED', { resolution: data.maxResolution.height })
+  return `${resolution} ${text('SCREENSHARE_FPS_ABBREVIATED', { fps: data.maxFrameRate })}`
 }
 // a video while shown: its MediaStream, counted as a view (the first view asks for the video, the last drops it)
 export function view(streamId: string) {
@@ -48,5 +48,7 @@ export function view(streamId: string) {
 
 // your own Go Live: on or off
 export const live = () => Boolean($.ApplicationStreaming.getCurrentUserActiveStream())
-export const toggleLive = (c: Channel) =>
-  S.ApplicationStreaming.getCurrentUserActiveStream() ? A.streams.stopOwn(false) : A.goLive.start(c.guild_id, c.id, [])
+export const toggleLive = (channel: Channel) =>
+  S.ApplicationStreaming.getCurrentUserActiveStream()
+    ? A.streams.stopOwn(false)
+    : A.goLive.start(channel.guild_id, channel.id, [])

@@ -19,7 +19,7 @@ aside a {
   }
   &.unread::before { height: 8px; }
   &:hover::before { height: 20px; }
-  &.sel::before { height: 40px; }
+  &.selected::before { height: 40px; }
   > * { grid-area: 1 / 2; }
   > :is(.badge, .activity) { position: relative; margin-right: 4px; box-shadow: 0 0 0 3px var(--surface); }
   > .badge { place-self: end; }
@@ -30,11 +30,11 @@ aside a {
   }
   /* stock's squircles (its BlobMask path, within 0.1 px); initials on the accent while hovered or open */
   > .guild-icon { border-radius: 13px; corner-shape: superellipse(1.3); transition: background-color 0.15s; }
-  &:is(:hover, .sel) > .guild-icon:not(:has(img)) { background-color: var(--accent); }
+  &:is(:hover, .selected) > .guild-icon:not(:has(img)) { background-color: var(--accent); }
   > .guild-icon:has(img) { background: none; }
   /* the DMs button: a bare bubble, grey, lavender while hovered or open */
   &.dms > .icon { --icon-size: 24px; color: var(--text-muted); }
-  &.dms:is(:hover, .sel) > .icon { color: #b5bfe7; }
+  &.dms:is(:hover, .selected) > .icon { color: #b5bfe7; }
 }
 /* folders, as stock measures them: closed, a 48 px tile of four; open, the folder icon in its colour over its
    servers, on one background behind the middle column */
@@ -47,7 +47,7 @@ aside {
   a.folder > :is(.badge, .activity) { margin-right: 0; }
   a.folder:hover > .folder-tiles { background-color: color-mix(in srgb, var(--text-muted) 20%, transparent); }
   > .folder-open {
-    position: relative; grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; grid-template-rows: repeat(var(--n), auto);
+    position: relative; grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; grid-template-rows: repeat(var(--count), auto);
     row-gap: 8px; padding-block: 4px 8px;
     &::before { content: ""; position: absolute; grid-area: 1 / 2 / -1; inset: -4px 0 -8px; border-radius: 16px; background: color-mix(in srgb, var(--text-muted) 12%, transparent); }
   }

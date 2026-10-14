@@ -30,18 +30,18 @@ import { Sections } from '../primitives/sections'
 export const UserPanel = () => (
   <>
     <VoicePanel />
-    <Me />
+    <Account />
     <AudioButtons />
   </>
 )
 
 // the account, with what you're doing (or your status) under your name; its popout picks the status
-function Me() {
+function Account() {
   const status = users.selfStatus
   return (
     <>
       <button class="user-panel" popovertarget="mc-account">
-        <Show when={users.me()}>{(u) => <Avatar user={u()} size={32} status={status()} />}</Show>
+        <Show when={users.me()}>{(user) => <Avatar user={user()} size={32} status={status()} />}</Show>
         {users.nameOf(users.me())}
         <small>{users.activity() ?? (users.STATUSES[status()] ? text(users.STATUSES[status()]) : status())}</small>
       </button>
@@ -52,7 +52,7 @@ function Me() {
             id: value,
             label: text(label),
             status: value,
-            class: { sel: status() === value },
+            class: { selected: status() === value },
             run: () => users.setStatus(value),
           }))}
         />
@@ -66,14 +66,16 @@ function VoicePanel() {
   const [settings, setSettings] = createSignal(false)
   return (
     <Show when={voice.channel()}>
-      {(c) => (
+      {(channel) => (
         <footer class="voice-panel" data-state={voice.state()}>
           <Show when={settings()}>
             <VoiceSettings />
           </Show>
           <b>{voice.stateText()}</b>
           <small>
-            {c().guild_id ? `${c().name} / ${guilds.get(c().guild_id!)?.name}` : channels.dmName(c() as PrivateChannel)}
+            {channel().guild_id
+              ? `${channel().name} / ${guilds.get(channel().guild_id!)?.name}`
+              : channels.dmName(channel() as PrivateChannel)}
           </small>
           <Show when={streams.live()}>
             <StreamStats />
@@ -95,7 +97,7 @@ function VoicePanel() {
               onIcon="screen-x"
               title={text('SHARE_YOUR_SCREEN')}
               onTitle={text('STOP_STREAMING')}
-              onClick={() => streams.toggleLive(c())}
+              onClick={() => streams.toggleLive(channel())}
             />
             <IconButton
               class="voice-soundboard"
@@ -112,7 +114,7 @@ function VoicePanel() {
             />
             <IconButton class="voice-disconnect" icon="hangup" title={text('DISCONNECT_SELF')} onClick={voice.leave} />
           </div>
-          <Soundboard channel={c()} />
+          <Soundboard channel={channel()} />
           <ScreenPicker />
         </footer>
       )}
@@ -129,9 +131,9 @@ function StreamStats() {
   onCleanup(() => clearInterval(timer))
   return (
     <Show when={status()}>
-      {(s) => (
-        <pre class={['stream-stats', { limited: s().limited }]} onClick={() => setShort((on) => !on)}>
-          {short() ? s().summary : s().lines.join('\n')}
+      {(stats) => (
+        <pre class={['stream-stats', { limited: stats().limited }]} onClick={() => setShort((on) => !on)}>
+          {short() ? stats().summary : stats().lines.join('\n')}
         </pre>
       )}
     </Show>
@@ -157,7 +159,7 @@ function Soundboard(p: { channel: Channel }) {
         }
         all={all()}
         shown={query() ? [{ id: 'results', name: '', items: soundboard.search(p.channel, query()) }] : all()}
-        rail={(s) => (s.guild ? <GuildIcon guild={s.guild} size={24} /> : <Icon name="soundboard" />)}
+        rail={(section) => (section.guild ? <GuildIcon guild={section.guild} size={24} /> : <Icon name="soundboard" />)}
         chunk={30}
         item={(sound) => (
           <button
@@ -180,7 +182,7 @@ function Soundboard(p: { channel: Channel }) {
 // the voice settings (ours, in place of stock's noise suppression button): devices, volumes, input mode and
 // sensitivity, and the audio processing
 function VoiceSettings() {
-  const devices = (all: audio.Device[]) => all.map((d) => [d.id, d.name, d.disabled] as const)
+  const devices = (all: audio.Device[]) => all.map((device) => [device.id, device.name, device.disabled] as const)
   return (
     <form class="voice-settings" onSubmit={(e) => e.preventDefault()}>
       <Select
@@ -260,13 +262,13 @@ function AudioButtons() {
       const output = () => kind() === 'output'
       return (
         <Items
-          items={(output() ? audio.outputs() : audio.inputs()).map((d) => ({
+          items={(output() ? audio.outputs() : audio.inputs()).map((device) => ({
             name: 'device',
-            id: d.id,
-            label: d.name,
-            checked: (output() ? audio.output() : audio.input()) === d.id,
-            disabled: d.disabled,
-            run: () => (output() ? audio.setOutput(d.id) : audio.setInput(d.id)),
+            id: device.id,
+            label: device.name,
+            checked: (output() ? audio.output() : audio.input()) === device.id,
+            disabled: device.disabled,
+            run: () => (output() ? audio.setOutput(device.id) : audio.setInput(device.id)),
           }))}
         />
       )
@@ -304,19 +306,23 @@ function AudioButtons() {
 // declines, as Chromium's own picker
 
 function ScreenPicker() {
-  type Ask = { sources: screen.CastSource[]; resolve: (p: screen.CastPick) => void; reject: (e: Error) => void }
+  type Ask = {
+    sources: screen.CastSource[]
+    resolve: (choice: screen.CastPick) => void
+    reject: (error: Error) => void
+  }
   const picker = modal<Ask>({
     class: 'screen-picker',
     // closed without a pick (Escape, Cancel, the backdrop); after one, the promise is settled already
-    onClose: (a) => a.reject(new Error('cancelled')),
-    children: (a) => (
+    onClose: (ask) => ask.reject(new Error('cancelled')),
+    children: (ask) => (
       <>
         <h2>Share Your Screen</h2>
-        <For each={a().sources}>
-          {(s) => (
-            <Button class={['source', s.kind]} data-id={s.id} onClick={() => pick(a(), s)}>
-              {s.name}
-              <small>{s.width ? `${s.detail} · ${s.width}×${s.height}` : s.detail}</small>
+        <For each={ask().sources}>
+          {(source) => (
+            <Button class={['source', source.kind]} data-id={source.id} onClick={() => pick(ask(), source)}>
+              {source.name}
+              <small>{source.width ? `${source.detail} · ${source.width}×${source.height}` : source.detail}</small>
             </Button>
           )}
         </For>
@@ -330,12 +336,12 @@ function ScreenPicker() {
   onCleanup(() => {
     screen.host.pick = null
   })
-  const pick = (a: Ask, s: screen.CastSource) => {
-    a.resolve({
-      source: s.id,
-      name: s.name,
-      width: s.width,
-      height: s.height,
+  const pick = (ask: Ask, source: screen.CastSource) => {
+    ask.resolve({
+      source: source.id,
+      name: source.name,
+      width: source.width,
+      height: source.height,
     })
     picker.close()
   }

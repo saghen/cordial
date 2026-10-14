@@ -23,11 +23,11 @@ function storeNeed<K extends keyof Stores>(key: K, name: string, ...methods: (ke
     what: `${name} { ${methods.join(', ')} }`,
     resolve() {
       // two stores can share a name (stock has two SearchMessageStores): the one with the methods
-      const all: any[] = A.flux.Store.getAll().filter((s) => s.getName() === name)
+      const all: any[] = A.flux.Store.getAll().filter((store) => store.getName() === name)
       if (!all.length) return 'no store by that name'
-      const s = all.find((s) => methods.every((m) => typeof s[m] === 'function'))
-      if (!s) return `methods gone: ${methods.filter((m) => typeof all[0][m] !== 'function').join(', ')}`
-      S[key] = s
+      const store = all.find((candidate) => methods.every((method) => typeof candidate[method] === 'function'))
+      if (!store) return `methods gone: ${methods.filter((method) => typeof all[0][method] !== 'function').join(', ')}`
+      S[key] = store
       return null
     },
   })
@@ -38,9 +38,9 @@ function moduleNeed<K extends keyof Actions>(key: K, what: string, search: () =>
     name: `A.${key}`,
     what,
     resolve() {
-      const m = search()
-      if (m == null) return 'no module matches'
-      A[key] = m
+      const found = search()
+      if (found == null) return 'no module matches'
+      A[key] = found
       return null
     },
   })
@@ -50,17 +50,17 @@ const byProps = <K extends keyof Actions>(key: K, ...props: (keyof Actions[K] & 
   moduleNeed(key, `props ${props.join(', ')}`, () => find(hasProps(...props))?.[0])
 
 const byCode = <K extends keyof Actions>(key: K, ...code: string[]) =>
-  moduleNeed(key, `code ${code.map((c) => JSON.stringify(c)).join(' ')}`, () => find(hasCode(...code))?.[0])
+  moduleNeed(key, `code ${code.map((snippet) => JSON.stringify(snippet)).join(' ')}`, () => find(hasCode(...code))?.[0])
 
 // a module whose exports are all minified: found by one code string in its factory, members by their own
 function mangled<K extends keyof Actions>(key: K, anchor: string, members: Record<keyof Actions[K] & string, string>) {
   moduleNeed(key, `module ${JSON.stringify(anchor)} { ${Object.keys(members).join(', ')} }`, () => {
     const id = findModuleId(anchor)
     if (id == null) return null
-    const mod = wreq(id)
+    const exports = wreq(id)
     const out: Record<string, any> = {}
     for (const [name, code] of Object.entries(members)) {
-      const member = Object.values(mod).find(hasCode(code as string))
+      const member = Object.values(exports).find(hasCode(code as string))
       if (member === undefined) return null
       out[name] = member
     }
@@ -269,7 +269,7 @@ moduleNeed(
     const rule = findModuleId('SENDABLE_WITH_BOOSTED_GUILD"')
     if (packs == null || rule == null) return null
     const fetchPacks = Object.values(wreq(packs)).find(hasCode('STICKER_PACKS_FETCH_START'))
-    const sendability = Object.values(wreq(rule)).find((e) => typeof e === 'function')
+    const sendability = Object.values(wreq(rule)).find((member) => typeof member === 'function')
     return fetchPacks && sendability ? { fetchPacks, sendability } : null
   },
 )
@@ -288,10 +288,11 @@ moduleNeed('video', 'modules ("VideoStream") { stream }, (?.(e,!0),i[e]=t+1) { w
   const streams = findModuleId('("VideoStream")')
   const views = findModuleId('?.(e,!0),i[e]=t+1')
   if (streams == null || views == null) return null
-  const fns = (id: string) => Object.values(wreq(id)).filter((e) => typeof e === 'function') as Function[]
-  const stream = fns(streams).find((f) => !/VideoStream|delete/.test(String(f)))
-  const watch = fns(views).find((f) => String(f).includes('+1'))
-  const unwatch = fns(views).find((f) => String(f).includes('--'))
+  const functions = (id: string) =>
+    Object.values(wreq(id)).filter((member) => typeof member === 'function') as Function[]
+  const stream = functions(streams).find((member) => !/VideoStream|delete/.test(String(member)))
+  const watch = functions(views).find((member) => String(member).includes('+1'))
+  const unwatch = functions(views).find((member) => String(member).includes('--'))
   return stream && watch && unwatch ? { stream, watch, unwatch } : null
 })
 // stock's soundboard: play (its request, then the sound here), its rules for which sounds you can use and whether you
@@ -309,13 +310,15 @@ moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
   if (id == null) return null
   const src = String(wreq.m[id])
   const end = src.indexOf('name:"Search",render')
-  const chunks = [...src.slice(src.lastIndexOf('Promise.all([', end), end).matchAll(/\.e\("(\w+)"\)/g)].map((m) => m[1])
+  const chunks = [...src.slice(src.lastIndexOf('Promise.all([', end), end).matchAll(/\.e\("(\w+)"\)/g)].map(
+    (match) => match[1],
+  )
   if (!chunks.length) return null
   let actions: any
   const load = async () => {
-    await Promise.all(chunks.map((c) => wreq.e(c)))
-    const mod = wreq(findModuleId('type:"SEARCH_MESSAGES_START"')!)
-    return Object.values(mod).find((e: any) => typeof e?.fetchMessages === 'function')
+    await Promise.all(chunks.map((chunk) => wreq.e(chunk)))
+    const exports = wreq(findModuleId('type:"SEARCH_MESSAGES_START"')!)
+    return Object.values(exports).find((member: any) => typeof member?.fetchMessages === 'function')
   }
   return {
     load: () => {
@@ -328,14 +331,14 @@ moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
 moduleNeed('systemMessages', 'the system message formatter { stringify }', () => {
   const id = findModuleId('"234395307759108106":"https://groovy.bot/commands"')
   if (id == null) return null
-  return Object.values(wreq(id)).find((e: any) => typeof e?.stringify === 'function')
+  return Object.values(wreq(id)).find((member: any) => typeof member?.stringify === 'function')
 })
 // Discord's REST client and its endpoint paths: pins and Mark Unread are stock requests from its menu's chunk, which
 // isn't loaded without its UI
 moduleNeed(
   'rest',
   'the REST client: del, get, patch, post, put',
-  () => find((e) => Object.keys(e).sort().join() === 'del,get,patch,post,put')?.[0],
+  () => find((candidate) => Object.keys(candidate).sort().join() === 'del,get,patch,post,put')?.[0],
 )
 byProps('endpoints', 'PIN', 'PINS', 'MESSAGE_ACK')
 // whether a message counts towards a channel's mentions (suppress settings; every message in a DM)
@@ -403,7 +406,7 @@ mangled('dates', '"DateUtils"', { calendar: '"L LT"', format: 'longFormatters' }
 moduleNeed(
   'frecencySettings',
   'the settings proto manager of type 2 { loadIfNecessary }',
-  () => find((m) => m?.type === 2 && typeof m.loadIfNecessary === 'function')?.[0],
+  () => find((candidate) => candidate?.type === 2 && typeof candidate.loadIfNecessary === 'function')?.[0],
 )
 
 dispatched('TYPING_START_LOCAL', 'typing: TypingStore throttles and POSTs /typing')
@@ -429,7 +432,7 @@ export function textNeed(names: readonly string[]) {
     what: `${names.length} stock messages by name`,
     resolve() {
       const messages = A.intl.t.$$loader.messages[A.intl.intl.currentLocale]
-      const gone = names.filter((n) => !(A.messageKey.runtimeHashMessageKey(n) in messages))
+      const gone = names.filter((name) => !(A.messageKey.runtimeHashMessageKey(name) in messages))
       return gone.length ? `gone: ${gone.join(', ')}` : null
     },
   })
@@ -445,16 +448,16 @@ let report: {
 // once: the result sticks
 export function check() {
   if (report) return report
-  const t = performance.now()
-  const missing = needs.flatMap((n) => {
+  const start = performance.now()
+  const missing = needs.flatMap((need) => {
     let why: string | null
     try {
-      why = n.resolve()
-    } catch (e) {
-      why = `threw: ${e}`
+      why = need.resolve()
+    } catch (err) {
+      why = `threw: ${err}`
     }
-    return why ? [{ name: n.name, what: n.what, why }] : []
+    return why ? [{ name: need.name, what: need.what, why }] : []
   })
-  report = { ok: !missing.length, took: Math.round(performance.now() - t), needs: needs.length, missing }
+  report = { ok: !missing.length, took: Math.round(performance.now() - start), needs: needs.length, missing }
   return report
 }

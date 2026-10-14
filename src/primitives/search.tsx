@@ -15,7 +15,7 @@ export const SearchInput = (p: {
     type="search"
     placeholder={p.placeholder}
     value={p.value ?? ''}
-    ref={(el) => p.autofocus && queueMicrotask(() => el.focus())}
+    ref={(input) => p.autofocus && queueMicrotask(() => input.focus())}
     onInput={(e) => p.onInput?.(e.currentTarget.value)}
     onKeyDown={(e) => {
       if (e.key === 'Enter') p.onEnter?.(e.currentTarget.value)

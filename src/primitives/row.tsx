@@ -8,17 +8,17 @@ export function Row(
   p: JSX.AnchorHTMLAttributes<HTMLAnchorElement> & {
     name: string
     icon?: JSX.Element
-    sub?: JSX.Element
+    subtitle?: JSX.Element
     end?: JSX.Element
   },
 ) {
-  const rest = omit(p, 'name', 'class', 'icon', 'sub', 'end', 'children')
+  const rest = omit(p, 'name', 'class', 'icon', 'subtitle', 'end', 'children')
   return (
     <a {...rest} class={['row', p.name, p.class]}>
       {p.icon}
       {p.children}
-      <Show when={p.sub}>
-        <small>{p.sub}</small>
+      <Show when={p.subtitle}>
+        <small>{p.subtitle}</small>
       </Show>
       <Show when={p.end}>
         <span class="end">{p.end}</span>

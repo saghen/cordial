@@ -48,7 +48,7 @@ export interface RateState {
   /** ms: when the estimate first went under the target (cleared when it is back or the target followed) */
   lowSince: number | null
   /** per second: when, and whether we sent near the target then */
-  busy: { t: number; busy: boolean }[]
+  busy: { time: number; busy: boolean }[]
   /** the last ceiling (HEADROOM x min(estimate, cap)) seen */
   ceiling?: number
   /** updates in a row with the pacer delay over QUEUE_MS */
@@ -57,7 +57,7 @@ export interface RateState {
 
 export interface RateSample {
   /** ms (any monotonic clock) */
-  t: number
+  time: number
   /** bandwidth estimate, bits/s (candidate-pair availableOutgoingBitrate); absent: unknown */
   bwe?: number
   /** Discord's cap (the encoding's maxBitrate), bits/s */
@@ -76,12 +76,15 @@ export function initialTarget(bps: number): RateState {
 }
 
 /** Once a second, with the sender's stats. */
-export function updateTarget(s: RateState, x: RateSample): RateState {
-  const ceiling = ceilingOf(x.bwe, x.cap)
-  const max = RATE.HEADROOM * x.cap
-  const now = { t: x.t, busy: x.wire !== undefined && x.wire >= RATE.BUSY_RATIO * Math.min(s.target, max) }
-  const queued = (x.sendDelay ?? 0) > RATE.QUEUE_MS ? (s.queued ?? 0) + 1 : 0
-  const busy = [...s.busy.filter((b) => b.t > x.t - RATE.LOW_SECS * 1000 - 500), now]
+export function updateTarget(state: RateState, sample: RateSample): RateState {
+  const ceiling = ceilingOf(sample.bwe, sample.cap)
+  const max = RATE.HEADROOM * sample.cap
+  const now = {
+    time: sample.time,
+    busy: sample.wire !== undefined && sample.wire >= RATE.BUSY_RATIO * Math.min(state.target, max),
+  }
+  const queued = (sample.sendDelay ?? 0) > RATE.QUEUE_MS ? (state.queued ?? 0) + 1 : 0
+  const busy = [...state.busy.filter((entry) => entry.time > sample.time - RATE.LOW_SECS * 1000 - 500), now]
   const next = (target: number, reason: RateReason, lowSince: number | null = null): RateState => ({
     target: floor(Math.min(target, max)),
     reason,
@@ -91,15 +94,15 @@ export function updateTarget(s: RateState, x: RateSample): RateState {
     queued,
   })
 
-  if (x.bwe === undefined) return next(s.target, s.target > max ? 'cap' : s.reason, s.lowSince)
-  if (queued >= 2 || (x.sendDelay ?? 0) > 3 * RATE.QUEUE_MS)
-    return next(Math.min(s.target, RATE.QUEUE_CUT * ceiling), 'queue')
-  if (ceiling >= s.target) return next(ceiling, 'estimate')
+  if (sample.bwe === undefined) return next(state.target, state.target > max ? 'cap' : state.reason, state.lowSince)
+  if (queued >= 2 || (sample.sendDelay ?? 0) > 3 * RATE.QUEUE_MS)
+    return next(Math.min(state.target, RATE.QUEUE_CUT * ceiling), 'queue')
+  if (ceiling >= state.target) return next(ceiling, 'estimate')
   // the estimate is under the target: the network's, or our own app-limited rate?
-  const lowSince = s.lowSince ?? x.t
-  const busySecs = busy.filter((b) => b.t >= lowSince - 1000 && b.busy).length
-  if (x.t - lowSince >= RATE.LOW_SECS * 1000 && busySecs >= RATE.BUSY_SECS) return next(ceiling, 'follow')
-  return next(s.target, 'hold', lowSince)
+  const lowSince = state.lowSince ?? sample.time
+  const busySecs = busy.filter((entry) => entry.time >= lowSince - 1000 && entry.busy).length
+  if (sample.time - lowSince >= RATE.LOW_SECS * 1000 && busySecs >= RATE.BUSY_SECS) return next(ceiling, 'follow')
+  return next(state.target, 'hold', lowSince)
 }
 
 export interface GuardSample {
@@ -113,33 +116,33 @@ export interface GuardSample {
 
 /**
  * Between updates (every frame or fast stats poll): the target never sits above the estimate while a pacer queue
- * builds or while our frames come out well above the estimate. Returns `s` itself when nothing changes.
+ * builds or while our frames come out well above the estimate. Returns `state` itself when nothing changes.
  */
-export function guardTarget(s: RateState, x: GuardSample): RateState {
-  if (x.bwe === undefined) return s
-  const ceiling = ceilingOf(x.bwe, x.cap)
-  if ((x.sendDelay ?? 0) > RATE.QUEUE_MS && s.target > RATE.QUEUE_CUT * ceiling)
-    return { ...s, target: floor(RATE.QUEUE_CUT * ceiling), reason: 'queue', lowSince: null, ceiling }
-  if (s.target > ceiling && (x.sentRate ?? 0) > RATE.BURST_RATIO * x.bwe)
-    return { ...s, target: floor(ceiling), reason: 'burst', lowSince: null, ceiling }
-  return s
+export function guardTarget(state: RateState, sample: GuardSample): RateState {
+  if (sample.bwe === undefined) return state
+  const ceiling = ceilingOf(sample.bwe, sample.cap)
+  if ((sample.sendDelay ?? 0) > RATE.QUEUE_MS && state.target > RATE.QUEUE_CUT * ceiling)
+    return { ...state, target: floor(RATE.QUEUE_CUT * ceiling), reason: 'queue', lowSince: null, ceiling }
+  if (state.target > ceiling && (sample.sentRate ?? 0) > RATE.BURST_RATIO * sample.bwe)
+    return { ...state, target: floor(ceiling), reason: 'burst', lowSince: null, ceiling }
+  return state
 }
 
 /** Bytes sent over a sliding window (guardTarget's sentRate). */
 export class RateWindow {
-  private items: { t: number; bytes: number }[] = []
+  private items: { time: number; bytes: number }[] = []
   private total = 0
   private readonly ms = RATE.BURST_MS
 
-  add(t: number, bytes: number) {
-    this.items.push({ t, bytes })
+  add(time: number, bytes: number) {
+    this.items.push({ time, bytes })
     this.total += bytes
-    while (this.items.length && this.items[0].t <= t - this.ms) this.total -= this.items.shift()!.bytes
+    while (this.items.length && this.items[0].time <= time - this.ms) this.total -= this.items.shift()!.bytes
   }
 
   /** bits/s over the window (undefined until it spans most of the window) */
-  rate(t: number): number | undefined {
-    if (!this.items.length || t - this.items[0].t < this.ms * 0.6) return
+  rate(time: number): number | undefined {
+    if (!this.items.length || time - this.items[0].time < this.ms * 0.6) return
     return (this.total * 8 * 1000) / this.ms
   }
 }

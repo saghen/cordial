@@ -21,90 +21,90 @@ const TAGS: Record<string, string> = {
   autolink: 'a',
 }
 
-const text = (n: MarkdownNode): string =>
-  typeof n.content === 'string' ? n.content : (n.content?.map(text).join('') ?? '')
+const text = (node: MarkdownNode): string =>
+  typeof node.content === 'string' ? node.content : (node.content?.map(text).join('') ?? '')
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, content: unknown): HTMLElementTagNameMap[K]
-function el(tag: string, content: unknown): HTMLElement
-function el(tag: string, content: unknown) {
-  const e = document.createElement(tag)
-  if (typeof content === 'string') e.append(content)
-  else if (Array.isArray(content)) renderAST(content, e)
-  return e
+function create<K extends keyof HTMLElementTagNameMap>(tag: K, content: unknown): HTMLElementTagNameMap[K]
+function create(tag: string, content: unknown): HTMLElement
+function create(tag: string, content: unknown) {
+  const element = document.createElement(tag)
+  if (typeof content === 'string') element.append(content)
+  else if (Array.isArray(content)) renderAST(content, element)
+  return element
 }
 
-function node(n: MarkdownNode): Node | string {
-  switch (n.type) {
+function renderNode(node: MarkdownNode): Node | string {
+  switch (node.type) {
     case 'text':
-      return text(n)
+      return text(node)
     case 'br':
     case 'newline':
       return '\n'
     case 'heading':
-      return el(`h${Math.min(3, n.level ?? 1)}`, n.content)
+      return create(`h${Math.min(3, node.level ?? 1)}`, node.content)
     case 'codeBlock':
-      return el('pre', n.content)
+      return create('pre', node.content)
     case 'list': {
-      const l = el(n.ordered ? 'ol' : 'ul', null)
-      if (l instanceof HTMLOListElement && n.start != null) l.start = n.start
-      for (const item of n.items ?? []) l.append(el('li', item))
-      return l
+      const list = create(node.ordered ? 'ol' : 'ul', null)
+      if (list instanceof HTMLOListElement && node.start != null) list.start = node.start
+      for (const item of node.items ?? []) list.append(create('li', item))
+      return list
     }
     case 'emoji':
     case 'customEmoji': {
-      const img = el('img', null)
-      img.alt = n.name ?? n.surrogate ?? ''
-      img.src = n.src ?? emojiSrc({ id: n.emojiId, animated: n.animated })
+      const img = create('img', null)
+      img.alt = node.name ?? node.surrogate ?? ''
+      img.src = node.src ?? emojiSrc({ id: node.emojiId, animated: node.animated })
       return img
     }
     case 'channelMention': {
       // as stock: the channel by its icon and name; a link to another server's channel or to a message, the server
       // (or the channel) first, then › and the channel or a message's icon. A click opens it
-      const m = el('mark', null)
-      m.className = 'channel-link'
-      if (n.inContent) m.append(...n.inContent.map(part), ' › ')
-      if (Array.isArray(n.content)) m.append(...n.content.map(part))
-      const channelId = n.channelId
-      if (channelId) m.onclick = () => openLink(n.guildId, channelId, n.messageId)
-      return m
+      const mark = create('mark', null)
+      mark.className = 'channel-link'
+      if (node.inContent) mark.append(...node.inContent.map(part), ' › ')
+      if (Array.isArray(node.content)) mark.append(...node.content.map(part))
+      const channelId = node.channelId
+      if (channelId) mark.onclick = () => openLink(node.guildId, channelId, node.messageId)
+      return mark
     }
     case 'mention':
     case 'roleMention': {
-      const m = el('mark', text(n))
-      if (n.roleColor) m.style.color = `#${n.roleColor.toString(16).padStart(6, '0')}`
-      return m
+      const mark = create('mark', text(node))
+      if (node.roleColor) mark.style.color = `#${node.roleColor.toString(16).padStart(6, '0')}`
+      return mark
     }
     case 'timestamp':
-      return el('time', n.formatted ?? text(n))
+      return create('time', node.formatted ?? text(node))
   }
-  const tag = TAGS[n.type]
-  if (!tag) return text(n)
-  const e = el(tag, n.content)
-  if (tag === 'a') Object.assign(e, { href: n.target, target: '_blank', rel: 'noreferrer noopener' })
+  const tag = TAGS[node.type]
+  if (!tag) return text(node)
+  const element = create(tag, node.content)
+  if (tag === 'a') Object.assign(element, { href: node.target, target: '_blank', rel: 'noreferrer noopener' })
   // a spoiler shows on click
-  if (tag === 'del') e.onclick = () => e.toggleAttribute('open', true)
-  return e
+  if (tag === 'del') element.onclick = () => element.toggleAttribute('open', true)
+  return element
 }
 
 // a channel link's part: a channel (its icon by kind, its name; a message's icon alone) or a server (its icon, its name)
 const CHANNEL_ICONS: Record<string, IconName> = { voice: 'voice', message: 'chat', announcement: 'announce' }
-function part(n: MarkdownNode): Node | string {
-  if (n.type === 'guild') {
-    const s = el('span', n.content)
-    if (n.icon) s.prepend(Object.assign(el('img', null), { src: n.icon, alt: '' }))
-    return s
+function part(node: MarkdownNode): Node | string {
+  if (node.type === 'guild') {
+    const span = create('span', node.content)
+    if (node.icon) span.prepend(Object.assign(create('img', null), { src: node.icon, alt: '' }))
+    return span
   }
-  if (n.type !== 'channel') return node(n)
-  const s = el('span', n.content)
-  s.prepend((<Icon name={CHANNEL_ICONS[n.iconType ?? ''] ?? 'hash'} />) as HTMLElement)
-  return s
+  if (node.type !== 'channel') return renderNode(node)
+  const span = create('span', node.content)
+  span.prepend((<Icon name={CHANNEL_ICONS[node.iconType ?? ''] ?? 'hash'} />) as HTMLElement)
+  return span
 }
 
 export function renderAST(nodes: MarkdownNode[], parent: HTMLElement | DocumentFragment) {
-  for (const n of nodes) parent.append(node(n))
+  for (const node of nodes) parent.append(renderNode(node))
   return parent
 }
 
 export const Markdown = (p: { ast: MarkdownNode[]; inline?: boolean }) => (
-  <span class={['markdown', { inline: Boolean(p.inline) }]} ref={(s) => renderAST(p.ast, s)} />
+  <span class={['markdown', { inline: Boolean(p.inline) }]} ref={(span) => renderAST(p.ast, span)} />
 )

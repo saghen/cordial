@@ -11,7 +11,7 @@
 &:has(> section.call.idle) > header > .channel { opacity: 0; }
 & > section.call {
   --ui: 1; position: relative; z-index: 1; grid-row: top-start / call-end; grid-column: call-start / call-end;
-  display: grid; grid-template-columns: repeat(var(--cols), var(--tile-width)); gap: 8px; place-content: center; height: 50vh;
+  display: grid; grid-template-columns: repeat(var(--columns), var(--tile-width)); gap: 8px; place-content: center; height: 50vh;
   padding: 56px 16px 80px; background: #000;
   &.expanded { grid-row: top-start / compose-end; grid-column: call-start / members-end; height: auto; }
   &.compact { display: flex; justify-content: center; align-items: center; gap: 16px; height: 240px; }

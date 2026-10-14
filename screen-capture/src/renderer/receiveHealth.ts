@@ -27,12 +27,12 @@ export interface ReceiveHealth {
 }
 
 interface Sample {
-  t: number
+  time: number
   received: number
   lost: number
   pli: number
-  jbDelay: number
-  jbCount: number
+  jitterBufferDelay: number
+  jitterBufferCount: number
   freezes: number
   size: string
 }
@@ -40,57 +40,65 @@ interface Sample {
 const watched = new WeakMap<RTCPeerConnection, { samples: Sample[]; since: number; lagUntil: number }>()
 
 /** The connection's RTCPeerConnection: Discord keeps it a field or two down. */
-function peerConnection(o: any, depth = 2): RTCPeerConnection | undefined {
-  if (o instanceof RTCPeerConnection) return o
-  if (!depth || !o || typeof o !== 'object') return
-  for (const v of Object.values(o)) {
-    const pc = peerConnection(v, depth - 1)
-    if (pc) return pc
+function peerConnection(value: any, depth = 2): RTCPeerConnection | undefined {
+  if (value instanceof RTCPeerConnection) return value
+  if (!depth || !value || typeof value !== 'object') return
+  for (const field of Object.values(value)) {
+    const peer = peerConnection(field, depth - 1)
+    if (peer) return peer
   }
 }
 
 /** The health of `userId`'s stream as this client watches it (call once a second); null while not watching it. */
 export async function receiveHealth(userId: string): Promise<ReceiveHealth | null> {
-  const conn = [...(host.discord?.connections() ?? [])].find(
-    (c) => c.context === 'stream' && c.streamUserId === userId && c.streamUserId !== host.discord?.currentUser()?.id,
+  const connection = [...(host.discord?.connections() ?? [])].find(
+    (entry) =>
+      entry.context === 'stream' &&
+      entry.streamUserId === userId &&
+      entry.streamUserId !== host.discord?.currentUser()?.id,
   )
-  const pc = conn && peerConnection(conn)
-  return pc ? pcHealth(pc) : null
+  const peer = connection && peerConnection(connection)
+  return peer ? peerHealth(peer) : null
 }
 
 /** The same for any connection's inbound video. */
-export async function pcHealth(pc: RTCPeerConnection): Promise<ReceiveHealth | null> {
-  const rtp = [...(await pc.getStats()).values()]
-    .filter((s) => s.type === 'inbound-rtp' && s.kind === 'video')
-    .sort((a, b) => (b.packetsReceived ?? 0) - (a.packetsReceived ?? 0))[0]
+export async function peerHealth(peer: RTCPeerConnection): Promise<ReceiveHealth | null> {
+  const rtp = [...(await peer.getStats()).values()]
+    .filter((stat) => stat.type === 'inbound-rtp' && stat.kind === 'video')
+    .sort((first, second) => (second.packetsReceived ?? 0) - (first.packetsReceived ?? 0))[0]
   if (!rtp) return null
-  const s: Sample = {
-    t: rtp.timestamp / 1000,
+  const sample: Sample = {
+    time: rtp.timestamp / 1000,
     received: rtp.packetsReceived ?? 0,
     lost: rtp.packetsLost ?? 0,
     pli: (rtp.pliCount ?? 0) + (rtp.firCount ?? 0),
-    jbDelay: rtp.jitterBufferDelay ?? 0,
-    jbCount: rtp.jitterBufferEmittedCount ?? 0,
+    jitterBufferDelay: rtp.jitterBufferDelay ?? 0,
+    jitterBufferCount: rtp.jitterBufferEmittedCount ?? 0,
     freezes: rtp.freezeCount ?? 0,
     size: `${rtp.frameWidth}x${rtp.frameHeight}`,
   }
-  let w = watched.get(pc)
-  const last = w?.samples.at(-1)
+  let state = watched.get(peer)
+  const last = state?.samples.at(-1)
   // a new stream (the counters start over) or size: judged again after SETTLE_S
-  if (!w || !last || s.received < last.received || s.size !== last.size) {
-    w = { samples: [], since: s.t, lagUntil: w?.lagUntil ?? 0 }
-    watched.set(pc, w)
+  if (!state || !last || sample.received < last.received || sample.size !== last.size) {
+    state = { samples: [], since: sample.time, lagUntil: state?.lagUntil ?? 0 }
+    watched.set(peer, state)
   }
-  w.samples.push(s)
-  while (s.t - w.samples[0].t > WINDOW_S) w.samples.shift()
-  const a = w.samples[0]
-  const lost = s.lost - a.lost
+  state.samples.push(sample)
+  while (sample.time - state.samples[0].time > WINDOW_S) state.samples.shift()
+  const oldest = state.samples[0]
+  const lost = sample.lost - oldest.lost
   // (packets counted lost can arrive late: never under 0)
-  const loss = Math.max(0, lost / Math.max(1, s.received - a.received + lost))
-  const pli = s.pli - a.pli
-  const jitterMs = s.jbCount > a.jbCount ? ((s.jbDelay - a.jbDelay) / (s.jbCount - a.jbCount)) * 1000 : 0
-  const freezes = s.freezes - a.freezes
+  const loss = Math.max(0, lost / Math.max(1, sample.received - oldest.received + lost))
+  const pli = sample.pli - oldest.pli
+  const jitterMs =
+    sample.jitterBufferCount > oldest.jitterBufferCount
+      ? ((sample.jitterBufferDelay - oldest.jitterBufferDelay) /
+          (sample.jitterBufferCount - oldest.jitterBufferCount)) *
+        1000
+      : 0
+  const freezes = sample.freezes - oldest.freezes
   const bad = loss > MAX_LOSS || pli > 0 || jitterMs > MAX_JITTER_MS || (freezes > 0 && lost > 0)
-  if (bad && s.t - w.since >= SETTLE_S) w.lagUntil = s.t + CLEAR_S
-  return { lag: s.t < w.lagUntil, loss, pli, jitterMs, freezes }
+  if (bad && sample.time - state.since >= SETTLE_S) state.lagUntil = sample.time + CLEAR_S
+  return { lag: sample.time < state.lagUntil, loss, pli, jitterMs, freezes }
 }

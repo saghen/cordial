@@ -51,11 +51,11 @@ function averageColor(url: string) {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      const x = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!
-      x.imageSmoothingQuality = 'high'
-      x.drawImage(img, 0, 0, 1, 1)
-      const [r, g, b] = x.getImageData(0, 0, 1, 1).data
-      set(`rgb(${r} ${g} ${b})`)
+      const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!
+      context.imageSmoothingQuality = 'high'
+      context.drawImage(img, 0, 0, 1, 1)
+      const [red, green, blue] = context.getImageData(0, 0, 1, 1).data
+      set(`rgb(${red} ${green} ${blue})`)
     }
     img.src = url
     color = get

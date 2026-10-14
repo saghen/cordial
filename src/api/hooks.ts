@@ -4,12 +4,12 @@
 import { createEffect, createSignal, getOwner, onCleanup } from 'solid-js'
 
 import { A } from '../adapter/needs'
-import type { Rec } from '../adapter/discord'
+import type { AnyRecord } from '../adapter/discord'
 
-// fn on every dispatch of an action type: in a component until it unmounts, elsewhere for good
-export function onAction(type: string, fn: (action: Rec) => void) {
-  A.dispatcher.subscribe(type, fn)
-  if (getOwner()) onCleanup(() => A.dispatcher.unsubscribe(type, fn))
+// listener on every dispatch of an action type: in a component until it unmounts, elsewhere for good
+export function onAction(type: string, listener: (action: AnyRecord) => void) {
+  A.dispatcher.subscribe(type, listener)
+  if (getOwner()) onCleanup(() => A.dispatcher.unsubscribe(type, listener))
 }
 
 // the time, updated every second until `until` (a time in ms: Infinity for good, 0 not at all)
@@ -28,12 +28,12 @@ export function useNow(until: () => number) {
 }
 
 // files dropped anywhere on the window (left to the browser, a drop would navigate to the file)
-export function useFileDrop(fn: (files: File[]) => void) {
+export function useFileDrop(onDrop: (files: File[]) => void) {
   const over = (e: DragEvent) => e.dataTransfer?.types.includes('Files') && e.preventDefault()
   const drop = (e: DragEvent) => {
     if (!e.dataTransfer?.files.length) return
     e.preventDefault()
-    fn([...e.dataTransfer.files])
+    onDrop([...e.dataTransfer.files])
   }
   addEventListener('dragover', over)
   addEventListener('drop', drop)

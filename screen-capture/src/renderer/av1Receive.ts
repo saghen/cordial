@@ -17,7 +17,7 @@
 // stage on each side of Discord's worker. Anything unexpected (a frame without metadata, one the worker didn't come
 // back with, a stage that throws) leaves the frame as it was: a Discord change can cost AV1 receive, not calls.
 
-const isAv1 = (f: any) => f.getMetadata().mimeType === 'video/AV1'
+const isAv1 = (frame: any) => frame.getMetadata().mimeType === 'video/AV1'
 
 /** What the receive stages did: AV1 frames unsized, frames that went back as the receiver's own, and the last
  * error (the frame then goes on as it was: a stage that throws would end the receiver's stream for good). */
@@ -29,29 +29,29 @@ const failed = (e: unknown) => {
 
 /** The frame with its last OBU's size field taken out, if it is a DAVE-encrypted AV1 frame (ends 0xFAFA) whose OBUs
  * all have one; else null. */
-function unsizeLastObu(d: Uint8Array): Uint8Array | null {
-  if (d.length < 4 || d[d.length - 1] !== 0xfa || d[d.length - 2] !== 0xfa) return null
-  for (let i = 0; i < d.length;) {
-    const header = d[i]
+function unsizeLastObu(data: Uint8Array): Uint8Array | null {
+  if (data.length < 4 || data[data.length - 1] !== 0xfa || data[data.length - 2] !== 0xfa) return null
+  for (let i = 0; i < data.length;) {
+    const header = data[i]
     const sizeAt = i + 1 + ((header >> 2) & 1) // after the extension byte, if any
     if (!((header >> 1) & 1)) return null
     let size = 0
-    let n = 0
-    let b
+    let sizeLength = 0
+    let byte
     do {
-      b = d[sizeAt + n]
-      size += (b & 0x7f) * 2 ** (7 * n)
-      n++
-    } while (b & 0x80 && n < 8)
-    const end = sizeAt + n + size
-    if (end === d.length) {
-      const out = new Uint8Array(d.length - n)
-      out.set(d.subarray(0, sizeAt))
+      byte = data[sizeAt + sizeLength]
+      size += (byte & 0x7f) * 2 ** (7 * sizeLength)
+      sizeLength++
+    } while (byte & 0x80 && sizeLength < 8)
+    const end = sizeAt + sizeLength + size
+    if (end === data.length) {
+      const out = new Uint8Array(data.length - sizeLength)
+      out.set(data.subarray(0, sizeAt))
       out[i] = header & ~2
-      out.set(d.subarray(sizeAt + n), sizeAt)
+      out.set(data.subarray(sizeAt + sizeLength), sizeAt)
       return out
     }
-    if (end > d.length) return null
+    if (end > data.length) return null
     i = end
   }
   return null
@@ -61,51 +61,51 @@ function stages() {
   // the receiver's own frames, by RTP timestamp, while Discord's worker has their copies
   const own = new Map<number, any>()
   const before = new TransformStream({
-    transform(f: any, c) {
+    transform(frame: any, controller) {
       try {
-        if (isAv1(f)) {
-          const d = unsizeLastObu(new Uint8Array(f.data))
-          if (d) {
-            f.data = d.buffer
+        if (isAv1(frame)) {
+          const unsized = unsizeLastObu(new Uint8Array(frame.data))
+          if (unsized) {
+            frame.data = unsized.buffer
             av1ReceiveStats.unsized++
           }
         }
-        own.set(f.getMetadata().rtpTimestamp, f)
+        own.set(frame.getMetadata().rtpTimestamp, frame)
         // (frames the worker drops)
         if (own.size > 64) own.delete(own.keys().next().value!)
       } catch (e) {
         failed(e)
       }
-      c.enqueue(f)
+      controller.enqueue(frame)
     },
   })
   const after = new TransformStream({
-    transform(f: any, c) {
+    transform(frame: any, controller) {
       try {
-        const rtp = f.getMetadata().rtpTimestamp
-        const o = own.get(rtp)
-        if (o && o !== f) {
+        const rtp = frame.getMetadata().rtpTimestamp
+        const original = own.get(rtp)
+        if (original && original !== frame) {
           own.delete(rtp)
-          o.data = f.data
+          original.data = frame.data
           av1ReceiveStats.own++
-          f = o
+          frame = original
         }
       } catch (e) {
         failed(e)
       }
-      c.enqueue(f)
+      controller.enqueue(frame)
     },
   })
   return { before, after }
 }
 
 // (only where Chromium has both: else Discord keeps its own path, untouched)
-const proto = RTCRtpReceiver.prototype as any
-const origCreate = proto.createEncodedStreams
-if (typeof origCreate === 'function' && 'transform' in proto) {
-  delete proto.transform
-  proto.createEncodedStreams = function (this: RTCRtpReceiver) {
-    const streams = origCreate.call(this)
+const receiverPrototype = RTCRtpReceiver.prototype as any
+const originalCreate = receiverPrototype.createEncodedStreams
+if (typeof originalCreate === 'function' && 'transform' in receiverPrototype) {
+  delete receiverPrototype.transform
+  receiverPrototype.createEncodedStreams = function (this: RTCRtpReceiver) {
+    const streams = originalCreate.call(this)
     try {
       if (this.track?.kind !== 'video' || !streams?.readable || !streams.writable) return streams
       const { before, after } = stages()

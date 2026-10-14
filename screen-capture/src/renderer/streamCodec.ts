@@ -6,7 +6,7 @@ import { captureAv1 } from './cast'
 import { host } from './host'
 import { settings } from './settings'
 
-export const codecPatch = {
+export const CODEC_PATCH = {
   // WebRTC (browser) connection module: parses the local SDP into the codec list sent in select_protocol (once, when
   // the connection connects)
   find: 'Unable to find a unique rtx SSRC!',
@@ -26,8 +26,8 @@ export const codecPatch = {
 
 /** The connection whose local SDP is being parsed (Discord's UnifiedConnection: context, streamUserId), this task */
 let connection: { context?: string; streamUserId?: string | null } | null = null
-export function codecConnection(c: typeof connection) {
-  connection = c
+export function codecConnection(parsing: typeof connection) {
+  connection = parsing
   queueMicrotask(() => {
     connection = null
   })
@@ -56,19 +56,21 @@ export function orderCodecs(list: string[]): string[] {
 let encodable: Set<string> | undefined
 /** Whether this client encodes video in `codec` (AV1, VP9, ...). */
 function canEncode(codec: string) {
-  encodable ??= new Set(RTCRtpSender.getCapabilities?.('video')?.codecs.map((c) => c.mimeType.toLowerCase()))
+  encodable ??= new Set(
+    RTCRtpSender.getCapabilities?.('video')?.codecs.map((capability) => capability.mimeType.toLowerCase()),
+  )
   return encodable.has(`video/${codec.toLowerCase()}`)
 }
 
 function order(list: string[]): string[] {
   if (settings.codec !== 'AV1') {
     if (!canEncode(settings.codec) || !list.includes(settings.codec)) return list
-    return [settings.codec, ...list.filter((c) => c !== settings.codec)]
+    return [settings.codec, ...list.filter((codec) => codec !== settings.codec)]
   }
   if (!canEncode('AV1')) return list
-  const self = host.discord?.currentUser()?.id
-  const goLive = connection?.context === 'stream' && Boolean(self) && connection.streamUserId === self
-  const next = ['VP9', 'H264'].filter((c) => list.includes(c) && canEncode(c))
-  const rest = list.filter((c) => !next.includes(c))
+  const selfId = host.discord?.currentUser()?.id
+  const goLive = connection?.context === 'stream' && Boolean(selfId) && connection.streamUserId === selfId
+  const next = ['VP9', 'H264'].filter((codec) => list.includes(codec) && canEncode(codec))
+  const rest = list.filter((codec) => !next.includes(codec))
   return goLive && !captureAv1() ? [...next, ...rest, 'AV1'] : ['AV1', ...next, ...rest]
 }

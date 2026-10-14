@@ -24,9 +24,9 @@ article {
   /* a DM call: stock's handset in the gutter, green (grey and mirrored when missed) */
   &.call::before, &.call:hover::before {
     content: ""; grid-area: 1 / 1; justify-self: center; width: 16px; height: 16px; margin-top: 3px; padding: 0;
-    background: var(--positive); mask: var(--i-call-joined) center / contain no-repeat;
+    background: var(--positive); mask: var(--icon-call-joined) center / contain no-repeat;
   }
-  &.call.missed::before { background: var(--text-muted); mask-image: var(--i-call-missed); }
+  &.call.missed::before { background: var(--text-muted); mask-image: var(--icon-call-missed); }
   /* the gutter's time or icon beside the message, below a divider (the hover rules above outrank :has alone) */
   &:has(> .divider)::before, &:has(> .divider):hover::before { grid-row: 2; }
   /* a collapsed run of blocked or ignored messages: one line on its first row, stock's "N blocked messages" */

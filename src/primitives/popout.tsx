@@ -8,7 +8,7 @@ export function Popout(
   p: Omit<JSX.HTMLAttributes<HTMLElement>, 'id' | 'popover'> & {
     name: string
     as?: 'menu' | 'div' | 'form'
-    onOpen?(el: HTMLElement): void
+    onOpen?(element: HTMLElement): void
     onClose?(): void
     onSubmit?: JSX.EventHandler<HTMLFormElement, SubmitEvent>
   },
@@ -21,7 +21,7 @@ export function Popout(
       component={(p.as ?? 'menu') as 'form'}
       {...rest}
       // a ref on a component arrives as its setter
-      ref={(el: HTMLFormElement) => (p.ref as ((el: HTMLElement) => void) | undefined)?.(el)}
+      ref={(element: HTMLFormElement) => (p.ref as ((element: HTMLElement) => void) | undefined)?.(element)}
       id={`mc-${p.name}`}
       popover
       onBeforeToggle={(e: ToggleEvent) => {

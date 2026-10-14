@@ -32,8 +32,8 @@ export function useConnection() {
 
 // stock's badge, in the window title as on the web: mentions and friend requests as "(N)", a dot for any other unread
 export function badge() {
-  const n = $.GuildReadState.getTotalMentionCount() + $.Relationship.getPendingCount()
-  if (n) return `(${n}) `
+  const count = $.GuildReadState.getTotalMentionCount() + $.Relationship.getPendingCount()
+  if (count) return `(${count}) `
   return $.GuildReadState.hasAnyUnread() && !$.NotificationSettings.getDisableUnreadBadge() ? '• ' : ''
 }
 
@@ -42,21 +42,21 @@ export const loggedIn = () => $.Auth.isAuthenticated()
 // AuthenticationStore's login status: the code step, or one of the steps stock's own screen takes over
 const status = () => $.Auth.getLoginStatus()
 export const mfa = () => status() === 'MFA_STEP' || status() === 'LOGGING_IN_MFA'
-const DISCORDS = [
+const DISCORDS_STEPS = [
   'ACCOUNT_SCHEDULED_FOR_DELETION',
   'ACCOUNT_DISABLED',
   'PHONE_IP_AUTHORIZATION',
   'PASSWORD_RECOVERY_PHONE_VERIFICATION',
 ]
-export const discordsStep = () => DISCORDS.includes(status())
+export const discordsStep = () => DISCORDS_STEPS.includes(status())
 
 // the code kinds we take: an authenticator's, then backup codes
 export type CodeKind = 'totp' | 'backup'
 export const codeKinds = (): CodeKind[] =>
   mfa()
     ? $.Auth.getMFAMethods()
-        .map((m) => m.type)
-        .filter((t): t is CodeKind => t === 'totp' || t === 'backup')
+        .map((method) => method.type)
+        .filter((type): type is CodeKind => type === 'totp' || type === 'backup')
     : []
 
 export const login = (email: string, password: string) => A.auth.login({ login: email, password, source: null })
@@ -77,8 +77,8 @@ interface RequestError {
 }
 
 // a failed request's text: the fields' messages (a wrong password, a new login location), else the error's
-export function errorText(e: unknown): string {
-  const error = e as RequestError | null | undefined
+export function errorText(thrown: unknown): string {
+  const error = thrown as RequestError | null | undefined
   return (
     Object.values(error?.fields ?? {})
       .flat()

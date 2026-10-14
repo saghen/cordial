@@ -23,18 +23,18 @@ let box: HTMLTextAreaElement | undefined
 export const focus = () => box?.focus()
 
 export function Composer() {
-  const c = composer.useComposer(selected)
+  const state = composer.useComposer(selected)
   const id = () => selected()!
   let files!: HTMLInputElement
-  const complete = createAutocomplete(() => box!, c.channel)
+  const complete = createAutocomplete(() => box!, state.channel)
 
   // a switch saves the text left behind; the box then shows the new channel's draft, or the message being edited, and
   // takes the focus
   createEffect(
-    () => ({ channelId: selected(), editing: c.editing() }),
+    () => ({ channelId: selected(), editing: state.editing() }),
     ({ channelId }, prev) => {
-      if (prev?.channelId && prev.channelId !== channelId) c.leave(prev.channelId)
-      box!.value = channelId ? c.textOf(channelId) : ''
+      if (prev?.channelId && prev.channelId !== channelId) state.leave(prev.channelId)
+      box!.value = channelId ? state.textOf(channelId) : ''
       if (channelId) box!.focus()
     },
   )
@@ -43,70 +43,70 @@ export function Composer() {
     if (complete.key(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (c.send(id(), box!.value)) box!.value = ''
-    } else if (e.key === 'ArrowUp' && !box!.value && !c.editing() && c.editLast(id())) e.preventDefault()
+      if (state.send(id(), box!.value)) box!.value = ''
+    } else if (e.key === 'ArrowUp' && !box!.value && !state.editing() && state.editLast(id())) e.preventDefault()
   }
   // pasted files (a screenshot, a copied image) join the uploads, as + does
   const paste = (e: ClipboardEvent) => {
     const pasted = [...(e.clipboardData?.files ?? [])]
-    if (!pasted.length || !c.open()) return
+    if (!pasted.length || !state.open()) return
     e.preventDefault()
-    c.upload(pasted)
+    state.upload(pasted)
   }
   // files dropped anywhere on the window join them too (left to the browser, a drop would navigate to the file)
-  useFileDrop((dropped) => c.open() && c.upload(dropped))
-  const picking = () => (c.open() ? c.channel() : undefined)
+  useFileDrop((dropped) => state.open() && state.upload(dropped))
+  const picking = () => (state.open() ? state.channel() : undefined)
 
   return (
     <section class="composer" hidden={!selected()}>
-      <Show when={c.reply()}>
-        {(r) => (
+      <Show when={state.reply()}>
+        {(reply) => (
           <div class="reply">
             <span>
               {textAround('REPLYING_TO', {}, ['userHook']).map((part) =>
-                part === 0 ? <b>{composer.replyName(r().message as Message, r().channel.guild_id)}</b> : part,
+                part === 0 ? <b>{composer.replyName(reply().message as Message, reply().channel.guild_id)}</b> : part,
               )}
             </span>
-            <Show when={r().showMentionToggle}>
+            <Show when={reply().showMentionToggle}>
               <Button
                 variant="link"
-                class={['reply-mention', { on: r().shouldMention }]}
-                aria-pressed={r().shouldMention ? 'true' : 'false'}
-                onClick={() => c.mention(id(), !r().shouldMention)}
+                class={['reply-mention', { on: reply().shouldMention }]}
+                aria-pressed={reply().shouldMention ? 'true' : 'false'}
+                onClick={() => state.mention(id(), !reply().shouldMention)}
               >
-                @ {text(r().shouldMention ? 'REPLY_MENTION_ON' : 'REPLY_MENTION_OFF')}
+                @ {text(reply().shouldMention ? 'REPLY_MENTION_ON' : 'REPLY_MENTION_OFF')}
               </Button>
             </Show>
             <IconButton
               class="reply-cancel"
               icon="close"
               title={text('CANCEL_REPLY')}
-              onClick={() => c.removeReply(id())}
+              onClick={() => state.removeReply(id())}
             />
           </div>
         )}
       </Show>
-      <div class={['box', { editing: Boolean(c.editing()) }]}>
-        <Show when={c.uploads().length}>
+      <div class={['box', { editing: Boolean(state.editing()) }]}>
+        <Show when={state.uploads().length}>
           <ul class="uploads">
-            <For each={c.uploads()}>
-              {(u) => {
+            <For each={state.uploads()}>
+              {(upload) => {
                 // an image shows itself, as stock's card, from the picked file
-                const file: File | undefined = u.item?.file
+                const file: File | undefined = upload.item?.file
                 const preview = file?.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
                 onCleanup(() => preview && URL.revokeObjectURL(preview))
                 return (
                   <li
                     class="upload"
-                    data-id={u.filename}
+                    data-id={upload.filename}
                     style={preview ? { '--preview': `url(${preview})` } : undefined}
                   >
-                    <span>{u.filename}</span>
+                    <span>{upload.filename}</span>
                     <IconButton
                       class="upload-remove"
                       icon="trash"
                       title={text('REMOVE')}
-                      onClick={() => c.removeUpload(id(), u)}
+                      onClick={() => state.removeUpload(id(), upload)}
                     />
                   </li>
                 )
@@ -120,7 +120,7 @@ export function Composer() {
           multiple
           hidden
           onChange={() => {
-            c.upload([...files.files!])
+            state.upload([...files.files!])
             files.value = ''
           }}
         />
@@ -128,24 +128,24 @@ export function Composer() {
           class="attach"
           icon="plus"
           title={text('CHAT_ATTACH_UPLOAD_A_FILE')}
-          hidden={!c.open()}
+          hidden={!state.open()}
           onClick={() => files.click()}
         />
         <textarea
           ref={box}
           id="mc-composer"
           rows={1}
-          disabled={!c.open()}
-          placeholder={c.placeholder()}
+          disabled={!state.open()}
+          placeholder={state.placeholder()}
           onInput={() => {
             complete.update()
-            c.input(id(), box!.value)
+            state.input(id(), box!.value)
           }}
           onKeyDown={key}
           onPaste={paste}
         />
-        <StickerPicker channel={picking} send={(sticker) => c.sendSticker(id(), sticker)} />
-        <GifPicker channel={picking} send={(url) => c.sendLink(id(), url)} />
+        <StickerPicker channel={picking} send={(sticker) => state.sendSticker(id(), sticker)} />
+        <GifPicker channel={picking} send={(url) => state.sendLink(id(), url)} />
         <EmojiPicker box={() => box!} channel={picking} />
       </div>
       {complete.view}
@@ -164,7 +164,7 @@ interface Item {
   hint?: string
   color?: string
   head?: JSX.Element
-  div?: boolean
+  divider?: boolean
 }
 
 const TOKEN = /(?:^|\s)([@#:])([^\s@#:]*)$/
@@ -174,28 +174,30 @@ type Token = { kind: string; query: string; at: number }
 const heading = (
   alone: Parameters<typeof text>[0],
   matching: Parameters<typeof textAround>[0],
-  t: Token,
+  token: Token,
 ): JSX.Element =>
-  t.query
-    ? textAround(matching, {}, ['prefix']).map((part) => (part === 0 ? <b>{t.kind + t.query}</b> : part))
+  token.query
+    ? textAround(matching, {}, ['prefix']).map((part) => (part === 0 ? <b>{token.kind + token.query}</b> : part))
     : text(alone)
 // sections in order, each after a divider (stock's @ list: members, @everyone and @here, roles)
 const sections = (...lists: Item[][]) =>
-  lists.filter((l) => l.length).flatMap((l, i) => (i ? [{ ...l[0], div: true }, ...l.slice(1)] : l))
+  lists
+    .filter((list) => list.length)
+    .flatMap((list, i) => (i ? [{ ...list[0], divider: true }, ...list.slice(1)] : list))
 
-function items(t: Token, c: Channel): Item[] {
-  if (t.kind === '@') {
-    const r = composer.mentions(t.query, c)
+function items(token: Token, channel: Channel): Item[] {
+  if (token.kind === '@') {
+    const results = composer.mentions(token.query, channel)
     return sections(
-      r.users.map((u, i) => ({
-        text: `@${u.user.username}`,
-        label: users.nameOf(u.user, u.nick),
-        icon: <Avatar user={u.user} guildId={c.guild_id} size={24} status={users.status(u.user.id)} />,
-        hint: u.user.username,
-        head: i ? undefined : heading('MEMBERS', 'MEMBERS_MATCHING', t),
+      results.users.map((member, i) => ({
+        text: `@${member.user.username}`,
+        label: users.nameOf(member.user, member.nick),
+        icon: <Avatar user={member.user} guildId={channel.guild_id} size={24} status={users.status(member.user.id)} />,
+        hint: member.user.username,
+        head: i ? undefined : heading('MEMBERS', 'MEMBERS_MATCHING', token),
       })),
-      r.globals.map((g) => ({ text: g.text, label: g.text, hint: g.description })),
-      r.roles.map((role) => ({
+      results.globals.map((mention) => ({ text: mention.text, label: mention.text, hint: mention.description })),
+      results.roles.map((role) => ({
         text: `@${role.name}`,
         label: `@${role.name}`,
         hint: text('MENTION_USERS_WITH_ROLE'),
@@ -203,26 +205,26 @@ function items(t: Token, c: Channel): Item[] {
       })),
     ).slice(0, MENTION_LIMIT)
   }
-  if (t.kind === '#')
-    return composer.channelResults(t.query, c).map((ch, i) => ({
-      text: `#${ch.name}`,
-      label: ch.name,
-      icon: <ChannelIcon channel={ch} />,
-      hint: ch.parent_id ? composer.categoryName(ch) : undefined,
-      head: i ? undefined : heading('TEXT_CHANNELS', 'TEXT_CHANNELS_MATCHING', t),
+  if (token.kind === '#')
+    return composer.channelResults(token.query, channel).map((result, i) => ({
+      text: `#${result.name}`,
+      label: result.name,
+      icon: <ChannelIcon channel={result} />,
+      hint: result.parent_id ? composer.categoryName(result) : undefined,
+      head: i ? undefined : heading('TEXT_CHANNELS', 'TEXT_CHANNELS_MATCHING', token),
     }))
-  return composer.emojiResults(t.query, c).map((e, i) => ({
-    text: `:${e.emoji.name}:`,
-    label: `:${e.emoji.name}:`,
-    icon: <Emoji emoji={e.emoji} />,
-    hint: e.guild,
-    head: i ? undefined : heading('EMOJI', 'EMOJI_MATCHING', t),
+  return composer.emojiResults(token.query, channel).map((result, i) => ({
+    text: `:${result.emoji.name}:`,
+    label: `:${result.emoji.name}:`,
+    icon: <Emoji emoji={result.emoji} />,
+    hint: result.guild,
+    head: i ? undefined : heading('EMOJI', 'EMOJI_MATCHING', token),
   }))
 }
 
 function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Channel | undefined) {
   const [token, setToken] = createSignal<Token | null>(null)
-  const [sel, setSel] = createSignal(0)
+  const [active, setActive] = createSignal(0)
   let menu!: HTMLMenuElement
   const list = createMemo(() => {
     const typed = token()
@@ -232,10 +234,10 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
 
   // after each input: the token the caret ends
   const update = () => {
-    const b = box()
-    const m = TOKEN.exec(b.value.slice(0, b.selectionStart))
-    setToken(m ? { kind: m[1], query: m[2], at: b.selectionStart - m[2].length - 1 } : null)
-    setSel(0)
+    const textarea = box()
+    const match = TOKEN.exec(textarea.value.slice(0, textarea.selectionStart))
+    setToken(match ? { kind: match[1], query: match[2], at: textarea.selectionStart - match[2].length - 1 } : null)
+    setActive(0)
   }
   // open while there's something to pick (writes apply in a microtask: read them in an effect)
   createEffect(
@@ -247,18 +249,19 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
   )
 
   const pick = (item: Item) => {
-    const b = box()
-    b.setRangeText(`${item.text} `, token()!.at, b.selectionStart, 'end')
-    b.dispatchEvent(new Event('input', { bubbles: true }))
-    b.focus()
+    const textarea = box()
+    textarea.setRangeText(`${item.text} `, token()!.at, textarea.selectionStart, 'end')
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    textarea.focus()
   }
 
   // true when the key was the list's
   const key = (e: KeyboardEvent) => {
-    const n = list().length
-    if (!n || !menu.matches(':popover-open')) return false
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') setSel((sel() + (e.key === 'ArrowDown' ? 1 : n - 1)) % n)
-    else if (e.key === 'Tab' || e.key === 'Enter') pick(list()[sel()])
+    const count = list().length
+    if (!count || !menu.matches(':popover-open')) return false
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp')
+      setActive((active() + (e.key === 'ArrowDown' ? 1 : count - 1)) % count)
+    else if (e.key === 'Tab' || e.key === 'Enter') pick(list()[active()])
     else if (e.key === 'Escape') menu.hidePopover()
     else return false
     e.preventDefault()
@@ -270,10 +273,10 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
       <For each={list()}>
         {(item, i) => (
           <>
-            {item.head ? <h3>{item.head}</h3> : item.div && <hr />}
+            {item.head ? <h3>{item.head}</h3> : item.divider && <hr />}
             <Row
               name="suggestion"
-              class={{ sel: i() === sel() }}
+              class={{ selected: i() === active() }}
               data-id={item.text}
               icon={item.icon}
               end={item.hint}

@@ -59,10 +59,12 @@ const KILL_MS = 2000
  */
 
 let found
-function captureBin() {
+function captureBinary() {
   if (found !== undefined) return found
-  const onPath = (process.env.PATH ?? '').split(path.delimiter).map((dir) => dir && path.join(dir, 'cordial-capture'))
-  found = [process.env.CORDIAL_CAPTURE, ...onPath].find((f) => f && fs.existsSync(f)) ?? null
+  const onPath = (process.env.PATH ?? '')
+    .split(path.delimiter)
+    .map((directory) => directory && path.join(directory, 'cordial-capture'))
+  found = [process.env.CORDIAL_CAPTURE, ...onPath].find((file) => file && fs.existsSync(file)) ?? null
   return found
 }
 
@@ -95,9 +97,9 @@ function niri(request) {
       if (end < 0) return
       socket.destroy()
       try {
-        const r = JSON.parse(reply.slice(0, end))
-        if ('Ok' in r) resolve(r.Ok)
-        else reject(new Error(`niri: ${JSON.stringify(r.Err ?? r)}`))
+        const result = JSON.parse(reply.slice(0, end))
+        if ('Ok' in result) resolve(result.Ok)
+        else reject(new Error(`niri: ${JSON.stringify(result.Err ?? result)}`))
       } catch (e) {
         reject(e)
       }
@@ -122,7 +124,7 @@ function via() {
 
 /** Whether Go Live captures through capture: a source kind, capture installed, not off in config.json. */
 const castAvailable = () =>
-  process.platform === 'linux' && Boolean(via()) && config().capture !== false && Boolean(captureBin())
+  process.platform === 'linux' && Boolean(via()) && config().capture !== false && Boolean(captureBinary())
 
 let codecs
 /**
@@ -133,7 +135,7 @@ let codecs
 function castCodecs() {
   if (!castAvailable()) return Promise.resolve([])
   codecs ??= new Promise((resolve) =>
-    execFile(captureBin(), ['--probe'], { timeout: PROBE_TIMEOUT_MS }, (_, out) => {
+    execFile(captureBinary(), ['--probe'], { timeout: PROBE_TIMEOUT_MS }, (_, out) => {
       try {
         resolve(JSON.parse(out).codecs ?? [])
       } catch {
@@ -152,8 +154,8 @@ const portalFile = () => path.join(app.getPath('userData'), 'capture-portal.json
 /** @returns {PortalLast | null} */
 function portalLast() {
   try {
-    const p = JSON.parse(fs.readFileSync(portalFile(), 'utf8'))
-    return typeof p.token === 'string' && p.token ? p : null
+    const saved = JSON.parse(fs.readFileSync(portalFile(), 'utf8'))
+    return typeof saved.token === 'string' && saved.token ? saved : null
   } catch {
     return null
   }
@@ -179,34 +181,38 @@ async function castSources() {
   if (clip) return [{ id: 'clip:0', kind: 'output', name: 'clip', detail: clip[1], width: +clip[2], height: +clip[3] }]
   if (via() === 'portal') return portalSources()
   const [windows, outputs] = await Promise.all([
-    niri('Windows').then((r) => /** @type {NiriWindow[]} */ (r.Windows)),
-    niri('Outputs').then((r) => /** @type {Record<string, NiriOutput>} */ (r.Outputs)),
+    niri('Windows').then((reply) => /** @type {NiriWindow[]} */ (reply.Windows)),
+    niri('Outputs').then((reply) => /** @type {Record<string, NiriOutput>} */ (reply.Outputs)),
   ])
   return [
     ...Object.values(outputs)
-      .filter((o) => o.current_mode != null)
-      .map((o) => {
-        const mode = o.modes[o.current_mode]
+      .filter((output) => output.current_mode != null)
+      .map((output) => {
+        const mode = output.modes[output.current_mode]
         return {
-          id: `output:${o.name}`,
+          id: `output:${output.name}`,
           kind: 'output',
-          name: o.name,
-          detail: `${o.make} ${o.model}`.trim(),
+          name: output.name,
+          detail: `${output.make} ${output.model}`.trim(),
           width: mode.width,
           height: mode.height,
         }
       }),
     ...windows
       // (not cordial's own: niri's pid for a window is its Wayland client's, Electron's main process)
-      .filter((w) => w.pid !== process.pid)
-      .sort((a, b) => Number(b.is_focused) - Number(a.is_focused) || (a.workspace_id ?? 0) - (b.workspace_id ?? 0))
-      .map((w) => ({
-        id: `window:${w.id}`,
+      .filter((window) => window.pid !== process.pid)
+      .sort(
+        (first, second) =>
+          Number(second.is_focused) - Number(first.is_focused) ||
+          (first.workspace_id ?? 0) - (second.workspace_id ?? 0),
+      )
+      .map((window) => ({
+        id: `window:${window.id}`,
         kind: 'window',
-        name: w.title || w.app_id || `Window ${w.id}`,
-        detail: w.app_id ?? '',
-        width: w.layout?.window_size?.[0] ?? 0,
-        height: w.layout?.window_size?.[1] ?? 0,
+        name: window.title || window.app_id || `Window ${window.id}`,
+        detail: window.app_id ?? '',
+        width: window.layout?.window_size?.[0] ?? 0,
+        height: window.layout?.window_size?.[1] ?? 0,
       })),
   ]
 }
@@ -215,16 +221,16 @@ async function castSources() {
  * Where capture takes a window's sound from (audio.rs): its process and those below it; an X11 window (each has
  * xwayland-satellite's pid) by its Steam app (a Proton game's app id is steam_app_N), else by its app id as the
  * process's name.
- * @param {NiriWindow | undefined} w
+ * @param {NiriWindow | undefined} window
  * @returns {Promise<string>}
  */
-async function audioTarget(w) {
-  if (!w?.pid) return 'off'
-  const exe = await fs.promises.readlink(`/proc/${w.pid}/exe`).catch(() => '')
-  if (!path.basename(exe).startsWith('xwayland')) return `pid=${w.pid}`
-  const steam = /^steam_app_(\d+)$/.exec(w.app_id ?? '')
+async function audioTarget(window) {
+  if (!window?.pid) return 'off'
+  const executable = await fs.promises.readlink(`/proc/${window.pid}/exe`).catch(() => '')
+  if (!path.basename(executable).startsWith('xwayland')) return `pid=${window.pid}`
+  const steam = /^steam_app_(\d+)$/.exec(window.app_id ?? '')
   if (steam) return `steam=${steam[1]}`
-  if (w.app_id) return `name=${w.app_id.toLowerCase()}`
+  if (window.app_id) return `name=${window.app_id.toLowerCase()}`
   return 'off'
 }
 
@@ -262,9 +268,11 @@ function followOutput(output, set) {
         niri('Workspaces'),
         niri('Windows'),
       ])
-      const ws = /** @type {NiriWorkspace[]} */ (workspaces).find((w) => w.output === output && w.is_active)
-      const win = /** @type {NiriWindow[]} */ (windows).find((w) => w.id === ws?.active_window_id)
-      const target = win?.pid === process.pid ? last : await audioTarget(win)
+      const workspace = /** @type {NiriWorkspace[]} */ (workspaces).find(
+        (entry) => entry.output === output && entry.is_active,
+      )
+      const window = /** @type {NiriWindow[]} */ (windows).find((entry) => entry.id === workspace?.active_window_id)
+      const target = window?.pid === process.pid ? last : await audioTarget(window)
       if (!stopped && target != null && target !== last) {
         last = target
         set(target)
@@ -281,14 +289,14 @@ function followOutput(output, set) {
   }
   // the stream starts with the current state (WorkspacesChanged, WindowsChanged, ...)
   const socket = createConnection(process.env.NIRI_SOCKET ?? '')
-  let buf = ''
+  let partial = ''
   socket.on('connect', () => socket.write('"EventStream"\n'))
   socket.on('data', (chunk) => {
-    const lines = (buf + chunk).split('\n')
-    buf = lines.pop() ?? ''
-    const relevant = lines.some((l) => {
+    const lines = (partial + chunk).split('\n')
+    partial = lines.pop() ?? ''
+    const relevant = lines.some((line) => {
       try {
-        return WINDOW_EVENTS.has(Object.keys(JSON.parse(l))[0])
+        return WINDOW_EVENTS.has(Object.keys(JSON.parse(line))[0])
       } catch {
         return false
       }
@@ -312,10 +320,10 @@ let current = null
 
 /** @param {Electron.IpcMainInvokeEvent} e @param {CastStart} opts */
 function startCast(e, opts) {
-  const bin = captureBin()
+  const binary = captureBinary()
   const [kind, id] = opts.source.split(/:(.*)/s)
-  const ok = { clip: 'clip', window: 'niri', output: 'niri', portal: 'portal' }[kind]
-  if (!bin || !castAvailable() || ok !== via() || !id) return false
+  const sourceVia = { clip: 'clip', window: 'niri', output: 'niri', portal: 'portal' }[kind]
+  if (!binary || !castAvailable() || sourceVia !== via() || !id) return false
   current?.close()
   const last = kind === 'portal' && id === 'last' ? portalLast() : null
   const args = [
@@ -339,41 +347,43 @@ function startCast(e, opts) {
   const fdsock = loadFdsock()
   const raw = fdsock ? rawRelay(e.sender) : null
   let stopAudio = () => {}
-  const cap = startCapture(
-    bin,
+  const capture = startCapture(
+    binary,
     args,
-    (m) => {
-      if (m.type === 'raw') return raw?.message(m.raw, m.fds)
+    (message) => {
+      if (message.type === 'raw') return raw?.message(message.raw, message.fds)
       // the portal's token for next time, kept with the source's size once the format is known
-      if (m.type === 'info' && m.info.type === 'cast') {
-        sessionId = m.info.sessionId
-        token = m.info.restoreToken ?? null
+      if (message.type === 'info' && message.info.type === 'cast') {
+        sessionId = message.info.sessionId
+        token = message.info.restoreToken ?? null
       }
-      if (m.type === 'info' && m.info.type === 'input' && token) {
-        const keep = { token, width: m.info.width, height: m.info.height }
+      if (message.type === 'info' && message.info.type === 'input' && token) {
+        const keep = { token, width: message.info.width, height: message.info.height }
         fs.promises.writeFile(portalFile(), JSON.stringify(keep)).catch((e) => console.error('[cast] portal token:', e))
         token = null
       }
-      if (m.type === 'closed') {
+      if (message.type === 'closed') {
         // (open: not stopped by us, it died)
-        if (open) console.warn(`[cast] capture ${cap.pid} ${m.why}`)
+        if (open) console.warn(`[cast] capture ${capture.pid} ${message.why}`)
         if (sessionId != null) stopCast(sessionId)
         raw?.close()
       }
       // (a MessagePortMain only transfers ports: frames, ~20 kB, and previews are copied)
-      if (open) port1.postMessage(m)
-      if (m.type === 'closed') cast.close()
+      if (open) port1.postMessage(message)
+      if (message.type === 'closed') cast.close()
     },
     // the test portal's bus for capture alone (cordial stays on the desktop's)
     portalBus && kind === 'portal' ? { ...process.env, DBUS_SESSION_BUS_ADDRESS: portalBus } : undefined,
     fdsock,
   )
   if (opts.audio) {
-    const send = (target) => cap.send({ type: 'audio', target })
+    const send = (target) => capture.send({ type: 'audio', target })
     if (testAudio) send(testAudio)
     else if (kind === 'window')
       niri('Windows')
-        .then((r) => audioTarget(/** @type {NiriWindow[]} */ (r.Windows).find((w) => String(w.id) === id)))
+        .then((reply) =>
+          audioTarget(/** @type {NiriWindow[]} */ (reply.Windows).find((window) => String(window.id) === id)),
+        )
         .then(send, (e) => console.error('[cast] sound target:', e))
     else if (kind === 'output') stopAudio = followOutput(id, send)
   }
@@ -382,8 +392,8 @@ function startCast(e, opts) {
       if (!open) return
       open = false
       stopAudio()
-      cap.send({ type: 'stop' })
-      setTimeout(() => cap.kill(), KILL_MS).unref()
+      capture.send({ type: 'stop' })
+      setTimeout(() => capture.kill(), KILL_MS).unref()
       port1.close()
       if (current === cast) current = null
     },
@@ -391,7 +401,7 @@ function startCast(e, opts) {
   current = cast
   port1.on('message', ({ data }) => {
     if (data?.type === 'stop') cast.close()
-    else cap.send(data)
+    else capture.send(data)
   })
   port1.on('close', () => cast.close())
   port1.start()

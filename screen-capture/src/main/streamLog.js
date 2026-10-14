@@ -15,29 +15,32 @@ const KEEP = 10
 const MAX_BYTES = 10 << 20
 const MINUTE_MS = 60e3
 
-const dir = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local/state'), 'cordial/streams')
+const directory = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local/state'), 'cordial/streams')
 
 /** @type {{ path: string, fd: number, bytes: number, ticks: number } | null} */
 let file = null
 
 function write(text) {
-  const b = Buffer.from(text + '\n')
-  fs.writeSync(file.fd, b)
-  file.bytes += b.length
+  const bytes = Buffer.from(text + '\n')
+  fs.writeSync(file.fd, bytes)
+  file.bytes += bytes.length
 }
 
-function open(first) {
+function open(firstLine) {
   close()
-  fs.mkdirSync(dir, { recursive: true })
+  fs.mkdirSync(directory, { recursive: true })
   // (any .log left is a stream that never closed)
-  for (const f of fs.readdirSync(dir)) if (f.endsWith('.log')) compress(path.join(dir, f))
+  for (const entry of fs.readdirSync(directory)) if (entry.endsWith('.log')) compress(path.join(directory, entry))
   // (local time, e.g. 2026-10-14T02-12-03)
-  const d = new Date()
-  const name = new Date(d.getTime() - d.getTimezoneOffset() * MINUTE_MS).toISOString().slice(0, 19).replaceAll(':', '-')
-  const p = path.join(dir, `${name}.log`)
-  file = { path: p, fd: fs.openSync(p, 'a'), bytes: 0, ticks: 0 }
-  const v = process.versions
-  write(`${first} kernel=${os.release()} electron=${v.electron} chromium=${v.chrome}`)
+  const now = new Date()
+  const name = new Date(now.getTime() - now.getTimezoneOffset() * MINUTE_MS)
+    .toISOString()
+    .slice(0, 19)
+    .replaceAll(':', '-')
+  const filePath = path.join(directory, `${name}.log`)
+  file = { path: filePath, fd: fs.openSync(filePath, 'a'), bytes: 0, ticks: 0 }
+  const versions = process.versions
+  write(`${firstLine} kernel=${os.release()} electron=${versions.electron} chromium=${versions.chrome}`)
 }
 
 function line(text) {
@@ -55,27 +58,27 @@ function close() {
 }
 
 const compressing = new Set()
-function compress(p) {
-  if (compressing.has(p)) return
-  compressing.add(p)
-  execFile('zstd', ['-q', '-f', '--rm', '-19', p], () => {
-    compressing.delete(p)
+function compress(filePath) {
+  if (compressing.has(filePath)) return
+  compressing.add(filePath)
+  execFile('zstd', ['-q', '-f', '--rm', '-19', filePath], () => {
+    compressing.delete(filePath)
     if (!compressing.size) prune()
   })
 }
 
 /** the newest KEEP within MAX_BYTES (the newest always), never the open one */
 function prune() {
-  const stat = (f) => ({ f: path.join(dir, f), ...fs.statSync(path.join(dir, f)) })
+  const stat = (name) => ({ file: path.join(directory, name), ...fs.statSync(path.join(directory, name)) })
   const all = fs
-    .readdirSync(dir)
+    .readdirSync(directory)
     .map(stat)
-    .filter((s) => s.f !== file?.path)
-    .sort((a, b) => b.mtimeMs - a.mtimeMs)
+    .filter((entry) => entry.file !== file?.path)
+    .sort((first, second) => second.mtimeMs - first.mtimeMs)
   let total = 0
-  all.forEach((s, i) => {
-    total += s.size
-    if (i > 0 && (i >= KEEP || total > MAX_BYTES)) fs.rmSync(s.f, { force: true })
+  all.forEach((entry, i) => {
+    total += entry.size
+    if (i > 0 && (i >= KEEP || total > MAX_BYTES)) fs.rmSync(entry.file, { force: true })
   })
 }
 

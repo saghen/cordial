@@ -18,7 +18,7 @@ export function Sections<T, S extends Section<T>>(p: {
   all: S[]
   shown: Section<T>[]
   // a rail button's contents
-  rail: (s: S) => JSX.Element
+  rail: (section: S) => JSX.Element
   item: (item: T) => JSX.Element
   footer?: (item: T) => JSX.Element
   // items to a chunk
@@ -36,30 +36,30 @@ export function Sections<T, S extends Section<T>>(p: {
       {p.search}
       <nav class="rail">
         <For each={p.all}>
-          {(s) => (
+          {(section) => (
             <button
-              data-id={s.id}
-              title={s.name}
-              onClick={() => list.querySelector(`h3[data-id="${s.id}"]`)?.scrollIntoView()}
+              data-id={section.id}
+              title={section.name}
+              onClick={() => list.querySelector(`h3[data-id="${section.id}"]`)?.scrollIntoView()}
             >
-              {p.rail(s)}
+              {p.rail(section)}
             </button>
           )}
         </For>
       </nav>
       <div class="list" ref={list}>
         {/* by id: the sections are new each read, their items the same records */}
-        <For each={p.shown} keyed={(s) => s.id}>
-          {(s) => (
+        <For each={p.shown} keyed={(section) => section.id}>
+          {(section) => (
             <>
-              <Show when={s().name}>
-                <h3 data-id={s().id}>{s().name}</h3>
+              <Show when={section().name}>
+                <h3 data-id={section().id}>{section().name}</h3>
               </Show>
-              <LazyChunks items={s().items} size={p.chunk} root={() => list}>
+              <LazyChunks items={section().items} size={p.chunk} root={() => list}>
                 {(item) => {
-                  const el = p.item(item) as HTMLElement
-                  el.addEventListener('pointerenter', () => setHovered(() => item))
-                  return el
+                  const element = p.item(item) as HTMLElement
+                  element.addEventListener('pointerenter', () => setHovered(() => item))
+                  return element
                 }}
               </LazyChunks>
             </>

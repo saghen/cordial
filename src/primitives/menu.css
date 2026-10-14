@@ -4,7 +4,7 @@ menu {
   inset: auto; margin: 0 0 8px; position-area: top span-right; width: 224px; padding: 8px;
   &:popover-open { display: grid; gap: 2px; }
   > button { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; color: inherit; font: inherit; font-size: 14px; text-align: left; }
-  > button:hover, > button.sel { background: var(--bg-raised); color: var(--text-strong); }
+  > button:hover, > button.selected { background: var(--bg-raised); color: var(--text-strong); }
   /* a radio item: its ring at the end, filled while checked */
   > button[role=menuitemradio]::after {
     content: ""; flex: none; margin-left: auto; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%;

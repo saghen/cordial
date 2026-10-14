@@ -5,14 +5,14 @@
 
 import { G } from '../adapter/anchor'
 import { A, S } from '../adapter/needs'
-import type { Id, Rec } from '../adapter/discord'
+import type { Id, AnyRecord } from '../adapter/discord'
 import { Permission, type Channel } from './types'
 import { can } from './users'
 
 export const preload = (id?: Id | null) => {
   if (!id || !S.Channel.getChannel(id)) return
-  const ms = S.Message.getMessages(id)
-  if ((!ms.ready || ms.cached) && !ms.loadingMore)
+  const loaded = S.Message.getMessages(id)
+  if ((!loaded.ready || loaded.cached) && !loaded.loadingMore)
     A.messages.fetchMessages({ channelId: id, limit: 2 * A.pages.size() })
 }
 
@@ -20,27 +20,29 @@ const HOVER_MS = 100
 
 // pointer handlers for a row that opens a channel: preloaded when the pointer stays 100 ms
 export function onHover(channel: () => Id | null | undefined) {
-  let t = 0
+  let timer = 0
   return {
     onPointerEnter: () => {
-      t = setTimeout(() => preload(channel()), HOVER_MS)
+      timer = setTimeout(() => preload(channel()), HOVER_MS)
     },
-    onPointerLeave: () => clearTimeout(t),
+    onPointerLeave: () => clearTimeout(timer),
   }
 }
 
-const readable = (c: Rec) =>
-  typeof c.isPrivate === 'function' && !c.isGuildVocal() && can(Permission.READ_MESSAGE_HISTORY, c as Channel)
+const readable = (channel: AnyRecord) =>
+  typeof channel.isPrivate === 'function' &&
+  !channel.isGuildVocal() &&
+  can(Permission.READ_MESSAGE_HISTORY, channel as Channel)
 
 // once per load, after the first connection, one channel at a time
 export function preloadChannels() {
-  const n = G.config?.warm ?? 5
+  const count = G.config?.warm ?? 5
   const start = async () => {
     await A.frecencySettings.loadIfNecessary().catch(() => {})
-    const top = S.Frecency.getFrequentlyWithoutFetchingLatest().filter(readable).slice(0, n)
-    top.forEach((c, i) => setTimeout(() => preload(c.id), 1000 + i * 300))
+    const top = S.Frecency.getFrequentlyWithoutFetchingLatest().filter(readable).slice(0, count)
+    top.forEach((channel, i) => setTimeout(() => preload(channel.id), 1000 + i * 300))
   }
-  if (!n) return
+  if (!count) return
   if (S.Gateway.isConnected()) start()
   else {
     let done = false

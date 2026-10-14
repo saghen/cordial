@@ -31,31 +31,31 @@ function loadFdsock() {
 
 /**
  * @param {Electron.WebContents} contents
- * @returns {{ message(m: import('./capture.js').RawMessage, fds: number[]): void, close(): void }}
+ * @returns {{ message(message: import('./capture.js').RawMessage, fds: number[]): void, close(): void }}
  */
 function rawRelay(contents) {
   /** capture's buffer id → its import and key */
   const imports = new Map()
   let keys = 0
   return {
-    message(m, fds) {
-      if (m.type === 'frame') {
-        const b = imports.get(m.id)
-        return b && contents.send('cordial:cast-raw', b.key, m.seq, m.t)
+    message(message, fds) {
+      if (message.type === 'frame') {
+        const entry = imports.get(message.id)
+        return entry && contents.send('cordial:cast-raw', entry.key, message.seq, message.t)
       }
-      if (m.type !== 'buffer') return
+      if (message.type !== 'buffer') return
       let imported
       try {
         imported = sharedTexture.importSharedTexture({
           textureInfo: {
             pixelFormat: 'nv12',
-            codedSize: { width: m.width, height: m.height },
+            codedSize: { width: message.width, height: message.height },
             // capture's VPP: BT.709, limited range
             colorSpace: { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'limited' },
             handle: {
               nativePixmap: {
-                planes: m.planes.map((p) => ({ ...p, fd: fds[0] })),
-                modifier: m.modifier,
+                planes: message.planes.map((plane) => ({ ...plane, fd: fds[0] })),
+                modifier: message.modifier,
                 supportsZeroCopyWebGpuImport: false,
               },
             },
@@ -66,13 +66,13 @@ function rawRelay(contents) {
       } finally {
         for (const fd of fds) closeSync(fd) // Electron dup'd them
       }
-      const old = imports.get(m.id)
+      const old = imports.get(message.id)
       if (old) {
         if (!contents.isDestroyed()) contents.send('cordial:cast-raw-drop', old.key)
         setTimeout(() => old.imported.release(), RELEASE_MS)
       }
       const key = ++keys
-      imports.set(m.id, { imported, key })
+      imports.set(message.id, { imported, key })
       sharedTexture
         .sendSharedTexture({ frame: contents.mainFrame, importedSharedTexture: imported }, key)
         .catch((e) => console.error('[cast] raw send:', e))
@@ -82,7 +82,7 @@ function rawRelay(contents) {
       imports.clear()
       if (!contents.isDestroyed()) contents.send('cordial:cast-raw-end')
       // (released as a new size's are: once no frame from them is in the encoder or compositor)
-      setTimeout(() => old.forEach((b) => b.imported.release()), RELEASE_MS)
+      setTimeout(() => old.forEach((entry) => entry.imported.release()), RELEASE_MS)
     },
   }
 }

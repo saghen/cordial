@@ -22,7 +22,7 @@ export const get = (channelId: Id, id: Id) => S.Message.getMessage(channelId, id
 const GROUP_MS = 7 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 // user messages (content as markdown); any other type is a system message (stock's text for it)
-const USER = new Set([
+const USER_TYPES = new Set([
   MessageType.Default,
   MessageType.Reply,
   MessageType.ChatInputCommand,
@@ -33,11 +33,11 @@ const USER = new Set([
   MessageType.Changelog,
   MessageType.MediaMentionMessage,
 ])
-export const isUser = (m: Message) => USER.has(m.type)
+export const isUser = (message: Message) => USER_TYPES.has(message.type)
 // a blocked or ignored author's message (MessageStore keeps the flags current), which stock collapses in runs
-export function hiddenAs(m?: Message): 'blocked' | 'ignored' | undefined {
-  if (m?.blocked) return 'blocked'
-  if (m?.ignored) return 'ignored'
+export function hiddenAs(message?: Message): 'blocked' | 'ignored' | undefined {
+  if (message?.blocked) return 'blocked'
+  if (message?.ignored) return 'ignored'
   return undefined
 }
 const HAS_THREAD = 1 << 5
@@ -45,47 +45,53 @@ const EPHEMERAL = 1 << 6
 const SUPPRESS_NOTIFICATIONS = 1 << 12
 const IS_SCHEDULED = 1 << 20
 
-const flag = (m: Message, f: number) => (m.flags & f) !== 0
-const orNull = (s: unknown) => (s == null || s === '' ? null : s)
+const flag = (message: Message, bit: number) => (message.flags & bit) !== 0
+const orNull = (value: unknown) => (value == null || value === '' ? null : value)
 
-export function startsGroup(channel: Channel | undefined, prev: Message | undefined, m: Message) {
+export function startsGroup(channel: Channel | undefined, prev: Message | undefined, message: Message) {
   if (!prev) return true
-  if (flag(m, HAS_THREAD) || m.isCommandType?.() || prev.blocked !== m.blocked || prev.ignored !== m.ignored)
+  if (
+    flag(message, HAS_THREAD) ||
+    message.isCommandType?.() ||
+    prev.blocked !== message.blocked ||
+    prev.ignored !== message.ignored
+  )
     return true
-  if (m.applicationId !== prev.applicationId || orNull(m.additionalName) !== orNull(prev.additionalName)) return true
-  if (m.type !== MessageType.Default) return isUser(prev) || m.type === MessageType.Reply
-  const a = prev.timestamp
-  const b = m.timestamp
-  const apart = Math.abs(a.getTime() - b.getTime())
+  if (message.applicationId !== prev.applicationId || orNull(message.additionalName) !== orNull(prev.additionalName))
+    return true
+  if (message.type !== MessageType.Default) return isUser(prev) || message.type === MessageType.Reply
+  const prevTime = prev.timestamp
+  const time = message.timestamp
+  const apart = Math.abs(prevTime.getTime() - time.getTime())
   return (
     !isUser(prev) ||
-    prev.author.id !== m.author.id ||
-    flag(prev, EPHEMERAL) !== flag(m, EPHEMERAL) ||
-    flag(prev, IS_SCHEDULED) !== flag(m, IS_SCHEDULED) ||
-    (m.webhookId != null && prev.author.username !== m.author.username) ||
+    prev.author.id !== message.author.id ||
+    flag(prev, EPHEMERAL) !== flag(message, EPHEMERAL) ||
+    flag(prev, IS_SCHEDULED) !== flag(message, IS_SCHEDULED) ||
+    (message.webhookId != null && prev.author.username !== message.author.username) ||
     (channel?.isForumPost?.() && prev.id === channel.id) ||
     apart > DAY_MS ||
-    a.getDate() !== b.getDate() ||
+    prevTime.getDate() !== time.getDate() ||
     apart >= GROUP_MS ||
-    (flag(m, SUPPRESS_NOTIFICATIONS) && !flag(prev, SUPPRESS_NOTIFICATIONS)) ||
+    (flag(message, SUPPRESS_NOTIFICATIONS) && !flag(prev, SUPPRESS_NOTIFICATIONS)) ||
     (flag(prev, SUPPRESS_NOTIFICATIONS) &&
-      !flag(m, SUPPRESS_NOTIFICATIONS) &&
-      (m.mentions.length > 0 || m.mentionRoles.length > 0 || m.mentionEveryone))
+      !flag(message, SUPPRESS_NOTIFICATIONS) &&
+      (message.mentions.length > 0 || message.mentionRoles.length > 0 || message.mentionEveryone))
   )
 }
 
 // the date divider above a message, when it's the first loaded of its day
-export const dayOf = (prev: Message | undefined, m: Message) =>
-  prev && prev.timestamp.toDateString() !== m.timestamp.toDateString() ? day(m.timestamp) : undefined
+export const dayOf = (prev: Message | undefined, message: Message) =>
+  prev && prev.timestamp.toDateString() !== message.timestamp.toDateString() ? day(message.timestamp) : undefined
 
 // whose name the author line shows: a webhook's own, not a member's
-export const authorGuild = (m: Message, guildId: Id | null | undefined) => (m.webhookId ? null : guildId)
+export const authorGuild = (message: Message, guildId: Id | null | undefined) => (message.webhookId ? null : guildId)
 
 // message content as Discord's markdown AST (what its React output is built from), with message-content options
-export function contentAST(m: Pick<Message, 'id' | 'content'>, channelId: Id) {
-  return A.markdown.parseToAST(m.content, true, {
+export function contentAST(message: Pick<Message, 'id' | 'content'>, channelId: Id) {
+  return A.markdown.parseToAST(message.content, true, {
     channelId,
-    messageId: m.id,
+    messageId: message.id,
     allowLinks: true,
     allowHeading: true,
     allowList: true,
@@ -96,21 +102,25 @@ export function contentAST(m: Pick<Message, 'id' | 'content'>, channelId: Id) {
 export const embedAST = (text: string) =>
   A.markdown.parseToAST(text, true, { allowLinks: true, allowList: true }) as MarkdownNode[]
 // a system message: stock's text for it (its formatter, as in notifications)
-export const systemText = (m: Message) => A.systemMessages.stringify(m) ?? (m.content || `(message type ${m.type})`)
+export const systemText = (message: Message) =>
+  A.systemMessages.stringify(message) ?? (message.content || `(message type ${message.type})`)
 
 // a DM call you weren't in
-export const missed = (m: Message) => !(m.call?.participants ?? []).includes(S.Auth.getId())
+export const missed = (message: Message) => !(message.call?.participants ?? []).includes(S.Auth.getId())
 // the replied-to message, and its state
-export const replied = (m: Message) =>
-  m.type === MessageType.Reply && m.messageReference
-    ? ($.ReferencedMessage.getMessageByReference(m.messageReference) as {
+export const replied = (message: Message) =>
+  message.type === MessageType.Reply && message.messageReference
+    ? ($.ReferencedMessage.getMessageByReference(message.messageReference) as {
         state: ReferencedMessageState
         message?: Message | null
       })
     : null
 // as stock: a message that's only the link of its image or GIF shows just the media
-export const linkOnly = (m: Message) =>
-  m.embeds.length > 0 && m.embeds.every((e) => (e.type === 'image' || e.type === 'gifv') && e.url === m.content.trim())
+export const linkOnly = (message: Message) =>
+  message.embeds.length > 0 &&
+  message.embeds.every(
+    (embed) => (embed.type === 'image' || embed.type === 'gifv') && embed.url === message.content.trim(),
+  )
 
 // The list's triggers, which stock's list component issues
 
@@ -125,17 +135,17 @@ const LOAD_UNREAD_PX = 2
 // ends, and loading one truncates the other. With unreads, stock waits for the very top (2 px: scrollTop stops 1 px
 // short here), so reading down from the unread line doesn't pull in history
 export function loadMore(channelId: Id, fromTop: number, fromBottom: number, down: boolean) {
-  const ms = S.Message.getMessages(channelId)
-  if (!ms.ready || ms.loadingMore || !ms.length) return
+  const loaded = S.Message.getMessages(channelId)
+  if (!loaded.ready || loaded.loadingMore || !loaded.length) return
   const top =
     !down &&
-    ms.hasMoreBefore &&
+    loaded.hasMoreBefore &&
     fromTop <= (S.ReadState.getOldestUnreadMessageId(channelId) != null ? LOAD_UNREAD_PX : LOAD_PX)
-  if (top || (down && ms.hasMoreAfter && fromBottom <= LOAD_PX))
+  if (top || (down && loaded.hasMoreAfter && fromBottom <= LOAD_PX))
     A.messages.fetchMessages({
       channelId,
-      before: top ? ms.first().id : undefined,
-      after: top ? undefined : ms.last().id,
+      before: top ? loaded.first().id : undefined,
+      after: top ? undefined : loaded.last().id,
       limit: Math.min(MAX_FETCH, 2 * A.pages.size('scrollManager.loadMore')),
       truncate: true,
     })
@@ -153,24 +163,25 @@ export { automaticAck }
 // a jump's target, once its messages are in: the message, whether it flashes, whether it goes to the top (an offset:
 // stock's jump to unread, from the last read message). Undefined for the same jump again
 export function jumpTarget(channelId: Id, seen: number | undefined) {
-  const ms = S.Message.getMessages(channelId)
-  if (seen === undefined || seen === ms.jumpSequenceId || !ms.jumpTargetId) return { sequence: ms.jumpSequenceId }
+  const loaded = S.Message.getMessages(channelId)
+  if (seen === undefined || seen === loaded.jumpSequenceId || !loaded.jumpTargetId)
+    return { sequence: loaded.jumpSequenceId }
   return {
-    sequence: ms.jumpSequenceId,
-    id: ms.jumpTargetId as Id,
-    flash: Boolean(ms.jumpFlash),
-    top: Boolean(ms.jumpTargetOffset),
+    sequence: loaded.jumpSequenceId,
+    id: loaded.jumpTargetId as Id,
+    flash: Boolean(loaded.jumpFlash),
+    top: Boolean(loaded.jumpTargetOffset),
   }
 }
 // the newest messages, loaded around the present when they aren't
 export const jumpToPresent = (channelId: Id) => A.messages.jumpToPresent(channelId, 50)
 // a reply's message: a fetch around it when it isn't loaded
-export const jumpToReplied = (m: Message) =>
+export const jumpToReplied = (message: Message) =>
   A.messages.jumpToMessage({
-    channelId: m.messageReference!.channel_id,
-    messageId: m.messageReference!.message_id,
+    channelId: message.messageReference!.channel_id,
+    messageId: message.messageReference!.message_id,
     flash: true,
-    returnMessageId: m.id,
+    returnMessageId: message.id,
   })
 
 // The read state
@@ -178,14 +189,14 @@ export const jumpToReplied = (m: Message) =>
 export const oldestUnread = (channelId: Id) => $.ReadState.getOldestUnreadMessageId(channelId)
 // stock's new messages bar: "N new messages since 10:59 PM", while the channel has unreads
 export function newMessages(channelId: Id) {
-  const n = $.ReadState.getUnreadCount(channelId)
+  const count = $.ReadState.getUnreadCount(channelId)
   const since = $.ReadState.getOldestUnreadTimestamp(channelId)
-  if (!n || !since) return null
+  if (!count || !since) return null
   const timestamp = new Date(since)
   const today = timestamp.toDateString() === new Date().toDateString()
   return $.ReadState.isEstimated(channelId)
-    ? text(today ? 'NEW_MESSAGES_ESTIMATED' : 'NEW_MESSAGES_ESTIMATED_WITH_DATE', { count: n, timestamp })
-    : text(today ? 'NEW_MESSAGES' : 'NEW_MESSAGES_WITH_DATE', { count: n, timestamp })
+    ? text(today ? 'NEW_MESSAGES_ESTIMATED' : 'NEW_MESSAGES_ESTIMATED_WITH_DATE', { count, timestamp })
+    : text(today ? 'NEW_MESSAGES' : 'NEW_MESSAGES_WITH_DATE', { count, timestamp })
 }
 // the bar's click: the oldest unread, the messages after the last read one from the top
 export const jumpToUnread = (channelId: Id) =>
@@ -211,14 +222,17 @@ export function readByKey(channelId: Id) {
 
 // stock's Mark Unread: a manual ack of the message before this one (or of the millisecond before it), with the
 // mentions after it as the count
-export function markUnread(m: Message) {
-  const me = S.User.getCurrentUser()!
-  const all = S.Message.getMessages(m.channel_id).toArray() as Message[]
+export function markUnread(message: Message) {
+  const currentUser = S.User.getCurrentUser()!
+  const all = S.Message.getMessages(message.channel_id).toArray() as Message[]
   const before =
-    all.filter((x) => BigInt(x.id) < BigInt(m.id)).at(-1)?.id ?? String(((BigInt(m.id) >> 22n) - 1n) << 22n)
-  const mentions = all.filter((x) => BigInt(x.id) > BigInt(before) && A.readStates.countsAsMention(x, me)).length
+    all.filter((other) => BigInt(other.id) < BigInt(message.id)).at(-1)?.id ??
+    String(((BigInt(message.id) >> 22n) - 1n) << 22n)
+  const mentions = all.filter(
+    (other) => BigInt(other.id) > BigInt(before) && A.readStates.countsAsMention(other, currentUser),
+  ).length
   A.rest.post({
-    url: A.endpoints.MESSAGE_ACK(m.channel_id, before),
+    url: A.endpoints.MESSAGE_ACK(message.channel_id, before),
     body: { manual: true, mention_count: mentions },
     oldFormErrors: true,
     rejectWithError: true,
@@ -227,69 +241,77 @@ export function markUnread(m: Message) {
 
 // The actions on a message
 
-export const own = (m: Message) => m.author.id === users.me()?.id
+export const own = (message: Message) => message.author.id === users.me()?.id
 export const pendingReply = (channelId: Id) => $.PendingReply.getPendingReply(channelId)?.message.id as Id | undefined
 export const editing = (channelId: Id) => $.EditMessage.getEditingMessageId(channelId) as Id | undefined
 
 // up to three who reacted, as stock's tooltip (the store fetches them on the first read)
-export function reactors(m: Message, r: Reaction) {
-  const who = [...$.MessageReactions.getReactions(m.channel_id, m.id, r.emoji, 3, 0).values()]
-  const more = r.count - who.length
-  return who.map((u) => users.nameOf(u)).join(', ') + (more > 0 ? ` and ${more} more` : '')
+export function reactors(message: Message, reaction: Reaction) {
+  const who = [...$.MessageReactions.getReactions(message.channel_id, message.id, reaction.emoji, 3, 0).values()]
+  const more = reaction.count - who.length
+  return who.map((user) => users.nameOf(user)).join(', ') + (more > 0 ? ` and ${more} more` : '')
 }
 // a reaction chip's click: mine added or removed
-export const toggleReaction = (m: Message, r: Reaction) =>
-  r.me
+export const toggleReaction = (message: Message, reaction: Reaction) =>
+  reaction.me
     ? A.reactions.remove({
-        channelId: m.channel_id,
-        messageId: m.id,
-        emoji: r.emoji,
+        channelId: message.channel_id,
+        messageId: message.id,
+        emoji: reaction.emoji,
         location: 'Message Inline Button',
       })
-    : A.reactions.add(m.channel_id, m.id, r.emoji, 'Message Inline Button')
+    : A.reactions.add(message.channel_id, message.id, reaction.emoji, 'Message Inline Button')
 // a reaction from the message menu
-export const react = (m: Message, e: Emoji) =>
+export const react = (message: Message, emoji: Emoji) =>
   A.reactions.add(
-    m.channel_id,
-    m.id,
-    e.id ? { id: e.id, name: e.name, animated: e.animated } : { id: null, name: e.surrogates! },
+    message.channel_id,
+    message.id,
+    emoji.id ? { id: emoji.id, name: emoji.name, animated: emoji.animated } : { id: null, name: emoji.surrogates! },
     'Message Context Menu',
   )
 
-export const canPin = (m: Message, c: Channel) =>
-  (m.type === MessageType.Default || m.type === MessageType.Reply) &&
-  users.can(Permission.PIN_MESSAGES, c) &&
-  users.can(Permission.READ_MESSAGE_HISTORY, c)
-export function togglePin(m: Message) {
-  const url = A.endpoints.PIN(m.channel_id, m.id)
-  if (m.pinned) A.rest.del({ url, oldFormErrors: true, rejectWithError: true })
+export const canPin = (message: Message, channel: Channel) =>
+  (message.type === MessageType.Default || message.type === MessageType.Reply) &&
+  users.can(Permission.PIN_MESSAGES, channel) &&
+  users.can(Permission.READ_MESSAGE_HISTORY, channel)
+export function togglePin(message: Message) {
+  const url = A.endpoints.PIN(message.channel_id, message.id)
+  if (message.pinned) A.rest.del({ url, oldFormErrors: true, rejectWithError: true })
   else A.rest.put({ url, rejectWithError: true })
 }
 
-export const link = (m: Message, c: Channel) => `https://discord.com/channels/${c.guild_id ?? '@me'}/${c.id}/${m.id}`
-export const startEdit = (m: Message) => A.messages.startEditMessageRecord(m.channel_id, m)
-export const reply = (m: Message, c: Channel) =>
-  A.replies.create({ message: m, channel: c, shouldMention: !own(m), showMentionToggle: !own(m) })
-export const canDelete = (m: Message, c: Channel) => own(m) || users.can(Permission.MANAGE_MESSAGES, c)
+export const link = (message: Message, channel: Channel) =>
+  `https://discord.com/channels/${channel.guild_id ?? '@me'}/${channel.id}/${message.id}`
+export const startEdit = (message: Message) => A.messages.startEditMessageRecord(message.channel_id, message)
+export const reply = (message: Message, channel: Channel) =>
+  A.replies.create({ message, channel, shouldMention: !own(message), showMentionToggle: !own(message) })
+export const canDelete = (message: Message, channel: Channel) =>
+  own(message) || users.can(Permission.MANAGE_MESSAGES, channel)
 // local: a failed message, which only this client has
-export const remove = (m: Message, local = false) => A.messages.deleteMessage(m.channel_id, m.id, local)
+export const remove = (message: Message, local = false) =>
+  A.messages.deleteMessage(message.channel_id, message.id, local)
 
 // stock's Resend (its menu's chunk, not loaded without it): the failed copy goes, the same message is sent again with
 // its nonce. Stock adds the options SendMessageOptionsStore kept for it, also not loaded: a reply's mention setting
-export function resend(m: Message) {
-  remove(m, true)
+export function resend(message: Message) {
+  remove(message, true)
   A.messages.sendMessage(
-    m.channel_id,
-    { content: m.content, tts: m.tts, invalidEmojis: [], validNonShortcutEmojis: [] },
+    message.channel_id,
+    { content: message.content, tts: message.tts, invalidEmojis: [], validNonShortcutEmojis: [] },
     undefined,
-    { nonce: m.nonce, flags: m.flags, messageReference: m.messageReference ?? undefined, location: 'explicit_retry' },
+    {
+      nonce: message.nonce,
+      flags: message.flags,
+      messageReference: message.messageReference ?? undefined,
+      location: 'explicit_retry',
+    },
   )
 }
 
 // a message's own place, from a card (pins, search): the channel scrolled to it
-export function jumpTo(m: Message) {
-  const c = S.Channel.getChannel(m.channel_id)
-  A.nav.transitionTo(`/channels/${c?.guild_id ?? '@me'}/${m.channel_id}/${m.id}`)
+export function jumpTo(message: Message) {
+  const channel = S.Channel.getChannel(message.channel_id)
+  A.nav.transitionTo(`/channels/${channel?.guild_id ?? '@me'}/${message.channel_id}/${message.id}`)
 }
 
 // Pins
@@ -306,11 +328,11 @@ const PINS_PAGE = 25
 
 // stock's fetchPins (its pins chunk, not loaded without it): a page of 25, unless the store has them or is loading
 export function fetchPins(channelId: Id, before?: Date) {
-  const pins = S.ChannelPins.getPins(channelId)
+  const stored = S.ChannelPins.getPins(channelId)
   const need =
-    !pins ||
-    pins.state === 'FAILED' ||
-    (pins.state === 'LOADED_HAS_MORE' && (before ? pins.items.at(-1)?.pinnedAt === before : !pins.items.length))
+    !stored ||
+    stored.state === 'FAILED' ||
+    (stored.state === 'LOADED_HAS_MORE' && (before ? stored.items.at(-1)?.pinnedAt === before : !stored.items.length))
   if (!need) return
   A.dispatcher.dispatch({ type: 'LOAD_PINNED_MESSAGES', channelId, reset: false })
   A.rest
@@ -322,12 +344,12 @@ export function fetchPins(channelId: Id, before?: Date) {
       rejectWithError: true,
     })
     .then(
-      (r) =>
+      (response) =>
         A.dispatcher.dispatch({
           type: 'LOAD_PINNED_MESSAGES_SUCCESS',
-          pins: r.body.items,
+          pins: response.body.items,
           channelId,
-          hasMore: r.body.has_more,
+          hasMore: response.body.has_more,
         }),
       () => A.dispatcher.dispatch({ type: 'LOAD_PINNED_MESSAGES_FAILURE', channelId }),
     )

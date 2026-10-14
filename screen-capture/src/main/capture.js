@@ -26,49 +26,49 @@ const STALL_MS = 3000
  * @typedef {{ type: 'start', kbps: number, height?: number } | { type: 'raw' }
  *   | { type: 'bitrate', kbps: number } | { type: 'key' } | { type: 'height', height: number } | { type: 'fps', fps: number }
  *   | { type: 'audio', target: string } | { type: 'stop' }} CaptureCommand  audio: off | pid=N | steam=N | name=S
- * @typedef {{ pid: number | undefined, send(c: CaptureCommand): void, kill(): void }} Capture
+ * @typedef {{ pid: number | undefined, send(command: CaptureCommand): void, kill(): void }} Capture
  */
 
-/** @param {CaptureCommand} c */
-function commandLine(c) {
-  switch (c.type) {
+/** @param {CaptureCommand} command */
+function commandLine(command) {
+  switch (command.type) {
     case 'start':
-      return `start kbps=${c.kbps | 0}${c.height ? ` height=${c.height | 0}` : ''}`
+      return `start kbps=${command.kbps | 0}${command.height ? ` height=${command.height | 0}` : ''}`
     case 'bitrate':
-      return `bitrate ${c.kbps | 0}`
+      return `bitrate ${command.kbps | 0}`
     case 'height':
-      return `height ${c.height | 0}`
+      return `height ${command.height | 0}`
     case 'fps':
-      return `fps ${c.fps | 0}`
+      return `fps ${command.fps | 0}`
     case 'audio':
-      return `audio ${c.target.replace(/\s/g, '')}`
+      return `audio ${command.target.replace(/\s/g, '')}`
     default:
-      return c.type
+      return command.type
   }
 }
 
 /**
  * Starts capture; every message (and finally "closed") goes to onMessage. With fdsock (addon/fdsock.c), capture gets
  * raw's socket as fd 3 ("raw": the fallback's frames, as raw messages).
- * @param {string} bin
+ * @param {string} binary
  * @param {string[]} args
- * @param {(m: CaptureMessage) => void} onMessage
+ * @param {(message: CaptureMessage) => void} onMessage
  * @param {NodeJS.ProcessEnv} [env]
  * @param {any} [fdsock]
  * @returns {Capture}
  */
-function startCapture(bin, args, onMessage, env, fdsock) {
-  const [sock, childSock] = fdsock ? fdsock.open() : []
+function startCapture(binary, args, onMessage, env, fdsock) {
+  const [socket, childSocket] = fdsock ? fdsock.open() : []
   let closed = false
   // stderr ignored: capture then logs to $XDG_RUNTIME_DIR/cordial-capture/<pid>.log
-  const child = spawn(bin, fdsock ? [...args, '--socket-fd', '3'] : args, {
-    stdio: ['pipe', 'pipe', 'ignore', ...(fdsock ? [childSock] : [])],
+  const child = spawn(binary, fdsock ? [...args, '--socket-fd', '3'] : args, {
+    stdio: ['pipe', 'pipe', 'ignore', ...(fdsock ? [childSocket] : [])],
     env,
   })
   if (fdsock) {
-    closeSync(childSock)
-    fdsock.listen(sock, (data, fds) => {
-      if (!data) return closeSync(sock)
+    closeSync(childSocket)
+    fdsock.listen(socket, (data, fds) => {
+      if (!data) return closeSync(socket)
       if (closed) return fds.forEach((fd) => closeSync(fd))
       try {
         onMessage({ type: 'raw', raw: JSON.parse(data.toString()), fds })
@@ -78,7 +78,7 @@ function startCapture(bin, args, onMessage, env, fdsock) {
       }
     })
   }
-  let buf = Buffer.alloc(0)
+  let buffered = Buffer.alloc(0)
   let last = Date.now()
   const close = (why) => {
     if (closed) return
@@ -92,38 +92,50 @@ function startCapture(bin, args, onMessage, env, fdsock) {
   }, 500)
   child.stdout.on('data', (chunk) => {
     last = Date.now()
-    buf = buf.length ? Buffer.concat([buf, chunk]) : chunk
-    while (buf.length >= HEADER_BYTES) {
-      if (buf.readUInt32LE(0) !== MAGIC) return close('bad message')
-      const size = buf.readUInt32LE(8)
-      if (buf.length < HEADER_BYTES + size) break
-      const type = buf.readUInt32LE(4)
-      const t = buf.readUInt32LE(16) + buf.readUInt32LE(20) * 2 ** 32
-      const p = buf.subarray(HEADER_BYTES, HEADER_BYTES + size)
+    buffered = buffered.length ? Buffer.concat([buffered, chunk]) : chunk
+    while (buffered.length >= HEADER_BYTES) {
+      if (buffered.readUInt32LE(0) !== MAGIC) return close('bad message')
+      const size = buffered.readUInt32LE(8)
+      if (buffered.length < HEADER_BYTES + size) break
+      const type = buffered.readUInt32LE(4)
+      const time = buffered.readUInt32LE(16) + buffered.readUInt32LE(20) * 2 ** 32
+      const payload = buffered.subarray(HEADER_BYTES, HEADER_BYTES + size)
       try {
-        if (type === INFO) onMessage({ type: 'info', t, info: JSON.parse(p.toString()) })
+        if (type === INFO) onMessage({ type: 'info', t: time, info: JSON.parse(payload.toString()) })
         else if (type === FRAME) {
-          const wh = p.readUInt32LE(4)
+          const packedSize = payload.readUInt32LE(4)
           onMessage({
             type: 'frame',
-            seq: buf.readUInt32LE(12),
-            t,
-            key: Boolean(p.readUInt32LE(0) & 1),
-            w: wh & 0xffff,
-            h: wh >>> 16,
-            data: copy(p.subarray(16)),
+            seq: buffered.readUInt32LE(12),
+            t: time,
+            key: Boolean(payload.readUInt32LE(0) & 1),
+            w: packedSize & 0xffff,
+            h: packedSize >>> 16,
+            data: copy(payload.subarray(16)),
           })
         } else if (type === PREVIEW) {
-          const wh = p.readUInt32LE(0)
-          onMessage({ type: 'preview', t, w: wh & 0xffff, h: wh >>> 16, data: copy(p.subarray(4)) })
+          const packedSize = payload.readUInt32LE(0)
+          onMessage({
+            type: 'preview',
+            t: time,
+            w: packedSize & 0xffff,
+            h: packedSize >>> 16,
+            data: copy(payload.subarray(4)),
+          })
         } else if (type === AUDIO) {
-          const rate = p.readUInt32LE(0)
-          onMessage({ type: 'audio', t, rate, channels: p.readUInt32LE(4), data: copy(p.subarray(8)) })
+          const rate = payload.readUInt32LE(0)
+          onMessage({
+            type: 'audio',
+            t: time,
+            rate,
+            channels: payload.readUInt32LE(4),
+            data: copy(payload.subarray(8)),
+          })
         }
       } catch (e) {
         console.error('[capture] bad message', e)
       }
-      buf = buf.subarray(HEADER_BYTES + size)
+      buffered = buffered.subarray(HEADER_BYTES + size)
     }
   })
   child.on('error', (e) => close(String(e.message ?? e)))
@@ -131,8 +143,8 @@ function startCapture(bin, args, onMessage, env, fdsock) {
   child.stdin.on('error', () => {})
   return {
     pid: child.pid,
-    send: (c) => {
-      if (!closed) child.stdin.write(commandLine(c) + '\n')
+    send: (command) => {
+      if (!closed) child.stdin.write(commandLine(command) + '\n')
     },
     kill: () => {
       if (child.exitCode == null) child.kill('SIGTERM')
@@ -141,6 +153,6 @@ function startCapture(bin, args, onMessage, env, fdsock) {
 }
 
 // an ArrayBuffer of its own (a Buffer's may be a pooled slab), to be transferred / copied over a MessagePort
-const copy = (b) => new Uint8Array(b).buffer
+const copy = (bytes) => new Uint8Array(bytes).buffer
 
 module.exports = { startCapture }

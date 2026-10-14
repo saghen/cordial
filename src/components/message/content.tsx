@@ -23,15 +23,15 @@ export function resetContent() {
 
 // a DM call: stock's line with the caller's name as an author's, then the time. The call record's duration is a
 // moment duration (stock's "a few seconds", "15 minutes")
-function callLine(m: Message): Node[] {
-  const duration = m.call?.duration?.humanize()
-  const who = (<b class="name">{users.nameOf(m.author)}</b>) as HTMLElement
-  const name = callText(messages.missed(m), Boolean(duration))
+function callLine(message: Message): Node[] {
+  const duration = message.call?.duration?.humanize()
+  const who = (<b class="name">{users.nameOf(message.author)}</b>) as HTMLElement
+  const name = callText(messages.missed(message), Boolean(duration))
   return [
-    ...textAround(name, { username: '', callDuration: duration }, ['usernameHook']).map((n) =>
-      typeof n === 'string' ? document.createTextNode(n) : who,
+    ...textAround(name, { username: '', callDuration: duration }, ['usernameHook']).map((part) =>
+      typeof part === 'string' ? document.createTextNode(part) : who,
     ),
-    (<Time at={m.timestamp} />) as HTMLElement,
+    (<Time at={message.timestamp} />) as HTMLElement,
   ]
 }
 
@@ -40,27 +40,27 @@ function callText(missed: boolean, timed: boolean) {
   return timed ? 'SYSTEM_MESSAGE_CALL_STARTED_WITH_DURATION_HOOK' : 'SYSTEM_MESSAGE_CALL_STARTED_HOOK'
 }
 
-function build(m: Message, channelId: Id): Node[] {
-  if (m.type === MessageType.Call) return callLine(m)
-  if (!messages.isUser(m)) return [document.createTextNode(messages.systemText(m))]
-  const nodes = [...renderAST(messages.contentAST(m, channelId), document.createDocumentFragment()).childNodes]
+function build(message: Message, channelId: Id): Node[] {
+  if (message.type === MessageType.Call) return callLine(message)
+  if (!messages.isUser(message)) return [document.createTextNode(messages.systemText(message))]
+  const nodes = [...renderAST(messages.contentAST(message, channelId), document.createDocumentFragment()).childNodes]
   // as stock: emoji alone (up to JUMBO_MAX) show large
-  const shown = nodes.filter((n) => n.nodeType !== Node.TEXT_NODE || n.textContent!.trim())
-  if (shown.length <= JUMBO_MAX && shown.every((n) => n.nodeName === 'IMG'))
-    for (const n of shown) (n as Element).classList.add('jumbo')
+  const shown = nodes.filter((node) => node.nodeType !== Node.TEXT_NODE || node.textContent!.trim())
+  if (shown.length <= JUMBO_MAX && shown.every((node) => node.nodeName === 'IMG'))
+    for (const node of shown) (node as Element).classList.add('jumbo')
   return nodes
 }
 
-export function Content(p: { m: Message; channelId: Id; cache?: boolean }) {
-  let nodes = p.cache ? built.get(p.m) : undefined
+export function Content(p: { message: Message; channelId: Id; cache?: boolean }) {
+  let nodes = p.cache ? built.get(p.message) : undefined
   if (!nodes) {
-    nodes = build(p.m, p.channelId)
-    if (p.cache) built.set(p.m, nodes)
+    nodes = build(p.message, p.channelId)
+    if (p.cache) built.set(p.message, nodes)
   }
   return (
     <div class="content">
       {nodes}
-      <Show when={p.m.editedTimestamp}>
+      <Show when={p.message.editedTimestamp}>
         <span class="edited">({text('MESSAGE_EDITED')})</span>
       </Show>
     </div>
@@ -68,11 +68,11 @@ export function Content(p: { m: Message; channelId: Id; cache?: boolean }) {
 }
 
 // a forward: the message as it was, under stock's "Forwarded" line
-export const Forward = (p: { m: Message; channelId: Id }) => (
+export const Forward = (p: { message: Message; channelId: Id }) => (
   <blockquote class="forward">
     <span class="forwarded">{text('MESSAGE_FORWARDED')}</span>
-    <div class="content" ref={(d) => renderAST(messages.contentAST(p.m, p.channelId), d)} />
-    <For each={p.m.attachments}>{(f) => <Attachment file={f} />}</For>
-    <For each={p.m.embeds}>{(e) => <Embed embed={e} />}</For>
+    <div class="content" ref={(div) => renderAST(messages.contentAST(p.message, p.channelId), div)} />
+    <For each={p.message.attachments}>{(file) => <Attachment file={file} />}</For>
+    <For each={p.message.embeds}>{(embed) => <Embed embed={embed} />}</For>
   </blockquote>
 )

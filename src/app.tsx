@@ -14,30 +14,30 @@ import { ServerBar } from './views/server_bar'
 import { UserPanel } from './views/user_panel'
 
 // Load every css file under #cordial-root
-const files = import.meta.glob<string>('./**/*.css', { query: '?inline', import: 'default', eager: true })
+const STYLESHEETS = import.meta.glob<string>('./**/*.css', { query: '?inline', import: 'default', eager: true })
 const LAYERS = ['./app.css', './primitives/', './components/', './views/'] // order the loads
-const layer = (f: string) => LAYERS.findIndex((l) => f.startsWith(l))
-const frames: string[] = [] // keyframes cant nest, put them after
-const rules = Object.keys(files)
-  .sort((a, b) => layer(a) - layer(b) || a.localeCompare(b))
-  .map((f) => files[f])
+const layer = (path: string) => LAYERS.findIndex((prefix) => path.startsWith(prefix))
+const KEYFRAMES: string[] = [] // keyframes cant nest, put them after
+const RULES = Object.keys(STYLESHEETS)
+  .sort((left, right) => layer(left) - layer(right) || left.localeCompare(right))
+  .map((path) => STYLESHEETS[path])
   .join('\n')
-  .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, (k) => {
-    frames.push(k)
+  .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, (keyframe) => {
+    KEYFRAMES.push(keyframe)
     return ''
   })
-export const CSS = `#cordial-root {\n${ICONS}\n${rules}}\n${frames.join('\n')}`
+export const CSS = `#cordial-root {\n${ICONS}\n${RULES}}\n${KEYFRAMES.join('\n')}`
 
 // the gateway's state while it's not connected
 function ConnectionWarning() {
   const notice = session.useConnection()
-  return <Show when={notice()}>{(n) => <p class="notice">{n()}</p>}</Show>
+  return <Show when={notice()}>{(warning) => <p class="notice">{warning()}</p>}</Show>
 }
 
 export function App() {
   // window title
-  createEffect(createMemo(session.badge), (b) => {
-    document.title = `${b}Discord`
+  createEffect(createMemo(session.badge), (badge) => {
+    document.title = `${badge}Discord`
   })
   preloadChannels()
   useVoiceSounds()

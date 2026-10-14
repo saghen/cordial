@@ -13,15 +13,15 @@ import * as viewer from './viewer'
 const BOX = { media: [400, 300], thumb: [80, 80], sent: [550, 350] } as const
 type Box = keyof typeof BOX
 
-const fit = (m: Source, w: number, h: number) => {
-  const s = Math.min(1, w / m.width, h / m.height)
-  return { width: Math.round(m.width * s), height: Math.round(m.height * s) }
+const fit = (media: Source, maxWidth: number, maxHeight: number) => {
+  const scale = Math.min(1, maxWidth / media.width, maxHeight / media.height)
+  return { width: Math.round(media.width * scale), height: Math.round(media.height * scale) }
 }
 
 export function Media(p: { media: Source; box: Box; href?: string }) {
   const isGif = Boolean(p.media.proxyURL) && /\.gif(\?|$)/i.test(p.media.url)
-  const [w, h] = BOX[isGif && p.box === 'sent' ? 'media' : p.box]
-  const { width, height } = fit(p.media, w, h)
+  const [maxWidth, maxHeight] = BOX[isGif && p.box === 'sent' ? 'media' : p.box]
+  const { width, height } = fit(p.media, maxWidth, maxHeight)
   const src = p.media.proxyURL
     ? `${p.media.proxyURL}${p.media.proxyURL.includes('?') ? '&' : '?'}width=${width}&height=${height}`
     : p.media.url
@@ -48,7 +48,7 @@ export function Media(p: { media: Source; box: Box; href?: string }) {
 export function Clip(p: { src: string; media: Source; poster?: string; gif?: boolean }) {
   const { width, height } = p.media.width ? fit(p.media, ...BOX.media) : { width: undefined, height: undefined }
   let video!: HTMLVideoElement
-  if (p.gif) createEffect(windowFocused, (on) => void (on ? video.play() : video.pause()))
+  if (p.gif) createEffect(windowFocused, (focused) => void (focused ? video.play() : video.pause()))
   return p.gif ? (
     <video
       ref={video}

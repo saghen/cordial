@@ -7,7 +7,7 @@ import * as channels from '../api/channels'
 import { cancel, typingNames } from '../api/composer'
 import * as messages from '../api/messages'
 import * as pickers from '../api/pickers'
-import type { Emoji as EmojiRecord, Id, Message as Record } from '../api/types'
+import type { Emoji as EmojiRecord, Id, Message as MessageRecord } from '../api/types'
 import { Permission } from '../api/types'
 import { selected, selectedChannel } from '../api/store'
 import { text, textAround } from '../api/strings'
@@ -29,7 +29,7 @@ export function Chat() {
     const id = channelId()
     return id ? messages.list(id) : null
   })
-  const list = createMemo(() => (loaded()?.toArray() ?? []) as Record[])
+  const list = createMemo(() => (loaded()?.toArray() ?? []) as MessageRecord[])
   // the NEW line: where ReadStateStore puts it when the channel is opened (or first, while it's shown), then kept there
   // until Escape, Mark As Read or Mark Unread. The store's own goes when you send, and moves to the first message
   // that arrives after the window was left
@@ -54,44 +54,47 @@ export function Chat() {
   const menu = messageMenu(() => setUnread(null))
 
   // the runs of blocked or ignored messages shown, by their first message
-  const [shown, setShown] = createSignal<{ [id: Id]: boolean }>({})
+  const [shown, setShown] = createSignal<Record<Id, boolean>>({})
 
-  const Row = (m: Record, i: () => number) => {
+  const Row = (message: MessageRecord, i: () => number) => {
     // as stock, a run of blocked (or ignored) messages is one line, "N blocked messages", until Show messages
-    const hid = messages.hiddenAs(m)
+    const hidden = messages.hiddenAs(message)
     const run = createMemo(() => {
-      if (!hid) return
-      let j = i()
-      while (j > 0 && messages.hiddenAs(list()[j - 1]) === hid) j--
-      return list()[j].id
+      if (!hidden) return
+      let start = i()
+      while (start > 0 && messages.hiddenAs(list()[start - 1]) === hidden) start--
+      return list()[start].id
     })
     const count = createMemo(() => {
-      let n = 0
-      if (run() === m.id) while (messages.hiddenAs(list()[i() + n]) === hid) n++
-      return n
+      let length = 0
+      if (run() === message.id) while (messages.hiddenAs(list()[i() + length]) === hidden) length++
+      return length
     })
-    const collapsed = () => Boolean(hid) && !shown()[run()!]
+    const collapsed = () => Boolean(hidden) && !shown()[run()!]
     return (
       <Message
-        m={m}
+        message={message}
         channel={channel()}
         // a system message is a line of its own, without an author line
-        head={!collapsed() && messages.isUser(m) && messages.startsGroup(channel(), list()[i() - 1], m)}
-        day={messages.dayOf(list()[i() - 1], m)}
-        isNew={unread() === m.id}
-        replying={replying() === m.id}
-        editing={editing() === m.id}
+        head={!collapsed() && messages.isUser(message) && messages.startsGroup(channel(), list()[i() - 1], message)}
+        day={messages.dayOf(list()[i() - 1], message)}
+        isNew={unread() === message.id}
+        replying={replying() === message.id}
+        editing={editing() === message.id}
         collapsed={collapsed()}
         gone={collapsed() && !count()}
         run={
           count() > 0 && (
-            <button class={`${hid}-show`} onClick={() => setShown((s) => ({ ...s, [m.id]: !s[m.id] }))}>
-              {text(hid === 'blocked' ? 'BLOCKED_MESSAGE_COUNT' : 'IGNORED_MESSAGE_COUNT', { count: count() })} —{' '}
+            <button
+              class={`${hidden}-show`}
+              onClick={() => setShown((prev) => ({ ...prev, [message.id]: !prev[message.id] }))}
+            >
+              {text(hidden === 'blocked' ? 'BLOCKED_MESSAGE_COUNT' : 'IGNORED_MESSAGE_COUNT', { count: count() })} —{' '}
               {text(collapsed() ? 'BLOCKED_MESSAGES_SHOW' : 'BLOCKED_MESSAGES_HIDE', { count: count() })}
             </button>
           )
         }
-        onReact={(e) => menu.show(e, { m, react: true })}
+        onReact={(e) => menu.show(e, { message, react: true })}
       />
     )
   }
@@ -124,10 +127,10 @@ export function Chat() {
   // read and back at its newest message; then the box has the focus
   const escape = (e: KeyboardEvent) => {
     const id = channelId()
-    const t = e.target as Element
+    const target = e.target as Element
     if (e.key !== 'Escape' || e.defaultPrevented || !id || document.fullscreenElement) return
     if (document.querySelector(':popover-open:not([popover=manual]), dialog[open]')) return
-    if (t.closest('input, textarea, [contenteditable=true]') && t.id !== 'mc-composer') return
+    if (target.closest('input, textarea, [contenteditable=true]') && target.id !== 'mc-composer') return
     if (!cancel(id)) {
       messages.readByKey(id)
       setUnread(null)
@@ -237,25 +240,27 @@ function Typing(p: { channelId: () => Id | null }) {
 
 // the message menu (right click on a message); from the add-reaction chip, straight to the emoji search
 const messageMenu = (onMarkUnread: () => void) =>
-  contextMenu<{ m: Record; react: boolean }>({
+  contextMenu<{ message: MessageRecord; react: boolean }>({
     class: 'message-menu',
     find(e) {
       const id = (e.target as Element).closest('article')?.dataset.id
       const channelId = selected()
-      const m = id && channelId ? messages.get(channelId, id) : undefined
-      return m && { m, react: false }
+      const message = id && channelId ? messages.get(channelId, id) : undefined
+      return message && { message, react: false }
     },
-    children: (t) => <MessageItems message={t().m} react={t().react} onMarkUnread={onMarkUnread} />,
+    children: (target) => (
+      <MessageItems message={target().message} react={target().react} onMarkUnread={onMarkUnread} />
+    ),
   })
 
 // the four most used reactions on top, as stock; React swaps the items for an emoji search: the most used, then what
 // the query matches
 const TOP_REACTIONS = 4
 const REACTION_RESULTS = 24
-function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void }) {
+function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(): void }) {
   const [query, setQuery] = createSignal<string | null>(p.react ? '' : null)
-  const m = () => p.message
-  const channel = () => channels.get(m().channel_id)!
+  const message = () => p.message
+  const channel = () => channels.get(message().channel_id)!
   const can = (permission: bigint) => users.can(permission, channel())
   const emojis = () => {
     const search = query()
@@ -267,12 +272,12 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
   const Emojis = (p: { each: EmojiRecord[] }) => (
     <p>
       <Items
-        items={p.each.map((e) => ({
+        items={p.each.map((emoji) => ({
           name: 'react',
-          id: e.id ?? e.name,
-          title: `:${e.name}:`,
-          label: <Emoji emoji={e} />,
-          run: () => messages.react(m(), e),
+          id: emoji.id ?? emoji.name,
+          title: `:${emoji.name}:`,
+          label: <Emoji emoji={emoji} />,
+          run: () => messages.react(message(), emoji),
         }))}
       />
     </p>
@@ -290,7 +295,7 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
             onEnter={() => {
               if (!emojis()[0]) return
               document.querySelector<HTMLElement>('.message-menu')!.hidePopover()
-              messages.react(m(), emojis()[0])
+              messages.react(message(), emojis()[0])
             }}
           />
           <Emojis each={emojis()} />
@@ -310,12 +315,12 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
             run: () => setQuery(''),
           },
           can(Permission.ADD_REACTIONS) && '-',
-          messages.own(m()) && {
+          messages.own(message()) && {
             name: 'menu-edit',
             icon: 'pencil',
             label: text('EDIT_MESSAGE'),
             run: () => {
-              messages.startEdit(m())
+              messages.startEdit(message())
               focus()
             },
           },
@@ -324,7 +329,7 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
             icon: 'reply',
             label: text('MESSAGE_ACTION_REPLY'),
             run: () => {
-              messages.reply(m(), channel())
+              messages.reply(message(), channel())
               focus()
             },
           },
@@ -333,20 +338,20 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
             name: 'menu-copy',
             icon: 'copy',
             label: text('COPY_TEXT'),
-            run: () => navigator.clipboard.writeText(m().content),
+            run: () => navigator.clipboard.writeText(message().content),
           },
-          messages.canPin(m(), channel()) && {
+          messages.canPin(message(), channel()) && {
             name: 'menu-pin',
             icon: 'pin',
-            label: text(m().pinned ? 'UNPIN_MESSAGE' : 'PIN_MESSAGE'),
-            run: () => messages.togglePin(m()),
+            label: text(message().pinned ? 'UNPIN_MESSAGE' : 'PIN_MESSAGE'),
+            run: () => messages.togglePin(message()),
           },
           {
             name: 'menu-unread',
             icon: 'unread',
             label: text('MARK_UNREAD'),
             run: () => {
-              messages.markUnread(m())
+              messages.markUnread(message())
               p.onMarkUnread()
             },
           },
@@ -354,16 +359,16 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
             name: 'menu-link',
             icon: 'link',
             label: text('COPY_MESSAGE_LINK'),
-            run: () => navigator.clipboard.writeText(messages.link(m(), channel())),
+            run: () => navigator.clipboard.writeText(messages.link(message(), channel())),
           },
-          messages.canDelete(m(), channel()) && '-',
-          messages.canDelete(m(), channel()) && {
+          messages.canDelete(message(), channel()) && '-',
+          messages.canDelete(message(), channel()) && {
             name: 'menu-delete',
             icon: 'trash',
             class: 'danger',
             label: text('DELETE_MESSAGE'),
             confirm: text('CONFIRM_DELETE'),
-            run: () => messages.remove(m()),
+            run: () => messages.remove(message()),
           },
         ]}
       />

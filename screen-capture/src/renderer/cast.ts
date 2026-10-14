@@ -69,7 +69,7 @@ export type CastMessage =
 
 /** What zeroCopy.ts hooks into a session (the injection into the Go Live sender). */
 export interface CastConsumer {
-  message(m: CastMessage): void
+  message(message: CastMessage): void
   stop(): void
 }
 
@@ -77,8 +77,8 @@ const sessions = new WeakMap<MediaStreamTrack, CastSession>()
 /** The cast session behind a Go Live track, if our capture made it. */
 export const castSessionFor = (track: MediaStreamTrack | null | undefined) => (track ? sessions.get(track) : undefined)
 
-let portWaiter: ((p: MessagePort) => void) | null = null
-let rawWaiter: ((p: MessagePort | null) => void) | null = null
+let portWaiter: ((port: MessagePort) => void) | null = null
+let rawWaiter: ((port: MessagePort | null) => void) | null = null
 window.addEventListener('message', (e) => {
   if (e.source === window && e.data?.cordialCastPort && e.ports[0]) portWaiter?.(e.ports[0])
   if (e.source === window && e.data?.cordialRawPort && e.ports[0]) rawWaiter?.(e.ports[0])
@@ -126,7 +126,7 @@ export class CastSession {
   private shownAt = -Infinity
   private canvas: OffscreenCanvas | null = null
   private preview: VideoFrame | null = null
-  private lastTs = 0
+  private lastTimestamp = 0
   private constraints: MediaTrackConstraints = {}
   private fallbackTrack: MediaStreamTrack | null = null
   /** raw: capture's frames feed the encoder (the fallback without a second source); its frames come on this port */
@@ -147,32 +147,32 @@ export class CastSession {
     sessions.set(this.encoder, this)
     this.width = quality.width
     this.height = quality.height
-    for (const t of [this.track, this.encoder]) this.dress(t)
+    for (const track of [this.track, this.encoder]) this.dress(track)
   }
 
   // both tracks look the same to Discord and to streamQuality.ts: label, settings, constraints, stop; "motion" keeps
   // WebRTC out of screen-content mode (QP floor, frame dropping)
-  private dress(t: MediaStreamTrackGenerator) {
-    t.contentHint = 'motion'
+  private dress(track: MediaStreamTrackGenerator) {
+    track.contentHint = 'motion'
     const [kind, id] = this.pick.source.split(/:(.*)/s)
-    Object.defineProperty(t, 'label', { value: kind === 'output' ? `screen:${id}:0` : `window:niri-${id}:0` })
-    t.getSettings = () =>
+    Object.defineProperty(track, 'label', { value: kind === 'output' ? `screen:${id}:0` : `window:niri-${id}:0` })
+    track.getSettings = () =>
       this.fallbackTrack?.getSettings() ?? {
         width: this.width,
         height: this.height,
         frameRate: this.quality.fps,
         aspectRatio: this.width / this.height,
-        deviceId: t.label,
+        deviceId: track.label,
         displaySurface: kind === 'output' ? 'monitor' : 'window',
         resizeMode: 'none',
       }
-    t.getConstraints = () => this.constraints
-    t.applyConstraints = async (c) => {
-      this.constraints = c ?? {}
-      await this.fallbackTrack?.applyConstraints(c)
+    track.getConstraints = () => this.constraints
+    track.applyConstraints = async (constraints) => {
+      this.constraints = constraints ?? {}
+      await this.fallbackTrack?.applyConstraints(constraints)
     }
-    const stop = t.stop.bind(t)
-    t.stop = () => {
+    const stop = track.stop.bind(track)
+    track.stop = () => {
       this.end('track stopped')
       stop()
     }
@@ -220,21 +220,22 @@ export class CastSession {
     this.port?.postMessage(command)
   }
 
-  private message(m: CastMessage) {
-    if (m.type === 'audio') return this.writeAudio(m)
+  private message(message: CastMessage) {
+    if (message.type === 'audio') return this.writeAudio(message)
     if (this.state === 'ended') return
-    const info = m.type === 'info' ? m.info : null
+    const info = message.type === 'info' ? message.info : null
     if (info) this.onInfo?.(info)
     if (info?.type === 'stats') this.stats = info
     // the window closed: the stream ends with it
     if (info?.type === 'ended') return this.end('the cast ended')
-    if (m.type === 'closed' || info?.type === 'error') {
+    if (message.type === 'closed' || info?.type === 'error') {
       // (closed: no raw fallback, the portal's)
-      if (m.type === 'closed') this.port = null
+      if (message.type === 'closed') this.port = null
       // raw: capture failing now means the portal after all
       if (this.state === 'fallback') return this.rawFailed()
       this.started(false)
-      if (this.state === 'cast') this.fallback(m.type === 'closed' ? `capture ${m.why}` : `capture: ${info?.message}`)
+      if (this.state === 'cast')
+        this.fallback(message.type === 'closed' ? `capture ${message.why}` : `capture: ${info?.message}`)
       return
     }
     if (this.state === 'fallback') return
@@ -242,29 +243,29 @@ export class CastSession {
       this.width = info.encodeWidth || this.width
       this.height = info.encodeHeight || this.height
       this.started(true)
-    } else if (m.type === 'preview') this.setPreview(m)
-    this.consumer?.message(m)
+    } else if (message.type === 'preview') this.setPreview(message)
+    this.consumer?.message(message)
   }
 
-  private writeAudio(m: Extract<CastMessage, { type: 'audio' }>) {
+  private writeAudio(message: Extract<CastMessage, { type: 'audio' }>) {
     if (!this.sound || this.state === 'ended') return
     const data = new AudioData({
       format: 's16',
-      sampleRate: m.rate,
-      numberOfChannels: m.channels,
-      numberOfFrames: m.data.byteLength / 2 / m.channels,
-      timestamp: Math.round(m.t),
-      data: m.data,
+      sampleRate: message.rate,
+      numberOfChannels: message.channels,
+      numberOfFrames: message.data.byteLength / 2 / message.channels,
+      timestamp: Math.round(message.t),
+      data: message.data,
     })
     this.sound.write(data).catch(() => data.close())
   }
 
-  private setPreview(m: Extract<CastMessage, { type: 'preview' }>) {
+  private setPreview(message: Extract<CastMessage, { type: 'preview' }>) {
     this.preview?.close()
-    this.preview = new VideoFrame(new Uint8Array(m.data), {
+    this.preview = new VideoFrame(new Uint8Array(message.data), {
       format: 'BGRX',
-      codedWidth: m.w,
-      codedHeight: m.h,
+      codedWidth: message.w,
+      codedHeight: message.h,
       timestamp: 0,
     })
     this.writePreview()
@@ -283,25 +284,26 @@ export class CastSession {
     this.display.write(frame).catch(() => frame.close())
   }
 
-  private nextTs() {
-    this.lastTs = Math.max(this.lastTs + 1, Math.round(performance.now() * 1000))
-    return this.lastTs
+  private nextTimestamp() {
+    this.lastTimestamp = Math.max(this.lastTimestamp + 1, Math.round(performance.now() * 1000))
+    return this.lastTimestamp
   }
 
   /**
    * The last preview into the track (Discord's own preview and thumbnail), upscaled to the track's size. zeroCopy.ts
    * writes these as its warm-up frames too (its templates). False: no preview yet, nothing written.
    */
-  writePreview(alt = false): boolean {
+  writePreview(alternate = false): boolean {
     if (!this.preview || this.state === 'fallback' || this.state === 'ended') return false
-    // the stream's size less 2 px (alt: 4 px), so that the fallback's frames (the full size) make Chromium reconfigure
-    // its encoder: its first frame sent is then a key frame. zeroCopy.ts writes alt frames to get a key frame for its
+    // the stream's size less 2 px (alternate: 4 px), so that the fallback's frames (the full size) make Chromium reconfigure
+    // its encoder: its first frame sent is then a key frame. zeroCopy.ts writes alternate frames to get a key frame for its
     // templates.
-    const [w, h] = [Math.max(16, this.width - (alt ? 4 : 2)), this.height]
-    if (!this.canvas || this.canvas.width !== w || this.canvas.height !== h) this.canvas = new OffscreenCanvas(w, h)
-    const ctx = this.canvas.getContext('2d', { alpha: false })!
-    ctx.drawImage(this.preview, 0, 0, w, h)
-    this.write(new VideoFrame(this.canvas, { timestamp: this.nextTs() }))
+    const [width, height] = [Math.max(16, this.width - (alternate ? 4 : 2)), this.height]
+    if (!this.canvas || this.canvas.width !== width || this.canvas.height !== height)
+      this.canvas = new OffscreenCanvas(width, height)
+    const context = this.canvas.getContext('2d', { alpha: false })!
+    context.drawImage(this.preview, 0, 0, width, height)
+    this.write(new VideoFrame(this.canvas, { timestamp: this.nextTimestamp() }))
     return true
   }
 
@@ -412,8 +414,10 @@ export class CastSession {
   private feed(value: VideoFrame, warmUntil: number) {
     let frame = value
     if (!this.warmedUp && performance.now() < warmUntil && value.visibleRect && value.visibleRect.width > 16) {
-      const r = value.visibleRect
-      frame = new VideoFrame(value, { visibleRect: { x: r.x, y: r.y, width: r.width - 2, height: r.height } })
+      const rect = value.visibleRect
+      frame = new VideoFrame(value, {
+        visibleRect: { x: rect.x, y: rect.y, width: rect.width - 2, height: rect.height },
+      })
       value.close()
     } else this.warmedUp = true
     return this.write(frame)
@@ -450,31 +454,32 @@ export class CastSession {
 // The sender gets the encoder track wherever Discord puts its track (or a clone of it) on a connection. Discord's
 // clones are Discord's track.
 const clones = new WeakMap<MediaStreamTrack, CastSession>()
-const displayed = (t: MediaStreamTrack | null | undefined) => {
-  const s = t && (sessions.get(t) ?? clones.get(t))
-  return s && t !== s.encoder ? s : undefined
+const displayed = (track: MediaStreamTrack | null | undefined) => {
+  const session = track && (sessions.get(track) ?? clones.get(track))
+  return session && track !== session.encoder ? session : undefined
 }
-const forSender = <T extends MediaStreamTrack | null | undefined>(t: T): T => (displayed(t)?.encoder as T) ?? t
+const forSender = <T extends MediaStreamTrack | null | undefined>(track: T): T =>
+  (displayed(track)?.encoder as T) ?? track
 
-const origClone = MediaStreamTrack.prototype.clone
+const originalClone = MediaStreamTrack.prototype.clone
 MediaStreamTrack.prototype.clone = function (this: MediaStreamTrack) {
-  const copy = origClone.call(this)
+  const copy = originalClone.call(this)
   if (isStreamSound(this)) markStreamSound(copy)
-  const s = displayed(this)
-  if (s) clones.set(copy, s)
+  const session = displayed(this)
+  if (session) clones.set(copy, session)
   return copy
 }
-const origReplaceTrack = RTCRtpSender.prototype.replaceTrack
+const originalReplaceTrack = RTCRtpSender.prototype.replaceTrack
 RTCRtpSender.prototype.replaceTrack = function (this: RTCRtpSender, track) {
-  return origReplaceTrack.call(this, forSender(track))
+  return originalReplaceTrack.call(this, forSender(track))
 }
-const origAddTrack = RTCPeerConnection.prototype.addTrack
+const originalAddTrack = RTCPeerConnection.prototype.addTrack
 RTCPeerConnection.prototype.addTrack = function (this: RTCPeerConnection, track, ...streams) {
-  return origAddTrack.call(this, forSender(track), ...streams)
+  return originalAddTrack.call(this, forSender(track), ...streams)
 }
-const origAddTransceiver = RTCPeerConnection.prototype.addTransceiver
+const originalAddTransceiver = RTCPeerConnection.prototype.addTransceiver
 RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, trackOrKind, init) {
-  return origAddTransceiver.call(this, typeof trackOrKind === 'string' ? trackOrKind : forSender(trackOrKind), init)
+  return originalAddTransceiver.call(this, typeof trackOrKind === 'string' ? trackOrKind : forSender(trackOrKind), init)
 }
 
 let available = false
@@ -490,8 +495,8 @@ export const captureAv1 = () => codecs?.includes('av1') ?? true
 /** Asks capture once, at startup (the codec order is read when a call connects). */
 export const probeCaptureCodecs = () =>
   host.native?.codecs().then(
-    (c) => {
-      codecs = c
+    (list) => {
+      codecs = list
     },
     () => {},
   )
@@ -511,11 +516,11 @@ export async function castDisplayMedia(
   displayMedia: (opts: DisplayMediaStreamOptions) => Promise<MediaStream>,
   opts?: DisplayMediaStreamOptions,
 ): Promise<MediaStream> {
-  const p = pending && Date.now() - pending.at < PENDING_PICK_MS ? pending.pick : null
+  const pendingPick = pending && Date.now() - pending.at < PENDING_PICK_MS ? pending.pick : null
   pending = null
   // (cancelled: what Chromium's getDisplayMedia throws when its picker is cancelled)
   const pick =
-    p ??
+    pendingPick ??
     (await Promise.resolve()
       .then(async () => host.pick!(await host.native!.sources()))
       .catch(() => {

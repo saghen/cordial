@@ -8,8 +8,8 @@ export function modal<T>(p: { class: string; children(value: () => T): JSX.Eleme
   const [value, setValue] = createSignal<T>()
   let dialog!: HTMLDialogElement
   return {
-    open(v: T) {
-      setValue(() => v)
+    open(next: T) {
+      setValue(() => next)
       flush()
       dialog.showModal()
     },
@@ -21,12 +21,12 @@ export function modal<T>(p: { class: string; children(value: () => T): JSX.Eleme
         // the dialog itself, outside its contents, is the backdrop
         onClick={(e) => e.target === dialog && dialog.close()}
         onClose={() => {
-          const v = value()
+          const closed = value()
           setValue(undefined)
-          if (v !== undefined) p.onClose?.(v)
+          if (closed !== undefined) p.onClose?.(closed)
         }}
       >
-        <Show when={value()}>{(v) => p.children(v)}</Show>
+        <Show when={value()}>{(shown) => p.children(shown)}</Show>
       </dialog>
     ),
   }

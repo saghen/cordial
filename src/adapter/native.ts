@@ -11,9 +11,11 @@ import { patch } from './webpack'
 
 type Bytes = Uint8Array | ArrayBuffer
 interface Native {
-  observeGames(list: string, cb: (games: string[]) => void): void
+  observeGames(list: string, callback: (games: string[]) => void): void
   rpc: {
-    listen(cb: (id: number, event: 'connect' | 'data' | 'close', data?: Uint8Array) => void): Promise<string | null>
+    listen(
+      listener: (id: number, event: 'connect' | 'data' | 'close', data?: Uint8Array) => void,
+    ): Promise<string | null>
     write(id: number, data: Uint8Array): void
     end(id: number, data?: Uint8Array): void
   }
@@ -50,12 +52,13 @@ const rpc = patch(
 G.nativeApplied = () => ({ games: requireModule.applied && games.applied, rpc: requireModule.applied && rpc.applied })
 window.addEventListener('load', () =>
   setTimeout(() => {
-    const a = G.nativeApplied()
-    if (!a.games || !a.rpc) console.error("[cordial] native module patches did not apply (Discord's code changed)", a)
+    const applied = G.nativeApplied()
+    if (!applied.games || !applied.rpc)
+      console.error("[cordial] native module patches did not apply (Discord's code changed)", applied)
   }, 10_000),
 )
 
-const field = (s: string | null | undefined) => (s ?? '').replace(/[\t\n]/g, ' ').trim()
+const field = (value: string | null | undefined) => (value ?? '').replace(/[\t\n]/g, ' ').trim()
 
 interface Observed {
   id: number
@@ -67,18 +70,20 @@ interface Observed {
 
 // the list game-detection reads: `id \t arguments \t steam app ids \t executable ...`; it answers with the running
 // ones, `id \t pid \t executable \t path`, as the native module would
-const discord_utils = {
-  setObservedGamesCallback(games: Observed[], cb: (processes: object[]) => void) {
-    const list = games.map((g) => {
-      const steam = (g.thirdPartySkus ?? []).filter((s) => s.distributor === 'steam').map((s) => field(s.id ?? s.sku))
-      return [g.id, field(g.cmdline), steam.filter(Boolean).join(','), ...g.executables.map(field)].join('\t')
+const discordUtils = {
+  setObservedGamesCallback(games: Observed[], callback: (processes: object[]) => void) {
+    const list = games.map((game) => {
+      const steam = (game.thirdPartySkus ?? [])
+        .filter((sku) => sku.distributor === 'steam')
+        .map((sku) => field(sku.id ?? sku.sku))
+      return [game.id, field(game.cmdline), steam.filter(Boolean).join(','), ...game.executables.map(field)].join('\t')
     })
     native!.observeGames(list.join('\n') + '\n', (running) => {
       const lastFocused = Math.floor(Date.now() / 1000)
-      cb(
+      callback(
         running.map((line) => {
           const [id, pid, exeName, exePath] = line.split('\t')
-          const name = games.find((g) => String(g.id) === id)?.name
+          const name = games.find((game) => String(game.id) === id)?.name
           return { id, pid: +pid, name, exeName, exePath, cmdLine: '', pidPath: [+pid], lastFocused }
         }),
       )
@@ -89,39 +94,39 @@ const discord_utils = {
 // node's net, as much of it as Discord's IPC transport uses: a server whose connections are the shell's
 class Emitter {
   private handlers: Record<string, Function[]> = {}
-  on(type: string, f: Function) {
-    this.handlers[type] = [...(this.handlers[type] ?? []), f]
+  on(type: string, listener: Function) {
+    this.handlers[type] = [...(this.handlers[type] ?? []), listener]
     return this
   }
-  once(type: string, f: Function) {
-    const g = (...a: unknown[]) => {
-      this.removeListener(type, g)
-      return f(...a)
+  once(type: string, listener: Function) {
+    const wrapped = (...args: unknown[]) => {
+      this.removeListener(type, wrapped)
+      return listener(...args)
     }
-    return this.on(type, g)
+    return this.on(type, wrapped)
   }
-  removeListener(type: string, f: Function) {
-    this.handlers[type] = (this.handlers[type] ?? []).filter((h) => h !== f)
+  removeListener(type: string, listener: Function) {
+    this.handlers[type] = (this.handlers[type] ?? []).filter((handler) => handler !== listener)
     return this
   }
   emit(type: string, ...args: unknown[]) {
-    for (const f of this.handlers[type] ?? []) f(...args)
+    for (const handler of this.handlers[type] ?? []) handler(...args)
     return true
   }
 }
 
-const bytes = (d?: Bytes) => (d == null ? undefined : new Uint8Array(d))
+const bytes = (data?: Bytes) => (data == null ? undefined : new Uint8Array(data))
 
 class Socket extends Emitter {
   constructor(private id: number) {
     super()
   }
-  write(d: Bytes) {
-    native!.rpc.write(this.id, new Uint8Array(d))
+  write(data: Bytes) {
+    native!.rpc.write(this.id, new Uint8Array(data))
     return true
   }
-  end(d?: Bytes) {
-    native!.rpc.end(this.id, bytes(d))
+  end(data?: Bytes) {
+    native!.rpc.end(this.id, bytes(data))
   }
   destroy() {
     native!.rpc.end(this.id)
@@ -137,18 +142,18 @@ const sockets = new Map<number, Socket>()
 const server = Object.assign(new Emitter(), {
   path: null as string | null,
   listening: false,
-  listen(path: string | null, cb?: () => void) {
+  listen(path: string | null, callback?: () => void) {
     server.path = path
     server.listening = path != null
-    if (path != null) cb?.()
+    if (path != null) callback?.()
   },
   address: () => server.path,
 })
 
-const discord_rpc = {
+const discordRpc = {
   RPCIPC: {
     net: {
-      createServer(onConnection: (s: Socket) => void) {
+      createServer(onConnection: (socket: Socket) => void) {
         accept = onConnection
         return server
       },
@@ -157,9 +162,9 @@ const discord_rpc = {
     getAvailableSocket: () =>
       native!.rpc.listen((id, event, data) => {
         if (event === 'connect') {
-          const s = new Socket(id)
-          sockets.set(id, s)
-          accept(s)
+          const socket = new Socket(id)
+          sockets.set(id, socket)
+          accept(socket)
         } else if (event === 'data') sockets.get(id)?.emit('data', data)
         else {
           sockets.get(id)?.emit('close')
@@ -169,4 +174,4 @@ const discord_rpc = {
   },
 }
 
-if (native) G.nativeModules = { discord_utils, discord_rpc }
+if (native) G.nativeModules = { discord_utils: discordUtils, discord_rpc: discordRpc }

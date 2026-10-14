@@ -28,7 +28,7 @@ export function MembersList() {
   return (
     <Show when={members.open()}>
       <section ref={list} class="members" onScroll={subscribe}>
-        <For each={members.rows()}>{(r) => <MemberRow row={r} />}</For>
+        <For each={members.rows()}>{(row) => <MemberRow row={row} />}</For>
       </section>
     </Show>
   )

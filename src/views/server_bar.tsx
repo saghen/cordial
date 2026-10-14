@@ -25,53 +25,53 @@ function Tile(p: {
   name: string
   id?: Id | number
   title?: string
-  sel?: boolean
+  selected?: boolean
   unread?: boolean
   mentions?: number
   activity?: voice.Activity
-  go(): void
+  open(): void
   // the channel a click opens, preloaded on hover
-  pre?(): Id | null | undefined
+  preload?(): Id | null | undefined
   children: JSX.Element
 }) {
   return (
     <a
-      class={[p.name, { sel: Boolean(p.sel), unread: Boolean(p.unread) }]}
+      class={[p.name, { selected: Boolean(p.selected), unread: Boolean(p.unread) }]}
       data-id={p.id}
       title={p.title}
-      onClick={p.go}
-      {...(p.pre ? onHover(p.pre) : {})}
+      onClick={p.open}
+      {...(p.preload ? onHover(p.preload) : {})}
     >
       {p.children}
       <Show when={p.activity}>
-        {(a) => (
-          <span class={['activity', { connected: a().connected }]}>
-            <Icon name={a().icon} />
+        {(activity) => (
+          <span class={['activity', { connected: activity().connected }]}>
+            <Icon name={activity().icon} />
           </span>
         )}
       </Show>
-      <Show when={p.mentions}>{(n) => <Badge kind="count">{n()}</Badge>}</Show>
+      <Show when={p.mentions}>{(mentions) => <Badge kind="count">{mentions()}</Badge>}</Show>
     </a>
   )
 }
 
 function Guild(p: { id: Id }) {
-  const g = () => guilds.get(p.id)
+  const guild = () => guilds.get(p.id)
   return (
-    <Show when={g()}>
-      {(g) => (
+    <Show when={guild()}>
+      {(record) => (
         <Tile
           name="guild"
           id={p.id}
-          title={g().name}
-          sel={selectedGuild() === p.id}
+          title={record().name}
+          selected={selectedGuild() === p.id}
           unread={guilds.unread(p.id) && !guilds.muted(p.id)}
           mentions={guilds.mentions(p.id)}
           activity={voice.guildActivity(p.id)}
-          go={() => guilds.open(p.id)}
-          pre={() => guilds.lastChannel(p.id)}
+          open={() => guilds.open(p.id)}
+          preload={() => guilds.lastChannel(p.id)}
         >
-          <GuildIcon guild={g()} size={40} />
+          <GuildIcon guild={record()} size={40} />
         </Tile>
       )}
     </Show>
@@ -79,20 +79,20 @@ function Guild(p: { id: Id }) {
 }
 
 function Dm(p: { channel: PrivateChannel }) {
-  const c = () => p.channel
+  const channel = () => p.channel
   return (
     <Tile
       name="dm"
-      id={c().id}
-      title={channels.dmName(c())}
-      sel={selected() === c().id}
-      unread={channels.unread(c())}
-      mentions={channels.mentions(c())}
-      activity={voice.callActivity(c())}
-      go={() => channels.open(c())}
-      pre={() => c().id}
+      id={channel().id}
+      title={channels.dmName(channel())}
+      selected={selected() === channel().id}
+      unread={channels.unread(channel())}
+      mentions={channels.mentions(channel())}
+      activity={voice.callActivity(channel())}
+      open={() => channels.open(channel())}
+      preload={() => channel().id}
     >
-      <DmIcon channel={c()} size={40} />
+      <DmIcon channel={channel()} size={40} />
     </Tile>
   )
 }
@@ -113,20 +113,20 @@ function Folder(p: { folder: guilds.Folder }) {
       title={
         p.folder.folderName ??
         ids()
-          .map((g) => guilds.get(g)?.name)
+          .map((guildId) => guilds.get(guildId)?.name)
           .join(', ')
       }
-      unread={!open() && ids().some((g) => guilds.unread(g) && !guilds.muted(g))}
-      mentions={open() ? 0 : ids().reduce((n, g) => n + guilds.mentions(g), 0)}
+      unread={!open() && ids().some((guildId) => guilds.unread(guildId) && !guilds.muted(guildId))}
+      mentions={open() ? 0 : ids().reduce((total, guildId) => total + guilds.mentions(guildId), 0)}
       // as stock: closed, the voice badge of the server you're connected in, if any
       activity={
         open()
           ? undefined
           : ids()
               .map(voice.guildActivity)
-              .find((a) => a?.connected)
+              .find((activity) => activity?.connected)
       }
-      go={() => guilds.toggleFolder(id)}
+      open={() => guilds.toggleFolder(id)}
     >
       {children}
     </Tile>
@@ -137,7 +137,7 @@ function Folder(p: { folder: guilds.Folder }) {
       fallback={folder(
         <span class="folder-tiles">
           <For each={ids().slice(0, FOLDER_TILES)}>
-            {(g) => <Show when={guilds.get(g)}>{(g) => <GuildIcon guild={g()} size={19} />}</Show>}
+            {(guildId) => <Show when={guilds.get(guildId)}>{(guild) => <GuildIcon guild={guild()} size={19} />}</Show>}
           </For>
         </span>,
       )}
@@ -146,7 +146,7 @@ function Folder(p: { folder: guilds.Folder }) {
         class="folder-open"
         style={{
           '--folder': `#${(p.folder.folderColor ?? DEFAULT_FOLDER_COLOR).toString(16).padStart(6, '0')}`,
-          '--n': ids().length + 1,
+          '--count': ids().length + 1,
         }}
       >
         {folder(
@@ -154,7 +154,7 @@ function Folder(p: { folder: guilds.Folder }) {
             <Icon name="folder" />
           </span>,
         )}
-        <For each={ids()}>{(g) => <Guild id={g} />}</For>
+        <For each={ids()}>{(guildId) => <Guild id={guildId} />}</For>
       </div>
     </Show>
   )
@@ -167,16 +167,16 @@ export function ServerBar() {
       <Tile
         name="dms"
         title={text('DIRECT_MESSAGES')}
-        sel={!selectedGuild()}
-        pre={channels.lastDm}
-        go={() => channels.openDms(channels.lastDm())}
+        selected={!selectedGuild()}
+        preload={channels.lastDm}
+        open={() => channels.openDms(channels.lastDm())}
       >
         <Icon name="chat" />
       </Tile>
-      <For each={channels.unreadDms()}>{(c) => <Dm channel={c} />}</For>
+      <For each={channels.unreadDms()}>{(channel) => <Dm channel={channel} />}</For>
       <hr />
       <For each={guilds.folders()}>
-        {(f) => (f.folderId == null ? <Guild id={f.guildIds[0]} /> : <Folder folder={f} />)}
+        {(folder) => (folder.folderId == null ? <Guild id={folder.guildIds[0]} /> : <Folder folder={folder} />)}
       </For>
       <AddServer />
       <ServerMenu bar={bar} />
@@ -204,10 +204,10 @@ function AddServer() {
         class="join"
         onSubmit={(e: SubmitEvent) => {
           e.preventDefault()
-          const i = invite()
-          if (!i) return
+          const resolved = invite()
+          if (!resolved) return
           form.hidePopover()
-          guilds.acceptInvite(i)
+          guilds.acceptInvite(resolved)
         }}
       >
         <TextField
@@ -217,14 +217,16 @@ function AddServer() {
         />
         <Show when={invite() !== undefined}>
           <Show when={invite()} fallback={<p>{text('INSTANT_INVITE_EXPIRED')}</p>}>
-            {(i) => (
+            {(resolved) => (
               <p>
-                <Show when={i().guild}>{(g) => <GuildIcon guild={g()} size={48} />}</Show>
-                {i().guild?.name ?? i().channel?.name}
+                <Show when={resolved().guild}>{(guild) => <GuildIcon guild={guild()} size={48} />}</Show>
+                {resolved().guild?.name ?? resolved().channel?.name}
                 <small>
-                  {text('INSTANT_INVITE_GUILD_MEMBERS_ONLINE', { membersOnline: i().approximate_presence_count ?? 0 })}
+                  {text('INSTANT_INVITE_GUILD_MEMBERS_ONLINE', {
+                    membersOnline: resolved().approximate_presence_count ?? 0,
+                  })}
                   {' · '}
-                  {text('INSTANT_INVITE_GUILD_MEMBERS_TOTAL', { count: i().approximate_member_count ?? 0 })}
+                  {text('INSTANT_INVITE_GUILD_MEMBERS_TOTAL', { count: resolved().approximate_member_count ?? 0 })}
                 </small>
               </p>
             )}

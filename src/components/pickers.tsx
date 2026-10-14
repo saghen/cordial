@@ -20,17 +20,17 @@ import { GuildIcon } from './guild_icon'
 // a section's rail button: the server's icon, favorites' and the most used's icons, else the picker's own (its first
 // item)
 const rail =
-  <T,>(other: (s: pickers.Section<T>) => JSX.Element) =>
-  (s: pickers.Section<T>) => {
-    if (s.guild) return <GuildIcon guild={s.guild} size={24} />
-    if (s.icon) return <Icon name={s.icon} />
-    return other(s)
+  <T,>(other: (section: pickers.Section<T>) => JSX.Element) =>
+  (section: pickers.Section<T>) => {
+    if (section.guild) return <GuildIcon guild={section.guild} size={24} />
+    if (section.icon) return <Icon name={section.icon} />
+    return other(section)
   }
 
 // the footer: the item's image, its name, where it's from
-const Named = (p: { img?: JSX.Element; name: string; from?: string }) => (
+const Named = (p: { image?: JSX.Element; name: string; from?: string }) => (
   <>
-    {p.img}
+    {p.image}
     <b>{p.name}</b>
     <small>{p.from}</small>
   </>
@@ -44,12 +44,17 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
     return channel ? pickers.emojiSections(channel) : []
   }
   const found = () => pickers.searchEmoji(p.channel()!, query())
-  const pick = (e: EmojiRecord) => {
-    const b = p.box()
+  const pick = (emoji: EmojiRecord) => {
+    const box = p.box()
     // a space before it when it would join a word
-    const before = b.value.slice(0, b.selectionStart)
-    b.setRangeText(`${before && !/\s$/.test(before) ? ' ' : ''}:${e.name}: `, b.selectionStart, b.selectionEnd, 'end')
-    b.dispatchEvent(new Event('input', { bubbles: true }))
+    const before = box.value.slice(0, box.selectionStart)
+    box.setRangeText(
+      `${before && !/\s$/.test(before) ? ' ' : ''}:${emoji.name}: `,
+      box.selectionStart,
+      box.selectionEnd,
+      'end',
+    )
+    box.dispatchEvent(new Event('input', { bubbles: true }))
   }
   return (
     <>
@@ -86,22 +91,24 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
           }
           all={all()}
           shown={query() ? [{ id: 'results', name: '', items: found() }] : all()}
-          rail={rail((s) => (
-            <Emoji emoji={s.items[0]} />
+          rail={rail((section) => (
+            <Emoji emoji={section.items[0]} />
           ))}
-          item={(e) => (
+          item={(emoji) => (
             <button
-              data-id={e.id ?? e.name}
+              data-id={emoji.id ?? emoji.name}
               // shift keeps the picker open for more, as stock
-              onClick={(ev) => {
-                pick(e)
-                if (!ev.shiftKey) menu.hidePopover()
+              onClick={(e) => {
+                pick(emoji)
+                if (!e.shiftKey) menu.hidePopover()
               }}
             >
-              <img alt={e.name} src={pickers.emojiSrc(e)} loading="lazy" />
+              <img alt={emoji.name} src={pickers.emojiSrc(emoji)} loading="lazy" />
             </button>
           )}
-          footer={(e) => <Named img={<Emoji emoji={e} />} name={`:${e.name}:`} from={pickers.emojiFrom(e)} />}
+          footer={(emoji) => (
+            <Named image={<Emoji emoji={emoji} />} name={`:${emoji.name}:`} from={pickers.emojiFrom(emoji)} />
+          )}
         />
       </Popout>
     </>
@@ -120,9 +127,9 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
     if (view()?.kind === 'Favorites') return pickers.favoriteGifs()
     return query() || view() ? pickers.gifResults() : []
   }
-  const pick = (g: Gif, index: number) => {
-    pickers.selectGif(g, index, items(), view()?.kind ?? 'Search', query() || view()?.name)
-    p.send(g.url)
+  const pick = (gif: Gif, index: number) => {
+    pickers.selectGif(gif, index, items(), view()?.kind ?? 'Search', query() || view()?.name)
+    p.send(gif.url)
     menu.hidePopover()
   }
   const back = () => {
@@ -130,8 +137,13 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
     setQuery('')
     pickers.clearGifs()
   }
-  const tile = (name: string, img: string | undefined, run: () => void) => (
-    <button class="gif-category" data-id={name} style={img ? { '--img': `url(${img})` } : undefined} onClick={run}>
+  const tile = (name: string, image: string | undefined, run: () => void) => (
+    <button
+      class="gif-category"
+      data-id={name}
+      style={image ? { '--image': `url(${image})` } : undefined}
+      onClick={run}
+    >
       {name}
     </button>
   )
@@ -153,17 +165,17 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
               placeholder={text('SEARCH_KLIPY')}
               autofocus
               value={query()}
-              onInput={(q) => {
-                setQuery(q)
-                pickers.searchGifs(q, 'Search')
+              onInput={(value) => {
+                setQuery(value)
+                pickers.searchGifs(value, 'Search')
               }}
             />
           }
         >
-          {(v) => (
+          {(opened) => (
             <h3>
               <IconButton class="gif-back" icon="back" title={text('BACK')} onClick={back} />
-              {v().name}
+              {opened().name}
             </h3>
           )}
         </Show>
@@ -172,20 +184,20 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
           fallback={
             <div class="gif-categories">
               <Show when={pickers.favoriteGifs()[0]}>
-                {(f) =>
-                  tile(text('FAVORITES'), pickers.isVideo(f().src) ? undefined : f().src, () =>
+                {(favorite) =>
+                  tile(text('FAVORITES'), pickers.isVideo(favorite().src) ? undefined : favorite().src, () =>
                     setView({ name: text('FAVORITES'), kind: 'Favorites' }),
                   )
                 }
               </Show>
               <For each={pickers.gifCategories()}>
-                {(c) =>
-                  tile(c.name, c.src, () => {
-                    if (c.type !== 'Trending') {
-                      setView({ name: c.name, kind: 'Category' })
-                      return pickers.searchGifs(c.name, 'Category', true)
+                {(category) =>
+                  tile(category.name, category.src, () => {
+                    if (category.type !== 'Trending') {
+                      setView({ name: category.name, kind: 'Category' })
+                      return pickers.searchGifs(category.name, 'Category', true)
                     }
-                    setView({ name: c.name, kind: 'Trending' })
+                    setView({ name: category.name, kind: 'Trending' })
                     pickers.trendingGifs()
                   })
                 }
@@ -196,12 +208,12 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
           <div class="gif-results">
             <div class="gif-columns">
               <For each={items()}>
-                {(g, i) => (
-                  <button class="gif" data-id={g.id ?? g.url} onClick={() => pick(g, i())}>
-                    {pickers.isVideo(g.src) ? (
-                      <video src={g.src} width={g.width} height={g.height} autoplay loop muted />
+                {(gif, i) => (
+                  <button class="gif" data-id={gif.id ?? gif.url} onClick={() => pick(gif, i())}>
+                    {pickers.isVideo(gif.src) ? (
+                      <video src={gif.src} width={gif.width} height={gif.height} autoplay loop muted />
                     ) : (
-                      <img alt="" src={g.src} width={g.width} height={g.height} loading="lazy" />
+                      <img alt="" src={gif.src} width={gif.width} height={gif.height} loading="lazy" />
                     )}
                   </button>
                 )}
@@ -224,9 +236,9 @@ export function StickerPicker(p: { channel: () => Channel | undefined; send: (st
     return channel ? pickers.stickerSections(channel) : []
   }
   // a Lottie sticker by its name, as the chat shows one
-  const image = (st: Sticker) => {
-    const src = pickers.stickerSrc(st)
-    return src ? <img alt={st.name} src={src} loading="lazy" /> : st.name
+  const image = (sticker: Sticker) => {
+    const src = pickers.stickerSrc(sticker)
+    return src ? <img alt={sticker.name} src={src} loading="lazy" /> : sticker.name
   }
   return (
     <>
@@ -257,26 +269,26 @@ export function StickerPicker(p: { channel: () => Channel | undefined; send: (st
           all={all()}
           shown={query() ? [{ id: 'results', name: '', items: pickers.searchStickers(p.channel()!, query()) }] : all()}
           // a pack's first sticker, else its initials (a Lottie sticker has no image)
-          rail={rail((s) => {
-            const src = pickers.stickerSrc(s.items[0])
-            return src ? <img alt="" src={src} /> : guilds.acronym(s)
+          rail={rail((section) => {
+            const src = pickers.stickerSrc(section.items[0])
+            return src ? <img alt="" src={src} /> : guilds.acronym(section)
           })}
-          item={(st) => (
+          item={(sticker) => (
             <button
-              data-id={st.id}
+              data-id={sticker.id}
               onClick={() => {
-                p.send(st.id)
+                p.send(sticker.id)
                 menu.hidePopover()
               }}
             >
-              {image(st)}
+              {image(sticker)}
             </button>
           )}
-          footer={(st) => (
+          footer={(sticker) => (
             <Named
-              img={pickers.stickerSrc(st) && <img alt="" src={pickers.stickerSrc(st)} />}
-              name={st.name}
-              from={pickers.stickerFrom(st)}
+              image={pickers.stickerSrc(sticker) && <img alt="" src={pickers.stickerSrc(sticker)} />}
+              name={sticker.name}
+              from={pickers.stickerFrom(sticker)}
             />
           )}
         />

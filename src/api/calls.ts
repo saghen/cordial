@@ -12,15 +12,23 @@ import * as voice from './voice'
 const going = (channelId: Id) => Boolean($.Call.getCall(channelId)) && voice.states(channelId).length > 0
 
 // what the call view shows: voice and stage channels, and DMs with a call going
-export const callIn = (c: Channel | undefined) =>
-  c && (c.type === ChannelType.Voice || c.type === ChannelType.Stage || (!c.guild_id && going(c.id))) ? c : undefined
+export const callIn = (channel: Channel | undefined) =>
+  channel &&
+  (channel.type === ChannelType.Voice || channel.type === ChannelType.Stage || (!channel.guild_id && going(channel.id)))
+    ? channel
+    : undefined
 
 // stock's DM header buttons: a voice or video call to the DM, ringing its recipients (a 1:1 DM's user), or into the
 // call already going there (no ring)
-export const start = (c: PrivateChannel, video: boolean) =>
-  A.calls.call(c.id, video, !going(c.id), c.type === ChannelType.DM ? c.recipients[0] : undefined)
+export const start = (channel: PrivateChannel, video: boolean) =>
+  A.calls.call(
+    channel.id,
+    video,
+    !going(channel.id),
+    channel.type === ChannelType.DM ? channel.recipients[0] : undefined,
+  )
 // below a call you're not in: join it, with or without the camera
-export const join = (c: Channel, video: boolean) => A.calls.call(c.id, video, false)
+export const join = (channel: Channel, video: boolean) => A.calls.call(channel.id, video, false)
 
 // ringing for you: the DM, and who's calling
 export interface Incoming {

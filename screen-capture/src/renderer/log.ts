@@ -1,4 +1,4 @@
 export const logger = (name: string) => ({
-  warn: (...a: unknown[]) => console.warn(`[${name}]`, ...a),
-  error: (...a: unknown[]) => console.error(`[${name}]`, ...a),
+  warn: (...args: unknown[]) => console.warn(`[${name}]`, ...args),
+  error: (...args: unknown[]) => console.error(`[${name}]`, ...args),
 })

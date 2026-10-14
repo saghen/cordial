@@ -20,40 +20,40 @@ import { contextMenu, Items } from '../primitives/menu'
 import { Row } from '../primitives/row'
 
 // a channel's mention count at its row's end (a DM row has none: the server bar counts it)
-const count = (n: number) => n > 0 && <Badge kind="count">{n}</Badge>
+const count = (mentions: number) => mentions > 0 && <Badge kind="count">{mentions}</Badge>
 
 function Dm(p: { channel: PrivateChannel }) {
-  const c = () => p.channel
+  const channel = () => p.channel
   return (
     <Row
       name="dm"
-      data-id={c().id}
-      title={channels.dmName(c())}
-      class={{ sel: selected() === c().id, unread: channels.unread(c()) }}
-      icon={<DmIcon channel={c()} size={32} status />}
-      sub={channels.dmSub(c())}
-      onClick={() => channels.open(c())}
-      {...onHover(() => c().id)}
+      data-id={channel().id}
+      title={channels.dmName(channel())}
+      class={{ selected: selected() === channel().id, unread: channels.unread(channel()) }}
+      icon={<DmIcon channel={channel()} size={32} status />}
+      subtitle={channels.dmSubtitle(channel())}
+      onClick={() => channels.open(channel())}
+      {...onHover(() => channel().id)}
     >
-      {channels.dmName(c())}
+      {channels.dmName(channel())}
     </Row>
   )
 }
 
 function TextChannel(p: { channel: Channel }) {
-  const c = () => p.channel
-  const muted = () => channels.muted(c())
+  const channel = () => p.channel
+  const muted = () => channels.muted(channel())
   return (
     <Row
       name="channel"
-      data-id={c().id}
-      class={{ sel: selected() === c().id, unread: channels.unread(c()) && !muted(), muted: muted() }}
-      icon={<ChannelIcon channel={c()} />}
-      end={count(channels.mentions(c()))}
-      onClick={() => channels.open(c())}
-      {...onHover(() => c().id)}
+      data-id={channel().id}
+      class={{ selected: selected() === channel().id, unread: channels.unread(channel()) && !muted(), muted: muted() }}
+      icon={<ChannelIcon channel={channel()} />}
+      end={count(channels.mentions(channel()))}
+      onClick={() => channels.open(channel())}
+      {...onHover(() => channel().id)}
     >
-      {c().name}
+      {channel().name}
     </Row>
   )
 }
@@ -61,7 +61,7 @@ function TextChannel(p: { channel: Channel }) {
 // a category: its name and a chevron; a click collapses or expands it
 const Category = (p: { channel: Channel }) => (
   <Row
-    name="cat"
+    name="category"
     data-id={p.channel.id}
     class={{ collapsed: channels.collapsed(p.channel) }}
     end={<Icon name="chevron" />}
@@ -73,53 +73,55 @@ const Category = (p: { channel: Channel }) => (
 
 // a voice channel: its status under its name, how long the call has gone on at its end; who's in it under it
 function VoiceChannel(p: { channel: Channel }) {
-  const c = () => p.channel
-  const start = () => channels.callStart(c())
+  const channel = () => p.channel
+  const start = () => channels.callStart(channel())
   const now = useNow(() => (start() ? Infinity : 0))
   return (
     <>
       <Row
         name="voice"
-        data-id={c().id}
-        class={{ live: voice.states(c().id).length > 0, joined: voice.connected(c()) }}
-        icon={<ChannelIcon channel={c()} />}
-        sub={channels.voiceStatus(c())}
+        data-id={channel().id}
+        class={{ live: voice.states(channel().id).length > 0, joined: voice.connected(channel()) }}
+        icon={<ChannelIcon channel={channel()} />}
+        subtitle={channels.voiceStatus(channel())}
         end={start() && <time>{channels.elapsed(now() - start()!)}</time>}
-        onClick={() => voice.join(c())}
+        onClick={() => voice.join(channel())}
       >
-        {c().name}
+        {channel().name}
       </Row>
-      <For each={voice.states(c().id)}>{(v) => <VoiceUser state={v} channel={c()} />}</For>
+      <For each={voice.states(channel().id)}>{(state) => <VoiceUser state={state} channel={channel()} />}</For>
     </>
   )
 }
 
 // muted: the mic off; deafened: the mic and headphones off; by the server: in red
 function VoiceUser(p: { state: VoiceState; channel: Channel }) {
-  const v = () => p.state
-  const user = () => users.get(v().userId)
-  const deaf = () => voice.deafened(v())
-  const mute = () => voice.muted(v()) || deaf()
+  const state = () => p.state
+  const user = () => users.get(state().userId)
+  const deafened = () => voice.deafened(state())
+  const muted = () => voice.muted(state()) || deafened()
   return (
     <Row
       name="voice-user"
-      data-id={v().userId}
-      class={{ forced: voice.forced(v()), elsewhere: voice.elsewhere(v(), p.channel) }}
+      data-id={state().userId}
+      class={{ forced: voice.forced(state()), elsewhere: voice.elsewhere(state(), p.channel) }}
       icon={
         <Show when={user()}>
-          {(u) => <Avatar user={u()} guildId={p.channel.guild_id} size={24} speaking={voice.speaking(v().userId)} />}
+          {(record) => (
+            <Avatar user={record()} guildId={p.channel.guild_id} size={24} speaking={voice.speaking(state().userId)} />
+          )}
         </Show>
       }
       end={
-        (v().selfStream || mute()) && (
+        (state().selfStream || muted()) && (
           <>
-            <Show when={v().selfStream}>
+            <Show when={state().selfStream}>
               <Badge kind="live">LIVE</Badge>
             </Show>
-            <Show when={mute()}>
+            <Show when={muted()}>
               <Icon name="mic-off" />
             </Show>
-            <Show when={deaf()}>
+            <Show when={deafened()}>
               <Icon name="deaf" />
             </Show>
           </>
@@ -142,8 +144,12 @@ export function Channels() {
   const menu = channelMenu()
   return (
     <nav onContextMenu={menu.open}>
-      <Show when={selectedGuild()} keyed fallback={<For each={channels.dms()}>{(c) => <Dm channel={c} />}</For>}>
-        {(guildId) => <For each={channels.rows(guildId)}>{(c) => <ChannelRow channel={c} />}</For>}
+      <Show
+        when={selectedGuild()}
+        keyed
+        fallback={<For each={channels.dms()}>{(channel) => <Dm channel={channel} />}</For>}
+      >
+        {(guildId) => <For each={channels.rows(guildId)}>{(channel) => <ChannelRow channel={channel} />}</For>}
       </Show>
       {menu.view}
     </nav>
@@ -155,32 +161,36 @@ function channelMenu() {
   return contextMenu({
     class: 'channel-menu',
     find(e) {
-      const row = (e.target as Element).closest<HTMLElement>('nav > .channel, nav > .cat')
+      const row = (e.target as Element).closest<HTMLElement>('nav > .channel, nav > .category')
       return row && channels.get(row.dataset.id!)
     },
-    children: (c) => {
-      const cat = c().type === ChannelType.Category
-      const muted = () => channels.muted(c())
+    children: (channel) => {
+      const category = channel().type === ChannelType.Category
+      const muted = () => channels.muted(channel())
       return (
         <Items
           items={[
             {
               name: 'menu-read',
               label: text('MARK_AS_READ'),
-              disabled: !channels.canMarkRead(c()),
-              run: () => channels.markRead(c()),
+              disabled: !channels.canMarkRead(channel()),
+              run: () => channels.markRead(channel()),
             },
             {
               name: 'menu-mute',
-              label: text(muteLabel(cat, muted())),
-              run: () => channels.setMuted(c(), !muted()),
+              label: text(muteLabel(category, muted())),
+              run: () => channels.setMuted(channel(), !muted()),
             },
             {
               name: 'menu-copy-link',
               label: text('COPY_LINK'),
-              run: () => navigator.clipboard.writeText(channels.link(c())),
+              run: () => navigator.clipboard.writeText(channels.link(channel())),
             },
-            { name: 'menu-copy-id', label: text('COPY_ID_CHANNEL'), run: () => navigator.clipboard.writeText(c().id) },
+            {
+              name: 'menu-copy-id',
+              label: text('COPY_ID_CHANNEL'),
+              run: () => navigator.clipboard.writeText(channel().id),
+            },
           ]}
         />
       )

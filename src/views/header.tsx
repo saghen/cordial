@@ -33,16 +33,24 @@ export function Header() {
     <header>
       <h1>{title()}</h1>
       <Show when={selectedChannel()}>
-        {(c) => (
+        {(channel) => (
           <div class="channel">
-            {c().guild_id ? <ChannelIcon channel={c()} /> : <DmIcon channel={c() as PrivateChannel} size={24} status />}
-            {c().guild_id ? c().name : channels.dmName(c() as PrivateChannel)}
-            <small>{c().topic}</small>
+            {channel().guild_id ? (
+              <ChannelIcon channel={channel()} />
+            ) : (
+              <DmIcon channel={channel() as PrivateChannel} size={24} status />
+            )}
+            {channel().guild_id ? channel().name : channels.dmName(channel() as PrivateChannel)}
+            <small>{channel().topic}</small>
             <div class="toolbar">
-              {c().guild_id ? <NotificationBell channel={c()} /> : <CallButtons channel={c() as PrivateChannel} />}
-              <Pins channel={c()} />
+              {channel().guild_id ? (
+                <NotificationBell channel={channel()} />
+              ) : (
+                <CallButtons channel={channel() as PrivateChannel} />
+              )}
+              <Pins channel={channel()} />
               <MembersToggle />
-              <Search channel={c()} />
+              <Search channel={channel()} />
             </div>
           </div>
         )}
@@ -52,8 +60,8 @@ export function Header() {
 }
 
 function NotificationBell(p: { channel: Channel }) {
-  const c = () => p.channel
-  const muted = () => channels.muted(c())
+  const channel = () => p.channel
+  const muted = () => channels.muted(channel())
   return (
     <>
       <IconButton
@@ -65,7 +73,7 @@ function NotificationBell(p: { channel: Channel }) {
         onClick={(e) => {
           if (!e.shiftKey) return
           e.preventDefault()
-          channels.setMuted(c(), !muted())
+          channels.setMuted(channel(), !muted())
         }}
       />
       <Popout name="notifications" class="notifications-menu">
@@ -77,38 +85,38 @@ function NotificationBell(p: { channel: Channel }) {
                   label: (
                     <>
                       {text('UNMUTE_CHANNEL_GENERIC')}
-                      <small>{notifications.mutedUntil(c())}</small>
+                      <small>{notifications.mutedUntil(channel())}</small>
                     </>
                   ),
-                  run: () => channels.setMuted(c(), false),
+                  run: () => channels.setMuted(channel(), false),
                 }
               : {
                   name: 'notifications-mute',
                   label: text('MUTE_CHANNEL_GENERIC'),
-                  run: () => channels.setMuted(c(), true),
-                  submenu: notifications.DURATIONS.map(([secs, name]) => ({
+                  run: () => channels.setMuted(channel(), true),
+                  submenu: notifications.DURATIONS.map(([seconds, name]) => ({
                     name: 'notifications-mute-for',
-                    id: String(secs),
+                    id: String(seconds),
                     label: text(name),
-                    run: () => notifications.muteFor(c(), secs),
+                    run: () => notifications.muteFor(channel(), seconds),
                   })),
                 },
-            notifications.choices(c()).length > 0 && '-',
+            notifications.choices(channel()).length > 0 && '-',
             // as stock, the menu stays open
-            ...notifications.choices(c()).map((choice) => ({
+            ...notifications.choices(channel()).map((choice) => ({
               name: 'notifications-level',
               id: `${choice.level}${choice.unreads ? ':unreads' : ''}`,
               label: (
                 <>
                   {choice.label}
                   <Show when={choice.level === notifications.Level.Default}>
-                    <small>{notifications.fallback(c())}</small>
+                    <small>{notifications.fallback(channel())}</small>
                   </Show>
                 </>
               ),
-              checked: notifications.chosen(c(), choice),
+              checked: notifications.chosen(channel(), choice),
               keep: true,
-              run: () => notifications.choose(c(), choice),
+              run: () => notifications.choose(channel(), choice),
             })),
           ]}
         />
@@ -118,21 +126,21 @@ function NotificationBell(p: { channel: Channel }) {
 }
 
 // a message as a card (pins, search results): its author line, its text and files, Jump to it (stock: to its link)
-function Card(p: { m: Message; guildId?: Id | null; jump: string; onJump?: () => void; where?: string }) {
+function Card(p: { message: Message; guildId?: Id | null; jump: string; onJump?: () => void; where?: string }) {
   return (
-    <article data-id={p.m.id} class="head">
-      <Head m={p.m} guildId={p.guildId}>
+    <article data-id={p.message.id} class="head">
+      <Head message={p.message} guildId={p.guildId}>
         <Show when={p.where}>
           <small>#{p.where}</small>
         </Show>
       </Head>
-      <Content m={p.m} channelId={p.m.channel_id} />
-      <For each={p.m.attachments}>{(f) => <Attachment file={f} />}</For>
+      <Content message={p.message} channelId={p.message.channel_id} />
+      <For each={p.message.attachments}>{(file) => <Attachment file={file} />}</For>
       <Button
         class={`${p.jump}-jump`}
-        data-id={p.m.id}
+        data-id={p.message.id}
         onClick={() => {
-          messages.jumpTo(p.m)
+          messages.jumpTo(p.message)
           p.onJump?.()
         }}
       >
@@ -152,7 +160,7 @@ function Pins(p: { channel: Channel }) {
     const pinned = pins()
     return pinned && pinned.state !== 'LOADING' && !pinned.items.length
   }
-  let pop!: HTMLDivElement
+  let popout!: HTMLDivElement
   return (
     <>
       <IconButton
@@ -162,7 +170,7 @@ function Pins(p: { channel: Channel }) {
         popovertarget="mc-pins"
       />
       <Popout
-        ref={pop}
+        ref={popout}
         name="pins"
         as="div"
         class="pins-list"
@@ -176,7 +184,9 @@ function Pins(p: { channel: Channel }) {
           <p>{text(p.channel.guild_id ? 'NO_PINS_IN_CHANNEL' : 'NO_PINS_IN_DM')}</p>
         </Show>
         <For each={items()}>
-          {({ message: m }) => <Card m={m} guildId={p.channel.guild_id} jump="pins" onJump={() => pop.hidePopover()} />}
+          {({ message }) => (
+            <Card message={message} guildId={p.channel.guild_id} jump="pins" onJump={() => popout.hidePopover()} />
+          )}
         </For>
         <Show when={pins()?.state === 'LOADED_HAS_MORE'}>
           <Button class="pins-more" onClick={() => messages.fetchPins(id(), items().at(-1)?.pinnedAt)}>
@@ -191,54 +201,54 @@ function Pins(p: { channel: Channel }) {
 // search, as stock's header search bar: Enter searches the server (or the DM); the results open on the right, a page
 // at a time
 function Search(p: { channel: Channel }) {
-  const c = () => p.channel
+  const channel = () => p.channel
   const [offset, setOffset] = createSignal(0)
-  let pop!: HTMLDivElement
+  let popover!: HTMLDivElement
   let query = ''
   const run = (at: number) => {
     setOffset(at)
-    search.run(c(), query, at)
-    pop.showPopover()
+    search.run(channel(), query, at)
+    popover.showPopover()
   }
   // another server or DM has its own search: the results close
   createEffect(
-    () => search.searchId(c()),
-    () => pop.hidePopover(),
+    () => search.searchId(channel()),
+    () => popover.hidePopover(),
   )
-  const total = () => search.total(c())
+  const total = () => search.total(channel())
   return (
     <>
       <SearchInput
         class="search"
-        placeholder={search.placeholder(c())}
-        onEscape={() => pop.hidePopover()}
-        onEnter={(q) => {
-          if (!q.trim()) return
-          query = q.trim()
+        placeholder={search.placeholder(channel())}
+        onEscape={() => popover.hidePopover()}
+        onEnter={(value) => {
+          if (!value.trim()) return
+          query = value.trim()
           run(0)
         }}
       />
       <div
-        ref={pop}
+        ref={popover}
         id="mc-search"
         class="search-results"
         popover="manual"
-        onToggle={(e) => e.newState === 'closed' && search.clear(c())}
+        onToggle={(e) => e.newState === 'closed' && search.clear(channel())}
       >
         <h2>
-          {search.fetching(c()) ? text('SEARCHING') : text('TOTAL_RESULTS', { count: total() })}
-          <IconButton class="search-close" icon="close" title={text('CLOSE')} onClick={() => pop.hidePopover()} />
+          {search.fetching(channel()) ? text('SEARCHING') : text('TOTAL_RESULTS', { count: total() })}
+          <IconButton class="search-close" icon="close" title={text('CLOSE')} onClick={() => popover.hidePopover()} />
         </h2>
-        <Show when={search.failed(c())}>
+        <Show when={search.failed(channel())}>
           <p>{text('SEARCH_ERROR')}</p>
         </Show>
-        <For each={search.results(c())}>
-          {(m) => (
+        <For each={search.results(channel())}>
+          {(message) => (
             <Card
-              m={m}
-              guildId={c().guild_id}
+              message={message}
+              guildId={channel().guild_id}
               jump="search"
-              where={c().guild_id ? channels.get(m.channel_id)?.name : undefined}
+              where={channel().guild_id ? channels.get(message.channel_id)?.name : undefined}
             />
           )}
         </For>

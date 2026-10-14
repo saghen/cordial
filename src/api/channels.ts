@@ -19,55 +19,60 @@ export const get = (id: Id) => $.Channel.getChannel(id) as Channel | undefined
 export const lastDm = () => S.SelectedChannel.getChannelId('@me')
 // the DMs, at a DM or the friends page
 export const openDms = (id?: Id | null) => A.nav.transitionTo(`/channels/@me${id ? `/${id}` : ''}`)
-export const open = (c: Channel) => A.nav.transitionTo(`/channels/${c.guild_id ?? '@me'}/${c.id}`)
+export const open = (channel: Channel) => A.nav.transitionTo(`/channels/${channel.guild_id ?? '@me'}/${channel.id}`)
 // a channel link's click (a mention, a link to a channel or to a message: then the message jumped to)
 export const openLink = (guildId: Id | null | undefined, channelId: Id, messageId?: Id) =>
   A.nav.transitionTo(`/channels/${guildId ?? '@me'}/${channelId}${messageId ? `/${messageId}` : ''}`)
 
 // what sets a channel's icon apart: announcements, age-restricted and private ones. Private as stock: hidden from
 // @everyone, or for voice also closed to it
-export function kindOf(c: Channel): 'news' | 'nsfw' | 'lock' | undefined {
-  if (c.type === ChannelType.Announcement) return 'news'
-  if (c.nsfw) return 'nsfw'
-  const deny = BigInt(c.permissionOverwrites?.[c.guild_id!]?.deny ?? 0)
-  const closed = c.type === ChannelType.Voice ? Permission.VIEW_CHANNEL | Permission.CONNECT : Permission.VIEW_CHANNEL
+export function kindOf(channel: Channel): 'news' | 'nsfw' | 'lock' | undefined {
+  if (channel.type === ChannelType.Announcement) return 'news'
+  if (channel.nsfw) return 'nsfw'
+  const deny = BigInt(channel.permissionOverwrites?.[channel.guild_id!]?.deny ?? 0)
+  const closed =
+    channel.type === ChannelType.Voice ? Permission.VIEW_CHANNEL | Permission.CONNECT : Permission.VIEW_CHANNEL
   return deny & closed ? 'lock' : undefined
 }
 
-export const unread = (c: Channel) => $.ReadState.hasUnread(c.id)
-export const mentions = (c: Channel) => $.ReadState.getMentionCount(c.id)
-export const canMarkRead = (c: Channel) => c.type === ChannelType.Category || unread(c)
-export const markRead = (c: Channel) => A.acks.markRead(c)
+export const unread = (channel: Channel) => $.ReadState.hasUnread(channel.id)
+export const mentions = (channel: Channel) => $.ReadState.getMentionCount(channel.id)
+export const canMarkRead = (channel: Channel) => channel.type === ChannelType.Category || unread(channel)
+export const markRead = (channel: Channel) => A.acks.markRead(channel)
 
 // a server channel's link, as Copy Link copies it
-export const link = (c: Channel) => `https://discord.com/channels/${c.guild_id}/${c.id}`
+export const link = (channel: Channel) => `https://discord.com/channels/${channel.guild_id}/${channel.id}`
 
 // a server channel's mute
-export const muted = (c: Channel) => $.UserGuildSettings.isChannelMuted(c.guild_id!, c.id)
-export const setMuted = (c: Channel, on: boolean) => notifications.update(c, { muted: on }, on ? 'muted' : 'unmuted')
+export const muted = (channel: Channel) => $.UserGuildSettings.isChannelMuted(channel.guild_id!, channel.id)
+export const setMuted = (channel: Channel, on: boolean) =>
+  notifications.update(channel, { muted: on }, on ? 'muted' : 'unmuted')
 
 // a category's collapse is a user guild setting: it syncs
-export const collapsed = (cat: Channel) => $.CategoryCollapse.isCollapsed(cat.id)
-export const toggleCollapsed = (cat: Channel) =>
+export const collapsed = (category: Channel) => $.CategoryCollapse.isCollapsed(category.id)
+export const toggleCollapsed = (category: Channel) =>
   A.dispatcher.dispatch({
-    type: S.CategoryCollapse.isCollapsed(cat.id) ? 'CATEGORY_EXPAND' : 'CATEGORY_COLLAPSE',
-    id: cat.id,
+    type: S.CategoryCollapse.isCollapsed(category.id) ? 'CATEGORY_EXPAND' : 'CATEGORY_COLLAPSE',
+    id: category.id,
   })
 
 // a server's list: text and announcement channels, then voice channels, under their categories (the uncategorized ones
 // first, as GuildChannelStore lists the "null" category). A collapsed category keeps the selected channel
 export function rows(guildId: Id): Channel[] {
   const all = $.GuildChannel.getChannels(guildId)
-  const of = (group: { channel: Channel }[] | undefined, ...types: ChannelType[]) =>
-    (group ?? []).map((x) => x.channel).filter((c) => types.includes(c.type))
+  const ofTypes = (group: { channel: Channel }[] | undefined, ...types: ChannelType[]) =>
+    (group ?? []).map((entry) => entry.channel).filter((channel) => types.includes(channel.type))
   const listed = [
-    ...of(all.SELECTABLE, ChannelType.Text, ChannelType.Announcement),
-    ...of(all.VOCAL, ChannelType.Voice),
+    ...ofTypes(all.SELECTABLE, ChannelType.Text, ChannelType.Announcement),
+    ...ofTypes(all.VOCAL, ChannelType.Voice),
   ]
-  return (all[ChannelType.Category] ?? []).flatMap(({ channel: cat }: { channel: Channel }) => {
-    const rows = listed.filter((c) => (c.parent_id ?? 'null') === cat.id)
-    const shut = collapsed(cat)
-    return [...(cat.id === 'null' || !rows.length ? [] : [cat]), ...rows.filter((c) => !shut || c.id === selected())]
+  return (all[ChannelType.Category] ?? []).flatMap(({ channel: category }: { channel: Channel }) => {
+    const children = listed.filter((channel) => (channel.parent_id ?? 'null') === category.id)
+    const shut = collapsed(category)
+    return [
+      ...(category.id === 'null' || !children.length ? [] : [category]),
+      ...children.filter((channel) => !shut || channel.id === selected()),
+    ]
   })
 }
 
@@ -75,50 +80,56 @@ export function rows(guildId: Id): Channel[] {
 export const dms = () =>
   $.PrivateChannelSort.getSortedChannels()
     .flat()
-    .map((c) => get(c.channelId))
-    .filter((c): c is PrivateChannel => Boolean(c?.isPrivate()))
+    .map((entry) => get(entry.channelId))
+    .filter((channel): channel is PrivateChannel => Boolean(channel?.isPrivate()))
     .slice(0, 100)
 // the DMs with unreads, for the server bar
 export const unreadDms = () => $.PrivateChannelReadState.getUnreadPrivateChannelIds().map(get) as PrivateChannel[]
 
 // as stock: friend nicknames, then display names
 const userName = (id: Id) => $.Relationship.getNickname(id) ?? users.nameOf(users.get(id))
-export const dmName = (c: PrivateChannel) => c.name || c.recipients.map(userName).join(', ')
+export const dmName = (channel: PrivateChannel) => channel.name || channel.recipients.map(userName).join(', ')
 
 // a DM's other user; a group DM has none
-export const dmUser = (c: PrivateChannel) => (c.type === ChannelType.DM ? users.get(c.recipients[0]) : undefined)
+export const dmUser = (channel: PrivateChannel) =>
+  channel.type === ChannelType.DM ? users.get(channel.recipients[0]) : undefined
 // a group DM's icon, else stock's default for it
-export const groupIcon = (c: PrivateChannel, px: number) =>
-  A.icons.getChannelIconURL({ id: c.id, icon: c.icon, applicationId: c.getApplicationId(), size: cdn.size(px) })
+export const groupIcon = (channel: PrivateChannel, px: number) =>
+  A.icons.getChannelIconURL({
+    id: channel.id,
+    icon: channel.icon,
+    applicationId: channel.getApplicationId(),
+    size: cdn.size(px),
+  })
 
 // under a DM's name: a group's size, a user's custom status
-export function dmSub(c: PrivateChannel) {
-  const user = dmUser(c)
-  if (!user) return text('GROUP_DM_MEMBER_COUNT', { members: c.recipients.length + 1 })
-  return $.Presence.getActivities(user.id).find((a) => a.type === ActivityType.Custom)?.state
+export function dmSubtitle(channel: PrivateChannel) {
+  const user = dmUser(channel)
+  if (!user) return text('GROUP_DM_MEMBER_COUNT', { members: channel.recipients.length + 1 })
+  return $.Presence.getActivities(user.id).find((activity) => activity.type === ActivityType.Custom)?.state
 }
 
 // a channel's name as the composer and incoming calls name it: #general, @user, a group's names
-export function title(c: Channel) {
-  if (c.guild_id) return `#${c.name}`
-  const name = dmName(c as PrivateChannel)
-  return c.type === ChannelType.DM ? `@${name}` : name
+export function title(channel: Channel) {
+  if (channel.guild_id) return `#${channel.name}`
+  const name = dmName(channel as PrivateChannel)
+  return channel.type === ChannelType.DM ? `@${name}` : name
 }
 
 // Voice channels: since when the call in them has gone on, and their status (who's in them: api/voice.ts)
 
 // when the call in it began, while anyone's in it
-export const callStart = (c: Channel) =>
-  voice.states(c.id).length ? $.VoiceChannelStartTime.getStartTime(c) : undefined
-export const voiceStatus = (c: Channel) => $.ChannelStatus.getChannelStatus(c)
+export const callStart = (channel: Channel) =>
+  voice.states(channel.id).length ? $.VoiceChannelStartTime.getStartTime(channel) : undefined
+export const voiceStatus = (channel: Channel) => $.ChannelStatus.getChannelStatus(channel)
 
 // how long a call has gone on, as stock: 2:57:00, 05:12
 export function elapsed(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000))
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const h = Math.floor(s / 3600)
-  const rest = `${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`
-  return h ? `${h}:${rest}` : rest
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const hours = Math.floor(seconds / 3600)
+  const rest = `${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`
+  return hours ? `${hours}:${rest}` : rest
 }
 
 // as stock's voice rows: a server's voice channel statuses, asked for once (op 43) until a resume clears them

@@ -9,17 +9,18 @@ import * as users from './users'
 
 export const states = (channelId: Id) => Object.values($.VoiceState.getVoiceStatesForChannel(channelId)) as VoiceState[]
 export const speaking = (userId: Id) => $.Speaking.isSpeaking(userId)
-export const muted = (v: VoiceState) => v.selfMute || v.mute
-export const deafened = (v: VoiceState) => v.selfDeaf || v.deaf
+export const muted = (voiceState: VoiceState) => voiceState.selfMute || voiceState.mute
+export const deafened = (voiceState: VoiceState) => voiceState.selfDeaf || voiceState.deaf
 // muted or deafened by a moderator
-export const forced = (v: VoiceState) => v.mute || v.deaf
+export const forced = (voiceState: VoiceState) => voiceState.mute || voiceState.deaf
 
 // your connection: the channel you're in, and whether a channel is it
 export const channelId = () => $.RTCConnection.getChannelId()
 export const channel = () => $.Channel.getChannel(channelId()!) as Channel | undefined
-export const connected = (c: Channel) => channelId() === c.id
+export const connected = (voiceChannel: Channel) => channelId() === voiceChannel.id
 // as stock: you, connected from another client
-export const elsewhere = (v: VoiceState, c: Channel) => v.userId === users.me()?.id && !connected(c)
+export const elsewhere = (voiceState: VoiceState, voiceChannel: Channel) =>
+  voiceState.userId === users.me()?.id && !connected(voiceChannel)
 
 // RTCConnectionStore's state, as stock's panel says it (the steps without a name of their own are Connecting)
 const STATES = {
@@ -48,18 +49,18 @@ function activity(screen: boolean, video: boolean, voice: boolean, connected: bo
   return undefined
 }
 export function guildActivity(id: Id) {
-  const m = $.GuildMediaState.getGuildMediaState(id)
-  return activity(m.screenshare, m.video, m.audio, m.isCurrentUserConnected)
+  const media = $.GuildMediaState.getGuildMediaState(id)
+  return activity(media.screenshare, media.video, media.audio, media.isCurrentUserConnected)
 }
-export function callActivity(c: Channel) {
-  const s = states(c.id)
+export function callActivity(voiceChannel: Channel) {
+  const voiceStates = states(voiceChannel.id)
   return activity(
-    $.ApplicationStreaming.getAllApplicationStreamsForChannel(c.id).length > 0,
-    s.some((v) => v.selfVideo),
-    s.length > 0,
-    connected(c),
+    $.ApplicationStreaming.getAllApplicationStreamsForChannel(voiceChannel.id).length > 0,
+    voiceStates.some((voiceState) => voiceState.selfVideo),
+    voiceStates.length > 0,
+    connected(voiceChannel),
   )
 }
 
-export const join = (c: Channel) => A.voice.selectVoiceChannel(c.id)
+export const join = (voiceChannel: Channel) => A.voice.selectVoiceChannel(voiceChannel.id)
 export const leave = () => A.voice.disconnect()

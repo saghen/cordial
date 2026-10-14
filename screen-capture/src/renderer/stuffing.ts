@@ -30,14 +30,14 @@ const STUFF = {
   MAX_CREDIT_MS: 500,
 }
 
-function leb128(n: number): number[] {
+function leb128(value: number): number[] {
   const out: number[] = []
   do {
-    let b = n & 0x7f
-    n = Math.floor(n / 128)
-    if (n) b |= 0x80
-    out.push(b)
-  } while (n)
+    let byte = value & 0x7f
+    value = Math.floor(value / 128)
+    if (value) byte |= 0x80
+    out.push(byte)
+  } while (value)
   return out
 }
 
@@ -59,37 +59,37 @@ function stuffingObu(total: number): Uint8Array {
  * Where the stuffing goes in a temporal unit: the offset of its first frame or frame-header OBU (its end if it has
  * none, or -1 if it doesn't parse: then it gets no stuffing).
  */
-function stuffingOffset(tu: Uint8Array): number {
+function stuffingOffset(unit: Uint8Array): number {
   let i = 0
-  while (i < tu.length) {
-    const h = tu[i]
-    const type = (h >> 3) & 0xf
+  while (i < unit.length) {
+    const header = unit[i]
+    const type = (header >> 3) & 0xf
     if (type === OBU_FRAME || type === OBU_FRAME_HEADER) return i
-    let j = i + 1 + ((h & 0x04) >> 2)
-    if (!(h & 0x02)) return -1 // no size: runs to the end, and we'd have to go after it
+    let offset = i + 1 + ((header & 0x04) >> 2)
+    if (!(header & 0x02)) return -1 // no size: runs to the end, and we'd have to go after it
     let size = 0
-    for (let k = 0; ; k++) {
-      if (j >= tu.length || k > 7) return -1
-      const b = tu[j++]
-      size += (b & 0x7f) * 2 ** (7 * k)
-      if (!(b & 0x80)) break
+    for (let byteIndex = 0; ; byteIndex++) {
+      if (offset >= unit.length || byteIndex > 7) return -1
+      const byte = unit[offset++]
+      size += (byte & 0x7f) * 2 ** (7 * byteIndex)
+      if (!(byte & 0x80)) break
     }
-    if (j + size > tu.length) return -1
-    i = j + size
+    if (offset + size > unit.length) return -1
+    i = offset + size
   }
   return i
 }
 
-/** `tu` with a metadata OBU of `bytes` in front of its frame; `tu` itself when it can't be stuffed. */
-export function stuff(tu: Uint8Array, bytes: number): Uint8Array {
-  if (bytes < MIN_STUFF) return tu
-  const at = stuffingOffset(tu)
-  if (at < 0) return tu
+/** `unit` with a metadata OBU of `bytes` in front of its frame; `unit` itself when it can't be stuffed. */
+export function stuff(unit: Uint8Array, bytes: number): Uint8Array {
+  if (bytes < MIN_STUFF) return unit
+  const at = stuffingOffset(unit)
+  if (at < 0) return unit
   const obu = stuffingObu(bytes)
-  const out = new Uint8Array(tu.length + obu.length)
-  out.set(tu.subarray(0, at), 0)
+  const out = new Uint8Array(unit.length + obu.length)
+  out.set(unit.subarray(0, at), 0)
   out.set(obu, at)
-  out.set(tu.subarray(at), at + obu.length)
+  out.set(unit.subarray(at), at + obu.length)
   return out
 }
 
@@ -97,20 +97,25 @@ export interface FillState {
   /** bytes sent over the budget so far (paid back before stuffing again) */
   credit: number
   /** ms, the previous frame's capture time */
-  lastT: number | null
+  lastTime: number | null
 }
 
-export const initialFill = (): FillState => ({ credit: 0, lastT: null })
+export const initialFill = (): FillState => ({ credit: 0, lastTime: null })
 
 /**
- * How many bytes of stuffing a frame of `size` bytes captured at `t` ms gets, to keep the rate at `targetBps`: a
+ * How many bytes of stuffing a frame of `size` bytes captured at `time` ms gets, to keep the rate at `targetBps`: a
  * token bucket of the budget (targetBps x the time since the previous frame) that a frame over it (a key frame)
  * fills with credit that later frames pay back; stuffing never makes up for a deficit of earlier frames.
  */
-export function fill(s: FillState, size: number, t: number, targetBps: number): { pad: number; state: FillState } {
-  const gap = s.lastT === null ? 1000 / 60 : Math.min(Math.max(t - s.lastT, 0), STUFF.MAX_GAP_MS)
+export function fill(
+  state: FillState,
+  size: number,
+  time: number,
+  targetBps: number,
+): { pad: number; state: FillState } {
+  const gap = state.lastTime === null ? 1000 / 60 : Math.min(Math.max(time - state.lastTime, 0), STUFF.MAX_GAP_MS)
   const budget = (targetBps / 8) * (gap / 1000)
-  let credit = s.credit + size - budget
+  let credit = state.credit + size - budget
   let pad = 0
   if (credit < 0) {
     pad = Math.min(-credit, STUFF.MAX_PER_FRAME)
@@ -118,5 +123,5 @@ export function fill(s: FillState, size: number, t: number, targetBps: number): 
     credit = 0
   }
   credit = Math.min(credit, (targetBps / 8) * (STUFF.MAX_CREDIT_MS / 1000))
-  return { pad: Math.round(pad), state: { credit, lastT: t } }
+  return { pad: Math.round(pad), state: { credit, lastTime: time } }
 }

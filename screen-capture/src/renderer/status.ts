@@ -15,10 +15,10 @@ export interface StreamStatus {
   limited: boolean
 }
 
-let last: { sender: RTCRtpSender; t: number; bytes: number; frames: number; qpSum: number } | null = null
+let last: { sender: RTCRtpSender; time: number; bytes: number; frames: number; qpSum: number } | null = null
 
 const mbps = (bps: number | undefined) => (bps === undefined || isNaN(bps) ? '?' : (bps / 1e6).toFixed(1))
-const round = (n: number | undefined) => (n === undefined || isNaN(n) ? '?' : String(Math.round(n)))
+const round = (value: number | undefined) => (value === undefined || isNaN(value) ? '?' : String(Math.round(value)))
 
 /** The numbers since the last call (call it once a second); null while nothing streams. */
 export async function streamStatus(): Promise<StreamStatus | null> {
@@ -26,22 +26,23 @@ export async function streamStatus(): Promise<StreamStatus | null> {
   const session = castSessionFor(sender?.track)
   if (!sender || !session || session.state === 'ended') return null
   const stats = [...(await sender.getStats()).values()]
-  const byId = (id: string | undefined) => stats.find((s) => s.id === id)
-  const rtp = stats.find((s) => s.type === 'outbound-rtp')
+  const byId = (id: string | undefined) => stats.find((stat) => stat.id === id)
+  const rtp = stats.find((stat) => stat.type === 'outbound-rtp')
   if (!rtp) return null
   const pair = byId(byId(rtp.transportId)?.selectedCandidatePairId)
   const source = byId(rtp.mediaSourceId)
   const codec = byId(rtp.codecId)?.mimeType?.split('/')[1]?.toUpperCase()
 
   const prev = last?.sender === sender ? last : null
-  last = { sender, t: rtp.timestamp, bytes: rtp.bytesSent, frames: rtp.framesEncoded ?? 0, qpSum: rtp.qpSum ?? 0 }
-  const dt = prev ? (last.t - prev.t) / 1000 : 0
-  const per = (n: number, p: number | undefined) => (dt > 0 && p !== undefined ? (n - p) / dt : undefined)
+  last = { sender, time: rtp.timestamp, bytes: rtp.bytesSent, frames: rtp.framesEncoded ?? 0, qpSum: rtp.qpSum ?? 0 }
+  const elapsed = prev ? (last.time - prev.time) / 1000 : 0
+  const per = (value: number, prevValue: number | undefined) =>
+    elapsed > 0 && prevValue !== undefined ? (value - prevValue) / elapsed : undefined
   const bitrate = (per(last.bytes, prev?.bytes) ?? NaN) * 8
   const frames = prev ? last.frames - prev.frames : 0
 
   const cast = isZeroCopy(sender) ? session.stats : null
-  const s = cast
+  const shown = cast
     ? {
         encoder: 'capture (VA-API)',
         width: cast.width,
@@ -66,20 +67,20 @@ export async function streamStatus(): Promise<StreamStatus | null> {
         qp: prev && frames > 0 ? (last.qpSum - prev.qpSum) / frames : undefined,
         limitation: rtp.qualityLimitationReason,
       }
-  const network = [`${mbps(bitrate)} / ${mbps(s.target)} Mbps`]
+  const network = [`${mbps(bitrate)} / ${mbps(shown.target)} Mbps`]
   if (pair?.availableOutgoingBitrate !== undefined) network.push(`BWE ${mbps(pair.availableOutgoingBitrate)} Mbps`)
   if (pair?.currentRoundTripTime !== undefined) network.push(`RTT ${round(pair.currentRoundTripTime * 1000)} ms`)
   return {
     lines: [
-      (codec ?? '?') + (s.encoder ? ` · ${s.encoder}` : ''),
-      `${s.width ?? '?'}×${s.height ?? '?'} @ ${round(s.fps)} fps${s.captured}`,
+      (codec ?? '?') + (shown.encoder ? ` · ${shown.encoder}` : ''),
+      `${shown.width ?? '?'}×${shown.height ?? '?'} @ ${round(shown.fps)} fps${shown.captured}`,
       network.join(' · '),
-      ...(s.qp === undefined ? [] : [`QP ${round(s.qp)} /${QP_MAX[codec ?? ''] ?? '?'}`]),
+      ...(shown.qp === undefined ? [] : [`QP ${round(shown.qp)} /${QP_MAX[codec ?? ''] ?? '?'}`]),
       // capture's sample: a frame once a second against what its encoder made of it
       ...(cast?.ssim === undefined ? [] : [`SSIM ${cast.ssim.toFixed(3)}`]),
-      `limited by: ${s.limitation ?? '?'}`,
+      `limited by: ${shown.limitation ?? '?'}`,
     ],
-    summary: `${codec ?? '?'} ${s.height ?? '?'}p${round(s.fps)} ${mbps(bitrate)} Mbps`,
-    limited: s.limitation === 'cpu' || s.limitation === 'bandwidth',
+    summary: `${codec ?? '?'} ${shown.height ?? '?'}p${round(shown.fps)} ${mbps(bitrate)} Mbps`,
+    limited: shown.limitation === 'cpu' || shown.limitation === 'bandwidth',
   }
 }

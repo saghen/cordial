@@ -2,14 +2,14 @@
 // level, which can defer to its category's or server's. Settings are user guild settings: they sync.
 
 import { A, S } from '../adapter/needs'
-import type { Rec } from '../adapter/discord'
+import type { AnyRecord } from '../adapter/discord'
 import { ChannelType, type Channel } from './types'
 import { $ } from './store'
 import { text } from './strings'
 
 // a channel's override settings, with stock's label for the change
-export const update = (c: Channel, settings: Rec, label: string) =>
-  A.notifications.updateChannelOverrideSettings({ guildId: c.guild_id!, channelId: c.id, settings, label })
+export const update = (channel: Channel, settings: AnyRecord, label: string) =>
+  A.notifications.updateChannelOverrideSettings({ guildId: channel.guild_id!, channelId: channel.id, settings, label })
 
 // stock's mute durations, in seconds; -1 until unmuted
 export const DURATIONS = [
@@ -21,14 +21,14 @@ export const DURATIONS = [
   [-1, 'MUTE_DURATION_ALWAYS'],
 ] as const
 
-export function muteFor(c: Channel, secs: number) {
-  const end = secs > 0 ? new Date(Date.now() + secs * 1000).toISOString() : null
-  update(c, { muted: true, mute_config: { selected_time_window: secs, end_time: end } }, 'muted')
+export function muteFor(channel: Channel, seconds: number) {
+  const end = seconds > 0 ? new Date(Date.now() + seconds * 1000).toISOString() : null
+  update(channel, { muted: true, mute_config: { selected_time_window: seconds, end_time: end } }, 'muted')
 }
 
 // "Muted until 10/13, 5:31 PM", for a mute with an end
-export function mutedUntil(c: Channel) {
-  const end = $.UserGuildSettings.getChannelMuteConfig(c.guild_id!, c.id)?.end_time
+export function mutedUntil(channel: Channel) {
+  const end = $.UserGuildSettings.getChannelMuteConfig(channel.guild_id!, channel.id)?.end_time
   if (!end) return undefined
   const endTime = new Date(end).toLocaleString(undefined, {
     month: 'numeric',
@@ -62,7 +62,7 @@ export interface Choice {
   label: string
 }
 
-const fresh = (c: Channel) =>
+const fresh = (channel: Channel) =>
   $.UserGuildSettings.useNewNotifications &&
   [
     ChannelType.Text,
@@ -70,7 +70,7 @@ const fresh = (c: Channel) =>
     ChannelType.Announcement,
     ChannelType.Forum,
     ChannelType.ThreadsOnly,
-  ].includes(c.type)
+  ].includes(channel.type)
 
 const LABELS = ['FORM_LABEL_ALL_MESSAGES', 'FORM_LABEL_ONLY_MENTIONS_PLAIN', 'FORM_LABEL_NOTHING'] as const
 const label = (level: Exclude<Level, Level.Default>, unreads = false) =>
@@ -78,33 +78,33 @@ const label = (level: Exclude<Level, Level.Default>, unreads = false) =>
 
 // stock's levels for the channel: none for voice channels, no All Messages in stage channels, "@Mentions + Unreads"
 // with new notifications
-export function choices(c: Channel): Choice[] {
-  if (c.type === ChannelType.Voice) return []
-  const stage = c.type === ChannelType.Stage
+export function choices(channel: Channel): Choice[] {
+  if (channel.type === ChannelType.Voice) return []
+  const stage = channel.type === ChannelType.Stage
   return [
-    { level: Level.Default, label: text(c.parent_id ? 'FORM_LABEL_DEFAULT_CATEGORY' : 'FORM_LABEL_DEFAULT') },
+    { level: Level.Default, label: text(channel.parent_id ? 'FORM_LABEL_DEFAULT_CATEGORY' : 'FORM_LABEL_DEFAULT') },
     ...(stage ? [] : [{ level: Level.All, label: label(Level.All) }]),
-    ...(fresh(c) ? [{ level: Level.Mentions, unreads: true, label: label(Level.Mentions, true) }] : []),
+    ...(fresh(channel) ? [{ level: Level.Mentions, unreads: true, label: label(Level.Mentions, true) }] : []),
     { level: Level.Mentions, label: stage ? text('ALL_LIVE_STAGES') : label(Level.Mentions) },
     { level: Level.Nothing, label: label(Level.Nothing) },
   ]
 }
 
-const level = (c: Channel): Level =>
-  $.UserGuildSettings.getChannelOverrides(c.guild_id!)[c.id]?.message_notifications ?? Level.Default
+const level = (channel: Channel): Level =>
+  $.UserGuildSettings.getChannelOverrides(channel.guild_id!)[channel.id]?.message_notifications ?? Level.Default
 
-export function chosen(c: Channel, choice: Choice) {
-  const unreadAll = $.UserGuildSettings.resolveUnreadSetting(c) === UnreadSetting.AllMessages
-  if (choice.unreads) return level(c) === Level.Mentions && unreadAll
-  if (fresh(c) && choice.level === Level.Mentions) return level(c) === Level.Mentions && !unreadAll
-  return choice.level === level(c)
+export function chosen(channel: Channel, choice: Choice) {
+  const unreadAll = $.UserGuildSettings.resolveUnreadSetting(channel) === UnreadSetting.AllMessages
+  if (choice.unreads) return level(channel) === Level.Mentions && unreadAll
+  if (fresh(channel) && choice.level === Level.Mentions) return level(channel) === Level.Mentions && !unreadAll
+  return choice.level === level(channel)
 }
 
-export function choose(c: Channel, choice: Choice) {
+export function choose(channel: Channel, choice: Choice) {
   const what = `notifications set to ${['all messages', 'mentions', 'nothing', 'the default'][choice.level]}`
-  if (!fresh(c)) return update(c, { message_notifications: choice.level }, what)
-  const flags = S.UserGuildSettings.getChannelIdFlags(c.guild_id!, c.id) & ~(UNREADS_ALL | UNREADS_MENTIONS)
-  update(c, { message_notifications: choice.level, flags: flags | unreadFlag(choice) }, what)
+  if (!fresh(channel)) return update(channel, { message_notifications: choice.level }, what)
+  const flags = S.UserGuildSettings.getChannelIdFlags(channel.guild_id!, channel.id) & ~(UNREADS_ALL | UNREADS_MENTIONS)
+  update(channel, { message_notifications: choice.level, flags: flags | unreadFlag(choice) }, what)
 }
 
 // the unread flag a choice sets: none for the default
@@ -114,15 +114,20 @@ function unreadFlag(choice: Choice) {
 }
 
 // what the default is: the category's level, else the server's
-export function fallback(c: Channel) {
-  const U = $.UserGuildSettings
-  const g = c.guild_id!
-  const parent = c.parent_id ? U.getChannelMessageNotifications(g, c.parent_id) : Level.Default
-  const unread = c.parent_id ? U.getChannelUnreadSetting(g, c.parent_id) : UnreadSetting.Unset
+export function fallback(channel: Channel) {
+  const settings = $.UserGuildSettings
+  const guildId = channel.guild_id!
+  const parent = channel.parent_id ? settings.getChannelMessageNotifications(guildId, channel.parent_id) : Level.Default
+  const unread = channel.parent_id ? settings.getChannelUnreadSetting(guildId, channel.parent_id) : UnreadSetting.Unset
   // a server's level is never the default
-  const level = (parent !== Level.Default ? parent : U.getMessageNotifications(g)) as Exclude<Level, Level.Default>
+  const inherited = (parent !== Level.Default ? parent : settings.getMessageNotifications(guildId)) as Exclude<
+    Level,
+    Level.Default
+  >
   return label(
-    level,
-    fresh(c) && level === Level.Mentions && (unread || U.getGuildUnreadSetting(g)) === UnreadSetting.AllMessages,
+    inherited,
+    fresh(channel) &&
+      inherited === Level.Mentions &&
+      (unread || settings.getGuildUnreadSetting(guildId)) === UnreadSetting.AllMessages,
   )
 }

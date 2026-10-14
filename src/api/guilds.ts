@@ -10,9 +10,9 @@ import { $ } from './store'
 export const get = (id: Id) => $.Guild.getGuild(id) as Guild | undefined
 
 // a server's icon at a size (none when it has none; an invite's server counts), else stock's initials
-export const icon = (g: Pick<Guild, 'id' | 'icon'>, px: number) =>
-  A.icons.getGuildIconURL({ id: g.id, icon: g.icon, size: cdn.size(px), canAnimate: false })
-export const acronym = (g: Pick<Guild, 'name'>) => A.names.acronym(g.name)
+export const icon = (guild: Pick<Guild, 'id' | 'icon'>, px: number) =>
+  A.icons.getGuildIconURL({ id: guild.id, icon: guild.icon, size: cdn.size(px), canAnimate: false })
+export const acronym = (guild: Pick<Guild, 'name'>) => A.names.acronym(guild.name)
 
 // the server bar: servers and folders in the user's order (a folder of one server is just the server)
 export const folders = () => $.SortedGuild.getGuildFolders()
@@ -40,7 +40,7 @@ export const inviteCode = (text: string) =>
   text.trim().match(/(?:discord(?:app)?\.com\/invite|discord\.gg)\/([\w-]+)/)?.[1] ?? text.trim().match(/^[\w-]+$/)?.[0]
 // the invite, or null when it's invalid or expired
 export const resolveInvite = (code: string): Promise<Invite | null> =>
-  A.invites.resolveInvite(code, 'Join Guild').then((r) => (r.invite as Invite | undefined) ?? null)
+  A.invites.resolveInvite(code, 'Join Guild').then((result) => (result.invite as Invite | undefined) ?? null)
 // joins and opens the invite's channel, as stock's Join a Server
 export const acceptInvite = (invite: Invite) =>
   A.invites.acceptInviteAndTransitionToInviteChannel({

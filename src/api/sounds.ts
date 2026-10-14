@@ -37,125 +37,143 @@ function sound<T>(stores: FluxStore[], state: () => T, pick: (prev: T, next: T) 
     prev = next
     if (name && !S.NotificationSettings.isSoundDisabled(name)) A.sounds.play(name, VOLUME)
   }
-  for (const s of stores) s.addChangeListener(check)
+  for (const store of stores) store.addChangeListener(check)
 }
 
 const STAGE = ChannelType.Stage
 const voiceChannel = () => S.Channel.getChannel(S.SelectedChannel.getVoiceChannelId()!)
 
 export function useVoiceSounds() {
-  const { MediaEngine: me, SelectedChannel: sel, RTCConnection: rtc, Speaking: speaking, VoiceState: vs } = S
+  const {
+    MediaEngine: mediaEngine,
+    SelectedChannel: selectedChannel,
+    RTCConnection: rtcConnection,
+    Speaking: speaking,
+    VoiceState: voiceStates,
+  } = S
   sound(
-    [me, sel],
+    [mediaEngine, selectedChannel],
     () => ({
-      inVoice: sel.getVoiceChannelId() != null,
-      mute: me.isSelfMute(),
-      deaf: me.isSelfDeaf(),
-      ready: me.isNativeAudioPermissionReady(),
-      skip: me.shouldSkipMuteUnmuteSound(),
+      inVoice: selectedChannel.getVoiceChannelId() != null,
+      mute: mediaEngine.isSelfMute(),
+      deaf: mediaEngine.isSelfDeaf(),
+      ready: mediaEngine.isNativeAudioPermissionReady(),
+      skip: mediaEngine.shouldSkipMuteUnmuteSound(),
     }),
-    (p, n) => {
-      if (p.deaf !== n.deaf) return n.deaf ? 'deafen' : 'undeafen'
-      if (n.ready && (n.inVoice || p.ready) && p.mute !== n.mute) {
-        if (n.skip) return me.notifyMuteUnmuteSoundWasSkipped()
-        return n.mute ? 'mute' : 'unmute'
+    (prev, next) => {
+      if (prev.deaf !== next.deaf) return next.deaf ? 'deafen' : 'undeafen'
+      if (next.ready && (next.inVoice || prev.ready) && prev.mute !== next.mute) {
+        if (next.skip) return mediaEngine.notifyMuteUnmuteSoundWasSkipped()
+        return next.mute ? 'mute' : 'unmute'
       }
     },
   )
   sound(
-    [me, sel],
-    () => ({ video: me.isVideoEnabled(), inVoice: sel.getVoiceChannelId() != null }),
-    (p, n) => {
-      if (p.video !== n.video && p.inVoice && n.inVoice) return n.video ? 'camera_on' : 'camera_off'
+    [mediaEngine, selectedChannel],
+    () => ({ video: mediaEngine.isVideoEnabled(), inVoice: selectedChannel.getVoiceChannelId() != null }),
+    (prev, next) => {
+      if (prev.video !== next.video && prev.inVoice && next.inVoice) return next.video ? 'camera_on' : 'camera_off'
     },
   )
   // joining (when the connection starts; the 2026-09-voice-connect-feedback experiment's default) and leaving
   sound(
-    [S.Channel, rtc, sel, S.GameConsole],
+    [S.Channel, rtcConnection, selectedChannel, S.GameConsole],
     () => {
-      const state = rtc.getState()
+      const state = rtcConnection.getState()
       return {
         stage: voiceChannel()?.type === STAGE,
         connected: state === 'RTC_CONNECTED',
-        started: (!rtc.getWasEverRtcConnected() && state !== 'DISCONNECTED') || state === 'RTC_CONNECTED',
+        started: (!rtcConnection.getWasEverRtcConnected() && state !== 'DISCONNECTED') || state === 'RTC_CONNECTED',
         awaitingRemote: S.GameConsole.getAwaitingRemoteSessionInfo() != null,
         remote: S.GameConsole.getRemoteSessionId() != null,
       }
     },
-    (p, n) => {
-      if ((!p.started && n.started) || (n.remote && !p.remote)) return n.stage ? undefined : 'user_join'
-      if (p.connected && !n.connected && !n.awaitingRemote && !n.remote && !p.stage) return 'disconnect'
+    (prev, next) => {
+      if ((!prev.started && next.started) || (next.remote && !prev.remote)) return next.stage ? undefined : 'user_join'
+      if (prev.connected && !next.connected && !next.awaitingRemote && !next.remote && !prev.stage) return 'disconnect'
     },
   )
-  const pttMode = (mode: string) => me.getMode() === mode && !me.isSelfMute()
+  const pttMode = (mode: string) => mediaEngine.getMode() === mode && !mediaEngine.isSelfMute()
   sound(
     [speaking],
     () => speaking.isCurrentUserPTTActive(),
-    (p, n) => {
-      if (p !== n && pttMode('PUSH_TO_TALK')) return n ? 'ptt_start' : 'ptt_stop'
+    (prev, next) => {
+      if (prev !== next && pttMode('PUSH_TO_TALK')) return next ? 'ptt_start' : 'ptt_stop'
     },
   )
   sound(
-    [me, S.NotificationSettings],
-    () => me.isSelfMutedTemporarily(),
-    (p, n) => {
-      if (p !== n && pttMode('VOICE_ACTIVITY') && !S.NotificationSettings.isSoundDisabled(n ? 'mute' : 'unmute'))
-        return n ? 'ptt_stop' : 'ptt_start'
+    [mediaEngine, S.NotificationSettings],
+    () => mediaEngine.isSelfMutedTemporarily(),
+    (prev, next) => {
+      if (
+        prev !== next &&
+        pttMode('VOICE_ACTIVITY') &&
+        !S.NotificationSettings.isSoundDisabled(next ? 'mute' : 'unmute')
+      )
+        return next ? 'ptt_stop' : 'ptt_start'
     },
   )
   sound(
     [speaking],
     () => speaking.isCurrentUserPrioritySpeaker(),
-    (p, n) => {
-      if (p !== n && pttMode('VOICE_ACTIVITY')) return n ? 'ptt_start' : 'ptt_stop'
+    (prev, next) => {
+      if (prev !== next && pttMode('VOICE_ACTIVITY')) return next ? 'ptt_start' : 'ptt_stop'
     },
   )
   sound(
-    [vs],
-    () => vs.userHasBeenMovedVersion,
-    (p, n) => (p !== n ? 'user_moved' : undefined),
+    [voiceStates],
+    () => voiceStates.userHasBeenMovedVersion,
+    (prev, next) => (prev !== next ? 'user_moved' : undefined),
   )
   // others joining and leaving your voice channel or call (up to 25 people), and Go Live streams starting, ending and
   // being watched (the experiment's variations count the RTC connection's users instead)
   const streaming = S.ApplicationStreaming
   sound(
-    [sel, streaming, S.Auth, vs, S.Channel],
+    [selectedChannel, streaming, S.Auth, voiceStates, S.Channel],
     () => {
-      const id = sel.getVoiceChannelId()
-      const me = S.Auth.getId()
-      const c = id ? S.Channel.getChannel(id) : undefined
+      const id = selectedChannel.getVoiceChannelId()
+      const myId = S.Auth.getId()
+      const channel = id ? S.Channel.getChannel(id) : undefined
       const all = streaming.getAllActiveStreams()
       let stream = all.length === 1 ? all[0] : streaming.getCurrentUserActiveStream()
       if (stream?.state === 'CONNECTING') stream = null
       const key = stream ? streams.key(stream) : null
       return {
-        c,
-        count: c ? S.SortedVoiceState.countVoiceStatesForChannel(c.id) - Number(vs.isInChannel(c.id)) : undefined,
-        streaming: c ? streaming.getAllApplicationStreamsForChannel(c.id).map((s) => s.ownerId as Id) : [],
+        channel,
+        count: channel
+          ? S.SortedVoiceState.countVoiceStatesForChannel(channel.id) - Number(voiceStates.isInChannel(channel.id))
+          : undefined,
+        streaming: channel
+          ? streaming.getAllApplicationStreamsForChannel(channel.id).map((channelStream) => channelStream.ownerId as Id)
+          : [],
         key,
-        viewers: key ? streaming.getViewerIds(key).filter((u) => u !== me).length : 0,
-        me,
-        owners: all.map((s) => s.ownerId as Id),
+        viewers: key ? streaming.getViewerIds(key).filter((userId) => userId !== myId).length : 0,
+        myId,
+        owners: all.map((active) => active.ownerId as Id),
       }
     },
-    (p, n) => {
-      const c = n.c
+    (prev, next) => {
+      const channel = next.channel
       if (
-        p.c?.id !== c?.id ||
-        !c ||
-        c.type === STAGE ||
-        (c.guild_id && S.Guild.getGuild(c.guild_id)?.afkChannelId === c.id)
+        prev.channel?.id !== channel?.id ||
+        !channel ||
+        channel.type === STAGE ||
+        (channel.guild_id && S.Guild.getGuild(channel.guild_id)?.afkChannelId === channel.id)
       )
         return
-      const sameStream = n.key != null && p.key === n.key
-      const small = p.count != null && n.count != null && p.count <= SMALL
-      if (n.streaming.some((u) => !p.streaming.includes(u))) return 'stream_started'
-      if (p.streaming.some((u) => !n.streaming.includes(u) && (u === n.me || p.owners.includes(u))))
+      const sameStream = next.key != null && prev.key === next.key
+      const small = prev.count != null && next.count != null && prev.count <= SMALL
+      if (next.streaming.some((userId) => !prev.streaming.includes(userId))) return 'stream_started'
+      if (
+        prev.streaming.some(
+          (userId) => !next.streaming.includes(userId) && (userId === next.myId || prev.owners.includes(userId)),
+        )
+      )
         return 'stream_ended'
-      if (p.viewers <= SMALL && sameStream && n.viewers > p.viewers) return 'stream_user_joined'
-      if (small && n.count! > p.count!) return 'user_join'
-      if (small && n.count! < p.count!) return 'user_leave'
-      if (p.viewers <= SMALL && sameStream && n.viewers < p.viewers) return 'stream_user_left'
+      if (prev.viewers <= SMALL && sameStream && next.viewers > prev.viewers) return 'stream_user_joined'
+      if (small && next.count! > prev.count!) return 'user_join'
+      if (small && next.count! < prev.count!) return 'user_leave'
+      if (prev.viewers <= SMALL && sameStream && next.viewers < prev.viewers) return 'stream_user_left'
     },
   )
 }

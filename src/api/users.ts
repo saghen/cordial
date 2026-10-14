@@ -1,7 +1,7 @@
 // Users: their names, colours and avatars as stock shows them, and presence. Users come as records (a message's author,
 // a webhook's included, isn't always in UserStore) or ids.
 
-import type { Id, Rec } from '../adapter/discord'
+import type { Id, AnyRecord } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
 import * as cdn from './cdn'
 import { ActivityType, type Channel, type Member, type User } from './types'
@@ -16,7 +16,8 @@ export const member = (user: User, guildId?: Id | null): Member | undefined =>
   (guildId && ($.GuildMember.getMember(guildId, user.id) as Member | null)) || undefined
 
 // stock's order: the server nickname, the display name, the username
-export const nameOf = (user?: Rec | null, nick?: string | null): string => nick ?? user?.globalName ?? user?.username
+export const nameOf = (user?: AnyRecord | null, nick?: string | null): string =>
+  nick ?? user?.globalName ?? user?.username
 // a user's name in a server (their nickname there, else their own), as the author line names them
 export const displayName = (user: User | undefined, guildId?: Id | null) =>
   nameOf(user, user && member(user, guildId)?.nick)
@@ -53,7 +54,7 @@ const VERBS = {
   [ActivityType.Competing]: 'COMPETING',
 } as const
 export function activity() {
-  const a = $.LocalActivity.getPrimaryActivity()
-  const verb = a && VERBS[a.type as keyof typeof VERBS]
-  return verb && text(verb, { game: a.name, name: a.name })
+  const primary = $.LocalActivity.getPrimaryActivity()
+  const verb = primary && VERBS[primary.type as keyof typeof VERBS]
+  return verb && text(verb, { game: primary.name, name: primary.name })
 }

@@ -8,7 +8,7 @@ import type { JSX } from '@solidjs/web'
 import { Icon } from './icon'
 import type { IconName } from './icons'
 
-type Attrs = Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, 'title' | 'children'>
+type ButtonAttributes = Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, 'title' | 'children'>
 
 export function Button(
   p: JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -19,7 +19,7 @@ export function Button(
   return <button {...rest} class={['button', p.variant ?? 'secondary', p.class]} />
 }
 
-export function IconButton(p: Attrs & { icon: IconName; title: string }) {
+export function IconButton(p: ButtonAttributes & { icon: IconName; title: string }) {
   const rest = omit(p, 'icon', 'class')
   return (
     <button {...rest} class={['icon-button', p.class]}>
@@ -28,7 +28,9 @@ export function IconButton(p: Attrs & { icon: IconName; title: string }) {
   )
 }
 
-export function Toggle(p: Attrs & { on: boolean; icon: IconName; onIcon?: IconName; title: string; onTitle?: string }) {
+export function Toggle(
+  p: ButtonAttributes & { on: boolean; icon: IconName; onIcon?: IconName; title: string; onTitle?: string },
+) {
   const rest = omit(p, 'on', 'icon', 'onIcon', 'title', 'onTitle', 'class')
   return (
     <IconButton

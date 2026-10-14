@@ -19,17 +19,16 @@ import { $ } from './store'
 import { text } from './strings'
 
 // Discord's emoji images: custom ones from its CDN, unicode ones from its own SVGs (as stock, not the system font)
-export const emojiSrc = (e: { id?: Emoji['id']; name?: string; animated?: boolean; surrogates?: string }) =>
-  e.id
-    ? `https://cdn.discordapp.com/emojis/${e.id}.${e.animated ? 'gif' : 'webp'}?size=48`
-    : A.emojis.getURL((e.surrogates ?? e.name)!)
+export const emojiSrc = (emoji: { id?: Emoji['id']; name?: string; animated?: boolean; surrogates?: string }) =>
+  emoji.id
+    ? `https://cdn.discordapp.com/emojis/${emoji.id}.${emoji.animated ? 'gif' : 'webp'}?size=48`
+    : A.emojis.getURL((emoji.surrogates ?? emoji.name)!)
 
 // the reactions used most, as stock's message menu lists them
 export const frequentReactions = () => $.Emoji.emojiReactionFrecencyWithoutFetchingLatest.frequently as Emoji[]
 // the emoji a reaction search finds in a channel (those usable there)
-export const searchReactions = (c: Channel, query: string, count: number) =>
-  S.Emoji.searchWithoutFetchingLatest({ channel: c, query, count, intention: EmojiIntention.Reaction })
-    .unlocked as Emoji[]
+export const searchReactions = (channel: Channel, query: string, count: number) =>
+  S.Emoji.searchWithoutFetchingLatest({ channel, query, count, intention: EmojiIntention.Reaction }).unlocked as Emoji[]
 
 // a picker's section: its rail shows the server's icon, an icon (favorites, the most used) or its first item
 export interface Section<T> {
@@ -65,12 +64,13 @@ const CATEGORIES = {
 } as const
 
 // as stock without Nitro: custom emoji only the channel's server's, and not animated
-const usable = (e: Emoji, guildId: Id | null) => !e.id || premium() || (e.guildId === guildId && !e.animated)
-export function emojiSections(c: Channel): Section<Emoji>[] {
-  const ctx = S.Emoji.getDisambiguatedEmojiContext(c.guild_id ?? undefined)
-  const ok = (e: Emoji) => usable(e, c.guild_id)
-  const servers = [...(ctx.getGroupedCustomEmoji() as Map<Id, Emoji[]>)]
-    .sort(([a]) => (a === c.guild_id ? -1 : 0))
+const usable = (emoji: Emoji, guildId: Id | null) =>
+  !emoji.id || premium() || (emoji.guildId === guildId && !emoji.animated)
+export function emojiSections(channel: Channel): Section<Emoji>[] {
+  const context = S.Emoji.getDisambiguatedEmojiContext(channel.guild_id ?? undefined)
+  const ok = (emoji: Emoji) => usable(emoji, channel.guild_id)
+  const servers = [...(context.getGroupedCustomEmoji() as Map<Id, Emoji[]>)]
+    .sort(([guildId]) => (guildId === channel.guild_id ? -1 : 0))
     .map(([id, list]) => guildSection(id, list.filter(ok)))
   const categories = (A.unicodeEmoji.getCategories() as (keyof typeof CATEGORIES)[]).map((id) => ({
     id,
@@ -82,36 +82,36 @@ export function emojiSections(c: Channel): Section<Emoji>[] {
       id: 'favorites',
       name: text('FAVORITES'),
       icon: 'star' as const,
-      items: (ctx.favoriteEmojisWithoutFetchingLatest as Emoji[]).filter(ok),
+      items: (context.favoriteEmojisWithoutFetchingLatest as Emoji[]).filter(ok),
     },
     {
       id: 'frequent',
       name: text('FREQUENTLY_USED'),
       icon: 'clock' as const,
-      items: (ctx.getFrequentlyUsedEmojisWithoutFetchingLatest() as Emoji[]).filter(ok).slice(0, COUNT),
+      items: (context.getFrequentlyUsedEmojisWithoutFetchingLatest() as Emoji[]).filter(ok).slice(0, COUNT),
     },
     ...servers,
     ...categories,
-  ].filter((s) => s.items.length)
+  ].filter((section) => section.items.length)
 }
-export const searchEmoji = (c: Channel, query: string) =>
-  S.Emoji.searchWithoutFetchingLatest({ channel: c, query, count: COUNT, intention: EmojiIntention.Chat })
+export const searchEmoji = (channel: Channel, query: string) =>
+  S.Emoji.searchWithoutFetchingLatest({ channel, query, count: COUNT, intention: EmojiIntention.Chat })
     .unlocked as Emoji[]
-export const emojiFrom = (e: Emoji) => from(e.guildId)
+export const emojiFrom = (emoji: Emoji) => from(emoji.guildId)
 
 // stock's rule: this server's stickers, other servers' with Nitro and the permission, Discord's packs once fetched
-const sendable = (st: Sticker | undefined, c: Channel): st is Sticker =>
-  st != null && A.stickers.sendability(st, S.User.getCurrentUser(), c) === SENDABLE
-export function stickerSections(c: Channel): Section<Sticker>[] {
-  const ok = (st: Sticker | undefined) => sendable(st, c)
+const sendable = (sticker: Sticker | undefined, channel: Channel): sticker is Sticker =>
+  sticker != null && A.stickers.sendability(sticker, S.User.getCurrentUser(), channel) === SENDABLE
+export function stickerSections(channel: Channel): Section<Sticker>[] {
+  const ok = (sticker: Sticker | undefined) => sendable(sticker, channel)
   const favorites = (S.UserSettingsProto.frecencyWithoutFetchingLatest.favoriteStickers?.stickerIds ?? []) as Id[]
   const servers = [...($.Stickers.getAllGuildStickers() as Map<Id, Sticker[]>)].map(([id, list]) =>
     guildSection(id, list.filter(ok)),
   )
-  const packs = ($.Stickers.getPremiumPacks() as { id: Id; name: string; stickers: Sticker[] }[]).map((pk) => ({
-    id: pk.id,
-    name: pk.name,
-    items: pk.stickers,
+  const packs = ($.Stickers.getPremiumPacks() as { id: Id; name: string; stickers: Sticker[] }[]).map((pack) => ({
+    id: pack.id,
+    name: pack.name,
+    items: pack.stickers,
   }))
   return [
     {
@@ -130,25 +130,30 @@ export function stickerSections(c: Channel): Section<Sticker>[] {
     },
     ...servers,
     ...packs,
-  ].filter((s) => s.items.length)
+  ].filter((section) => section.items.length)
 }
 // the sendable stickers whose name or tags match, once each
-export function searchStickers(c: Channel, query: string) {
-  const q = query.toLowerCase()
+export function searchStickers(channel: Channel, query: string) {
+  const lowered = query.toLowerCase()
   const found = new Set<Sticker>()
-  for (const s of stickerSections(c))
-    for (const st of s.items) if (st.name.toLowerCase().includes(q) || st.tags?.toLowerCase().includes(q)) found.add(st)
+  for (const section of stickerSections(channel))
+    for (const sticker of section.items)
+      if (sticker.name.toLowerCase().includes(lowered) || sticker.tags?.toLowerCase().includes(lowered))
+        found.add(sticker)
   return [...found]
 }
 // a sticker's image at stock's 160 px (an APNG's animated); none for a Lottie sticker, shown by its name
-export function stickerSrc(st: Pick<Sticker, 'id' | 'format_type'>) {
-  if (st.format_type === StickerFormat.Lottie) return undefined
-  const ext = st.format_type === StickerFormat.GIF ? 'gif' : 'png'
-  const animated = st.format_type === StickerFormat.APNG ? '&passthrough=true' : ''
-  return `https://media.discordapp.net/stickers/${st.id}.${ext}?size=160${animated}`
+export function stickerSrc(sticker: Pick<Sticker, 'id' | 'format_type'>) {
+  if (sticker.format_type === StickerFormat.Lottie) return undefined
+  const extension = sticker.format_type === StickerFormat.GIF ? 'gif' : 'png'
+  const animated = sticker.format_type === StickerFormat.APNG ? '&passthrough=true' : ''
+  return `https://media.discordapp.net/stickers/${sticker.id}.${extension}?size=160${animated}`
 }
-export const stickerFrom = (st: Sticker) =>
-  from(st.guild_id, st.guild_id || !st.pack_id ? undefined : S.Stickers.getStickerPack(st.pack_id)?.name)
+export const stickerFrom = (sticker: Sticker) =>
+  from(
+    sticker.guild_id,
+    sticker.guild_id || !sticker.pack_id ? undefined : S.Stickers.getStickerPack(sticker.pack_id)?.name,
+  )
 export const fetchStickerPacks = () => A.stickers.fetchPacks()
 
 // GIFs: stock's picker loads its trending categories on open; a search, a category (its name searched) or Trending
@@ -177,11 +182,11 @@ export const favoriteGifs = (): Gif[] =>
       Gif & { order: number }
     >,
   )
-    .sort(([, a], [, b]) => b.order - a.order)
-    .map(([url, g]) => ({ ...g, url }))
+    .sort(([, left], [, right]) => right.order - left.order)
+    .map(([url, gif]) => ({ ...gif, url }))
 // stock's select request for a picked result (a favorite has no id, and none)
-export function selectGif(g: Gif, index: number, shown: Gif[], kind: string, query: string | undefined) {
-  if (!g.id) return
+export function selectGif(gif: Gif, index: number, shown: Gif[], kind: string, query: string | undefined) {
+  if (!gif.id) return
   A.gifs.select({
     type: kind,
     index,
@@ -190,6 +195,6 @@ export function selectGif(g: Gif, index: number, shown: Gif[], kind: string, que
     results: shown.length,
     totalResults: shown.length,
     query,
-    gifId: g.id,
+    gifId: gif.id,
   })
 }

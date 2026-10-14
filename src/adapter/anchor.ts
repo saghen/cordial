@@ -51,14 +51,14 @@ const own = () => !stock() && !adapterFailed() && (S.Auth.isAuthenticated() || !
 
 // at the App's first render, once the modules it imports are evaluated
 function adapterFailed() {
-  const r = check()
-  if (!checked && !r.ok)
+  const result = check()
+  if (!checked && !result.ok)
     console.error(
       "[cordial] off, Discord's UI is showing: adapter needs missing (Discord's code changed)",
-      r.missing.map((m) => `${m.name} = ${m.what}: ${m.why}`),
+      result.missing.map((need) => `${need.name} = ${need.what}: ${need.why}`),
     )
   checked = true
-  return !r.ok
+  return !result.ok
 }
 
 // stable across renders, so React never detaches and reattaches the host
@@ -78,8 +78,8 @@ function mode() {
   return 'logged out'
 }
 
-export function setMount(fn: Mount) {
-  mount = fn
+export function setMount(mountRoot: Mount) {
+  mount = mountRoot
 }
 
 Object.assign(G, {
@@ -108,21 +108,21 @@ Object.assign(G, {
     }
   },
 
-  didMount(a: App) {
+  didMount(instance: App) {
     // the check runs in stock mode too: scripts read stores through the adapter in both
     if (adapterFailed() || stock()) return
-    app = a
+    app = instance
     let was = active()
-    if (was) a.handleHistoryChange(window.location)
+    if (was) instance.handleHistoryChange(window.location)
     S.Auth.addChangeListener(() => {
       if (active() === was) return
       was = !was
-      if (!was) return a.forceUpdate()
+      if (!was) return instance.forceUpdate()
       // logged in. Through Discord's screen, it navigates away from /login and the route listener runs on its own;
       // through our form, nothing navigates: to /app (where stock's login lands), redirected to the default route
       if (discords) discords = false
       else A.nav.replaceWith('/app')
-      a.forceUpdate()
+      instance.forceUpdate()
     })
   },
 

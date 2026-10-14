@@ -41,14 +41,14 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     const top = scroller.getBoundingClientRect().top
     const rows = scroller.firstElementChild!.children
     // the first row reaching below the view's top
-    let lo = 0
-    let hi = rows.length - 1
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1
-      if (rows[mid].getBoundingClientRect().bottom > top) hi = mid
-      else lo = mid + 1
+    let low = 0
+    let high = rows.length - 1
+    while (low < high) {
+      const middle = (low + high) >> 1
+      if (rows[middle].getBoundingClientRect().bottom > top) high = middle
+      else low = middle + 1
     }
-    const row = rows[lo] as HTMLElement | undefined
+    const row = rows[low] as HTMLElement | undefined
     if (row?.dataset.id) anchor = { id: row.dataset.id, top: row.getBoundingClientRect().top }
   }
   function keepPlace() {
@@ -64,7 +64,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   // render or resize, and while scrolling 200 ms after the last scroll event, as stock debounces it
   let queued = false
   let toBottom = false
-  let dims = false
+  let dimensionsChanged = false
   let acking: Id | null = null
   let timer = 0
   function update() {
@@ -81,8 +81,8 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
         acking = null
       }
       if (!channelId) return
-      if (dims) report(channelId)
-      dims = false
+      if (dimensionsChanged) report(channelId)
+      dimensionsChanged = false
       if (!acking && messages.ready(channelId)) {
         acking = channelId
         messages.automaticAck(channelId, true)
@@ -134,7 +134,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   // rows settle to their real heights after rendering (content-visibility), and the window resizes: neither scrolls
   const resized = new ResizeObserver(() => {
     keepPlace()
-    dims = true
+    dimensionsChanged = true
     update()
   })
   resized.observe(scroller)
@@ -147,7 +147,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       down = false
       anchor = null
     } else keepPlace()
-    dims = true
+    dimensionsChanged = true
     update()
   }
 }

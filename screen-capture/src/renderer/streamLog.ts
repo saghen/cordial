@@ -15,17 +15,17 @@ const STALE_MS = 600
 
 type Fields = Record<string, string | number | boolean | null | undefined>
 
-function value(v: string | number | boolean | null) {
-  if (v === null) return 'null'
-  if (typeof v === 'boolean') return v ? '1' : '0'
-  if (typeof v === 'number') return String(Math.round(v * 100) / 100)
-  if (v === '' || /[\s"=]/.test(v)) return JSON.stringify(v)
-  return v
+function value(field: string | number | boolean | null) {
+  if (field === null) return 'null'
+  if (typeof field === 'boolean') return field ? '1' : '0'
+  if (typeof field === 'number') return String(Math.round(field * 100) / 100)
+  if (field === '' || /[\s"=]/.test(field)) return JSON.stringify(field)
+  return field
 }
-const logfmt = (f: Fields) =>
-  Object.entries(f)
-    .filter((e): e is [string, string | number | boolean | null] => e[1] !== undefined)
-    .map(([k, v]) => `${k}=${value(v)}`)
+const logfmt = (fields: Fields) =>
+  Object.entries(fields)
+    .filter((entry): entry is [string, string | number | boolean | null] => entry[1] !== undefined)
+    .map(([key, field]) => `${key}=${value(field)}`)
     .join(' ')
 const kbps = (bits: number, ms: number) => (ms > 0 ? Math.round(bits / ms) : undefined)
 
@@ -47,7 +47,7 @@ interface Sample {
 }
 
 class StreamLog {
-  private readonly t0 = performance.now()
+  private readonly startedAt = performance.now()
   private readonly timer = setInterval(() => this.tick().catch(() => {}), TICK_MS)
   private prev: Sample | null = null
   private statsAt = -Infinity
@@ -58,7 +58,7 @@ class StreamLog {
   private over: { cap: string; since: number; peak: number } | null = null
 
   constructor(private readonly session: CastSession) {
-    const q = session.quality
+    const quality = session.quality
     const [source] = session.pick.source.split(':')
     this.method = session.method
     this.game = host.discord?.game?.() ?? null
@@ -72,9 +72,9 @@ class StreamLog {
         source,
         src: `${session.pick.width}x${session.pick.height}`,
         game: this.game,
-        size: `${q.width}x${q.height}`,
-        fps: q.fps,
-        max: q.maxBitrate / 1000,
+        size: `${quality.width}x${quality.height}`,
+        fps: quality.fps,
+        max: quality.maxBitrate / 1000,
         sound: Boolean(session.audio),
         capture_method: this.method,
       }),
@@ -82,45 +82,45 @@ class StreamLog {
     session.onInfo = (info) => this.info(info)
   }
 
-  private line(f: Fields) {
-    host.native?.log?.('line', logfmt({ t: ((performance.now() - this.t0) / 1000).toFixed(2), ...f }))
+  private line(fields: Fields) {
+    host.native?.log?.('line', logfmt({ t: ((performance.now() - this.startedAt) / 1000).toFixed(2), ...fields }))
   }
 
-  event(k: string, f: Fields) {
-    this.line({ k, ...f })
+  event(kind: string, fields: Fields) {
+    this.line({ k: kind, ...fields })
   }
 
   /** capture's messages (cast.ts) */
-  private info(i: any) {
-    if (i.type === 'stats') this.statsAt = performance.now()
-    else if (i.type === 'device') this.event('capture', { driver: i.driver })
-    else if (i.type === 'input')
-      this.event('capture', { src: `${i.width}x${i.height}`, size: `${i.encodeWidth}x${i.encodeHeight}` })
-    else if (i.type === 'frame')
-      this.event('frame', { seq: i.seq, bytes: i.bytes, key: i.key, why: i.why, budget_ms: i.budgetMs })
-    else if (i.type === 'audio') this.event('sound', { apps: i.apps?.length ?? 0 })
-    else if (i.type === 'error') this.event('error', { message: i.message })
+  private info(info: any) {
+    if (info.type === 'stats') this.statsAt = performance.now()
+    else if (info.type === 'device') this.event('capture', { driver: info.driver })
+    else if (info.type === 'input')
+      this.event('capture', { src: `${info.width}x${info.height}`, size: `${info.encodeWidth}x${info.encodeHeight}` })
+    else if (info.type === 'frame')
+      this.event('frame', { seq: info.seq, bytes: info.bytes, key: info.key, why: info.why, budget_ms: info.budgetMs })
+    else if (info.type === 'audio') this.event('sound', { apps: info.apps?.length ?? 0 })
+    else if (info.type === 'error') this.event('error', { message: info.message })
   }
 
   /** the rate controller's reason changed (zeroCopy.ts) */
-  rateChanged(f: { reason: string; target: number; bwe?: number; wire?: number; queue?: number }) {
+  rateChanged(change: { reason: string; target: number; bwe?: number; wire?: number; queue?: number }) {
     this.event('rate', {
       from: this.rate,
-      to: f.reason,
-      target: kbps(f.target, 1000),
-      bwe: f.bwe && kbps(f.bwe, 1000),
-      wire: f.wire && kbps(f.wire, 1000),
-      queue: f.queue,
+      to: change.reason,
+      target: kbps(change.target, 1000),
+      bwe: change.bwe && kbps(change.bwe, 1000),
+      wire: change.wire && kbps(change.wire, 1000),
+      queue: change.queue,
     })
-    this.rate = f.reason
+    this.rate = change.reason
   }
 
   private async tick() {
-    const s = this.session
-    if (s.state === 'ended') return this.close(s.endWhy)
-    if (s.method !== this.method) {
-      this.event('capture_method', { from: this.method, to: s.method, why: s.fallbackWhy })
-      this.method = s.method
+    const session = this.session
+    if (session.state === 'ended') return this.close(session.endWhy)
+    if (session.method !== this.method) {
+      this.event('capture_method', { from: this.method, to: session.method, why: session.fallbackWhy })
+      this.method = session.method
     }
     const game = host.discord?.game?.() ?? null
     if (game !== this.game) {
@@ -135,10 +135,10 @@ class StreamLog {
 
     const sender = streamSender()
     const stats = sender && [...(await sender.getStats().catch(() => new Map())).values()]
-    const rtp = stats?.find((r) => r.type === 'outbound-rtp')
-    const remote = stats?.find((r) => r.type === 'remote-inbound-rtp')
-    const pair = stats?.find((r) => r.type === 'candidate-pair' && r.nominated)
-    const cur: Sample | null = rtp
+    const rtp = stats?.find((stat) => stat.type === 'outbound-rtp')
+    const remote = stats?.find((stat) => stat.type === 'remote-inbound-rtp')
+    const pair = stats?.find((stat) => stat.type === 'candidate-pair' && stat.nominated)
+    const current: Sample | null = rtp
       ? {
           at: rtp.timestamp,
           bytes: rtp.bytesSent ?? 0,
@@ -150,28 +150,30 @@ class StreamLog {
           pli: (rtp.pliCount ?? 0) + (rtp.firCount ?? 0),
         }
       : null
-    const p = cur && this.prev && cur.packets >= this.prev.packets ? this.prev : null
-    this.prev = cur
-    const ms = p && cur ? cur.at - p.at : 0
-    const sent = p && cur ? kbps((cur.bytes - p.bytes) * 8, ms) : undefined
+    const prev = current && this.prev && current.packets >= this.prev.packets ? this.prev : null
+    this.prev = current
+    const ms = prev && current ? current.at - prev.at : 0
+    const sent = prev && current ? kbps((current.bytes - prev.bytes) * 8, ms) : undefined
     const bwe = pair?.availableOutgoingBitrate && kbps(pair.availableOutgoingBitrate, 1000)
     const max = sender?.getParameters().encodings?.[0]?.maxBitrate
-    const c = performance.now() - this.statsAt < STALE_MS ? s.stats : null
-    const sentFps = p && cur && ms > 0 ? ((cur.frames - p.frames) * 1000) / ms : undefined
+    const captureStats = performance.now() - this.statsAt < STALE_MS ? session.stats : null
+    const sentFps = prev && current && ms > 0 ? ((current.frames - prev.frames) * 1000) / ms : undefined
 
     this.line({
       k: 'tick',
-      in: c?.in,
-      fps: c ? c.fps : sentFps,
-      kbps: c?.kbps,
-      target: c?.target,
-      size: c ? `${c.width}x${c.height}` : rtp?.frameWidth && `${rtp.frameWidth}x${rtp.frameHeight}`,
-      drop: c?.dropper,
-      keys: c?.keys,
-      enc: c?.encodeMs,
+      in: captureStats?.in,
+      fps: captureStats ? captureStats.fps : sentFps,
+      kbps: captureStats?.kbps,
+      target: captureStats?.target,
+      size: captureStats
+        ? `${captureStats.width}x${captureStats.height}`
+        : rtp?.frameWidth && `${rtp.frameWidth}x${rtp.frameHeight}`,
+      drop: captureStats?.dropper,
+      keys: captureStats?.keys,
+      enc: captureStats?.encodeMs,
       bwe,
       sent,
-      rtx: p && cur ? kbps((cur.rtx - p.rtx) * 8, ms) : undefined,
+      rtx: prev && current ? kbps((current.rtx - prev.rtx) * 8, ms) : undefined,
       rtt:
         remote?.roundTripTime !== undefined
           ? remote.roundTripTime * 1000
@@ -179,14 +181,16 @@ class StreamLog {
       loss: remote?.fractionLost !== undefined ? remote.fractionLost * 100 : undefined,
       jitter: remote?.jitter !== undefined ? remote.jitter * 1000 : undefined,
       queue:
-        p && cur && cur.packets > p.packets ? ((cur.delay - p.delay) / (cur.packets - p.packets)) * 1000 : undefined,
-      nack: p && cur ? cur.nack - p.nack : undefined,
-      pli: p && cur ? cur.pli - p.pli : undefined,
-      limit: c ? undefined : rtp?.qualityLimitationReason,
-      rate: c ? this.rate : undefined,
+        prev && current && current.packets > prev.packets
+          ? ((current.delay - prev.delay) / (current.packets - prev.packets)) * 1000
+          : undefined,
+      nack: prev && current ? current.nack - prev.nack : undefined,
+      pli: prev && current ? current.pli - prev.pli : undefined,
+      limit: captureStats ? undefined : rtp?.qualityLimitationReason,
+      rate: captureStats ? this.rate : undefined,
       viewers,
-      ssim: c?.ssim,
-      cpu: c?.cpu,
+      ssim: captureStats?.ssim,
+      cpu: captureStats?.cpu,
     })
     if (sent !== undefined) this.checkOver(sent, bwe, max && kbps(max, 1000))
   }
@@ -224,4 +228,4 @@ export function startStreamLog(session: CastSession) {
 }
 
 /** The rate controller's reason changed (zeroCopy.ts). */
-export const logRate = (f: Parameters<StreamLog['rateChanged']>[0]) => log?.rateChanged(f)
+export const logRate = (change: Parameters<StreamLog['rateChanged']>[0]) => log?.rateChanged(change)

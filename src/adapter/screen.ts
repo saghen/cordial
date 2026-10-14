@@ -12,7 +12,7 @@ import { patch } from './webpack'
 // an activity's type
 const PLAYING = 0
 
-const codecs = patch(screen.codecPatch.find, ...screen.codecPatch.replace)
+const codecs = patch(screen.CODEC_PATCH.find, ...screen.CODEC_PATCH.replace)
 
 screen.host.discord = {
   currentUser: () => S.User.getCurrentUser() as { id: string } | undefined,
@@ -22,16 +22,18 @@ screen.host.discord = {
     return guildId ? S.Guild.getGuild(guildId)?.premiumTier : undefined
   },
   connections: () => S.MediaEngine.getMediaEngine().connections,
-  canStreamWithSettings: (...a) => A.canStreamWithSettings(...a),
+  canStreamWithSettings: (...args) => A.canStreamWithSettings(...args),
   viewers() {
-    const s = S.ApplicationStreaming.getCurrentUserActiveStream()
-    if (!s) return 0
-    const key = s.guildId ? `guild:${s.guildId}:${s.channelId}:${s.ownerId}` : `call:${s.channelId}:${s.ownerId}`
+    const stream = S.ApplicationStreaming.getCurrentUserActiveStream()
+    if (!stream) return 0
+    const key = stream.guildId
+      ? `guild:${stream.guildId}:${stream.channelId}:${stream.ownerId}`
+      : `call:${stream.channelId}:${stream.ownerId}`
     return S.ApplicationStreaming.getViewerIds(key).length
   },
   game() {
-    const a = S.LocalActivity.getPrimaryActivity()
-    return a?.type === PLAYING ? a.name : null
+    const activity = S.LocalActivity.getPrimaryActivity()
+    return activity?.type === PLAYING ? activity.name : null
   },
 }
 

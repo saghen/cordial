@@ -6,17 +6,17 @@ import { createEffect } from 'solid-js'
 import * as streams from '../api/streams'
 
 export function Video(p: { id: string }) {
-  const el = (<video autoplay muted playsinline />) as HTMLVideoElement
+  const video = (<video autoplay muted playsinline />) as HTMLVideoElement
   createEffect(
     () => p.id,
     (id) => {
-      const v = streams.view(id)
-      el.srcObject = v.stream
+      const view = streams.view(id)
+      video.srcObject = view.stream
       return () => {
-        v.close()
-        el.srcObject = null
+        view.close()
+        video.srcObject = null
       }
     },
   )
-  return el
+  return video
 }

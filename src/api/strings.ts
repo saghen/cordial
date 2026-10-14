@@ -235,7 +235,8 @@ const keys = new Map<string, string>()
 
 // stock's message, or ours; one with parameters needs its values ('TEXTAREA_PLACEHOLDER', { channel: '#general' })
 export function text(name: (typeof STOCK)[number] | keyof typeof OURS, values?: Record<string, unknown>) {
-  if (name in OURS) return OURS[name as keyof typeof OURS].replace(/\{(\w+)\}/g, (_, k) => String(values?.[k]))
+  if (name in OURS)
+    return OURS[name as keyof typeof OURS].replace(/\{(\w+)\}/g, (_, placeholder) => String(values?.[placeholder]))
   let key = keys.get(name)
   if (!key) {
     key = A.messageKey.runtimeHashMessageKey(name)
@@ -266,7 +267,7 @@ export function textAround(name: (typeof STOCK)[number], values: Record<string, 
 // DateUtils, in the user's 12/24 h setting: a message's timestamp ("10:59 PM", "Yesterday at 10:59 PM",
 // "5/31/24, 11:15 AM"), the clock ("10:59 PM"), the date divider ("May 31, 2024") and the timestamp's tooltip
 // ("Friday, May 31, 2024 10:59 PM")
-export const when = (d: Date) => A.dates.calendar(d, true)
-export const clock = (d: Date) => A.dates.format(d, 'LT')
-export const day = (d: Date) => A.dates.format(d, 'LL')
-export const full = (d: Date) => A.dates.format(d, 'LLLL')
+export const when = (date: Date) => A.dates.calendar(date, true)
+export const clock = (date: Date) => A.dates.format(date, 'LT')
+export const day = (date: Date) => A.dates.format(date, 'LL')
+export const full = (date: Date) => A.dates.format(date, 'LLLL')

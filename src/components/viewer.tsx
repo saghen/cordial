@@ -10,7 +10,7 @@ import { contextMenu, Items } from '../primitives/menu'
 import { modal } from '../primitives/modal'
 
 type Shown = { src: string; url: string }
-let show: ((v: Shown) => void) | undefined
+let show: ((shown: Shown) => void) | undefined
 
 export const open = (src: string, url: string) => show?.({ src, url })
 
@@ -18,28 +18,28 @@ export function Viewer() {
   const menu = contextMenu<Shown>({
     class: 'image-menu',
     find: () => null,
-    children: (s) => (
+    children: (shown) => (
       <Items
         items={[
-          { name: 'menu-copy-image', label: text('COPY_IMAGE_MENU_ITEM'), run: () => media.copyImage(s().src) },
-          { name: 'menu-save-image', label: text('SAVE_IMAGE_MENU_ITEM'), run: () => media.saveImage(s().url) },
-          { name: 'menu-copy-link', label: text('COPY_LINK'), run: () => media.copyLink(s().url) },
+          { name: 'menu-copy-image', label: text('COPY_IMAGE_MENU_ITEM'), run: () => media.copyImage(shown().src) },
+          { name: 'menu-save-image', label: text('SAVE_IMAGE_MENU_ITEM'), run: () => media.saveImage(shown().url) },
+          { name: 'menu-copy-link', label: text('COPY_LINK'), run: () => media.copyLink(shown().url) },
         ]}
       />
     ),
   })
   const viewer = modal<Shown>({
     class: 'viewer',
-    children: (s) => {
+    children: (shown) => {
       const copy = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !getSelection()?.toString()) media.copyImage(s().src)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !getSelection()?.toString()) media.copyImage(shown().src)
       }
       document.addEventListener('keydown', copy)
       onCleanup(() => document.removeEventListener('keydown', copy))
       return (
         <>
-          <img alt="" src={s().src} onContextMenu={(e) => menu.show(e, s())} />
-          <a href={s().url} target="_blank" rel="noreferrer noopener">
+          <img alt="" src={shown().src} onContextMenu={(e) => menu.show(e, shown())} />
+          <a href={shown().url} target="_blank" rel="noreferrer noopener">
             {text('OPEN_IN_BROWSER')}
           </a>
           {/* in the dialog: a modal dialog leaves the page outside it inert */}

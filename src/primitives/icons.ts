@@ -1,4 +1,4 @@
-// Discord's own icons (paths from its icon modules), as CSS mask images: `mask: var(--i-hash)` over a currentColor
+// Discord's own icons (paths from its icon modules), as CSS mask images: `mask: var(--icon-hash)` over a currentColor
 // background.
 
 const PATHS = {
@@ -151,17 +151,17 @@ const CALLS = {
 
 export type IconName = keyof typeof PATHS | `call-${keyof typeof CALLS}`
 
-const svg = (ds: string[], fill = 'black', box = 24) =>
-  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${box} ${box}' fill='${fill}'>${ds.map((d) => `<path fill-rule='evenodd' d='${d}'/>`).join('')}</svg>`
-const uri = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+const svg = (paths: string[], fill = 'black', box = 24) =>
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${box} ${box}' fill='${fill}'>${paths.map((path) => `<path fill-rule='evenodd' d='${path}'/>`).join('')}</svg>`
+const uri = (markup: string) => `url("data:image/svg+xml,${encodeURIComponent(markup)}")`
 
-// each icon as --i-NAME (a mask: Icon draws it in the text colour); images: the pickers' search field's magnifier, the
+// each icon as --icon-NAME (a mask: Icon draws it in the text colour); images: the pickers' search field's magnifier, the
 // call lines' 18 px icons, the idle status's moon (a mask: the dot less stock's bite, whole, since cutting the bite
 // from the dot with mask-composite leaves a faint arc where it meets the rim)
 export const ICONS =
   Object.entries(PATHS)
-    .map(([name, ds]) => `--i-${name}: ${uri(svg(ds))};`)
+    .map(([name, paths]) => `--icon-${name}: ${uri(svg(paths))};`)
     .join(' ') +
-  ` --img-search: ${uri(svg(PATHS.search, '#96979e'))};` +
-  ` --i-call-joined: ${uri(svg(CALLS.joined, 'black', 18))}; --i-call-missed: ${uri(svg(CALLS.missed, 'black', 18))};` +
+  ` --image-search: ${uri(svg(PATHS.search, '#96979e'))};` +
+  ` --icon-call-joined: ${uri(svg(CALLS.joined, 'black', 18))}; --icon-call-missed: ${uri(svg(CALLS.missed, 'black', 18))};` +
   ` --idle-moon: ${uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'><mask id='m'><circle cx='.5' cy='.5' r='.5' fill='white'/><circle cx='.25' cy='.25' r='.375'/></mask><rect width='1' height='1' mask='url(#m)'/></svg>")};`

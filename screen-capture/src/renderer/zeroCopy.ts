@@ -85,7 +85,7 @@ class Swap implements CastConsumer {
   private session: CastSession | null = null
   private sender: RTCRtpSender | null = null
   private out: TransformStreamDefaultController | null = null
-  private tpl: { key?: any; delta?: any } = {}
+  private templates: { key?: any; delta?: any } = {}
   private frameId = 0
   private rtpAt: { rtp: number; ms: number } | null = null // a template's RTP timestamp and when it was encoded
   private lastRtp = 0
@@ -96,35 +96,35 @@ class Swap implements CastConsumer {
   private lastKbps = 0
   private lastPoke = 0
   private keyAskedAt = 0
-  private alt = false
+  private alternate = false
   private pokeTimer: ReturnType<typeof setTimeout> | undefined
   private timer: ReturnType<typeof setInterval> | undefined
 
   constructor() {
     this.transform = new TransformStream({
-      start: (c) => {
-        this.out = c
+      start: (controller) => {
+        this.out = controller
       },
-      transform: (f, c) => {
-        if (this.state === 'idle') return c.enqueue(f)
+      transform: (frame, controller) => {
+        if (this.state === 'idle') return controller.enqueue(frame)
         if (this.state === 'warmup') {
           // (a fallback's frames once it's warmed up; another track's at once)
-          if (this.sender?.track === this.session?.encoder && (!this.session?.warmedUp || f.type !== 'key')) return
+          if (this.sender?.track === this.session?.encoder && (!this.session?.warmedUp || frame.type !== 'key')) return
           this.state = 'idle'
-          return c.enqueue(f)
+          return controller.enqueue(frame)
         }
-        const md = f.getMetadata()
+        const metadata = frame.getMetadata()
         // renegotiated: Chromium's first frame in the new codec says so (no template of it)
-        const mime = (md as { mimeType?: string }).mimeType?.toLowerCase()
+        const mime = (metadata as { mimeType?: string }).mimeType?.toLowerCase()
         if (mime && mime !== 'video/av1') return this.codecChanged(mime)
-        this.rtpAt ??= { rtp: md.rtpTimestamp, ms: performance.now() }
-        if (f.type === 'key') {
-          this.tpl.key = f
+        this.rtpAt ??= { rtp: metadata.rtpTimestamp, ms: performance.now() }
+        if (frame.type === 'key') {
+          this.templates.key = frame
         } else {
-          this.tpl.delta = f
+          this.templates.delta = frame
         }
         // a key frame is what the next capture frame has to be (the stream's first one came before its template)
-        if (this.needKey && this.tpl.key) this.requestKey()
+        if (this.needKey && this.templates.key) this.requestKey()
       },
     })
   }
@@ -136,14 +136,14 @@ class Swap implements CastConsumer {
    */
   private poke = () => {
     clearTimeout(this.pokeTimer)
-    if (this.state !== 'active' || !this.session || (this.tpl.key && this.tpl.delta)) return
+    if (this.state !== 'active' || !this.session || (this.templates.key && this.templates.delta)) return
     const now = performance.now()
     if (now - this.lastPoke >= POKE_MS) {
-      if (!this.tpl.key && this.keyAskedAt && now - this.keyAskedAt > KEY_TEMPLATE_WAIT_MS) {
-        this.alt = !this.alt
+      if (!this.templates.key && this.keyAskedAt && now - this.keyAskedAt > KEY_TEMPLATE_WAIT_MS) {
+        this.alternate = !this.alternate
         this.keyAskedAt = 0
       }
-      if (this.session.writePreview(this.alt)) {
+      if (this.session.writePreview(this.alternate)) {
         this.lastPoke = now
         this.keyAskedAt ||= now
       }
@@ -153,7 +153,7 @@ class Swap implements CastConsumer {
 
   /** The templates are missing (start, a new payload type): ask Chromium's encoder for them. */
   private needTemplates() {
-    this.tpl = {}
+    this.templates = {}
     this.keyAskedAt = 0
     this.poke()
   }
@@ -249,9 +249,9 @@ class Swap implements CastConsumer {
     if (next !== this.rate) this.setRate(next, undefined, sendDelay)
   }
 
-  message(m: CastMessage) {
-    if (this.state !== 'active' || m.type !== 'frame') return
-    this.send(m.key, m.t, m.data)
+  message(message: CastMessage) {
+    if (this.state !== 'active' || message.type !== 'frame') return
+    this.send(message.key, message.t, message.data)
   }
 
   private requestKey() {
@@ -272,31 +272,31 @@ class Swap implements CastConsumer {
     // renegotiated: to another codec, or to another payload type (the templates carry theirs)
     const codec = sender.getParameters().codecs?.[0]
     if (codec && codec.mimeType.toLowerCase() !== 'video/av1') return this.codecChanged(codec.mimeType)
-    if (this.tpl.key && codec && this.tpl.key.getMetadata().payloadType !== codec.payloadType) {
+    if (this.templates.key && codec && this.templates.key.getMetadata().payloadType !== codec.payloadType) {
       this.needKey = true
       this.needTemplates()
     }
     const stats = await sender.getStats().catch(() => null)
     if (!stats || this.state !== 'active') return
-    let n = 0
+    let pliCount = 0
     let packets = 0
     let delay = 0
     let bytes = 0
     let at = 0
     let bwe: number | undefined
-    stats.forEach((r: any) => {
-      if (r.type === 'outbound-rtp') {
-        n += (r.pliCount ?? 0) + (r.firCount ?? 0)
-        packets += r.packetsSent ?? 0
-        delay += r.totalPacketSendDelay ?? 0
-        bytes += r.bytesSent ?? 0
-        at = r.timestamp
-      } else if (r.type === 'candidate-pair' && r.nominated && r.availableOutgoingBitrate)
-        bwe = r.availableOutgoingBitrate
+    stats.forEach((stat: any) => {
+      if (stat.type === 'outbound-rtp') {
+        pliCount += (stat.pliCount ?? 0) + (stat.firCount ?? 0)
+        packets += stat.packetsSent ?? 0
+        delay += stat.totalPacketSendDelay ?? 0
+        bytes += stat.bytesSent ?? 0
+        at = stat.timestamp
+      } else if (stat.type === 'candidate-pair' && stat.nominated && stat.availableOutgoingBitrate)
+        bwe = stat.availableOutgoingBitrate
     })
     if (bwe !== undefined) this.bwe = bwe
-    if (this.lastPli >= 0 && n > this.lastPli) this.requestKey()
-    this.lastPli = n
+    if (this.lastPli >= 0 && pliCount > this.lastPli) this.requestKey()
+    this.lastPli = pliCount
     // the pacer's delay since the last poll that had enough packets
     if (!this.fast || packets < this.fast.packets) this.fast = { packets, delay }
     else if (packets - this.fast.packets >= GUARD_MIN_PACKETS) {
@@ -309,25 +309,25 @@ class Swap implements CastConsumer {
     }
     // capture's target (targetRate.ts): WebRTC's bandwidth estimate under Discord's cap, except where the estimate only
     // fell to our own app-limited rate (outbound-rtp's targetBitrate is the template encoder's)
-    const s = this.second
-    if (s && packets >= s.packets && at - s.at < RATE_MS) return
+    const prev = this.second
+    if (prev && packets >= prev.packets && at - prev.at < RATE_MS) return
     this.second = { at, bytes, packets, delay }
-    if (!s || packets < s.packets) return
-    const wire = bytes >= s.bytes ? ((bytes - s.bytes) * 8) / ((at - s.at) / 1000) : undefined
-    const sendDelay = packets > s.packets ? ((delay - s.delay) / (packets - s.packets)) * 1000 : undefined
+    if (!prev || packets < prev.packets) return
+    const wire = bytes >= prev.bytes ? ((bytes - prev.bytes) * 8) / ((at - prev.at) / 1000) : undefined
+    const sendDelay = packets > prev.packets ? ((delay - prev.delay) / (packets - prev.packets)) * 1000 : undefined
     this.cap = sender.getParameters().encodings?.[0]?.maxBitrate ?? DEFAULT_CAP_BPS
     this.setRate(
-      updateTarget(this.rate, { t: performance.now(), bwe, cap: this.cap, wire, sendDelay }),
+      updateTarget(this.rate, { time: performance.now(), bwe, cap: this.cap, wire, sendDelay }),
       wire,
       sendDelay,
     )
   }
 
-  private send(key: boolean, tUs: number, data: ArrayBuffer) {
+  private send(key: boolean, timeUs: number, data: ArrayBuffer) {
     if (key) this.keyRequested = false
     // capture's capture clock (CLOCK_MONOTONIC) and performance.now() share no origin: the quickest frame so far
     // sets the offset (within its transit time, a few ms), lateness is relative to it
-    const delay = performance.now() - tUs / 1000
+    const delay = performance.now() - timeUs / 1000
     this.minDelay = Math.min(this.minDelay, delay)
     if (!key && delay - this.minDelay > MAX_LATE_MS) {
       this.stats.late++
@@ -335,13 +335,13 @@ class Swap implements CastConsumer {
     }
     // nothing sent before a key frame (deltas before it can't be decoded by anyone)
     if (this.needKey && !key) {
-      if (this.tpl.key) this.requestKey()
+      if (this.templates.key) this.requestKey()
       return
     }
     // no template for this frame yet (the stream's start): it's dropped, and transform asks for a key frame once
     // the key template is there
-    const tpl = key ? this.tpl.key : this.tpl.delta
-    if (!tpl || !this.rtpAt) {
+    const template = key ? this.templates.key : this.templates.delta
+    if (!template || !this.rtpAt) {
       this.needKey = true
       return
     }
@@ -352,22 +352,22 @@ class Swap implements CastConsumer {
     let pad = 0
     if (this.stuffing) {
       const target = Math.min(this.rate.target, RATE.HEADROOM * (this.bwe ?? this.cap))
-      const f = fill(this.filled, data.byteLength, tUs / 1000, this.stuffPaused ? 0 : target)
-      this.filled = f.state
-      const stuffed = stuff(new Uint8Array(data), f.pad)
+      const topUp = fill(this.filled, data.byteLength, timeUs / 1000, this.stuffPaused ? 0 : target)
+      this.filled = topUp.state
+      const stuffed = stuff(new Uint8Array(data), topUp.pad)
       pad = stuffed.byteLength - data.byteLength
       data = stuffed.buffer as ArrayBuffer
     }
     this.stats.bytes += data.byteLength
     this.stats.stuffed += pad
-    const md = tpl.getMetadata()
+    const metadata = template.getMetadata()
     // (unwrapped: kept increasing past 2^32)
-    const rtp = this.rtpAt.rtp + Math.round((tUs / 1000 + this.minDelay - this.rtpAt.ms) * RTP_TICKS_PER_MS)
+    const rtp = this.rtpAt.rtp + Math.round((timeUs / 1000 + this.minDelay - this.rtpAt.ms) * RTP_TICKS_PER_MS)
     this.lastRtp = Math.max(this.lastRtp + 1, rtp)
-    this.frameId = Math.max(this.frameId, md.frameId ?? 0) + 1
-    const frame = new EncodedFrame(tpl, {
+    this.frameId = Math.max(this.frameId, metadata.frameId ?? 0) + 1
+    const frame = new EncodedFrame(template, {
       metadata: {
-        ...md,
+        ...metadata,
         rtpTimestamp: this.lastRtp >>> 0,
         frameId: this.frameId,
         dependencies: key ? [] : [this.frameId - 1],
@@ -381,19 +381,19 @@ class Swap implements CastConsumer {
 }
 
 const swaps = new WeakMap<RTCRtpSender, Swap>()
-const senderPcs = new WeakMap<RTCRtpSender, RTCPeerConnection>()
+const senderPeers = new WeakMap<RTCRtpSender, RTCPeerConnection>()
 const claims = new WeakMap<RTCRtpSender, () => { readable: ReadableStream; writable: WritableStream }>()
 
-const senderProto = RTCRtpSender.prototype as any
-const origCreate: (() => { readable: ReadableStream; writable: WritableStream }) | undefined =
-  navigator.userAgent.includes('Linux') ? senderProto.createEncodedStreams : undefined
+const senderPrototype = RTCRtpSender.prototype as any
+const originalCreate: (() => { readable: ReadableStream; writable: WritableStream }) | undefined =
+  navigator.userAgent.includes('Linux') ? senderPrototype.createEncodedStreams : undefined
 
-if (origCreate) {
+if (originalCreate) {
   // Discord's DAVE on the createEncodedStreams path (see the top of the file)
-  delete senderProto.transform
-  senderProto.createEncodedStreams = function (this: RTCRtpSender) {
+  delete senderPrototype.transform
+  senderPrototype.createEncodedStreams = function (this: RTCRtpSender) {
     const claim = claims.get(this)
-    if (!claim) return origCreate.call(this) // audio (or a sender we never saw made): untouched
+    if (!claim) return originalCreate.call(this) // audio (or a sender we never saw made): untouched
     claims.delete(this)
     return claim()
   }
@@ -405,12 +405,12 @@ if (origCreate) {
  * straight back into the sender; once it asks, it gets the swap's output and the sender's writable, so its encryption
  * runs after the swap. Without DAVE nobody asks, and the swap still works.
  */
-export function attachSwap(pc: RTCPeerConnection, sender: RTCRtpSender) {
-  if (!origCreate || swaps.has(sender)) return
-  senderPcs.set(sender, pc)
+export function attachSwap(peer: RTCPeerConnection, sender: RTCRtpSender) {
+  if (!originalCreate || swaps.has(sender)) return
+  senderPeers.set(sender, peer)
   let streams: { readable: ReadableStream; writable: WritableStream }
   try {
-    streams = origCreate.call(sender)
+    streams = originalCreate.call(sender)
   } catch (e) {
     logger.error("Failed to create the sender's encoded streams", e)
     return
@@ -430,11 +430,11 @@ export function attachSwap(pc: RTCPeerConnection, sender: RTCRtpSender) {
   })().catch((e) => logger.error('Encoded frame relay failed', e))
   claims.set(sender, () => ({
     readable: new ReadableStream({
-      start: (c) => {
-        sink.discord = c
+      start: (controller) => {
+        sink.discord = controller
       },
     }),
-    writable: new WritableStream({ write: (f) => ours.write(f) }),
+    writable: new WritableStream({ write: (frame) => ours.write(frame) }),
   }))
 }
 
@@ -450,21 +450,21 @@ const sendCodec = (sender: RTCRtpSender) => sender.getParameters().codecs?.[0]?.
  * connection's signaling state changes (the answer applied), and every 10 ms besides, for up to 10 s.
  */
 async function negotiated(sender: RTCRtpSender) {
-  const pc = senderPcs.get(sender)
+  const peer = senderPeers.get(sender)
   const sending = () => {
-    const dir = pc?.getTransceivers().find((t) => t.sender === sender)?.currentDirection
-    return Boolean(sendCodec(sender)) && (!pc || dir === 'sendonly' || dir === 'sendrecv')
+    const direction = peer?.getTransceivers().find((transceiver) => transceiver.sender === sender)?.currentDirection
+    return Boolean(sendCodec(sender)) && (!peer || direction === 'sendonly' || direction === 'sendrecv')
   }
   const until = performance.now() + NEGOTIATE_TIMEOUT_MS
   while (!sending() && performance.now() < until)
     await new Promise<void>((resolve) => {
       const done = () => {
         clearTimeout(timer)
-        pc?.removeEventListener('signalingstatechange', done)
+        peer?.removeEventListener('signalingstatechange', done)
         resolve()
       }
       const timer = setTimeout(done, NEGOTIATE_POLL_MS)
-      pc?.addEventListener('signalingstatechange', done)
+      peer?.addEventListener('signalingstatechange', done)
     })
 }
 

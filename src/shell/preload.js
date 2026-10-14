@@ -10,57 +10,59 @@ const src = fs.readFileSync(path.join(__dirname, '../../dist/cordial.js'), 'utf8
 // Presence
 
 // game detection: src/shell/main.js runs game-detection/ on Discord's list of games
-function observeGames(list, cb) {
+function observeGames(list, callback) {
   ipcRenderer.removeAllListeners('cordial:games')
-  ipcRenderer.on('cordial:games', (_, games) => cb(games))
+  ipcRenderer.on('cordial:games', (_, games) => callback(games))
   ipcRenderer.send('cordial:games', list)
 }
 
 // Rich Presence: apps connect to discord-ipc-N (in CORDIAL_IPC_DIR if set, else where Discord desktop puts it), and
 // Discord's own RPC server in the page speaks the protocol; this only carries each connection's bytes
 const env = process.env
-const dir = env.CORDIAL_IPC_DIR || env.XDG_RUNTIME_DIR || env.TMPDIR || env.TMP || env.TEMP || '/tmp'
+const socketDirectory = env.CORDIAL_IPC_DIR || env.XDG_RUNTIME_DIR || env.TMPDIR || env.TMP || env.TEMP || '/tmp'
 const sockets = new Map()
 const rpc = {
-  async listen(cb) {
+  async listen(listener) {
     for (let i = 0; i < 10; i++) {
-      const p = path.join(dir, `discord-ipc-${i}`)
+      const socketPath = path.join(socketDirectory, `discord-ipc-${i}`)
       // another client's, or a stale one left by a crash
-      if (fs.existsSync(p) && (await answers(p))) continue
-      fs.rmSync(p, { force: true })
+      if (fs.existsSync(socketPath) && (await answers(socketPath))) continue
+      fs.rmSync(socketPath, { force: true })
       let next = 0
-      const server = net.createServer((s) => {
+      const server = net.createServer((socket) => {
         const id = ++next
-        sockets.set(id, s)
-        cb(id, 'connect')
-        s.on('data', (d) => cb(id, 'data', new Uint8Array(d)))
-        s.on('close', () => {
+        sockets.set(id, socket)
+        listener(id, 'connect')
+        socket.on('data', (data) => listener(id, 'data', new Uint8Array(data)))
+        socket.on('close', () => {
           sockets.delete(id)
-          cb(id, 'close')
+          listener(id, 'close')
         })
-        s.on('error', () => {})
+        socket.on('error', () => {})
       })
-      const ok = await new Promise((r) => server.once('error', () => r(false)).listen(p, () => r(true)))
+      const ok = await new Promise((resolve) =>
+        server.once('error', () => resolve(false)).listen(socketPath, () => resolve(true)),
+      )
       if (!ok) continue
       // a reload starts Discord's RPC server over
       window.addEventListener('pagehide', () => {
         server.close()
-        sockets.forEach((s) => s.destroy())
+        sockets.forEach((socket) => socket.destroy())
       })
-      return p
+      return socketPath
     }
     return null
   },
-  write: (id, d) => sockets.get(id)?.write(d),
-  end: (id, d) => sockets.get(id)?.end(d),
+  write: (id, data) => sockets.get(id)?.write(data),
+  end: (id, data) => sockets.get(id)?.end(data),
 }
-const answers = (p) =>
-  new Promise((r) => {
-    const s = net.connect(p, () => {
-      s.destroy()
-      r(true)
+const answers = (socketPath) =>
+  new Promise((resolve) => {
+    const socket = net.connect(socketPath, () => {
+      socket.destroy()
+      resolve(true)
     })
-    s.on('error', () => r(false))
+    socket.on('error', () => resolve(false))
   })
 
 // Go Live through capture (screen-capture/src/main/cast.js): its frames arrive on a MessagePort, handed on to the

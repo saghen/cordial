@@ -25,7 +25,7 @@ function track(store: FluxStore) {
   return store
 }
 
-export const $ = new Proxy(S, { get: (s, k) => track(s[k as keyof typeof S]) }) as typeof S
+export const $ = new Proxy(S, { get: (stores, name) => track(stores[name as keyof typeof S]) }) as typeof S
 
 export const selected = () => $.SelectedChannel.getChannelId()
 export const selectedChannel = () => $.Channel.getChannel(selected()!) as Channel | undefined

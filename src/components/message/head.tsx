@@ -15,12 +15,12 @@ import { Name } from '../name'
 import { Time } from '../time'
 
 // the avatar in the gutter, the name and the time beside it (and what a card adds: a search result's channel)
-export const Head = (p: { m: Message; guildId?: Id | null; children?: JSX.Element }) => (
+export const Head = (p: { message: Message; guildId?: Id | null; children?: JSX.Element }) => (
   <>
-    <Avatar user={p.m.author} guildId={p.guildId} size={40} />
+    <Avatar user={p.message.author} guildId={p.guildId} size={40} />
     <header>
-      <Name user={p.m.author} guildId={messages.authorGuild(p.m, p.guildId)} />
-      <Time at={p.m.timestamp} />
+      <Name user={p.message.author} guildId={messages.authorGuild(p.message, p.guildId)} />
+      <Time at={p.message.timestamp} />
       {p.children}
     </header>
   </>
@@ -30,49 +30,49 @@ export const Head = (p: { m: Message; guildId?: Id | null; children?: JSX.Elemen
 export const flash = (row: Element) => row.animate([{ background: 'var(--mention-bg)' }, {}], { duration: 2000 })
 
 // a click on a reply: the replied-to message flashed where it is when it's in view, else jumped to
-function jump(e: MouseEvent, m: Message) {
+function jump(e: MouseEvent, message: Message) {
   const list = (e.currentTarget as Element).closest('.messages')
-  const row = list?.querySelector(`article[data-id="${m.messageReference!.message_id}"]`)
+  const row = list?.querySelector(`article[data-id="${message.messageReference!.message_id}"]`)
   if (list && row) {
-    const r = row.getBoundingClientRect()
-    const v = list.getBoundingClientRect()
-    if (r.top >= v.top && r.bottom <= v.bottom) {
+    const rowRect = row.getBoundingClientRect()
+    const listRect = list.getBoundingClientRect()
+    if (rowRect.top >= listRect.top && rowRect.bottom <= listRect.bottom) {
       flash(row)
       return
     }
   }
-  messages.jumpToReplied(m)
+  messages.jumpToReplied(message)
 }
 
 // as stock: the replied-to message's author (with @ if the reply pings them) and its text on one line, the spine from
 // the avatar's column to it; a click on them jumps to it
-export function ReplyPreview(p: { m: Message; guildId?: Id | null }) {
-  const ref = () => messages.replied(p.m)
+export function ReplyPreview(p: { message: Message; guildId?: Id | null }) {
+  const replied = () => messages.replied(p.message)
   return (
-    <Show when={ref()}>
-      {(r) => (
+    <Show when={replied()}>
+      {(reference) => (
         <q class="reply-to">
-          <span onClick={(e) => jump(e, p.m)}>
+          <span onClick={(e) => jump(e, p.message)}>
             <Show
-              when={r().message}
+              when={reference().message}
               fallback={text(
-                r().state === ReferencedMessageState.Deleted
+                reference().state === ReferencedMessageState.Deleted
                   ? 'REPLY_QUOTE_MESSAGE_DELETED'
                   : 'REPLY_QUOTE_MESSAGE_NOT_LOADED',
               )}
             >
-              {(rm) => {
-                const author = rm().author as User
+              {(repliedMessage) => {
+                const author = repliedMessage().author as User
                 return (
                   <>
                     <Avatar user={author} guildId={p.guildId} size={16} />
                     <Name
                       user={author}
-                      guildId={messages.authorGuild(rm(), p.guildId)}
-                      at={p.m.mentions.includes(author.id)}
+                      guildId={messages.authorGuild(repliedMessage(), p.guildId)}
+                      at={p.message.mentions.includes(author.id)}
                     />
-                    {rm().content ? (
-                      <Markdown ast={messages.contentAST(rm(), rm().channel_id)} inline />
+                    {repliedMessage().content ? (
+                      <Markdown ast={messages.contentAST(repliedMessage(), repliedMessage().channel_id)} inline />
                     ) : (
                       text('REPLY_QUOTE_NO_TEXT_CONTENT')
                     )}
@@ -88,15 +88,17 @@ export function ReplyPreview(p: { m: Message; guildId?: Id | null }) {
 }
 
 // an app's reply to a command: who used it, as stock's line above the message
-export function CommandLine(p: { m: Message; guildId?: Id | null }) {
-  const command = p.m.interaction ?? p.m.interactionMetadata
+export function CommandLine(p: { message: Message; guildId?: Id | null }) {
+  const command = p.message.interaction ?? p.message.interactionMetadata
   if (!command) return null
   const user = (command.user && users.get(command.user.id)) ?? command.user
   const slots = [<Name user={user} />, <span class="command-name">/{command.displayName ?? command.name}</span>]
   return (
     <q class="command">
       <span>
-        <Show when={users.get(command.user?.id)}>{(u) => <Avatar user={u()} guildId={p.guildId} size={16} />}</Show>
+        <Show when={users.get(command.user?.id)}>
+          {(stored) => <Avatar user={stored()} guildId={p.guildId} size={16} />}
+        </Show>
         {textAround('APPLICATION_COMMAND_USED_SHORT', {}, ['userHook', 'commandHook']).map((part) =>
           typeof part === 'number' ? slots[part] : part,
         )}

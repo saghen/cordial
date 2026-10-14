@@ -14,8 +14,14 @@ const PRESET_CUSTOM = 3
 
 function canStream(height: number, fps: number): boolean {
   try {
-    const d = host.discord!
-    return d.canStreamWithSettings(PRESET_CUSTOM, height, fps, d.currentUser(), d.voiceGuildPremiumTier())
+    const discord = host.discord!
+    return discord.canStreamWithSettings(
+      PRESET_CUSTOM,
+      height,
+      fps,
+      discord.currentUser(),
+      discord.voiceGuildPremiumTier(),
+    )
   } catch (e) {
     // Discord moved the function (or no host yet); offer everything rather than nothing.
     logger.error('canStreamWithSettings unavailable', e)
@@ -58,16 +64,16 @@ export function currentStreamQuality() {
 }
 
 /** Writes the max resolution and frame rate onto our Go Live connection, which Discord's encoder setup reads. */
-export function applyToStreamConnection(q: StreamQuality) {
-  const d = host.discord
-  const user = d?.currentUser()
-  const conn = d && user && [...d.connections()].find((connection) => connection.streamUserId === user.id)
-  if (!conn) return
-  const params = conn.videoStreamParameters[0]
-  params.maxFrameRate = q.fps
+export function applyToStreamConnection(quality: StreamQuality) {
+  const discord = host.discord
+  const user = discord?.currentUser()
+  const connection = discord && user && [...discord.connections()].find((entry) => entry.streamUserId === user.id)
+  if (!connection) return
+  const params = connection.videoStreamParameters[0]
+  params.maxFrameRate = quality.fps
   params.maxResolution ??= { width: 0, height: 0 }
-  params.maxResolution.width = q.width
-  params.maxResolution.height = q.height
+  params.maxResolution.width = quality.width
+  params.maxResolution.height = quality.height
 }
 
 // ---- The Go Live sender ----
@@ -89,7 +95,7 @@ export const markStreamSound = (track: MediaStreamTrack) => void soundTracks.add
 export const isStreamSound = (track: MediaStreamTrack | null | undefined) => Boolean(track && soundTracks.has(track))
 
 function withSoundRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
-  if (isStreamSound(sender.track)) for (const e of params.encodings ?? []) e.maxBitrate = SOUND_BPS
+  if (isStreamSound(sender.track)) for (const encoding of params.encodings ?? []) encoding.maxBitrate = SOUND_BPS
   return params
 }
 
@@ -98,26 +104,26 @@ function withSoundRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
 // with that lifted the same stream runs at 7-9.6 Mbps with no loss on a live call. Discord's server still holds the
 // stream to the account's rate (its feedback keeps the bandwidth estimate at it).
 function withQuality(sender: RTCRtpSender, params: RTCRtpSendParameters) {
-  const enc = params.encodings?.[0]
-  const q = castSessionFor(sender.track)?.quality
-  if (!enc || !q) return params
+  const encoding = params.encodings?.[0]
+  const quality = castSessionFor(sender.track)?.quality
+  if (!encoding || !quality) return params
   params.degradationPreference = 'balanced'
-  enc.maxBitrate = q.maxBitrate
-  enc.maxFramerate = q.fps
-  enc.scaleResolutionDownBy = 1
+  encoding.maxBitrate = quality.maxBitrate
+  encoding.maxFramerate = quality.fps
+  encoding.scaleResolutionDownBy = 1
   return params
 }
 
 // Discord sets maxBitrate/maxFramerate/scaleResolutionDownBy through setParameters whenever its quality manager
 // updates: ours replace them.
-const origSetParameters = RTCRtpSender.prototype.setParameters
+const originalSetParameters = RTCRtpSender.prototype.setParameters
 RTCRtpSender.prototype.setParameters = function (this: RTCRtpSender, params, ...rest) {
   try {
     withSoundRate(this, withQuality(this, params))
   } catch (e) {
     logger.error('Failed to set the stream quality', e)
   }
-  return origSetParameters.call(this, params, ...rest)
+  return originalSetParameters.call(this, params, ...rest)
 }
 
 // Discord only calls setParameters when its own numbers change, so also apply ours when our track is attached to a
@@ -125,7 +131,7 @@ RTCRtpSender.prototype.setParameters = function (this: RTCRtpSender, params, ...
 function applyToSender(sender: RTCRtpSender) {
   const cast = castSessionFor(sender.track)
   if (!cast && !isStreamSound(sender.track)) return
-  origSetParameters
+  originalSetParameters
     .call(sender, withSoundRate(sender, withQuality(sender, sender.getParameters())))
     .catch((e) => logger.error('Failed to set the stream quality', e))
   if (!cast) return
@@ -133,24 +139,24 @@ function applyToSender(sender: RTCRtpSender) {
   startZeroCopy(sender, sender.track!).catch((e) => logger.error('Zero-copy failed to start', e))
 }
 
-const origReplaceTrack = RTCRtpSender.prototype.replaceTrack
+const originalReplaceTrack = RTCRtpSender.prototype.replaceTrack
 RTCRtpSender.prototype.replaceTrack = async function (this: RTCRtpSender, track) {
-  await origReplaceTrack.call(this, track)
+  await originalReplaceTrack.call(this, track)
   applyToSender(this)
 }
 
 // (a video sender's encoded streams are made as it is: zeroCopy.ts' attachSwap)
-const origAddTrack = RTCPeerConnection.prototype.addTrack
+const originalAddTrack = RTCPeerConnection.prototype.addTrack
 RTCPeerConnection.prototype.addTrack = function (this: RTCPeerConnection, ...args) {
-  const sender = origAddTrack.apply(this, args)
+  const sender = originalAddTrack.apply(this, args)
   if (args[0].kind === 'video') attachSwap(this, sender)
   applyToSender(sender)
   return sender
 }
 
-const origAddTransceiver = RTCPeerConnection.prototype.addTransceiver
+const originalAddTransceiver = RTCPeerConnection.prototype.addTransceiver
 RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, ...args) {
-  const transceiver = origAddTransceiver.apply(this, args as Parameters<typeof origAddTransceiver>)
+  const transceiver = originalAddTransceiver.apply(this, args as Parameters<typeof originalAddTransceiver>)
   if ((typeof args[0] === 'string' ? args[0] : args[0].kind) === 'video') attachSwap(this, transceiver.sender)
   applyToSender(transceiver.sender)
   return transceiver
@@ -189,29 +195,31 @@ function withMaxBitrate(sdp: string, kbps: number): string {
       Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match,
     )
     .split(/(?=\r\nm=)/)
-    .map((m) =>
-      m.startsWith('\r\nm=video') && !m.includes('\r\nb=AS:') ? m.replace(/\r\nc=[^\r\n]*/, `$&\r\nb=AS:${kbps}`) : m,
+    .map((section) =>
+      section.startsWith('\r\nm=video') && !section.includes('\r\nb=AS:')
+        ? section.replace(/\r\nc=[^\r\n]*/, `$&\r\nb=AS:${kbps}`)
+        : section,
     )
     .join('')
 }
 
-const origSetRemoteDescription = RTCPeerConnection.prototype.setRemoteDescription
+const originalSetRemoteDescription = RTCPeerConnection.prototype.setRemoteDescription
 RTCPeerConnection.prototype.setRemoteDescription = function (
   this: RTCPeerConnection,
-  desc: RTCSessionDescriptionInit,
+  description: RTCSessionDescriptionInit,
   ...rest: unknown[]
 ) {
   try {
-    if (desc?.sdp?.includes('x-google-max-bitrate')) {
-      const q = this.getSenders()
-        .map((s) => castSessionFor(s.track)?.quality)
-        .find((q) => q)
-      let sdp = desc.sdp
-      if (q) sdp = withMaxBitrate(sdp, Math.round(q.maxBitrate / 1000))
-      desc = { type: desc.type, sdp: withStartBitrate(sdp) }
+    if (description?.sdp?.includes('x-google-max-bitrate')) {
+      const quality = this.getSenders()
+        .map((sender) => castSessionFor(sender.track)?.quality)
+        .find((candidate) => candidate)
+      let sdp = description.sdp
+      if (quality) sdp = withMaxBitrate(sdp, Math.round(quality.maxBitrate / 1000))
+      description = { type: description.type, sdp: withStartBitrate(sdp) }
     }
   } catch (e) {
     logger.error('Failed to set the start bitrate', e)
   }
-  return (origSetRemoteDescription as any).call(this, desc, ...rest)
-} as typeof origSetRemoteDescription
+  return (originalSetRemoteDescription as any).call(this, description, ...rest)
+} as typeof originalSetRemoteDescription

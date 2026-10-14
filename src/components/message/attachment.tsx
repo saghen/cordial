@@ -5,29 +5,29 @@
 import { Show } from 'solid-js'
 
 import * as pickers from '../../api/pickers'
-import type { Attachment as File, Message } from '../../api/types'
+import type { Attachment as AttachmentRecord, Message } from '../../api/types'
 import { Clip, Media } from '../media'
 
 const KB = 1024
 // stock's sticker size, in px
 const STICKER_SIZE = 160
 
-function size(n: number) {
-  if (n < KB) return `${n} B`
-  if (n < KB ** 2) return `${(n / KB).toFixed(1)} KB`
-  return `${(n / KB ** 2).toFixed(1)} MB`
+function size(bytes: number) {
+  if (bytes < KB) return `${bytes} B`
+  if (bytes < KB ** 2) return `${(bytes / KB).toFixed(1)} KB`
+  return `${(bytes / KB ** 2).toFixed(1)} MB`
 }
 
-export function Attachment(p: { file: File }) {
-  const f = p.file
-  const type = f.content_type?.split('/')[0]
-  const media = { url: f.url, proxyURL: f.proxy_url, width: f.width!, height: f.height! }
-  if (type === 'image' && f.width) return <Media media={media} box="sent" />
-  if (type === 'video') return <Clip src={f.url} media={media} />
+export function Attachment(p: { file: AttachmentRecord }) {
+  const file = p.file
+  const type = file.content_type?.split('/')[0]
+  const media = { url: file.url, proxyURL: file.proxy_url, width: file.width!, height: file.height! }
+  if (type === 'image' && file.width) return <Media media={media} box="sent" />
+  if (type === 'video') return <Clip src={file.url} media={media} />
   return (
-    <a class="file" href={f.url} target="_blank" rel="noreferrer noopener">
-      {f.filename}
-      <small>{size(f.size)}</small>
+    <a class="file" href={file.url} target="_blank" rel="noreferrer noopener">
+      {file.filename}
+      <small>{size(file.size)}</small>
     </a>
   )
 }

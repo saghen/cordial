@@ -11,32 +11,33 @@ import { text } from './strings'
 export const PAGE = 25
 
 // stock's search context, and its id in SearchMessageStore
-const context = (c: Channel) =>
-  c.guild_id ? { type: 'GUILD', guildId: c.guild_id } : { type: 'CHANNEL', channelId: c.id }
-export const searchId = (c: Channel) => c.guild_id ?? c.id
+const context = (channel: Channel) =>
+  channel.guild_id ? { type: 'GUILD', guildId: channel.guild_id } : { type: 'CHANNEL', channelId: channel.id }
+export const searchId = (channel: Channel) => channel.guild_id ?? channel.id
 
 // a page of the results from offset: as stock, it replaces the last
-export async function run(c: Channel, query: string, offset: number) {
+export async function run(channel: Channel, query: string, offset: number) {
   const search = await A.search.load()
   search.fetchMessages({
-    searchContext: context(c),
+    searchContext: context(channel),
     searchQueryString: query,
     pagination: { offset },
     searchMode: 'newest',
     searchEverywhere: false,
     searchAnalyticsIds: null,
-    onFetchStart: () => search.clearSearchMessages(searchId(c)),
+    onFetchStart: () => search.clearSearchMessages(searchId(channel)),
   })
 }
-export const clear = (c: Channel) => A.search.load().then((s) => s.clearSearchMessages(searchId(c)))
+export const clear = (channel: Channel) =>
+  A.search.load().then((search) => search.clearSearchMessages(searchId(channel)))
 
-export const fetching = (c: Channel) => Boolean($.Search.getIsFetching(searchId(c)))
-export const total = (c: Channel) => ($.Search.getTotalCount(searchId(c)) ?? 0) as number
-export const failed = (c: Channel) => Boolean($.Search.getError(searchId(c)))
-export const results = (c: Channel) => ($.Search.getMessages(searchId(c)) ?? []) as Message[]
+export const fetching = (channel: Channel) => Boolean($.Search.getIsFetching(searchId(channel)))
+export const total = (channel: Channel) => ($.Search.getTotalCount(searchId(channel)) ?? 0) as number
+export const failed = (channel: Channel) => Boolean($.Search.getError(searchId(channel)))
+export const results = (channel: Channel) => ($.Search.getMessages(searchId(channel)) ?? []) as Message[]
 
 // the field's placeholder: "Search {server}" in a server
-export const placeholder = (c: Channel) => {
-  const g = c.guild_id && guilds.get(c.guild_id)
-  return g ? text('SEARCH_IN', { name: g.name }) : text('SEARCH')
+export const placeholder = (channel: Channel) => {
+  const guild = channel.guild_id && guilds.get(channel.guild_id)
+  return guild ? text('SEARCH_IN', { name: guild.name }) : text('SEARCH')
 }

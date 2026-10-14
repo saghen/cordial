@@ -12,12 +12,12 @@ const RELEASE_MS = 2000
 function receiveRaw(post) {
   let imports = new Map()
   let port = null
-  const release = (list) => setTimeout(() => list.forEach((i) => i.release()), RELEASE_MS)
+  const release = (list) => setTimeout(() => list.forEach((imported) => imported.release()), RELEASE_MS)
   sharedTexture.setSharedTextureReceiver(async ({ importedSharedTexture }, key) => {
     if (!port) {
-      const ch = new MessageChannel()
-      port = ch.port1
-      post(ch.port2)
+      const channel = new MessageChannel()
+      port = channel.port1
+      post(channel.port2)
     }
     imports.set(key, importedSharedTexture)
   })
@@ -27,12 +27,12 @@ function receiveRaw(post) {
     imports.delete(key)
     if (imported) release([imported])
   })
-  ipcRenderer.on('cordial:cast-raw', (_e, key, seq, t) => {
+  ipcRenderer.on('cordial:cast-raw', (_e, key, seq, time) => {
     const imported = imports.get(key)
     if (!imported || !port) return
     const base = imported.getVideoFrame()
-    // t: capture's CLOCK_MONOTONIC in µs, Chromium's own capture clock on Linux
-    const frame = new VideoFrame(base, { timestamp: t })
+    // time: capture's CLOCK_MONOTONIC in µs, Chromium's own capture clock on Linux
+    const frame = new VideoFrame(base, { timestamp: time })
     base.close()
     port.postMessage({ frame, seq }, [frame])
   })
