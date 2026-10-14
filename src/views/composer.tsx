@@ -6,12 +6,12 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'so
 
 import { A, S } from '../adapter/needs'
 import { startTyping, stopTyping } from '../api/triggers'
-import type { Rec } from '../adapter/discord'
+import type { Id, Rec } from '../adapter/discord'
 import { useFileDrop } from '../api/hooks'
-import { authorOf, can as allowed, emojiSrc, type Message, PERMS } from '../api/model'
-import { nameOf } from '../api/users'
+import { emojiSrc } from '../api/pickers'
+import { can as allowed, member, nameOf } from '../api/users'
 import * as channels from '../api/channels'
-import type { Channel, PrivateChannel } from '../api/records'
+import { Permission, type Channel, type Message, type PrivateChannel } from '../api/records'
 import { $, selected, selectedChannel } from '../api/store'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
 import { Button, IconButton } from '../primitives/button'
@@ -25,7 +25,7 @@ export function MessageInput() {
   const closed = createMemo(() => {
     const c = channel()
     if (!c) return null
-    if (!allowed(PERMS.SEND_MESSAGES, c)) return 'You do not have permission to send messages in this channel.'
+    if (!allowed(Permission.SEND_MESSAGES, c)) return 'You do not have permission to send messages in this channel.'
     if (c.type === 1 && $.Relationship.isBlocked((c as PrivateChannel).recipients[0]))
       return 'You cannot send messages to a user you have blocked.'
     const until =
@@ -37,7 +37,8 @@ export function MessageInput() {
   // slowmode: seconds left before the next message (none for those who manage messages or the channel)
   const cooldown = createMemo(() => {
     const c = channel()
-    if (!c?.rateLimitPerUser || allowed(PERMS.MANAGE_MESSAGES, c) || allowed(PERMS.MANAGE_CHANNELS, c)) return 0
+    if (!c?.rateLimitPerUser || allowed(Permission.MANAGE_MESSAGES, c) || allowed(Permission.MANAGE_CHANNELS, c))
+      return 0
     now()
     return Math.ceil($.Slowmode.getSlowmodeCooldownGuess(c.id, 0) / 1000)
   })
@@ -181,7 +182,7 @@ export function MessageInput() {
       <Show when={reply()}>
         {(r) => (
           <label class="reply">
-            Replying to <b>{authorOf(r().message as Message, r().channel.guild_id).name}</b>
+            Replying to <b>{replyName(r().message as Message, r().channel.guild_id)}</b>
             <Show when={r().showMentionToggle}>
               <Button
                 variant="link"
@@ -296,6 +297,10 @@ function Typing() {
   )
 }
 
+// the replied-to message's author, as the author line names them (a webhook by its own name)
+const replyName = (m: Message, guildId: Id | null) =>
+  nameOf(m.author, m.webhookId ? undefined : member(m.author, guildId)?.nick)
+
 // autocomplete from stock's own queries: `@` users and roles, `#` channels, `:` emoji (two letters at least, as stock).
 // A pick goes in as text the parser turns back into a mention
 
@@ -333,7 +338,7 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Rec |
     if (!t || !c) return []
     if (t.kind === '@') {
       // as stock's box: @everyone, @here and every role with the permission to mention everyone
-      const everyone = !c.isPrivate() && S.Permission.can(PERMS.MENTION_EVERYONE, c)
+      const everyone = !c.isPrivate() && S.Permission.can(Permission.MENTION_EVERYONE, c)
       const r = A.autocomplete.queryMentionResults({
         query: t.query,
         channel: c,

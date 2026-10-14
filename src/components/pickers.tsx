@@ -8,7 +8,7 @@ import type { JSX } from '@solidjs/web'
 
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { emojiSrc } from '../api/model'
+import { emojiSrc } from '../api/pickers'
 import { $ } from '../api/store'
 import * as guilds from '../api/guilds'
 import { IconButton } from '../primitives/button'

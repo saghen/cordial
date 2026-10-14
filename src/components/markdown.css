@@ -1,0 +1,22 @@
+/* message content (markdown.tsx); Discord's reset (its stylesheet stays loaded for the fonts) needs em and strong back.
+   Inline, a reply preview's blocks are flattened onto its line */
+:is(.content, .markdown) {
+  :is(h1, h2, h3) { margin: 8px 0 0; line-height: 1.25; color: var(--text-strong); }
+  h1 { font-size: 24px; } h2 { font-size: 20px; } h3 { font-size: 16px; }
+  small { display: block; font-size: 12px; font-weight: 400; }
+  code, pre { font: 14px/1.3 "gg mono", ui-monospace, monospace; background: var(--bg-raised); border-radius: 4px; }
+  code { padding: 0 3px; }
+  pre { display: block; padding: 8px; margin: 4px 0; }
+  blockquote { margin: 2px 0; padding-left: 12px; border-left: 4px solid var(--text-faint); border-radius: 4px; color: var(--text-muted); }
+  ul, ol { padding-left: 24px; white-space: normal; }
+  ul { list-style: disc; } ol { list-style: decimal; }
+  em { font-style: italic; } strong { font-weight: 700; }
+  a { color: var(--link); } a:hover { text-decoration: underline; }
+  img { width: 22px; height: 22px; vertical-align: bottom; object-fit: contain; }
+  img.jumbo { width: 48px; height: 48px; }
+  mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
+  del { text-decoration: none; background: var(--bg-deep); color: transparent; border-radius: 4px; cursor: pointer; }
+  del[open] { background: var(--bg-raised); color: inherit; }
+  time:not(.ts) { background: var(--bg-raised); border-radius: 3px; padding: 0 2px; }
+}
+.markdown.inline * { display: inline; margin: 0; padding: 0; border: 0; }

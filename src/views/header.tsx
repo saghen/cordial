@@ -5,14 +5,15 @@ import { createEffect, createSignal, For, Show } from 'solid-js'
 
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { renderAST } from '../components/markdown'
 import * as channels from '../api/channels'
-import { authorOf, contentAST, type Message } from '../api/model'
+import * as messages from '../api/messages'
 import * as notifications from '../api/notifications'
-import type { Channel } from '../api/records'
-import { Time } from '../components/time'
+import type { Channel, Message } from '../api/records'
 import { $ } from '../api/store'
 import { text } from '../api/strings'
+import { Attachment } from '../components/message/attachment'
+import { Content } from '../components/message/content'
+import { Head } from '../components/message/head'
 import { Button, IconButton } from '../primitives/button'
 import { Items } from '../primitives/menu'
 import { Popout } from '../primitives/popout'
@@ -84,79 +85,44 @@ export function NotificationBell(p: { channel: Channel }) {
   )
 }
 
-// a message as a card (pins, search results): its author, time and text, Jump to it (stock: to its link)
-function Card(p: { m: Message; guildId?: Id; jump: string; onJump?: () => void; where?: string }) {
-  const a = authorOf(p.m, p.guildId ?? null)
+// a message as a card (pins, search results): its author line, its text and files, Jump to it (stock: to its link)
+function Card(p: { m: Message; guildId?: Id | null; jump: string; onJump?: () => void; where?: string }) {
   return (
-    <article data-id={p.m.id} class="head" style={{ '--av': `url(${a.avatar})` }}>
-      <b style={{ color: a.color ?? undefined }}>{a.name}</b>
-      <Time at={p.m.timestamp} />
-      <Show when={p.where}>
-        <small>#{p.where}</small>
-      </Show>
-      {'\n'}
-      <span ref={(s) => renderAST(contentAST(p.m, p.m.channel_id), s)} />
-      {p.m.attachments?.map((f: Rec) => (
-        <a class="file" href={f.url} target="_blank" rel="noreferrer noopener">
-          {f.filename}
-        </a>
-      ))}
+    <article data-id={p.m.id} class="head">
+      <Head m={p.m} guildId={p.guildId}>
+        <Show when={p.where}>
+          <small>#{p.where}</small>
+        </Show>
+      </Head>
+      <Content m={p.m} channelId={p.m.channel_id} />
+      <For each={p.m.attachments}>{(f) => <Attachment file={f} />}</For>
       <Button
         class={`${p.jump}-jump`}
         data-id={p.m.id}
         onClick={() => {
-          A.nav.transitionTo(`/channels/${p.guildId ?? '@me'}/${p.m.channel_id}/${p.m.id}`)
+          messages.jumpTo(p.m)
           p.onJump?.()
         }}
       >
-        Jump
+        {text('JUMP')}
       </Button>
     </article>
   )
-}
-
-// stock's fetchPins (its pins chunk, not loaded without it): a page of 25, unless the store has them or is loading
-function fetchPins(channelId: Id, before?: Date) {
-  const pins = S.ChannelPins.getPins(channelId)
-  const need =
-    !pins ||
-    pins.state === 'FAILED' ||
-    (pins.state === 'LOADED_HAS_MORE' && (before ? pins.items.at(-1)?.pinnedAt === before : !pins.items.length))
-  if (!need) return
-  A.dispatcher.dispatch({ type: 'LOAD_PINNED_MESSAGES', channelId, reset: false })
-  A.rest
-    .get({
-      url: A.endpoints.PINS(channelId),
-      query: { limit: 25, before: before?.toISOString() },
-      retries: 2,
-      oldFormErrors: true,
-      rejectWithError: true,
-    })
-    .then(
-      (r) =>
-        A.dispatcher.dispatch({
-          type: 'LOAD_PINNED_MESSAGES_SUCCESS',
-          pins: r.body.items,
-          channelId,
-          hasMore: r.body.has_more,
-        }),
-      () => A.dispatcher.dispatch({ type: 'LOAD_PINNED_MESSAGES_FAILURE', channelId }),
-    )
 }
 
 // the header's pins: the channel's pinned messages in a popover, newest pin first, each with Jump (stock's: to the
 // message's link); opening it acks the pins (stock's CHANNEL_PINS_ACK, the button's dot)
 export function Pins(p: { channel: Rec }) {
   const id = () => p.channel.id
-  const pins = () => $.ChannelPins.getPins(id())
-  const items = () => (pins()?.items ?? []) as { message: Message; pinnedAt: Date }[]
+  const pins = () => messages.pins(id())
+  const items = () => pins()?.items ?? []
   let pop!: HTMLDivElement
   return (
     <>
       <IconButton
-        class={['pins', { unread: $.ReadState.hasUnreadPins(id()) }]}
+        class={['pins', { unread: messages.unreadPins(id()) }]}
         icon="pin"
-        title="Pinned Messages"
+        title={text('PINNED_MESSAGES')}
         popovertarget="mc-pins"
       />
       <Popout
@@ -165,24 +131,20 @@ export function Pins(p: { channel: Rec }) {
         as="div"
         class="pins-list"
         onOpen={() => {
-          fetchPins(id())
-          if (S.ReadState.hasUnreadPins(id())) A.dispatcher.dispatch({ type: 'CHANNEL_PINS_ACK', channelId: id() })
+          messages.fetchPins(id())
+          messages.ackPins(id())
         }}
       >
-        <h2>Pinned Messages</h2>
+        <h2>{text('PINNED_MESSAGES')}</h2>
         <Show when={pins() && pins()!.state !== 'LOADING' && !items().length}>
-          <p>
-            {p.channel.guild_id
-              ? "This channel doesn't have any pinned messages... yet."
-              : "This direct message doesn't have any pinned messages... yet."}
-          </p>
+          <p>{text(p.channel.guild_id ? 'NO_PINS_IN_CHANNEL' : 'NO_PINS_IN_DM')}</p>
         </Show>
         <For each={items()}>
           {({ message: m }) => <Card m={m} guildId={p.channel.guild_id} jump="pins" onJump={() => pop.hidePopover()} />}
         </For>
         <Show when={pins()?.state === 'LOADED_HAS_MORE'}>
-          <Button class="pins-more" onClick={() => fetchPins(id(), items().at(-1)?.pinnedAt)}>
-            Load More
+          <Button class="pins-more" onClick={() => messages.fetchPins(id(), items().at(-1)?.pinnedAt)}>
+            {text('LOAD_MORE')}
           </Button>
         </Show>
       </Popout>

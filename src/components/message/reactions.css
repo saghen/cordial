@@ -1,0 +1,11 @@
+/* reactions as stock: a chip per emoji, mine ringed, then a chip to add one */
+article > p.reactions {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; white-space: normal;
+  > button {
+    display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border: 1px solid transparent; border-radius: 8px;
+    background: var(--bg-raised); color: var(--text-muted); font: inherit; font-size: 15px; font-weight: 600;
+  }
+  > button.me { border-color: var(--accent); background-color: #5f8cfb26; color: var(--text-strong); }
+  > button:hover { border-color: var(--text-faint); }
+  > button > .emoji { width: 20px; height: 20px; }
+}

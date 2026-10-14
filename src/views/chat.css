@@ -1,0 +1,16 @@
+/* the messages: column-reverse keeps the view at the bottom (scroller.ts); scroll anchoring keeps it still when rows
+   arrive while scrolled up */
+.messages { grid-area: main; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+.messages > div { padding: 16px 0 24px; }
+/* the new messages bar, across the messages' top */
+& > div.new-messages {
+  grid-area: main; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
+  color: #fff; font-size: 14px; font-weight: 500; line-height: 24px;
+  > button { padding: 0 12px; color: inherit; }
+  > button:first-child { flex: 1; text-align: left; }
+}
+/* back to the present, at the messages' bottom right */
+& > button.jump {
+  --icon-size: 28px; grid-area: main; align-self: end; justify-self: end; z-index: 2; width: 48px; height: 48px;
+  margin: 0 28px 40px 0; border-radius: 50%; background: var(--bg-floating); box-shadow: 0 4px 8px #0006;
+}

@@ -2,43 +2,29 @@
 // bottom). Like stock's list, it reports its position, turns automatic acks on for its channel and loads more history
 // near either end: without a UI nothing else does.
 
-import { A, S } from '../adapter/needs'
-import type { Id } from '../adapter/discord'
-import { automaticAck, channelDimensions } from '../api/triggers'
-
-// stock's cap on a fetch's limit
-const MAX_FETCH = 30
+import * as messages from '../api/messages'
+import type { Id } from '../api/records'
 
 export function createScroller(scroller: HTMLElement, channel: () => Id | null) {
-  // As stock's: older within 500 px of the top, newer (truncated by a fetch of older) within 500 px of the bottom,
-  // two pages at a time, truncating the other end. Only toward where the reader is heading: a short window can be
-  // near both ends, and loading one truncates the other. With unreads, stock waits for the very top (2 px: scrollTop
-  // stops 1 px short here), so reading down from the unread line doesn't pull in history
-  function more(channelId: Id) {
-    const ms = S.Message.getMessages(channelId)
-    if (!ms.ready || ms.loadingMore || !ms.length) return
-    const fromTop = scroller.scrollHeight - scroller.clientHeight + scroller.scrollTop
-    const top =
-      !down && ms.hasMoreBefore && fromTop <= (S.ReadState.getOldestUnreadMessageId(channelId) != null ? 2 : 500)
-    if (top || (down && ms.hasMoreAfter && -scroller.scrollTop <= 500))
-      A.messages.fetchMessages({
-        channelId,
-        before: top ? ms.first().id : undefined,
-        after: top ? undefined : ms.last().id,
-        limit: Math.min(MAX_FETCH, 2 * A.pages.size('scrollManager.loadMore')),
-        truncate: true,
-      })
-  }
+  // only toward where the reader is heading (api/messages.ts loadMore)
+  const more = (channelId: Id) =>
+    messages.loadMore(
+      channelId,
+      scroller.scrollHeight - scroller.clientHeight + scroller.scrollTop,
+      -scroller.scrollTop,
+      down,
+    )
 
+  // column-reverse: scrollTop runs from 0 at the bottom to -(height - view) at the top
   function report(channelId: Id) {
     const height = scroller.scrollHeight,
       view = scroller.clientHeight
-    // column-reverse: scrollTop runs from 0 at the bottom to -(height - view) at the top
-    const top = scroller.scrollTop > -1 ? height - view : Math.round(height - view + scroller.scrollTop)
-    // while the newest messages aren't loaded the bottom isn't the present: stock counts a placeholder there in its
-    // height, so ReadStateStore doesn't ack
-    const after = S.Message.getMessages(channelId).hasMoreAfter ? view : 0
-    channelDimensions(channelId, top, height + after, view)
+    messages.reportPosition(
+      channelId,
+      scroller.scrollTop > -1 ? height - view : Math.round(height - view + scroller.scrollTop),
+      height,
+      view,
+    )
   }
 
   // once per frame, never inside a dispatch (lists render from store listeners). The position is reported after a
@@ -58,15 +44,15 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       const channelId = channel()
       // stock's order on a switch: acks off for the old channel, the new one's position, then acks on
       if (acking && acking !== channelId) {
-        automaticAck(acking, false)
+        messages.automaticAck(acking, false)
         acking = null
       }
       if (!channelId) return
       if (dims) report(channelId)
       dims = false
-      if (!acking && S.Message.getMessages(channelId).ready) {
+      if (!acking && messages.ready(channelId)) {
         acking = channelId
-        automaticAck(channelId, true)
+        messages.automaticAck(channelId, true)
       }
       more(channelId)
     })

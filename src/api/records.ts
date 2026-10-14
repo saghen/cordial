@@ -151,14 +151,38 @@ export interface Message {
   applicationId?: Id | null
   additionalName?: string | null
   attachments: Attachment[]
-  embeds: Record<string, any>[]
+  embeds: Embed[]
   reactions: Reaction[]
   stickerItems?: { id: Id; name: string; format_type: number }[]
   messageReference?: { channel_id: Id; message_id: Id; guild_id?: Id } | null
   messageSnapshots?: { message: Message }[]
   interaction?: Record<string, any> | null
   interactionMetadata?: Record<string, any> | null
+  // a DM call's: who was in it, and its length as a moment duration
+  call?: { participants: Id[]; duration?: { humanize(): string } | null }
   isCommandType(): boolean
+}
+
+// an embed's media as the record keeps it
+export interface EmbedMedia {
+  url: string
+  proxyURL?: string
+  width: number
+  height: number
+}
+
+// a link embed, as Discord's servers scraped it (OpenGraph, oEmbed)
+export interface Embed {
+  type: string
+  url?: string
+  rawTitle?: string
+  rawDescription?: string
+  color?: string
+  provider?: { name: string }
+  author?: { name: string }
+  thumbnail?: EmbedMedia
+  image?: EmbedMedia
+  video?: EmbedMedia
 }
 
 // a resolved invite (the API's shape: snake case)

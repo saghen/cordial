@@ -71,8 +71,8 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
   )
 }
 
-// A menu at the pointer for what a right click finds (nothing found, no menu). Its contents mount for each target
-// while it's open, so each opening starts afresh
+// A menu at the pointer for what a right click finds (nothing found, no menu), or for a target given (show). Its
+// contents mount for each target while it's open, so each opening starts afresh
 export function contextMenu<T>(p: {
   class: string
   find(e: MouseEvent): T | null | undefined
@@ -80,15 +80,18 @@ export function contextMenu<T>(p: {
 }) {
   const [target, setTarget] = createSignal<T>()
   let menu!: HTMLMenuElement
+  const show = (e: MouseEvent, t: T) => {
+    setTarget(() => t)
+    // rendered before popAt measures it
+    flush()
+    popAt(menu, e)
+  }
   return {
     open(e: MouseEvent) {
       const t = p.find(e)
-      if (t == null) return
-      setTarget(() => t)
-      // rendered before popAt measures it
-      flush()
-      popAt(menu, e)
+      if (t != null) show(e, t)
     },
+    show,
     view: (
       <menu
         ref={menu}

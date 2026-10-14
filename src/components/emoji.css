@@ -1,0 +1,2 @@
+/* an emoji's image: its own box (Discord's stylesheet has an .emoji rule of its own; this states what we rely on) */
+:where(img.emoji) { vertical-align: bottom; object-fit: contain; }

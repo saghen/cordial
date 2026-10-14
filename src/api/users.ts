@@ -3,7 +3,7 @@
 
 import type { Id, Rec } from '../adapter/discord'
 import * as cdn from './cdn'
-import type { Member, User } from './records'
+import type { Channel, Member, User } from './records'
 import { $ } from './store'
 
 export const get = (id: Id) => $.User.getUser(id) as User | undefined
@@ -21,3 +21,7 @@ export const avatar = (user: User, guildId: Id | null | undefined, px: number) =
 
 // online, idle, dnd, offline (invisible shows as offline to others)
 export const status = (id: Id): string => $.Presence.getStatus(id)
+
+// stock's rule: anything in a DM
+export const can = (permission: bigint, channel: Channel) =>
+  channel.isPrivate() || $.Permission.can(permission, channel)

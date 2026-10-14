@@ -4,3 +4,4 @@
 }
 :where(.badge.live) { padding: 0 6px; font-size: 11px; }
 :where(.badge.app) { border-radius: 3px; background: var(--accent); font: 600 10px/15px "gg sans", sans-serif; }
+:where(.badge.new) { padding: 0 4px; border-radius: 4px; font-size: 10px; line-height: 14px; text-transform: uppercase; }

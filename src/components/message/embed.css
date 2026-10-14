@@ -1,0 +1,16 @@
+/* a link embed (embed.tsx): a card, the embed's colour down its left, the thumbnail beside the text, large media under
+   it; the text doesn't widen the card past its image */
+article figure.embed {
+  display: grid; grid-template: "provider thumb" auto "author thumb" auto "title thumb" auto "desc thumb" auto "media media" auto / minmax(0, 1fr) auto;
+  column-gap: 16px; align-content: start; width: fit-content; max-width: min(100%, 516px); margin-top: 4px; padding: 0 16px 16px 12px;
+  border-left: 4px solid var(--bg-raised); border-radius: 4px; background: var(--bg-raised); font-size: 14px;
+  > * { margin-top: 8px; }
+  &:has(> .media:not(.thumb)) > :not(.media) { contain: inline-size; }
+  > .provider { grid-area: provider; font-size: 12px; font-weight: 400; }
+  > .author { grid-area: author; font-weight: 600; color: var(--text-strong); }
+  > .title { grid-area: title; font-size: 16px; font-weight: 600; color: var(--link); }
+  > .title:hover { text-decoration: underline; }
+  > .markdown { grid-area: desc; }
+  > .thumb { grid-area: thumb; margin-top: 8px; cursor: auto; }
+  > .media:not(.thumb) { grid-area: media; margin-top: 16px; border-radius: 4px; cursor: pointer; }
+}

@@ -1,7 +1,7 @@
-// Discord's markdown AST (model.ts contentAST) to plain DOM: content never changes, so it needs no reactivity. An
-// unknown node type renders its text.
+// Discord's markdown AST (api/messages.ts contentAST) to plain DOM: content never changes, so it needs no reactivity.
+// An unknown node type renders its text. Inline, as a reply preview shows it: one line, its blocks flattened.
 
-import { emojiSrc } from '../api/model'
+import { emojiSrc } from '../api/pickers'
 
 type Node = Record<string, any> & { type: string }
 
@@ -80,3 +80,7 @@ export function renderAST(nodes: Node[], parent: HTMLElement | DocumentFragment)
   for (const n of nodes) parent.append(node(n))
   return parent
 }
+
+export const Markdown = (p: { ast: any[]; inline?: boolean }) => (
+  <span class={['markdown', { inline: !!p.inline }]} ref={(s) => renderAST(p.ast, s)} />
+)

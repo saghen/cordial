@@ -1,0 +1,13 @@
+/* files: media at its scaled size (width and height attributes), other files as a link with the size; stickers at
+   stock's 160 px, a Lottie one as its name */
+article {
+  .media { display: block; max-width: 100%; height: auto; margin-top: 4px; border-radius: 8px; background: var(--bg-raised); }
+  > a.file {
+    display: flex; width: fit-content; max-width: 100%; gap: 8px; margin-top: 4px; padding: 10px 12px;
+    border: 1px solid var(--bg-raised); border-radius: 8px; background: var(--bg-deep); color: var(--link); white-space: normal;
+  }
+  > a.file:hover { text-decoration: underline; }
+  > a.file > small { align-self: center; font-size: 12px; font-weight: 400; }
+  :is(img, i).sticker { display: block; width: 160px; height: 160px; margin-top: 4px; }
+  i.sticker { display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); color: var(--text-muted); font-size: 14px; }
+}

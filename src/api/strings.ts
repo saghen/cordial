@@ -56,6 +56,45 @@ const STOCK = [
   'NOTIFICATION_PRESET_HYBRID',
   'FORM_LABEL_ONLY_MENTIONS_PLAIN',
   'FORM_LABEL_NOTHING',
+  // messages and the chat
+  'NEW',
+  'MESSAGE_EDITED',
+  'MESSAGE_FORWARDED',
+  'REPLY_QUOTE_MESSAGE_DELETED',
+  'REPLY_QUOTE_MESSAGE_NOT_LOADED',
+  'REPLY_QUOTE_NO_TEXT_CONTENT',
+  'APPLICATION_COMMAND_USED_SHORT',
+  'SYSTEM_MESSAGE_CALL_STARTED_HOOK',
+  'SYSTEM_MESSAGE_CALL_MISSED_HOOK',
+  'SYSTEM_MESSAGE_CALL_STARTED_WITH_DURATION_HOOK',
+  'SYSTEM_MESSAGE_CALL_MISSED_WITH_DURATION_HOOK',
+  'BLOCKED_MESSAGE_COUNT',
+  'IGNORED_MESSAGE_COUNT',
+  'BLOCKED_MESSAGES_SHOW',
+  'BLOCKED_MESSAGES_HIDE',
+  'NEW_MESSAGES',
+  'NEW_MESSAGES_WITH_DATE',
+  'NEW_MESSAGES_ESTIMATED',
+  'NEW_MESSAGES_ESTIMATED_WITH_DATE',
+  'JUMP_TO_PRESENT',
+  'JUMP',
+  'RETRY',
+  'DELETE',
+  'OPEN_IN_BROWSER',
+  'PINNED_MESSAGES',
+  'NO_PINS_IN_CHANNEL',
+  'NO_PINS_IN_DM',
+  // the message menu
+  'ADD_REACTION',
+  'SEARCH_FOR_EMOJI',
+  'EDIT_MESSAGE',
+  'MESSAGE_ACTION_REPLY',
+  'COPY_TEXT',
+  'PIN_MESSAGE',
+  'UNPIN_MESSAGE',
+  'MARK_UNREAD',
+  'COPY_MESSAGE_LINK',
+  'DELETE_MESSAGE',
 ] as const
 textNeed(STOCK)
 
@@ -64,8 +103,11 @@ const OURS = {
   LOGIN_DISCORDS: "Use Discord's login screen",
   LOGIN_DISCORDS_STEP: "Discord's login screen continues from here.",
   LOGIN_DISCORDS_MFA: "This account's two-factor needs Discord's login screen.",
+  NOT_SENT: 'Not sent.',
+  CONFIRM_DELETE: 'Click again to delete',
   // stock's text, under a name we haven't found
   ALL_LIVE_STAGES: 'All Live Stages',
+  LOAD_MORE: 'Load More',
 }
 
 const keys = new Map<string, string>()
@@ -77,6 +119,18 @@ export function text(name: (typeof STOCK)[number] | keyof typeof OURS, values?: 
   if (!key) keys.set(name, (key = A.messageKey.runtimeHashMessageKey(name)))
   const message = A.intl.t[key]
   return values ? A.intl.intl.formatToPlainString(message, values) : A.intl.intl.string(message)
+}
+
+// stock's message around elements: each value or hook named in `slots` comes back as its index, between the text
+// ('APPLICATION_COMMAND_USED_SHORT', {}, ['userHook', 'commandHook'] gives [0, ' used ', 1]), for the caller to put
+// its element there. A hook's own text (`$[{username}](usernameHook)`) gives way to the element
+export function textAround(name: (typeof STOCK)[number], values: Record<string, unknown>, slots: string[]) {
+  const all = { ...values }
+  slots.forEach((slot, i) => (all[slot] = slot.endsWith('Hook') ? () => `\u0001${i}\u0001` : `\u0001${i}\u0001`))
+  return text(name, all)
+    .split(/\u0001(\d+)\u0001/)
+    .map((part, i) => (i % 2 ? Number(part) : part))
+    .filter((part) => part !== '')
 }
 
 // DateUtils, in the user's 12/24 h setting: a message's timestamp ("10:59 PM", "Yesterday at 10:59 PM",

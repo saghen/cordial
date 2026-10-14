@@ -39,3 +39,9 @@ export function useFileDrop(fn: (files: File[]) => void) {
     removeEventListener('drop', drop)
   })
 }
+
+// whether the window has focus (GIFs play only while it does), for the app's lifetime
+const [focused, setFocused] = createSignal(document.hasFocus())
+addEventListener('focus', () => setFocused(true))
+addEventListener('blur', () => setFocused(false))
+export const windowFocused = focused

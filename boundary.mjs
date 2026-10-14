@@ -12,21 +12,16 @@ const FORBIDDEN = {
 }
 
 const ALLOWED = new Set([
-  'components/embeds.tsx -> adapter/needs',
   'components/pickers.tsx -> adapter/discord',
   'components/pickers.tsx -> adapter/needs',
   'views/call.tsx -> adapter/discord',
   'views/call.tsx -> adapter/needs',
-  'views/chat.tsx -> adapter/discord',
-  'views/chat.tsx -> adapter/needs',
   'views/composer.tsx -> adapter/discord',
   'views/composer.tsx -> adapter/needs',
   'views/header.tsx -> adapter/discord',
   'views/header.tsx -> adapter/needs',
   'views/members.tsx -> adapter/discord',
   'views/members.tsx -> adapter/needs',
-  'views/scroller.ts -> adapter/discord',
-  'views/scroller.ts -> adapter/needs',
   'views/user_panel.tsx -> adapter/discord',
   'views/user_panel.tsx -> adapter/needs',
 ])

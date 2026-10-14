@@ -6,7 +6,8 @@
 import { G } from '../adapter/anchor'
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { can, PERMS } from './model'
+import { Permission, type Channel } from './records'
+import { can } from './users'
 
 export const preload = (id?: Id | null) => {
   const ms = id && S.Channel.getChannel(id) && S.Message.getMessages(id)
@@ -24,7 +25,7 @@ export function onHover(channel: () => Id | null | undefined) {
 }
 
 const readable = (c: Rec) =>
-  typeof c.isPrivate === 'function' && !c.isGuildVocal() && can(PERMS.READ_MESSAGE_HISTORY, c)
+  typeof c.isPrivate === 'function' && !c.isGuildVocal() && can(Permission.READ_MESSAGE_HISTORY, c as Channel)
 
 // once per load, after the first connection, one channel at a time
 export function warm() {
