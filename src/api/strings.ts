@@ -226,6 +226,9 @@ const OURS = {
   SEARCH_IN: 'Search {name}',
   SHOW_MEMBER_LIST: 'Show Member List',
   HIDE_MEMBER_LIST: 'Hide Member List',
+  // a watched stream's network trouble (screen-capture's receiveHealth), beside its quality
+  LAG: 'LAG',
+  LAG_DETAIL: '{loss}% packet loss, {pli} key frames asked for, {jitter} ms jitter buffer',
 }
 
 const keys = new Map<string, string>()

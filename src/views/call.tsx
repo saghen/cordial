@@ -3,7 +3,9 @@
 // Join while you're elsewhere; the DM header's call buttons; incoming calls with Accept and Decline. Its badges, pills,
 // buttons and the top bar fade while the pointer is elsewhere or still for 5 s; Expand puts the call over the chat.
 
-import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
+
+import * as screen from '../../screen-capture/src/renderer'
 
 import * as audio from '../api/audio'
 import * as calls from '../api/calls'
@@ -237,8 +239,9 @@ function JoinButtons(p: { channel: Channel }) {
 }
 
 // someone's Go Live, beside their tile: Watch Stream until watched (in a call, Discord's core watches a stream the other
-// person starts by itself), then the stream with its quality and LIVE, and Full Screen (or a double click on it): the
-// call view full screen with the stream filling it; Stop Watching is in the call's buttons. Your own: its preview (the core's local video, watched while
+// person starts by itself), then the stream with its quality, LAG while the network troubles it (screen-capture's
+// receiveHealth, asked each second) and LIVE, and Full Screen (or a double click on it): the call view full screen
+// with the stream filling it; Stop Watching is in the call's buttons. Your own: its preview (the core's local video, watched while
 // you stream)
 function StreamTile(p: {
   state: VoiceState
@@ -251,6 +254,18 @@ function StreamTile(p: {
   const owner = () => p.state.userId
   const guildId = () => p.channel.guild_id
   const watching = () => !!streams.watching(owner(), guildId())
+  const [health, setHealth] = createSignal<screen.ReceiveHealth | null>(null)
+  createEffect(
+    () => watching() && owner() !== users.me()?.id,
+    (on) => {
+      if (!on) return
+      const timer = setInterval(() => screen.receiveHealth(owner()).then(setHealth), 1000)
+      return () => {
+        clearInterval(timer)
+        setHealth(null)
+      }
+    },
+  )
   return (
     <figure
       class={['tile', 'stream', { watching: watching(), focus: p.focus }]}
@@ -279,6 +294,20 @@ function StreamTile(p: {
       </Show>
       <span class="badges">
         <Show when={streams.quality(owner(), guildId())}>{(q) => <i class="quality">{q()}</i>}</Show>
+        <Show when={health()?.lag && health()}>
+          {(h) => (
+            <i
+              class="lag"
+              title={text('LAG_DETAIL', {
+                loss: Math.round(h().loss * 1000) / 10,
+                pli: h().pli,
+                jitter: Math.round(h().jitterMs),
+              })}
+            >
+              {text('LAG')}
+            </i>
+          )}
+        </Show>
         <Badge kind="live">LIVE</Badge>
       </span>
       <b class="name">
