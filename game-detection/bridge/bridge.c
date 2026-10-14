@@ -1,5 +1,5 @@
 // Rich Presence for Wine and Proton games: they look for Discord at \\.\pipe\discord-ipc-0 in their prefix, which Linux
-// can't see. game-detection starts this in each Wine prefix as `bridge.exe PORT`, with MINCORD_WINE_TOKEN in its
+// can't see. game-detection starts this in each Wine prefix as `bridge.exe PORT`, with CORDIAL_WINE_TOKEN in its
 // environment (not its arguments, which every user can read); it serves that pipe and carries each connection, bytes
 // unchanged both ways, to game-detection on 127.0.0.1:PORT, which carries it on to discord-ipc-N. Each TCP connection
 // starts with 64 bytes: P (a pipe client) or W (this bridge's own, held open) and TOKEN, NUL-padded. Winsock TCP
@@ -104,7 +104,7 @@ static DWORD WINAPI accept_loop(void *arg) {
 }
 
 int main(int argc, char **argv) {
-  const char *token = getenv("MINCORD_WINE_TOKEN");
+  const char *token = getenv("CORDIAL_WINE_TOKEN");
   if (argc < 2 || !token || strlen(token) >= sizeof hello) return 2;
   addr.sin_port = htons(atoi(argv[1]));
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);

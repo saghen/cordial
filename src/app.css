@@ -1,6 +1,6 @@
 /* The shell: the palette, the base rules, the scrollbars and the root's grid; every piece's rules are in the .css next
    to it. The root is one grid of the regions: the server bar, the side column and the member list as columns, the top
-   bar, the call, the chat and the composer as rows between them. app.tsx nests every .css file under #mincord-root,
+   bar, the call, the chat and the composer as rows between them. app.tsx nests every .css file under #cordial-root,
    so Discord's own layers never see these rules, and puts the icons (primitives/icons.ts) on the root. */
 
 & {

@@ -33,7 +33,7 @@ import { startKbps } from './streamQuality'
 import { fill, FillState, initialFill, stuff } from './stuffing'
 import { guardTarget, initialTarget, RATE, RateState, RateWindow, updateTarget } from './targetRate'
 
-const logger = makeLogger('mincord:zero-copy')
+const logger = makeLogger('cordial:zero-copy')
 
 // (not in TypeScript's DOM types yet)
 const EncodedFrame = (globalThis as any).RTCEncodedVideoFrame as new (frame: any, init?: { metadata: any }) => any

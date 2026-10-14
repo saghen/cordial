@@ -1,6 +1,6 @@
-// window.mincord for lab scripts over CDP (ai/lab): Discord's pieces (`adapter`) and ours (`messages`, and whatever the
+// window.cordial for lab scripts over CDP (ai/lab): Discord's pieces (`adapter`) and ours (`messages`, and whatever the
 // entry adds). As for the stylesheet, scripts find elements by class (what an element is), data-id (which one: a
-// channel, a user, a message) and id (the few looked up by it: popovers, the composer); #mincord-root[data-view=
+// channel, a user, a message) and id (the few looked up by it: popovers, the composer); #cordial-root[data-view=
 // "channel:ID"] is set in the task that puts that channel's messages in the DOM.
 
 import { G } from '../adapter/anchor'

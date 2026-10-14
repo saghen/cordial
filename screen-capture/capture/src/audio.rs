@@ -1,4 +1,4 @@
-// The stream's sound: the apps of the shared window, captured from PipeWire (mincord says which: the "audio" command,
+// The stream's sound: the apps of the shared window, captured from PipeWire (cordial says which: the "audio" command,
 // from niri's windows; main/cast.js). A PipeWire input stream of our own, linked to nobody by the session manager;
 // we link the apps' output ports to it ourselves (PipeWire mixes what reaches one port), and relink when the target or
 // the graph changes. Each buffer goes to stdout as an audio message (out.rs): 48 kHz stereo s16, as Opus takes it.
@@ -9,7 +9,7 @@
 //   steam=N  processes started by Steam for app N (their environment's SteamAppId / SteamGameId): niri's X11 windows
 //            all have xwayland-satellite's pid, so a Proton game is found this way;
 //   name=S   processes whose binary or application name is S (other X11 windows, by their app id).
-// mincord's own processes (our parent and everything below it: the call's sound) and capture itself never match.
+// cordial's own processes (our parent and everything below it: the call's sound) and capture itself never match.
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -132,9 +132,9 @@ fn steam_app(pid: u32) -> Option<String> {
 
 impl Graph {
     fn matches(&self, app: &App) -> bool {
-        // (capture's parent is mincord's main process)
-        let mincord = std::os::unix::process::parent_id();
-        if app.ancestors.contains(&mincord) || app.pid == std::process::id() {
+        // (capture's parent is cordial's main process)
+        let cordial = std::os::unix::process::parent_id();
+        if app.ancestors.contains(&cordial) || app.pid == std::process::id() {
             return false;
         }
         match &self.target {
@@ -238,13 +238,13 @@ fn run(targets: pw::channel::Receiver<Target>) -> Result<()> {
 
     let stream = pw::stream::StreamBox::new(
         &core,
-        "mincord-capture-audio",
+        "cordial-capture-audio",
         properties! {
             *pw::keys::MEDIA_TYPE => "Audio",
             *pw::keys::MEDIA_CATEGORY => "Capture",
             *pw::keys::MEDIA_ROLE => "Screen",
-            *pw::keys::NODE_NAME => "mincord-capture",
-            *pw::keys::NODE_DESCRIPTION => "mincord Go Live sound",
+            *pw::keys::NODE_NAME => "cordial-capture",
+            *pw::keys::NODE_DESCRIPTION => "cordial Go Live sound",
             // scheduled with nothing linked too: silence then, and the stream's clock never stops
             *pw::keys::NODE_ALWAYS_PROCESS => "true",
         },

@@ -1,4 +1,4 @@
-// Game detection for mincord: the Linux side of Discord's `discord_utils.setObservedGamesCallback`. Discord's own
+// Game detection for cordial: the Linux side of Discord's `discord_utils.setObservedGamesCallback`. Discord's own
 // RunningGameStore builds the list of games to watch (its detectable games database, the user's overrides) and does
 // everything after a match (presence, "Stream <game>", Registered Games); this only says which of them are running.
 //
@@ -14,7 +14,7 @@
 // `<library>/steamapps/common/<installdir>/` also matches the game with that Steam app id (from the library's
 // appmanifest_<id>.acf): native and Proton Steam games, and the many games the database knows only by app id.
 //
-// With $MINCORD_WINE_BRIDGE, Wine and Proton games also get Rich Presence (wine.rs).
+// With $CORDIAL_WINE_BRIDGE, Wine and Proton games also get Rich Presence (wine.rs).
 
 mod wine;
 

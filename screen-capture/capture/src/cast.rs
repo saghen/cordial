@@ -248,7 +248,7 @@ fn run(
         .register();
     let stream = pw::stream::StreamBox::new(
         &core,
-        "mincord-capture",
+        "cordial-capture",
         properties! {
             *pw::keys::MEDIA_TYPE => "Video",
             *pw::keys::MEDIA_CATEGORY => "Capture",

@@ -6,7 +6,7 @@
 // 5 s, before a game is usually up); the bridge leaves with the prefix or with this process (the next one bridges
 // again).
 //
-// The bridge: $MINCORD_WINE_BRIDGE (bridge.exe); without it, nothing here runs.
+// The bridge: $CORDIAL_WINE_BRIDGE (bridge.exe); without it, nothing here runs.
 
 use std::collections::HashSet;
 use std::io::Read;
@@ -25,7 +25,7 @@ pub struct Bridge {
 
 impl Bridge {
     pub fn start() -> Option<Bridge> {
-        let exe = PathBuf::from(env::var_os("MINCORD_WINE_BRIDGE")?);
+        let exe = PathBuf::from(env::var_os("CORDIAL_WINE_BRIDGE")?);
         let listener = TcpListener::bind("127.0.0.1:0").ok()?;
         let port = listener.local_addr().ok()?.port();
         let mut random = [0u8; 16];
@@ -93,7 +93,7 @@ impl Bridge {
             .arg(self.port.to_string())
             .env_clear()
             .envs(vars)
-            .env("MINCORD_WINE_TOKEN", &self.token)
+            .env("CORDIAL_WINE_TOKEN", &self.token)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
@@ -129,7 +129,7 @@ fn relay(mut tcp: TcpStream, token: &str) -> io::Result<()> {
 
 // as native clients look for it
 fn discord() -> io::Result<UnixStream> {
-    let dir = ["MINCORD_IPC_DIR", "XDG_RUNTIME_DIR", "TMPDIR"].iter().find_map(env::var_os).unwrap_or("/tmp".into());
+    let dir = ["CORDIAL_IPC_DIR", "XDG_RUNTIME_DIR", "TMPDIR"].iter().find_map(env::var_os).unwrap_or("/tmp".into());
     (0..10)
         .find_map(|i| UnixStream::connect(Path::new(&dir).join(format!("discord-ipc-{i}"))).ok())
         .ok_or_else(|| io::Error::other("no discord-ipc socket answers"))

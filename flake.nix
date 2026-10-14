@@ -17,7 +17,7 @@
       };
       # Rich Presence for Wine and Proton games, a Windows program game-detection starts in each prefix
       wine-bridge = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
-        name = "mincord-wine-bridge";
+        name = "cordial-wine-bridge";
         src = ./game-detection/bridge;
         buildPhase = "$CC -O2 -Wall -static -mwindows -o bridge.exe bridge.c -lws2_32";
         installPhase = "install -D bridge.exe $out/bridge.exe";
@@ -36,7 +36,7 @@
       capture = pkgs.callPackage ./screen-capture/capture { };
       # its fallback's fd socket for Electron's main process (N-API: the symbols resolve from Electron at load)
       fdsock = pkgs.stdenv.mkDerivation {
-        name = "mincord-fdsock";
+        name = "cordial-fdsock";
         src = fs.toSource { root = ./screen-capture/addon; fileset = ./screen-capture/addon/fdsock.c; };
         buildPhase = "$CC -shared -fPIC -O2 -Wall -I${pkgs.nodejs}/include/node -o fdsock.node fdsock.c";
         installPhase = "install -D fdsock.node $out/lib/fdsock.node";
@@ -45,7 +45,7 @@
     {
       packages.x86_64-linux = {
         default = pkgs.buildNpmPackage {
-          pname = "mincord";
+          pname = "cordial";
           version = "0";
           src = fs.toSource {
             root = ./.;
@@ -53,12 +53,12 @@
           };
           npmDepsHash = "sha256-QFMwblwopJFT5qZ0c8GUFtYRixNTLPy2ctAvgvl9wMA=";
           nativeBuildInputs = [ pkgs.makeWrapper pkgs.copyDesktopItems ];
-          # discord:// links come to mincord when the desktop picks it as their handler (main.js routes them)
+          # discord:// links come to cordial when the desktop picks it as their handler (main.js routes them)
           desktopItems = [
             (pkgs.makeDesktopItem {
-              name = "mincord";
-              desktopName = "mincord";
-              exec = "mincord %U";
+              name = "cordial";
+              desktopName = "cordial";
+              exec = "cordial %U";
               icon = "discord";
               categories = [ "Network" "InstantMessaging" ];
               mimeTypes = [ "x-scheme-handler/discord" ];
@@ -66,24 +66,24 @@
           ];
           installPhase = ''
             runHook preInstall
-            mkdir -p $out/lib/mincord/src
-            cp -r dist package.json $out/lib/mincord/
-            cp -r src/shell $out/lib/mincord/src/
-            mkdir -p $out/lib/mincord/screen-capture/src
-            cp -r screen-capture/src/main screen-capture/src/preload $out/lib/mincord/screen-capture/src/
-            makeWrapper ${pkgs.electron}/bin/electron $out/bin/mincord --add-flags $out/lib/mincord \
-              --set-default MINCORD_GAME_DETECTION ${game-detection}/bin/game-detection \
-              --set-default MINCORD_WINE_BRIDGE ${wine-bridge}/bridge.exe \
-              --set-default MINCORD_GLOBAL_KEYBINDS ${global-keybinds}/bin/global-keybinds \
-              --set-default MINCORD_CAPTURE ${capture}/bin/mincord-capture \
-              --set-default MINCORD_FDSOCK ${fdsock}/lib/fdsock.node
+            mkdir -p $out/lib/cordial/src
+            cp -r dist package.json $out/lib/cordial/
+            cp -r src/shell $out/lib/cordial/src/
+            mkdir -p $out/lib/cordial/screen-capture/src
+            cp -r screen-capture/src/main screen-capture/src/preload $out/lib/cordial/screen-capture/src/
+            makeWrapper ${pkgs.electron}/bin/electron $out/bin/cordial --add-flags $out/lib/cordial \
+              --set-default CORDIAL_GAME_DETECTION ${game-detection}/bin/game-detection \
+              --set-default CORDIAL_WINE_BRIDGE ${wine-bridge}/bridge.exe \
+              --set-default CORDIAL_GLOBAL_KEYBINDS ${global-keybinds}/bin/global-keybinds \
+              --set-default CORDIAL_CAPTURE ${capture}/bin/cordial-capture \
+              --set-default CORDIAL_FDSOCK ${fdsock}/lib/fdsock.node
             runHook postInstall
           '';
         };
         inherit game-detection wine-bridge global-keybinds capture fdsock;
         # ai/lab/wine.py's stand-in for a Windows game
         lab-wine-client = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
-          name = "mincord-lab-wine-client";
+          name = "cordial-lab-wine-client";
           src = fs.toSource { root = ./ai/lab; fileset = ./ai/lab/wine-client.c; };
           buildPhase = "$CC -O2 -Wall -static -o wine-client.exe wine-client.c";
           installPhase = "install -D wine-client.exe $out/wine-client.exe";

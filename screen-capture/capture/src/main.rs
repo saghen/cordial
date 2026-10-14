@@ -3,8 +3,8 @@
 // protocol (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1 encoder (av1enc.rs), the frame
 // dropper and the repeats. The options: usage(); the commands: State::command.
 //
-// raw (mincord's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
-// LINEAR NV12 surfaces that mincord imports (Electron's sharedTexture) and Chromium encodes. On the socket of
+// raw (cordial's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
+// LINEAR NV12 surfaces that cordial imports (Electron's sharedTexture) and Chromium encodes. On the socket of
 // --socket-fd (SOCK_SEQPACKET, JSON text, the C castscale's protocol): each surface once, with its fd,
 //   {"type":"buffer","id":N,"width":W,"height":H,"modifier":"M","planes":[{"offset":O,"stride":S,"size":Z},..]}
 // then a message per frame, {"type":"frame","id":N,"seq":S,"t":us} (t: the VPP submit's CLOCK_MONOTONIC). A surface
@@ -44,13 +44,13 @@ use av1enc::Av1Enc;
 use va::{fence_wait, surface_attr, sys, vpp_submit, Context, Image, Surfaces, Va};
 
 const RING: usize = 3;
-// raw (the fallback, "raw"): the ring mincord imports, and how long a handed-out slot isn't written again (Chromium
+// raw (the fallback, "raw"): the ring cordial imports, and how long a handed-out slot isn't written again (Chromium
 // reads it back for its encoder long before: README's fallback)
 const RAW_RING: usize = 8;
 const RAW_HOLD_S: f64 = 0.1;
 // nothing new from the cast for this long: the last frame again (Worker::repeat)
 const REPEAT_S: f64 = 1.0;
-// the 1 fps preview: Discord's stream thumbnail and mincord's templates
+// the 1 fps preview: Discord's stream thumbnail and cordial's templates
 const PREVIEW_BOX: (u32, u32) = (640, 360);
 const PREVIEW_INTERVAL_S: f64 = 1.0;
 // --size's default: no box (the source's own size)
@@ -76,18 +76,18 @@ struct Opts {
     refs: u32,
     min_qindex: u32,
     drop_ms: f64,
-    stats_ms: f64, // stats this often (mincord's stream log: 250)
+    stats_ms: f64, // stats this often (cordial's stream log: 250)
     seconds: f64,
     start: bool,
     ivf: Option<String>,
     probe: bool,
-    socket: Option<i32>,          // --socket-fd N: raw's socket (SOCK_SEQPACKET, mincord's fdsock)
-    audio: Option<audio::Target>, // --audio SPEC: the stream's sound from the start (the lab; mincord sends "audio")
+    socket: Option<i32>,          // --socket-fd N: raw's socket (SOCK_SEQPACKET, cordial's fdsock)
+    audio: Option<audio::Target>, // --audio SPEC: the stream's sound from the start (the lab; cordial sends "audio")
 }
 
 fn usage() -> ! {
     eprintln!(
-        "usage: mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
+        "usage: cordial-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
          \x20                       | --clip FILE.i420 --clip-size WxH)\n\
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
          \x20                      [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 50] [--drop-ms 300] [--stats-ms 1000] [--seconds N]\n\
@@ -216,7 +216,7 @@ enum SlotState {
     Free,
     Submitted,
     Busy,
-    Out, // raw: handed to mincord (free again RAW_HOLD_S after t_out)
+    Out, // raw: handed to cordial (free again RAW_HOLD_S after t_out)
 }
 
 #[derive(Clone, Copy, Default)]
@@ -239,7 +239,7 @@ impl Slot {
 }
 
 /// RING NV12 surfaces (VPP target, encoder input), each exported once so its VPP's fence can be polled, and a VPP
-/// context on them. The encoder is the worker's. Raw: RAW_RING LINEAR surfaces, also exported whole for mincord to
+/// context on them. The encoder is the worker's. Raw: RAW_RING LINEAR surfaces, also exported whole for cordial to
 /// import (`exports`), no encoder. Field order is drop order.
 struct Ring {
     ctx: Context,
@@ -446,7 +446,7 @@ struct State {
     req_kbps: u32,         // target (0: --kbps)
     req_h: u32,            // maximum height (0: --size's)
     fps: u32,              // the frame rate: --fps, then "fps N" (a pair only AV1 gets falls back for another codec)
-    raw: bool,             // "raw": frames to mincord over the socket, not encoded
+    raw: bool,             // "raw": frames to cordial over the socket, not encoded
     encodes: bool,         // the device encodes AV1
     av1_align: (u32, u32), // AV1's encode size alignment (av1enc::align)
     want_key: Option<&'static str>, // a key frame next, and why (start, request, size, lost)
@@ -481,7 +481,7 @@ enum Quit {
     Stopped, // "stop"
     StdinClosed,
     Seconds, // --seconds
-    // the cast ended by itself (the window closed): mincord ends the stream instead of falling back
+    // the cast ended by itself (the window closed): cordial ends the stream instead of falling back
     CastClosed,
     Failed(&'static str),
 }
@@ -563,7 +563,7 @@ impl State {
     /// one command line:
     ///   start [kbps=N] [height=N] [codec=av1]
     ///                               encode (the preview runs regardless)
-    ///   raw                         stop encoding, hand frames out over --socket-fd (mincord's fallback)
+    ///   raw                         stop encoding, hand frames out over --socket-fd (cordial's fallback)
     ///   bitrate N                   new target (kbps), from the next frame
     ///   key                         the next frame a keyframe
     ///   height N                    maximum encode height (0: --size's); a new size starts with a keyframe
@@ -625,7 +625,7 @@ impl State {
     }
 }
 
-/// commands from a pipe (mincord); stdin from /dev/null or a terminal isn't watched (lab and cost runs)
+/// commands from a pipe (cordial); stdin from /dev/null or a terminal isn't watched (lab and cost runs)
 fn watch_stdin(sh: Arc<Shared>, o: Arc<Opts>) {
     let piped =
         std::fs::metadata("/proc/self/fd/0").is_ok_and(|m| m.file_type().is_fifo() || m.file_type().is_socket());
@@ -950,7 +950,7 @@ impl<'a> Worker<'a> {
                     if sent == out::Sent::Ok {
                         stage("first-frame");
                     }
-                    // key frames, and frames over LARGE_MS of the target's bits (mincord's stream log)
+                    // key frames, and frames over LARGE_MS of the target's bits (cordial's stream log)
                     let budget_ms = data.len() as f64 * 8.0 / per_s * 1e3;
                     if fi.key || budget_ms > LARGE_MS {
                         info(&format!(
@@ -989,12 +989,12 @@ impl<'a> Worker<'a> {
             None => {}
         }
         if failed {
-            g.failed = true; // the encoder broke: mincord falls back
+            g.failed = true; // the encoder broke: cordial falls back
             error("encode failed");
         }
         if done.is_some_and(|(_, _, sent)| sent == out::Sent::Dropped) {
             g.st.n_outdrop += 1;
-            g.want_key = Some("lost"); // mincord lost a frame: restart the stream
+            g.want_key = Some("lost"); // cordial lost a frame: restart the stream
         }
         let r = g.ring.as_mut().unwrap();
         r.last_slot = Some(i);
@@ -1041,7 +1041,7 @@ impl<'a> Worker<'a> {
         score
     }
 
-    /// raw: each surface of a new ring to mincord, with its fd
+    /// raw: each surface of a new ring to cordial, with its fd
     fn announce(&self, r: &Ring) -> Result<()> {
         let sock = self.o.socket.context("no --socket-fd")?;
         eprintln!(
@@ -1071,7 +1071,7 @@ impl<'a> Worker<'a> {
         Ok(())
     }
 
-    /// slot i to the encoder, or (raw) to mincord
+    /// slot i to the encoder, or (raw) to cordial
     fn deliver(&mut self, g: Guard<'a>, i: usize, repeat: bool) -> Guard<'a> {
         match g.ring.as_ref().is_some_and(|r| r.raw) {
             true => self.hand_out(g, i, repeat),
@@ -1079,7 +1079,7 @@ impl<'a> Worker<'a> {
         }
     }
 
-    /// raw: slot i to mincord once its VPP is done (a repeat: the same surface again, as a new frame)
+    /// raw: slot i to cordial once its VPP is done (a repeat: the same surface again, as a new frame)
     fn hand_out(&mut self, mut g: Guard<'a>, i: usize, repeat: bool) -> Guard<'a> {
         g.want_key = None;
         let r = g.ring.as_mut().unwrap();
@@ -1236,7 +1236,7 @@ fn main() {
         libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
     }
     out::stderr_to_log();
-    // stdout: a pipe to mincord, written non-blocking (a full pipe drops the frame, the next is a keyframe)
+    // stdout: a pipe to cordial, written non-blocking (a full pipe drops the frame, the next is a keyframe)
     // SAFETY: as above
     unsafe {
         libc::fcntl(1, libc::F_SETPIPE_SZ, 1 << 20);
@@ -1254,7 +1254,7 @@ fn main() {
 }
 
 /// --probe: what this device encodes, one JSON line on stdout (`{"device":"/dev/dri/renderD128","codecs":["av1"]}`, or
-/// `[]`); mincord orders the codecs it advertises by it
+/// `[]`); cordial orders the codecs it advertises by it
 fn probe(device: &str) -> i32 {
     let va = Va::open(device);
     let av1 = va.as_ref().is_ok_and(av1enc::supported);
@@ -1355,7 +1355,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         .transpose()
         .inspect_err(no_cast)?;
     if let Some(s) = &session {
-        // the session's number is niri's cast session id: mincord stops the cast through niri's IPC should we die
+        // the session's number is niri's cast session id: cordial stops the cast through niri's IPC should we die
         info(&format!(
             "{{\"type\":\"cast\",\"session\":\"{}\",\"sessionId\":{},\"node\":{}}}",
             s.path,
@@ -1364,7 +1364,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         ));
     }
     if let Some(p) = &portal {
-        // the token picks the same source next time without the portal's picker (mincord keeps it)
+        // the token picks the same source next time without the portal's picker (cordial keeps it)
         let token = p
             .token
             .as_deref()

@@ -15,7 +15,7 @@ import { MembersList } from './views/members'
 import { ServerBar } from './views/server_bar'
 import { UserPanel } from './views/user_panel'
 
-// Every .css file under src/, nested under #mincord-root once so Discord's own layers never see them, with the icons as
+// Every .css file under src/, nested under #cordial-root once so Discord's own layers never see them, with the icons as
 // custom properties on the root. By layer, so a piece's rules come after the bases they refine: app.css, primitives,
 // components, views (each by path). @keyframes can't nest: they go after it
 const files = import.meta.glob<string>('./**/*.css', { query: '?inline', import: 'default', eager: true })
@@ -27,7 +27,7 @@ const rules = Object.keys(files)
   .map((f) => files[f])
   .join('\n')
   .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, (k) => (frames.push(k), ''))
-export const CSS = `#mincord-root {\n${ICONS}\n${rules}}\n${frames.join('\n')}`
+export const CSS = `#cordial-root {\n${ICONS}\n${rules}}\n${frames.join('\n')}`
 
 // the gateway's state while it's not connected
 function Connection() {

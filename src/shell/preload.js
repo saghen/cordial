@@ -5,20 +5,20 @@ const fs = require('node:fs')
 const net = require('node:net')
 const path = require('node:path')
 
-const src = fs.readFileSync(path.join(__dirname, '../../dist/mincord.js'), 'utf8') + '\n//# sourceURL=mincord.js'
-// Discord desktop's native modules (adapter/native.ts). MINCORD_PRESENCE=0 leaves them out: no game detection, no Rich
+const src = fs.readFileSync(path.join(__dirname, '../../dist/cordial.js'), 'utf8') + '\n//# sourceURL=cordial.js'
+// Discord desktop's native modules (adapter/native.ts). CORDIAL_PRESENCE=0 leaves them out: no game detection, no Rich
 // Presence (the lab's read-only accounts)
 
 // game detection: shell/main.js runs game-detection/ on Discord's list of games
 function observeGames(list, cb) {
-  ipcRenderer.removeAllListeners('mincord:games')
-  ipcRenderer.on('mincord:games', (_, games) => cb(games))
-  ipcRenderer.send('mincord:games', list)
+  ipcRenderer.removeAllListeners('cordial:games')
+  ipcRenderer.on('cordial:games', (_, games) => cb(games))
+  ipcRenderer.send('cordial:games', list)
 }
 
-// Rich Presence: apps connect to discord-ipc-N (in MINCORD_IPC_DIR, for the lab, else as Discord desktop), and Discord's
+// Rich Presence: apps connect to discord-ipc-N (in CORDIAL_IPC_DIR, for the lab, else as Discord desktop), and Discord's
 // own RPC server in the page speaks the protocol; this only carries each connection's bytes
-const dir = process.env.MINCORD_IPC_DIR ?? process.env.XDG_RUNTIME_DIR ?? process.env.TMPDIR ?? '/tmp'
+const dir = process.env.CORDIAL_IPC_DIR ?? process.env.XDG_RUNTIME_DIR ?? process.env.TMPDIR ?? '/tmp'
 const sockets = new Map()
 const rpc = {
   async listen(cb) {
@@ -55,32 +55,32 @@ const answers = (p) =>
 
 // Go Live through capture (screen-capture/src/main/cast.js): its frames arrive on a MessagePort, handed on to the
 // page's world the way Electron documents for context isolation (screen-capture/src/renderer/cast.ts takes it)
-ipcRenderer.on('mincord:cast-port', (e) => window.postMessage({ mincordCastPort: true }, '*', e.ports))
+ipcRenderer.on('cordial:cast-port', (e) => window.postMessage({ cordialCastPort: true }, '*', e.ports))
 // and the fallback's frames, VideoFrames on a port of their own (screen-capture/src/preload/raw.js)
 require('../../screen-capture/src/preload/raw.js').receiveRaw((port) =>
-  window.postMessage({ mincordRawPort: true }, '*', [port]),
+  window.postMessage({ cordialRawPort: true }, '*', [port]),
 )
 const cast = {
-  available: () => ipcRenderer.invoke('mincord:cast-available'),
-  codecs: () => ipcRenderer.invoke('mincord:cast-codecs'),
-  sources: () => ipcRenderer.invoke('mincord:cast-sources'),
-  start: (opts) => ipcRenderer.invoke('mincord:cast-start', opts),
+  available: () => ipcRenderer.invoke('cordial:cast-available'),
+  codecs: () => ipcRenderer.invoke('cordial:cast-codecs'),
+  sources: () => ipcRenderer.invoke('cordial:cast-sources'),
+  start: (opts) => ipcRenderer.invoke('cordial:cast-start', opts),
   // the stream log's file (screen-capture/src/main/streamLog.js)
-  log: (op, text) => ipcRenderer.send('mincord:stream-log', op, text),
+  log: (op, text) => ipcRenderer.send('cordial:stream-log', op, text),
 }
 
 // an image copied, or saved (shell/main.js)
 const image = {
-  copy: (url) => ipcRenderer.invoke('mincord:copy-image', url),
-  save: (url) => ipcRenderer.send('mincord:save', url),
+  copy: (url) => ipcRenderer.invoke('cordial:copy-image', url),
+  save: (url) => ipcRenderer.send('cordial:save', url),
 }
 
-contextBridge.exposeInMainWorld('mincordNative', {
+contextBridge.exposeInMainWorld('cordialNative', {
   cast,
   image,
-  ...(process.env.MINCORD_PRESENCE !== '0' ? { observeGames, rpc } : {}),
+  ...(process.env.CORDIAL_PRESENCE !== '0' ? { observeGames, rpc } : {}),
 })
 contextBridge.executeInMainWorld({
-  func: (src, config) => ((0, eval)(src), (window.mincord.config = config)),
-  args: [src, ipcRenderer.sendSync('mincord:config')],
+  func: (src, config) => ((0, eval)(src), (window.cordial.config = config)),
+  args: [src, ipcRenderer.sendSync('cordial:config')],
 })

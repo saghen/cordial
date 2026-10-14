@@ -1,4 +1,4 @@
-// Go Live on niri: mincord owns the capture. getDisplayMedia shows mincord's picker (host.pick) with niri's windows and
+// Go Live on niri: cordial owns the capture. getDisplayMedia shows cordial's picker (host.pick) with niri's windows and
 // outputs (or skips it for "Stream <game>"), the main process starts capture on the pick (src/main/cast.js), and Discord gets a
 // MediaStreamTrackGenerator as its video track. The Go Live sender gets another one in its place (the hooks at the
 // bottom), the encoder track:
@@ -28,7 +28,7 @@ import {
   streamQuality,
 } from './streamQuality'
 
-const logger = makeLogger('mincord:cast')
+const logger = makeLogger('cordial:cast')
 
 declare class MediaStreamTrackGenerator<T = VideoFrame> extends MediaStreamTrack {
   constructor(init: { kind: 'video' | 'audio' })
@@ -86,8 +86,8 @@ export const castSessionFor = (track: MediaStreamTrack | null | undefined) => (t
 let portWaiter: ((p: MessagePort) => void) | null = null
 let rawWaiter: ((p: MessagePort | null) => void) | null = null
 window.addEventListener('message', (e) => {
-  if (e.source === window && e.data?.mincordCastPort && e.ports[0]) portWaiter?.(e.ports[0])
-  if (e.source === window && e.data?.mincordRawPort && e.ports[0]) rawWaiter?.(e.ports[0])
+  if (e.source === window && e.data?.cordialCastPort && e.ports[0]) portWaiter?.(e.ports[0])
+  if (e.source === window && e.data?.cordialRawPort && e.ports[0]) rawWaiter?.(e.ports[0])
 })
 
 // capture's port and its first input (the cast's format) within this, or the session falls back to the portal
@@ -506,7 +506,7 @@ export function setPendingCast(pick: CastPick | null) {
   pending = pick ? { pick, at: Date.now() } : null
 }
 
-/** getDisplayMedia through capture: mincord's picker (or the pending pick), then a cast session. */
+/** getDisplayMedia through capture: cordial's picker (or the pending pick), then a cast session. */
 export async function castDisplayMedia(
   displayMedia: (opts: DisplayMediaStreamOptions) => Promise<MediaStream>,
   opts?: DisplayMediaStreamOptions,

@@ -43,7 +43,7 @@ export function CallView() {
   let section: HTMLElement | undefined
   // the UI shows while the pointer moves over the call or the top bar on it, and while it rests on the buttons or the
   // top bar; it hides as the pointer leaves both
-  const over = (t: EventTarget | null) => t instanceof Element && !!t.closest('#mincord-root > :is(header, section.call)')
+  const over = (t: EventTarget | null) => t instanceof Element && !!t.closest('#cordial-root > :is(header, section.call)')
   const sleep = () => {
     clearTimeout(timer)
     if (!section?.parentElement?.querySelector(':scope > header:hover, :scope > section.call > .call-bar:hover'))

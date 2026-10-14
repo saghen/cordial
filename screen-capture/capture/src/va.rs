@@ -276,7 +276,7 @@ impl Va {
     }
 }
 
-/// a surface exported for another process to import (mincord's fallback: Chromium's sharedTexture): one fd, the
+/// a surface exported for another process to import (cordial's fallback: Chromium's sharedTexture): one fd, the
 /// modifier and each plane's offset, pitch and size
 pub struct Export {
     pub fd: OwnedFd,

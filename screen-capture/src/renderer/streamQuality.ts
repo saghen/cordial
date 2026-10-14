@@ -6,7 +6,7 @@ import { host } from './host'
 import { logger as makeLogger } from './log'
 import { attachSwap, startZeroCopy } from './zeroCopy'
 
-const logger = makeLogger('mincord:quality')
+const logger = makeLogger('cordial:quality')
 
 // Discord's canStreamWithSettings (host.ts): whether the account (Nitro, or the server's boost level) may stream a
 // resolution and frame rate.

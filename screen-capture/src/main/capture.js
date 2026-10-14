@@ -59,7 +59,7 @@ function commandLine(c) {
 function startCapture(bin, args, onMessage, env, fdsock) {
   const [sock, childSock] = fdsock ? fdsock.open() : []
   let closed = false
-  // stderr ignored: capture then logs to $XDG_RUNTIME_DIR/mincord-capture/<pid>.log
+  // stderr ignored: capture then logs to $XDG_RUNTIME_DIR/cordial-capture/<pid>.log
   const child = spawn(bin, fdsock ? [...args, '--socket-fd', '3'] : args, {
     stdio: ['pipe', 'pipe', 'ignore', ...(fdsock ? [childSock] : [])],
     env,

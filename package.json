@@ -1,5 +1,5 @@
 {
-  "name": "mincord",
+  "name": "cordial",
   "private": true,
   "main": "src/shell/main.js",
   "scripts": {

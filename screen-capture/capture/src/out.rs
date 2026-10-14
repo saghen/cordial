@@ -1,4 +1,4 @@
-// stdout to mincord (capture.c's send_msg): a message is a 24-byte header (u32 LE: magic "CSZ1", type, payload size,
+// stdout to cordial (capture.c's send_msg): a message is a 24-byte header (u32 LE: magic "CSZ1", type, payload size,
 // seq, then u64 µs of CLOCK_MONOTONIC) + payload. frame: u32 flags (1: key), u32 w | h << 16, u32 qindex (0: none),
 // u32 submit -> encoded µs, then the temporal unit (OBUs, no temporal delimiter); its time is the frame's VPP submit.
 // preview: u32 w | h << 16, then w x h BGRx, rows packed. info: JSON. audio (audio.rs): u32 rate, u32 channels, then
@@ -127,7 +127,7 @@ pub fn start() {
     T_MAIN.get_or_init(now);
 }
 
-/// stderr is /dev/null (as mincord starts us): the log goes to $XDG_RUNTIME_DIR/mincord-capture/<pid>.log (logs older
+/// stderr is /dev/null (as cordial starts us): the log goes to $XDG_RUNTIME_DIR/cordial-capture/<pid>.log (logs older
 /// than a day are removed)
 pub fn stderr_to_log() {
     use std::os::unix::fs::MetadataExt;
@@ -140,7 +140,7 @@ pub fn stderr_to_log() {
     if err.rdev() != null.rdev() || err.ino() != null.ino() {
         return;
     }
-    let dir = std::path::Path::new(&rt).join("mincord-capture");
+    let dir = std::path::Path::new(&rt).join("cordial-capture");
     let _ = std::fs::create_dir_all(&dir);
     let day_ago = std::time::SystemTime::now() - Duration::from_secs(86400);
     for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {

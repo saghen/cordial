@@ -4,7 +4,7 @@
 // tree (its login screen) once the form hands over to it.
 //
 // Discord's own UI shows instead when the patch doesn't match, when the self-check (needs.ts) fails, or when
-// window.name contains "mincord:stock" (it survives a reload). mincord.status() says which.
+// window.name contains "cordial:stock" (it survives a reload). cordial.status() says which.
 
 import { A, check, S } from './needs'
 import { patch } from './webpack'
@@ -13,7 +13,7 @@ type Mount = (host: HTMLElement) => () => void
 type App = { handleHistoryChange(location: Location, ...rest: unknown[]): void; forceUpdate(): void }
 
 // the one global: the patched App calls into it, lab scripts read it
-export const G: Record<string, any> = ((window as any).mincord = {})
+export const G: Record<string, any> = ((window as any).cordial = {})
 
 let mount: Mount | null = null
 let unmount: (() => void) | null = null
@@ -25,12 +25,12 @@ let app: App | null = null
 const anchor = patch(
   'addRouteRewriter(this.ensureChannelMatchesGuild)',
   // App.render: Discord's route switch, from "/channels" redirect on
-  [/render\(\)\{(?=return.{0,120}?from:"\/channels",to:"\/")/, 'render(){if(mincord.own())return mincord.root();'],
+  [/render\(\)\{(?=return.{0,120}?from:"\/channels",to:"\/")/, 'render(){if(cordial.own())return cordial.root();'],
   // with no routes mounted, nothing runs the route handler for the URL we start on: didMount does. listen wraps the
   // handler before the App registers it
   [
     /(this\.historyUnlisten=[\w$]+\.[\w$]+\.addRouteChangeListener\(this\.handleHistoryChange\))/,
-    'mincord.listen(this),$1,mincord.didMount(this)',
+    'cordial.listen(this),$1,cordial.didMount(this)',
   ],
 )
 
@@ -40,10 +40,10 @@ const anchor = patch(
 // /login then shows Discord's screen)
 const login = patch('.wasAuthenticated=', [
   /(new Set\(\[([\w$]+\.[\w$]+\.LOGIN),.{0,300}?function [\w$]+\(([\w$]+),[\w$]+\)\{)/,
-  '$1$3=mincord.ownLogin()?$3.filter(p=>p!==$2):$3;',
+  '$1$3=cordial.ownLogin()?$3.filter(p=>p!==$2):$3;',
 ])
 
-const stock = () => window.name.includes('mincord:stock')
+const stock = () => window.name.includes('cordial:stock')
 const active = () => !stock() && !adapterFailed() && S.Auth.isAuthenticated()
 // our root renders: logged in, or our login form
 const own = () => !stock() && !adapterFailed() && (S.Auth.isAuthenticated() || !discords)
@@ -53,7 +53,7 @@ function adapterFailed() {
   const r = check()
   if (!checked && !r.ok)
     console.error(
-      "[mincord] off, Discord's UI is showing: adapter needs missing (Discord's code changed)",
+      "[cordial] off, Discord's UI is showing: adapter needs missing (Discord's code changed)",
       r.missing.map((m) => `${m.name} = ${m.what}: ${m.why}`),
     )
   checked = true
@@ -81,7 +81,7 @@ Object.assign(G, {
     app?.forceUpdate()
   },
 
-  root: () => A.react.createElement('div', { id: 'mincord-root', ref: hostRef }),
+  root: () => A.react.createElement('div', { id: 'cordial-root', ref: hostRef }),
 
   // stock's routes redirect /app (where a start or a login lands) to the default route; with no route mounted, the
   // route handler does, after the other history listeners have seen /app (as stock's Redirect waits for its render)
@@ -126,7 +126,7 @@ Object.assign(G, {
           : !check().ok
             ? 'fallback'
             : active()
-              ? 'mincord'
+              ? 'cordial'
               : own()
                 ? 'login'
                 : 'logged out',
@@ -141,7 +141,7 @@ window.addEventListener('load', () =>
   setTimeout(() => {
     if (stock() || (checked && !check().ok)) return
     if (!anchor.applied)
-      console.error("[mincord] the anchor did not apply (Discord's code changed): Discord's own UI is showing")
-    else if (!unmount && active()) console.error('[mincord] the anchor applied but our root never mounted')
+      console.error("[cordial] the anchor did not apply (Discord's code changed): Discord's own UI is showing")
+    else if (!unmount && active()) console.error('[cordial] the anchor applied but our root never mounted')
   }, 10_000),
 )

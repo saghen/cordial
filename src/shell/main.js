@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 // Discord's web client, as Chrome would load it
-app.userAgentFallback = app.userAgentFallback.replace(/ (mincord|Electron)\/\S+/g, '')
+app.userAgentFallback = app.userAgentFallback.replace(/ (cordial|Electron)\/\S+/g, '')
 
 // Trims (ai/LOG.md Key finds, measured as each process's USS): the audio service in the browser process (one process
 // less, 10 MB), Chrome services Discord doesn't use; and V8's heap growing by half rather than doubling, which halves
@@ -28,24 +28,24 @@ const config = () => {
     return {}
   }
 }
-ipcMain.on('mincord:config', (e) => (e.returnValue = config()))
+ipcMain.on('cordial:config', (e) => (e.returnValue = config()))
 
 // an image's actions (the viewer's menu, Ctrl+C there): copied to the clipboard (PNG or JPEG: nativeImage reads no
 // other), saved through Electron's save dialog. Fetched here: the page's fetch is cross-origin to Discord's media
-ipcMain.handle('mincord:copy-image', async (_, url) => {
+ipcMain.handle('cordial:copy-image', async (_, url) => {
   const image = nativeImage.createFromBuffer(Buffer.from(await (await net.fetch(url)).arrayBuffer()))
   if (!image.isEmpty()) clipboard.writeImage(image)
   return !image.isEmpty()
 })
-ipcMain.on('mincord:save', (e, url) => e.sender.downloadURL(url))
+ipcMain.on('cordial:save', (e, url) => e.sender.downloadURL(url))
 
 // what a global shortcut does (stock's keybind actions) on its press and release. Push to talk is held while the
 // keys are down, in push to talk's input mode only (as stock's)
 const PTT = (on) =>
-  `(({ A, S }) => S.MediaEngine.getMode() === 'PUSH_TO_TALK' && A.ptt.set(S.MediaEngine.getMediaEngine(), ${on}))(mincord.adapter)`
+  `(({ A, S }) => S.MediaEngine.getMode() === 'PUSH_TO_TALK' && A.ptt.set(S.MediaEngine.getMediaEngine(), ${on}))(cordial.adapter)`
 const KEYBINDS = {
-  TOGGLE_MUTE: { down: 'mincord.adapter.A.audio.toggleSelfMute()' },
-  TOGGLE_DEAFEN: { down: 'mincord.adapter.A.audio.toggleSelfDeaf()' },
+  TOGGLE_MUTE: { down: 'cordial.adapter.A.audio.toggleSelfMute()' },
+  TOGGLE_DEAFEN: { down: 'cordial.adapter.A.audio.toggleSelfDeaf()' },
   PUSH_TO_TALK: { down: PTT(true), up: PTT(false) },
 }
 
@@ -55,16 +55,16 @@ const KEYBINDS = {
 let keybinds = null
 function bindKeys(binds) {
   const known = Object.entries(binds).filter(([keys, action]) => {
-    if (!KEYBINDS[action]) console.error(`[mincord] keybind ${keys}: no action ${action}`)
+    if (!KEYBINDS[action]) console.error(`[cordial] keybind ${keys}: no action ${action}`)
     return KEYBINDS[action]
   })
   if (!known.length) return
   const bin =
-    process.env.MINCORD_GLOBAL_KEYBINDS ?? path.join(__dirname, '../../global-keybinds/target/release/global-keybinds')
+    process.env.CORDIAL_GLOBAL_KEYBINDS ?? path.join(__dirname, '../../global-keybinds/target/release/global-keybinds')
   const p = (keybinds = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] }))
-  p.on('error', (err) => console.error('[mincord] no global keybinds:', err.message))
+  p.on('error', (err) => console.error('[cordial] no global keybinds:', err.message))
   p.stdin.on('error', () => {})
-  p.stdin.end(known.map(([keys, action]) => `${keys}\tmincord: ${action}\n`).join(''))
+  p.stdin.end(known.map(([keys, action]) => `${keys}\tcordial: ${action}\n`).join(''))
   let rest = ''
   p.stdout.on('data', (d) => {
     const lines = (rest + d).split('\n')
@@ -73,8 +73,8 @@ function bindKeys(binds) {
       const [, what, keys] = l.match(/^(\w+) ([^\t]*)/) ?? []
       const run = KEYBINDS[binds[keys]]?.[what]
       if (run) win?.webContents.executeJavaScript(run).catch(() => {})
-      else if (what === 'bound') console.log(`[mincord] global keybind ${l.slice(6)}`)
-      else if (what !== 'down' && what !== 'up') console.error(`[mincord] global keybinds: ${l}`)
+      else if (what === 'bound') console.log(`[cordial] global keybind ${l.slice(6)}`)
+      else if (what !== 'down' && what !== 'up') console.error(`[cordial] global keybinds: ${l}`)
     }
   })
 }
@@ -82,12 +82,12 @@ function bindKeys(binds) {
 // game detection (adapter/games.ts): game-detection/ watches for Discord's list of games, one list at a time, and
 // prints the running ones whenever they change, a line each and an empty line after
 let observer = null
-ipcMain.on('mincord:games', (e, list) => {
+ipcMain.on('cordial:games', (e, list) => {
   observer?.kill()
   const bin =
-    process.env.MINCORD_GAME_DETECTION ?? path.join(__dirname, '../../game-detection/target/release/game-detection')
+    process.env.CORDIAL_GAME_DETECTION ?? path.join(__dirname, '../../game-detection/target/release/game-detection')
   const p = (observer = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] }))
-  p.on('error', (err) => console.error('[mincord] no game detection:', err.message))
+  p.on('error', (err) => console.error('[cordial] no game detection:', err.message))
   p.stdin.on('error', () => {})
   p.stdin.end(list)
   let rest = '',
@@ -97,7 +97,7 @@ ipcMain.on('mincord:games', (e, list) => {
     rest = lines.pop()
     for (const l of lines) {
       if (l) games.push(l)
-      else if (!e.sender.isDestroyed()) e.sender.send('mincord:games', games.splice(0))
+      else if (!e.sender.isDestroyed()) e.sender.send('cordial:games', games.splice(0))
     }
   })
 })
@@ -116,10 +116,10 @@ app.on('second-instance', (_, argv) => {
   if (win.isMinimized()) win.restore()
   win.focus()
   const to = linkPath(argv)
-  if (to) win.webContents.executeJavaScript(`mincord.adapter.A.nav.transitionTo(${JSON.stringify(to)})`).catch(() => {})
+  if (to) win.webContents.executeJavaScript(`cordial.adapter.A.nav.transitionTo(${JSON.stringify(to)})`).catch(() => {})
 })
 
-// Go Live through screen-capture's capture (its IPC: mincord:cast-*)
+// Go Live through screen-capture's capture (its IPC: cordial:cast-*)
 require('../../screen-capture/src/main/cast.js')
 
 app.whenReady().then(() => {

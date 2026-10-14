@@ -1,6 +1,6 @@
 # screen-capture
 
-mincord's Go Live source: screen sharing whose in-game cost stays around 1 % on a single GPU. A native `capture`
+cordial's Go Live source: screen sharing whose in-game cost stays around 1 % on a single GPU. A native `capture`
 process takes the screen cast as DMA-BUFs, scales it on the GPU and encodes it there (AV1 or H.264 through VA-API),
 so only the bitstream leaves VRAM. Discord's own Go Live sender (Chromium's WebRTC, with DAVE encryption) then sends
 those frames in place of its own encode ("the swap"). Where that can't run, there are fallbacks (below).
@@ -28,5 +28,5 @@ Plan, state and the work loop are in `ai/`.
 | `lab/` | the bench (a loopback RTCPeerConnection set up like Discord's Go Live, with a DAVE stand-in) and its scripts |
 | `ai/` | `PLAN.md` (goals, decisions, phases, sources), `LOG.md` (state, finds, questions), `LOOP.md` (how an iteration runs), `crates.md` (the Rust crate research) |
 
-mincord uses it through `src/` (the shell starts `capture`, the adapter routes `getDisplayMedia` and the Go Live sender);
-the Go Live UI is mincord's (Phase 4 of its plan).
+cordial uses it through `src/` (the shell starts `capture`, the adapter routes `getDisplayMedia` and the Go Live sender);
+the Go Live UI is cordial's (Phase 4 of its plan).

@@ -1,6 +1,6 @@
 // The codec order Discord advertises for Go Live: the preferred codec first. A source patch on Discord's WebRTC
-// connection module (mincord registers it with adapter/webpack.ts' patch; the replacement calls back through the
-// `mincord` global, where the glue puts this module's exports as `mincord.screen`).
+// connection module (cordial registers it with adapter/webpack.ts' patch; the replacement calls back through the
+// `cordial` global, where the glue puts this module's exports as `cordial.screen`).
 
 import { captureAv1 } from './cast'
 import { host } from './host'
@@ -14,12 +14,12 @@ export const codecPatch = {
     // (t?[H265,H264,VP8,VP9]:[H264,VP8,VP9]).forEach((t,n)=>{...priority:n+1...}): both lists reordered
     [
       /\?(\[[\w$]+\.[\w$]+\.H265,[\w$]+\.[\w$]+\.H264,[\w$]+\.[\w$]+\.VP8,[\w$]+\.[\w$]+\.VP9\]):(\[[\w$]+\.[\w$]+\.H264,[\w$]+\.[\w$]+\.VP8,[\w$]+\.[\w$]+\.VP9\])(?=\)\.forEach\()/,
-      '?mincord.screen.orderCodecs($1):mincord.screen.orderCodecs($2)',
+      '?cordial.screen.orderCodecs($1):cordial.screen.orderCodecs($2)',
     ],
     // UnifiedConnection.parseLocalDescription(){...=ey(t,this.experimentFlags...)}: which connection the list is for
     [
       /(parseLocalDescription\(\)\{[\s\S]{0,300}?=)([\w$]+)(\([\w$]+,this\.experimentFlags)/,
-      '$1(mincord.screen.codecConnection(this),$2)$3',
+      '$1(cordial.screen.codecConnection(this),$2)$3',
     ],
   ] as [RegExp, string][],
 }

@@ -34,7 +34,7 @@ Object.defineProperty(Function.prototype, 'm', {
       if (id === undefined) continue
       let out = toString.call(modules[id])
       p.applied = p.replace.every(([re, to]) => out !== (out = out.replace(re, to)))
-      if (p.applied) modules[id] = (0, eval)(`0,${out.replace(/^\d+/, 'function')}\n//# sourceURL=mincord-${id}`)
+      if (p.applied) modules[id] = (0, eval)(`0,${out.replace(/^\d+/, 'function')}\n//# sourceURL=cordial-${id}`)
     }
   },
 })
@@ -49,7 +49,7 @@ export const byCode =
     typeof m === 'function' && code.every((c) => toString.call(m).includes(c))
 
 // some exports are proxies (Discord's i18n messages) that answer any key
-const real = (m: any) => m != null && m['mincord:probe'] === undefined
+const real = (m: any) => m != null && m['cordial:probe'] === undefined
 
 // a module's exports, or one of their members, that the filter accepts
 export function inModule(id: string, filter: (m: any) => boolean) {

@@ -33,7 +33,7 @@ screen.host.discord = {
   },
 }
 
-const native = (window as any).mincordNative?.cast
+const native = (window as any).cordialNative?.cast
 if (native)
   screen.host.native = {
     ...native,

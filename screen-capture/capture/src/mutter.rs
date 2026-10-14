@@ -125,7 +125,7 @@ fn wait_node(rx: &mpsc::Receiver<u32>, cast: &Cast) -> Result<u32> {
     bail!("dbus: no PipeWire stream from the cast")
 }
 
-/// niri keeps a cast alive after its D-Bus client is gone: stop it (mincord also stops a cast of ours left behind
+/// niri keeps a cast alive after its D-Bus client is gone: stop it (cordial also stops a cast of ours left behind
 /// through niri's IPC, should we be killed)
 impl Drop for Cast {
     fn drop(&mut self) {
@@ -138,7 +138,7 @@ impl Drop for Cast {
 }
 
 impl Cast {
-    /// the session's number: niri's cast session id (mincord stops the cast through niri's IPC should we die)
+    /// the session's number: niri's cast session id (cordial stops the cast through niri's IPC should we die)
     pub fn session_id(&self) -> Option<&str> {
         let id = &self.path[self.path.rfind('u')? + 1..];
         id.starts_with(|c: char| c.is_ascii_digit()).then_some(id)

@@ -1,5 +1,5 @@
-// What mincord supplies to the renderer side (its glue sets these): Discord's stores and functions the quality rules
-// read, the main process's cast IPC (shell/preload.js), and the source picker (mincord's UI).
+// What cordial supplies to the renderer side (its glue sets these): Discord's stores and functions the quality rules
+// read, the main process's cast IPC (shell/preload.js), and the source picker (cordial's UI).
 
 import type { CastSource, CastStart } from './cast'
 
@@ -23,7 +23,7 @@ export interface Native {
   /** what capture encodes on this machine's GPU (capture --probe): ['av1'], or none */
   codecs(): Promise<string[]>
   sources(): Promise<CastSource[]>
-  /** Starts capture; true: its port follows as a window message ({ mincordCastPort: true }, ports[0]) */
+  /** Starts capture; true: its port follows as a window message ({ cordialCastPort: true }, ports[0]) */
   start(opts: CastStart): Promise<boolean>
   /** the stream log's file (main/streamLog.js): open with its first line, a line, close */
   log?(op: 'open' | 'line' | 'close', text?: string): void

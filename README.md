@@ -1,9 +1,9 @@
-# mincord
+# cordial
 
 Discord UI renderer built on top of discord's existing core.
 
 Discord's desktop client is a React UI over a large JavaScript core: 564 Flux stores, action creators, the gateway
-and REST clients, and Chromium's WebRTC for voice. mincord loads Discord's web client (discord.com/app) in a small
+and REST clients, and Chromium's WebRTC for voice. cordial loads Discord's web client (discord.com/app) in a small
 Electron shell of our own, keeps that core running, and replaces the React UI with a small, fast renderer. Performance
 is the point: interaction latency first, then memory and CPU. Screen sharing uses a custom backend that lives in its own repo.
 
@@ -61,13 +61,13 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 
 | Path | What |
 |---|---|
-| `src/shell/` | the Electron shell: `main.js` opens discord.com/app (zoom, `<userData>/config.json`), `preload.js` injects `dist/mincord.js` before Discord's scripts run, with the config as `mincord.config` |
+| `src/shell/` | the Electron shell: `main.js` opens discord.com/app (zoom, `<userData>/config.json`), `preload.js` injects `dist/cordial.js` before Discord's scripts run, with the config as `cordial.config` |
 | `src/adapter/` | the only code that touches Discord internals: `webpack.ts` hooks Discord's webpack (its require, module search, source patches), `anchor.ts` keeps Discord's App class and renders our root, `needs.ts` resolves what we use (`S`, `A`) and checks it at startup, `discord.ts` types them |
-| `src/api/` | what the UI calls (being built, ai/RESTRUCTURE.md): `store.ts` (Discord's stores as Solid dependencies), `records.ts` (its records, typed as far as we read them), `strings.ts` (stock's text by message name, its date formats), `hooks.ts` (onAction, useNow, useFileDrop), `session.ts` (connection, badge, login), `users.ts` (names, avatars, presence), `guilds.ts` (icons, folders, invites), `channels.ts` (the channel list, DMs, read and mute states, voice channels), `notifications.ts` (the bell's rules), `messages.ts` (the list, grouping, jumps, reactions, pins, the menu's actions), `pickers.ts` (emoji images, reactions, the pickers' sections, searches and GIFs), `search.ts` (message search), `composer.ts` (useComposer: the box's state and stock's send, edit, draft and upload actions; who's typing; autocomplete's queries), `voice.ts` (voice states, the connection, join and leave), `audio.ts` (mute, deafen, camera, devices, voice settings), `calls.ts` (DM calls, ringing), `streams.ts` (Go Live, videos), `sounds.ts` (stock's voice sounds, the ringtone), `soundboard.ts` (its sections, search, play), `members.ts` (the member list's rows and subscriptions), `cdn.ts`, `triggers.ts` (what Discord's UI did for the core), `preload.ts` (channels loaded before they open), `lab.ts` (`window.mincord` for lab scripts) |
+| `src/api/` | what the UI calls (being built, ai/RESTRUCTURE.md): `store.ts` (Discord's stores as Solid dependencies), `records.ts` (its records, typed as far as we read them), `strings.ts` (stock's text by message name, its date formats), `hooks.ts` (onAction, useNow, useFileDrop), `session.ts` (connection, badge, login), `users.ts` (names, avatars, presence), `guilds.ts` (icons, folders, invites), `channels.ts` (the channel list, DMs, read and mute states, voice channels), `notifications.ts` (the bell's rules), `messages.ts` (the list, grouping, jumps, reactions, pins, the menu's actions), `pickers.ts` (emoji images, reactions, the pickers' sections, searches and GIFs), `search.ts` (message search), `composer.ts` (useComposer: the box's state and stock's send, edit, draft and upload actions; who's typing; autocomplete's queries), `voice.ts` (voice states, the connection, join and leave), `audio.ts` (mute, deafen, camera, devices, voice settings), `calls.ts` (DM calls, ringing), `streams.ts` (Go Live, videos), `sounds.ts` (stock's voice sounds, the ringtone), `soundboard.ts` (its sections, search, play), `members.ts` (the member list's rows and subscriptions), `cdn.ts`, `triggers.ts` (what Discord's UI did for the core), `preload.ts` (channels loaded before they open), `lab.ts` (`window.cordial` for lab scripts) |
 | `src/primitives/` | generic pieces, each with its `.css`: `icon.tsx` (Discord's icons, `icons.ts`, as CSS masks), `button.tsx` (Button, IconButton, Toggle), `badge.tsx`, `status.tsx`, `row.tsx` (list rows), `menu.tsx` (menus as data, submenus, context menus, `menu.css`), `popout.tsx`, `modal.tsx`, `search.tsx`, `fields.tsx`, `sections.tsx` (a picker's search, rail, sections and footer) with `lazy_chunks.tsx` |
 | `src/components/` | Discord-aware pieces: `message/` (a message row: head, content, attachments, embeds, reactions), `markdown.tsx` (markdown AST to DOM), `media.tsx` (images, videos, GIFs), `viewer.tsx` (an image full size), `emoji.tsx`, `pickers.tsx` (emoji, GIF, sticker), `time.tsx` (a message's time, stock's formats), `avatar.tsx`, `name.tsx`, `guild_icon.tsx`, `channel_icon.tsx`, `dm_icon.tsx`, `tile.tsx` (someone in a call), `video.tsx` |
 | `src/views/` | a file per region of the grid: `server_bar.tsx`, `channels.tsx` (channel and DM lists, voice rows, the channel menu), `chat.tsx` (messages, their menu, who's typing) with `scroller.ts`, `header.tsx`, `composer.tsx` (the reply bar, uploads, the box, autocomplete), `user_panel.tsx` (account, status, mute/deafen, voice panel), `call.tsx`, `members.tsx`, `login.tsx` |
-| `src/app.tsx`, `src/app.css`, `src/index.tsx` | the grid and the CSS join (every `.css` under `src/`, by layer), the shell's CSS, the entry (UI in Solid 2, JSX compiled by Vite, `npm run build` into `dist/mincord.js`) |
+| `src/app.tsx`, `src/app.css`, `src/index.tsx` | the grid and the CSS join (every `.css` under `src/`, by layer), the shell's CSS, the entry (UI in Solid 2, JSX compiled by Vite, `npm run build` into `dist/cordial.js`) |
 | `boundary.mjs` | the layer boundary, run by `npm run check`: views, components and primitives never import `adapter/`, primitives no `api/` |
 | `global-keybinds/` | config.json's global keybinds through the desktop's GlobalShortcuts portal, presses and releases (push to talk), for the shell |
 | `flake.nix` | the package (Vite build, nixpkgs' Electron) and a dev shell |
@@ -77,7 +77,7 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 | `design/` | the Phase 1 design draft (`phase1.md`) and its mockup |
 
 The lab harness itself (isolated headless Electron, CDP client, input-driven benchmarks) lives in
-`~/code/personal/discord-uiprof`; mincord's scripts import its `cdp.py` and `bench.py`.
+`~/code/personal/discord-uiprof`; cordial's scripts import its `cdp.py` and `bench.py`.
 
 ## Test accounts
 

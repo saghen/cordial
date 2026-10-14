@@ -1,10 +1,10 @@
-// Discord desktop's native modules, the two mincord stands in for: discord_utils' process observer (game detection)
+// Discord desktop's native modules, the two cordial stands in for: discord_utils' process observer (game detection)
 // and discord_rpc's socket (Rich Presence). Discord's own code does the rest as on desktop. RunningGameStore matches
 // games and sets the "Playing" activity; its RPC server does the handshake, checks the app, runs SET_ACTIVITY and
 // sets the app's activity. requireModule() answers for these two when DiscordNative is missing (off desktop it threw
 // for every module), and two gates that are desktop-only open for them.
 //
-// window.mincordNative (shell/preload.js) is absent with MINCORD_PRESENCE=0, and then none of this runs.
+// window.cordialNative (shell/preload.js) is absent with CORDIAL_PRESENCE=0, and then none of this runs.
 
 import { G } from './anchor'
 import { patch } from './webpack'
@@ -18,18 +18,18 @@ interface Native {
     end(id: number, data?: Uint8Array): void
   }
 }
-const native = (window as any).mincordNative as Native | undefined
+const native = (window as any).cordialNative as Native | undefined
 // the shell's image actions (shell/main.js): one copied to the clipboard (false when it isn't PNG or JPEG), one saved
-export const image = (window as any).mincordNative?.image as
+export const image = (window as any).cordialNative?.image as
   { copy(url: string): Promise<boolean>; save(url: string): void } | undefined
 
 const requireModule = patch('getDiscordUtils(){', [
   /requireModule\(([\w$]+)\)\{(?=if\([\w$]+\.hasOwnProperty\(\1\))/,
-  'requireModule($1){if(null==window.DiscordNative&&null!=mincord.nativeModules?.[$1])return mincord.nativeModules[$1];',
+  'requireModule($1){if(null==window.DiscordNative&&null!=cordial.nativeModules?.[$1])return cordial.nativeModules[$1];',
 ])
 const games = patch('static displayName="RunningGameStore"', [
   /(!__OVERLAY__&&\(\(0,[\w$]+\.isDesktop\)\(\)\|\|[\w$]+\.[\w$]+)\)/,
-  '$1||null!=window.mincordNative)',
+  '$1||null!=window.cordialNative)',
 ])
 // the RPC server registers its socket transports on desktop only, after loading discord_rpc; here only the IPC one
 // (998921 in Discord's build of 2026-10), not the WebSocket one for websites
@@ -37,7 +37,7 @@ const rpc = patch(
   'registerTransportsForEmbeddedPlatform:function(){',
   [
     /([\w$]+\.isPlatformEmbedded)(&&this\.registerTransportsForEmbeddedPlatform\(\))/,
-    '($1||null!=window.mincordNative)$2',
+    '($1||null!=window.cordialNative)$2',
   ],
   [
     /[\w$]+\.[\w$]+\.ensureModule\("discord_rpc"\)\.then\(\(\)=>\{for\(let ([\w$]+) of\[[\w$]+\(\d+\)\.default,/,
@@ -45,12 +45,12 @@ const rpc = patch(
   ],
 )
 
-// in mincord.status(); not needs: without these the rest still works
+// in cordial.status(); not needs: without these the rest still works
 G.nativeApplied = () => ({ games: requireModule.applied && games.applied, rpc: requireModule.applied && rpc.applied })
 window.addEventListener('load', () =>
   setTimeout(() => {
     const a = G.nativeApplied()
-    if (!a.games || !a.rpc) console.error("[mincord] native module patches did not apply (Discord's code changed)", a)
+    if (!a.games || !a.rpc) console.error("[cordial] native module patches did not apply (Discord's code changed)", a)
   }, 10_000),
 )
 

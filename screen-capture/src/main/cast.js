@@ -8,21 +8,21 @@
 // The sound (when Discord asks for it), niri only: capture takes it from PipeWire (capture/src/audio.rs), from the
 // shared window's apps, or for an output from the focused window on that output (audioTarget, followOutput).
 //
-// capture: $MINCORD_CAPTURE, else `mincord-capture` on PATH. Without it, with neither niri nor Wayland, or with
+// capture: $CORDIAL_CAPTURE, else `cordial-capture` on PATH. Without it, with neither niri nor Wayland, or with
 // "capture": false in <userData>/config.json, Go Live is Chromium's own capture (the portal).
 //
-// The lab: $MINCORD_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no niri
-// needed (screen-capture/lab/golive.py). $MINCORD_CAPTURE_AUDIO=TARGET takes the sound from capture's TARGET (pid=N...)
-// whatever the source. $MINCORD_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture alone talks to that
+// The lab: $CORDIAL_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no niri
+// needed (screen-capture/lab/golive.py). $CORDIAL_CAPTURE_AUDIO=TARGET takes the sound from capture's TARGET (pid=N...)
+// whatever the source. $CORDIAL_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture alone talks to that
 // bus (the lab portal of screen-capture/lab/castsrc.py --portal, never the desktop's).
 //
 // getDisplayMedia (Chromium's own capture: Go Live without capture, and capture's fallback) gets the portal's source:
 // on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. The lab answers with the asking
 // frame itself, no portal (the lab sway's portal is backed by Liam's niri).
 //
-// IPC (shell/preload.js): invoke mincord:cast-available () -> boolean, mincord:cast-codecs () -> 'av1'[],
-// mincord:cast-sources () -> CastSource[],
-// mincord:cast-start (CastStart) -> boolean; on true the port follows as mincord:cast-port.
+// IPC (shell/preload.js): invoke cordial:cast-available () -> boolean, cordial:cast-codecs () -> 'av1'[],
+// cordial:cast-sources () -> CastSource[],
+// cordial:cast-start (CastStart) -> boolean; on true the port follows as cordial:cast-port.
 
 const { app, desktopCapturer, ipcMain, MessageChannelMain, session } = require('electron')
 const { execFile } = require('node:child_process')
@@ -57,8 +57,8 @@ app.commandLine.appendSwitch(
 let found
 function captureBin() {
   if (found !== undefined) return found
-  const onPath = (process.env.PATH ?? '').split(path.delimiter).map((dir) => dir && path.join(dir, 'mincord-capture'))
-  return (found = [process.env.MINCORD_CAPTURE, ...onPath].find((f) => f && fs.existsSync(f)) ?? null)
+  const onPath = (process.env.PATH ?? '').split(path.delimiter).map((dir) => dir && path.join(dir, 'cordial-capture'))
+  return (found = [process.env.CORDIAL_CAPTURE, ...onPath].find((f) => f && fs.existsSync(f)) ?? null)
 }
 
 function config() {
@@ -102,9 +102,9 @@ function niri(request) {
 }
 
 // The lab (see the top of the file): its clip, its portal's bus, a sound target
-const clip = /^(.+):(\d+)x(\d+)$/.exec(process.env.MINCORD_CAPTURE_CLIP ?? '')
-const portalBus = process.env.MINCORD_CAPTURE_PORTAL_BUS || null
-const labAudio = process.env.MINCORD_CAPTURE_AUDIO || null
+const clip = /^(.+):(\d+)x(\d+)$/.exec(process.env.CORDIAL_CAPTURE_CLIP ?? '')
+const portalBus = process.env.CORDIAL_CAPTURE_PORTAL_BUS || null
+const labAudio = process.env.CORDIAL_CAPTURE_AUDIO || null
 
 /** The source kind: the lab's clip, the lab's portal, niri, the desktop's portal (any Wayland desktop), or none. */
 function via() {
@@ -187,7 +187,7 @@ async function castSources() {
         }
       }),
     ...windows
-      // (not mincord's own: niri's pid for a window is its Wayland client's, Electron's main process)
+      // (not cordial's own: niri's pid for a window is its Wayland client's, Electron's main process)
       .filter((w) => w.pid !== process.pid)
       .sort((a, b) => Number(b.is_focused) - Number(a.is_focused) || (a.workspace_id ?? 0) - (b.workspace_id ?? 0))
       .map((w) => ({
@@ -228,7 +228,7 @@ const WINDOW_EVENTS = new Set([
 
 /**
  * An output's sound follows its focused window: the active window of its active workspace, not the global focus
- * (focusing another output keeps it). mincord's own windows keep the one before; an empty workspace is silence.
+ * (focusing another output keeps it). cordial's own windows keep the one before; an empty workspace is silence.
  * niri's event stream says when to look again (the state asked anew, ~0.4 ms).
  * @param {string} output
  * @param {(target: string) => void} set
@@ -344,7 +344,7 @@ function startCast(e, opts) {
       if (open) port1.postMessage(m)
       if (m.type === 'closed') cast.close()
     },
-    // the lab portal's bus for capture alone (mincord stays on the desktop's)
+    // the lab portal's bus for capture alone (cordial stays on the desktop's)
     portalBus && kind === 'portal' ? { ...process.env, DBUS_SESSION_BUS_ADDRESS: portalBus } : undefined,
     fdsock,
   )
@@ -375,7 +375,7 @@ function startCast(e, opts) {
   port1.on('message', ({ data }) => (data?.type === 'stop' ? cast.close() : cap.send(data)))
   port1.on('close', () => cast.close())
   port1.start()
-  e.sender.postMessage('mincord:cast-port', null, [port2])
+  e.sender.postMessage('cordial:cast-port', null, [port2])
   console.log(`[cast] capture ${cap.pid}: ${args.join(' ')}`)
   return true
 }
@@ -385,13 +385,13 @@ app.whenReady().then(() =>
     if (clip) return callback({ video: request.frame })
     const sources = await desktopCapturer
       .getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } })
-      .catch((e) => (console.error('[mincord:cast] portal:', e), []))
+      .catch((e) => (console.error('[cordial:cast] portal:', e), []))
     callback(sources[0] ? { video: sources[0] } : {})
   }),
 )
 
-ipcMain.handle('mincord:cast-available', castAvailable)
-ipcMain.handle('mincord:cast-codecs', castCodecs)
-ipcMain.handle('mincord:cast-sources', castSources)
-ipcMain.handle('mincord:cast-start', startCast)
+ipcMain.handle('cordial:cast-available', castAvailable)
+ipcMain.handle('cordial:cast-codecs', castCodecs)
+ipcMain.handle('cordial:cast-sources', castSources)
+ipcMain.handle('cordial:cast-start', startCast)
 app.on('will-quit', () => current?.close())

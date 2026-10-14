@@ -1,9 +1,9 @@
 [package]
-name = "mincord-capture"
+name = "cordial-capture"
 version = "0.3.0"
 edition = "2021"
 license = "MIT"
-description = "mincord's Go Live encoder"
+description = "cordial's Go Live encoder"
 
 [dependencies]
 # Discord's fork (crates.md): Display is Arc + Send + Sync; the raw bindings are re-exported

@@ -1,9 +1,9 @@
-// The stream log, main side (Liam, 2026-10-14): one logfmt file per Go Live in $XDG_STATE_HOME/mincord/streams
-// (~/.local/state/mincord/streams), its lines composed by the renderer (src/renderer/streamLog.ts). The last 10
+// The stream log, main side (Liam, 2026-10-14): one logfmt file per Go Live in $XDG_STATE_HOME/cordial/streams
+// (~/.local/state/cordial/streams), its lines composed by the renderer (src/renderer/streamLog.ts). The last 10
 // streams within 10 MB are kept (the newest whatever its size); a finished file is compressed with zstd if it's on
 // PATH (one left open by a crash or a quit, at the next stream's start). Past 10 MB a stream keeps one tick in four.
 //
-// IPC (shell/preload.js): send mincord:stream-log ('open', firstLine) | ('line', text) | ('close')
+// IPC (shell/preload.js): send cordial:stream-log ('open', firstLine) | ('line', text) | ('close')
 
 const { app, ipcMain } = require('electron')
 const { execFile } = require('node:child_process')
@@ -14,7 +14,7 @@ const path = require('node:path')
 const KEEP = 10
 const MAX_BYTES = 10 << 20
 
-const dir = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local/state'), 'mincord/streams')
+const dir = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local/state'), 'cordial/streams')
 
 /** @type {{ path: string, fd: number, bytes: number, ticks: number } | null} */
 let file = null
@@ -78,7 +78,7 @@ function prune() {
   })
 }
 
-ipcMain.on('mincord:stream-log', (_e, op, text) => {
+ipcMain.on('cordial:stream-log', (_e, op, text) => {
   try {
     if (op === 'open') open(String(text))
     else if (op === 'line') line(String(text))

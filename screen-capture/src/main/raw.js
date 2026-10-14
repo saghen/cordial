@@ -1,8 +1,8 @@
 // The fallback's frames from capture ("raw", capture's main.rs) into a renderer: each of capture's NV12 buffers is
 // imported once with Electron's sharedTexture and sent to the page's frame under a key of its own; then one IPC
-// message per frame, mincord:cast-raw (key, seq, t). preload/raw.js makes a VideoFrame on the import for each, which
+// message per frame, cordial:cast-raw (key, seq, t). preload/raw.js makes a VideoFrame on the import for each, which
 // Chromium encodes. A new size is a new ring under the same ids: its buffers get new keys (a frame never lands on the
-// old buffer of its id), and the old imports are released 2 s later (mincord:cast-raw-drop for the page's): releasing
+// old buffer of its id), and the old imports are released 2 s later (cordial:cast-raw-drop for the page's): releasing
 // one while a frame from it was still in the encoder or compositor crashed the renderer (approach B: the last
 // reference then drops off the main thread).
 
@@ -10,10 +10,10 @@ const { sharedTexture } = require('electron')
 const { closeSync } = require('node:fs')
 
 let fdsock
-/** The fd socket addon (addon/fdsock.c, $MINCORD_FDSOCK: the flake's fdsock), or null: no raw fallback. */
+/** The fd socket addon (addon/fdsock.c, $CORDIAL_FDSOCK: the flake's fdsock), or null: no raw fallback. */
 function loadFdsock() {
   if (fdsock !== undefined) return fdsock
-  const file = process.env.MINCORD_FDSOCK
+  const file = process.env.CORDIAL_FDSOCK
   if (!file) return (fdsock = null)
   try {
     fdsock = require(file)
@@ -36,7 +36,7 @@ function rawRelay(contents) {
     message(m, fds) {
       if (m.type === 'frame') {
         const b = imports.get(m.id)
-        return b && contents.send('mincord:cast-raw', b.key, m.seq, m.t)
+        return b && contents.send('cordial:cast-raw', b.key, m.seq, m.t)
       }
       if (m.type !== 'buffer') return
       let imported
@@ -63,7 +63,7 @@ function rawRelay(contents) {
       }
       const old = imports.get(m.id)
       if (old) {
-        if (!contents.isDestroyed()) contents.send('mincord:cast-raw-drop', old.key)
+        if (!contents.isDestroyed()) contents.send('cordial:cast-raw-drop', old.key)
         setTimeout(() => old.imported.release(), 2000)
       }
       const key = ++keys
@@ -75,7 +75,7 @@ function rawRelay(contents) {
     close() {
       const old = [...imports.values()]
       imports.clear()
-      if (!contents.isDestroyed()) contents.send('mincord:cast-raw-end')
+      if (!contents.isDestroyed()) contents.send('cordial:cast-raw-end')
       // (released as a new size's are: once no frame from them is in the encoder or compositor)
       setTimeout(() => old.forEach((b) => b.imported.release()), 2000)
     },

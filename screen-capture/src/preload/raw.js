@@ -1,8 +1,8 @@
 // The fallback's frames for the page (main/raw.js sends them): capture's NV12 buffers arrive once each as imported
 // shared textures under their key, then (key, seq, t) per frame (dropped while its buffer's import is still on its
 // way); each becomes a VideoFrame (on the buffer, no copy) posted on a
-// MessagePort the page gets as a window message ({ mincordRawPort: true }) with the session's first buffer
-// (renderer/cast.ts takes it). Runs in the preload (mincord's shell/preload.js) or a page with Node (the lab bench).
+// MessagePort the page gets as a window message ({ cordialRawPort: true }) with the session's first buffer
+// (renderer/cast.ts takes it). Runs in the preload (cordial's shell/preload.js) or a page with Node (the lab bench).
 
 const { ipcRenderer, sharedTexture } = require('electron')
 
@@ -20,12 +20,12 @@ function receiveRaw(post) {
     imports.set(key, importedSharedTexture)
   })
   // a new size: the old buffer's import goes once the encoder and compositor are surely done with it (main/raw.js)
-  ipcRenderer.on('mincord:cast-raw-drop', (_e, key) => {
+  ipcRenderer.on('cordial:cast-raw-drop', (_e, key) => {
     const imported = imports.get(key)
     imports.delete(key)
     if (imported) release([imported])
   })
-  ipcRenderer.on('mincord:cast-raw', (_e, key, seq, t) => {
+  ipcRenderer.on('cordial:cast-raw', (_e, key, seq, t) => {
     const imported = imports.get(key)
     if (!imported || !port) return
     const base = imported.getVideoFrame()
@@ -34,7 +34,7 @@ function receiveRaw(post) {
     base.close()
     port.postMessage({ frame, seq }, [frame])
   })
-  ipcRenderer.on('mincord:cast-raw-end', () => {
+  ipcRenderer.on('cordial:cast-raw-end', () => {
     port?.close()
     port = null
     // released once the encoder and compositor are surely done with their last frames (see main/raw.js)
