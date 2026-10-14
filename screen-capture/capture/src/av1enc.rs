@@ -44,6 +44,7 @@ pub struct Frame {
     pub key: bool,
     pub qp: u32,
     pub ms_encode: f64,
+    pub recon: u32, // the reconstructed picture (what a decoder shows), until the encode after next
 }
 
 /// the OBU around b: header without extension, has_size_field, leb128 size
@@ -470,6 +471,6 @@ impl Av1Enc {
         }
         self.frame += 1;
         let ms_encode = t0.elapsed().as_secs_f64() * 1e3;
-        Ok((&self.out, Frame { key, qp, ms_encode }))
+        Ok((&self.out, Frame { key, qp, ms_encode, recon }))
     }
 }

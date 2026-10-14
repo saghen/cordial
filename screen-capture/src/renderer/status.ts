@@ -73,6 +73,8 @@ export async function streamStatus(): Promise<StreamStatus | null> {
       `${s.width ?? '?'}×${s.height ?? '?'} @ ${round(s.fps)} fps${s.captured}`,
       network.join(' · '),
       ...(s.qp === undefined ? [] : [`QP ${round(s.qp)} /${QP_MAX[codec!] ?? '?'}`]),
+      // capture's sample: a frame once a second against what its encoder made of it
+      ...(cast?.ssim === undefined ? [] : [`SSIM ${cast.ssim.toFixed(3)}`]),
       `limited by: ${s.limitation ?? '?'}`,
     ],
     summary: `${codec ?? '?'} ${s.height ?? '?'}p${round(s.fps)} ${mbps(bitrate)} Mbps`,

@@ -25,6 +25,7 @@ mod clip;
 mod mutter;
 mod out;
 mod portal;
+mod ssim;
 mod va;
 
 use std::collections::BTreeMap;
@@ -419,6 +420,7 @@ struct Stats {
     total_sub: u64,
     total_enc: u64,
     ms_enc_total: f64,
+    ssim: Option<f64>, // the last sample's (kept across seconds)
 }
 
 impl Stats {
@@ -754,6 +756,9 @@ struct Worker<'a> {
     ivf: Option<File>,
     ivf_frames: u32,
     ivf_size: (u32, u32, u32), // the last frame's encoder: width, height, fps (the header, at the end)
+    ssim_img: Option<Image>,   // ssim.rs: the readback, the encoder's size
+    ssim_t: f64,
+    ssim_job: Option<std::thread::JoinHandle<f64>>,
 }
 
 impl<'a> Worker<'a> {
@@ -774,10 +779,11 @@ impl<'a> Worker<'a> {
         let ne = st.n_enc.max(1) as f64;
         let (rw, rh) = g.ring.as_ref().map_or((0, 0), |r| (r.w, r.h));
         let st = &g.st;
+        let ssim = st.ssim.map_or(String::new(), |s| format!(",\"ssim\":{s:.4}"));
         let json = format!(
             "{{\"type\":\"stats\",\"in\":{:.1},\"fps\":{:.1},\"kbps\":{:.0},\"target\":{},\"width\":{rw},\"height\":{rh},\
              \"keys\":{},\"repeats\":{},\"skipped\":{},\"busy\":{},\"dropper\":{},\"outDrops\":{},\"encodeMs\":{:.2},\
-             \"maxEncodeMs\":{:.2},\"latencyMs\":{:.2},\"maxLatencyMs\":{:.2},\"previews\":{},\"cpu\":{cpu:.1}}}",
+             \"maxEncodeMs\":{:.2},\"latencyMs\":{:.2},\"maxLatencyMs\":{:.2},\"previews\":{},\"cpu\":{cpu:.1}{ssim}}}",
             st.n_in as f64 / dt,
             st.n_enc as f64 / dt,
             st.bytes as f64 * 8.0 / dt / 1e3,
@@ -803,6 +809,7 @@ impl<'a> Worker<'a> {
             total_sub: st.total_sub,
             total_enc: st.total_enc,
             ms_enc_total: st.ms_enc_total,
+            ssim: st.ssim,
             ..Default::default()
         };
         if self.o.seconds > 0.0 && t - g.st.t_start >= self.o.seconds {
@@ -913,6 +920,7 @@ impl<'a> Worker<'a> {
         self.last_enc_t = t_now;
         let dropped = self.o.drop_ms > 0.0 && !key && self.debt > per_s * self.o.drop_ms / 1000.0;
         let mut done = None; // (bytes, frame info, sent)
+        let mut ssim = None;
         let mut failed = false;
         if !dropped {
             let enc = self.enc.as_mut().unwrap();
@@ -936,7 +944,9 @@ impl<'a> Worker<'a> {
                     if sent == out::Sent::Ok {
                         stage("first-frame");
                     }
+                    let recon = fi.recon;
                     done = Some((data.len(), fi, sent));
+                    ssim = self.ssim_sample(surf, recon, t_now);
                 }
                 Err(e) => {
                     eprintln!("encode: {e:#}");
@@ -948,6 +958,7 @@ impl<'a> Worker<'a> {
 
         let mut g = self.lock();
         let st = &mut g.st;
+        st.ssim = ssim.or(st.ssim);
         match &done {
             Some((len, fi, _)) => {
                 st.frame_out(repeat, lat);
@@ -972,6 +983,45 @@ impl<'a> Worker<'a> {
         r.last_slot = Some(i);
         r.slots[i].state = SlotState::Free;
         g
+    }
+
+    /// once a second, the frame against what the encoder made of it (ssim.rs): read back here, scored on another
+    /// thread (10-20 ms at 1440p); the score of the sample before, when it's done
+    fn ssim_sample(&mut self, src: u32, recon: u32, t: f64) -> Option<f64> {
+        let score = match &self.ssim_job {
+            Some(j) if j.is_finished() => self.ssim_job.take().unwrap().join().ok(),
+            _ => None,
+        };
+        if self.ssim_job.is_some() || t - self.ssim_t < 1.0 {
+            return score;
+        }
+        self.ssim_t = t;
+        let cfg = &self.enc.as_ref().unwrap().cfg;
+        let (w, h) = (cfg.width, cfg.height);
+        if self.ssim_img.as_ref().is_none_or(|i| (i.img.width as u32, i.img.height as u32) != (w, h)) {
+            let nv12 = sys::VAImageFormat {
+                fourcc: sys::VA_FOURCC_NV12,
+                byte_order: sys::VA_LSB_FIRST,
+                bits_per_pixel: 12,
+                ..Default::default()
+            };
+            self.ssim_img = self.va.image(nv12, w, h).map_err(|e| eprintln!("ssim: {e:#}")).ok();
+            if self.ssim_img.is_none() {
+                self.ssim_t = f64::INFINITY;
+            }
+        }
+        let img = self.ssim_img.as_ref()?;
+        match ssim::luma(img, src).and_then(|a| Ok((a, ssim::luma(img, recon)?))) {
+            Ok((a, b)) => {
+                let (w, h) = (w as usize, h as usize);
+                self.ssim_job = Some(std::thread::spawn(move || ssim::ssim(&a, &b, w, h)));
+            }
+            Err(e) => {
+                eprintln!("ssim: {e:#}; no more samples");
+                self.ssim_t = f64::INFINITY;
+            }
+        }
+        score
     }
 
     /// raw: each surface of a new ring to mincord, with its fd
@@ -1332,6 +1382,9 @@ fn run(o: Arc<Opts>) -> Result<()> {
         ivf,
         ivf_frames: 0,
         ivf_size: (0, 0, o.fps),
+        ssim_img: None,
+        ssim_t: 0.0,
+        ssim_job: None,
     };
     let ran = if !clip {
         w.run_cast();

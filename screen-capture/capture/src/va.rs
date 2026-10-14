@@ -468,6 +468,16 @@ impl Image {
         self.map(sys::VA_MAPBUFFER_FLAG_READ, |p, off, pitch| f(p, off, pitch))
     }
 
+    /// `surf`'s top-left (the image's size) into the image
+    pub fn get(&self, surf: VASurfaceID) -> Result<()> {
+        let (w, h) = (self.img.width as u32, self.img.height as u32);
+        // SAFETY: the surface and image live on this display
+        check(
+            unsafe { sys::vaGetImage(self.va.dpy(), surf, 0, 0, w, h, self.img.image_id) },
+            "vaGetImage",
+        )
+    }
+
     /// the image into the whole of `surf` (same size)
     pub fn put(&self, surf: VASurfaceID) -> Result<()> {
         let (w, h) = (self.img.width as u32, self.img.height as u32);
