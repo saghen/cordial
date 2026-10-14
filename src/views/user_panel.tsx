@@ -176,7 +176,7 @@ function Soundboard(p: { channel: Channel }) {
   )
 }
 
-// the voice settings (Liam's, in place of stock's noise suppression button): devices, volumes, input mode and
+// the voice settings (ours, in place of stock's noise suppression button): devices, volumes, input mode and
 // sensitivity, and the audio processing
 function VoiceSettings() {
   const devices = (all: audio.Device[]) => all.map((d) => [d.id, d.name, d.disabled] as const)

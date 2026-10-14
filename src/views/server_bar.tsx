@@ -181,8 +181,8 @@ export function ServerBar() {
   )
 }
 
-// Add a Server, by link only (the plan's): an invite link or code, stock's resolve shows the server, Join accepts it and
-// opens its channel. Accepting is a write: Liam checks joins by hand
+// Add a Server, by link only: an invite link or code, stock's resolve shows the server, Join accepts it and opens its
+// channel
 function AddServer() {
   const [invite, setInvite] = createSignal<Invite | null | undefined>()
   let form!: HTMLElement

@@ -15,7 +15,7 @@ import { Embed } from './embed'
 
 let built = new WeakMap<Message, Node[]>()
 
-// ai/lab/budgets.py --cold: every row parses its content again
+// a cold measurement: every row parses its content again
 export function resetContent() {
   built = new WeakMap()
 }

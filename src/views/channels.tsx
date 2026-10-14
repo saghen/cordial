@@ -19,7 +19,7 @@ import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
 import { Row } from '../primitives/row'
 
-// a channel's mention count at its row's end (a DM row has none, Liam: the server bar counts it)
+// a channel's mention count at its row's end (a DM row has none: the server bar counts it)
 const count = (n: number) => n > 0 && <Badge kind="count">{n}</Badge>
 
 function Dm(p: { channel: PrivateChannel }) {

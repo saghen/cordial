@@ -26,11 +26,10 @@ function canStream(height: number, fps: number): boolean {
 // ---- The stream's quality ----
 //
 // capture's AV1 (on the GPU) streams 1080p60 on every account, past Discord's rules for an account without Nitro
-// (720p30) at that account's 3.5 Mbps (Liam, 2026-10-13: "Use 1080p60 for AV1 free"), and 1440p60 with Nitro at 9 Mbps.
-// Chromium's own encoders (raw and the portal: VP9 on the CPU for a stock viewer, libaom when capture's encoder
-// fails) get 1080p, at 30 fps where the account may not stream 1080p60: VP9 at 3.5 Mbps needs the bits per pixel
-// (LOG Key finds, "What 3.5 Mbps buys"), and at 1440p60 its frames take longer than the frame interval (14.5 ms a
-// frame on 4 threads; "Chromium's encoders past 2.5 Mbps").
+// (720p30) at that account's 3.5 Mbps, and 1440p60 with Nitro at 9 Mbps. Chromium's own encoders (raw and the portal:
+// VP9 on the CPU for a stock viewer, libaom when capture's encoder fails) get 1080p, at 30 fps where the account may
+// not stream 1080p60: VP9 at 3.5 Mbps needs the bits per pixel, and at 1440p60 its frames take longer than the frame
+// interval (14.5 ms a frame on 4 threads).
 
 export interface StreamQuality {
   /** capture's box: 16:9 at `height`, the source fitted into it (never scaled up) */
@@ -81,7 +80,7 @@ export const streamSender = () => liveSender
 // The stream's sound goes out at up to 96 kbps, over the 64 kbps Discord gives every sound sender (its voice rate).
 // Measured, not understood: at 64 kbps WebRTC's estimate fell to about 0.9 Mbps at its first backoff, a third of a
 // second into every Nitro AV1 stream, and took 35 s to reach 9 Mbps; at 96 kbps it fell to about 4.4 Mbps and reached
-// 9 Mbps in 12 s (DM call, 2026-10-13: LOG Known issues, "The stream's start hangs on the sound's bitrate").
+// 9 Mbps in 12 s (a DM call).
 const SOUND_BPS = 96_000
 const soundTracks = new WeakSet<MediaStreamTrack>()
 
@@ -95,10 +94,9 @@ function withSoundRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
 }
 
 // As soon as someone watches, Discord's quality manager sets the stream to about 600 kbps per megapixel at 30 fps
-// (2.2 Mbps for 1440p), and a scale for a viewer that shows it small. The stream stays at its quality whoever
-// watches (Liam, 2026-10-13: "We always want to stream the max quality, regardless of size of the viewer"); on a live
-// call (2026-10-11) the same stream ran at 7-9.6 Mbps with no loss once this was lifted. Discord's server still holds
-// the stream to the account's rate (its feedback keeps the bandwidth estimate at it).
+// (2.2 Mbps for 1440p), and a scale for a viewer that shows it small. The stream stays at its quality whoever watches;
+// on a live call the same stream ran at 7-9.6 Mbps with no loss once this was lifted. Discord's server still holds the
+// stream to the account's rate (its feedback keeps the bandwidth estimate at it).
 function withQuality(sender: RTCRtpSender, params: RTCRtpSendParameters) {
   const enc = params.encodings?.[0]
   const q = castSessionFor(sender.track)?.quality
@@ -178,14 +176,13 @@ function withStartBitrate(sdp: string): string {
   )
 }
 
-// The stream's bitrate (Liam, 2026-10-13: "Make the goLiveMaxBitrate permanent"). Discord's browser engine writes
-// x-google-max-bitrate=2500 into every connection's SDP (videoBitRate), and Chromium's own encoders (raw, the portal)
-// hold their target at it whatever the estimate allows (live: VP9 sent 2.5 Mbps at a 4.2 Mbps estimate). libwebrtc
-// seeds the send stream's max from the codec's x-google-max-bitrate when the stream is made, before the stream's track
-// is on the sender (WebRtcVideoSendChannel::AddSendStream); a later x-google-max-bitrate only moves the estimate's
-// ceiling, and only b=AS reaches the stream again (max_bandwidth_bps). So on the connection that sends the stream
-// both become the stream's bitrate; Discord's server still caps the estimate (its REMB), capture's encoder never
-// reads either.
+// The stream's bitrate. Discord's browser engine writes x-google-max-bitrate=2500 into every connection's SDP
+// (videoBitRate), and Chromium's own encoders (raw, the portal) hold their target at it whatever the estimate allows
+// (live: VP9 sent 2.5 Mbps at a 4.2 Mbps estimate). libwebrtc seeds the send stream's max from the codec's
+// x-google-max-bitrate when the stream is made, before the stream's track is on the sender
+// (WebRtcVideoSendChannel::AddSendStream); a later x-google-max-bitrate only moves the estimate's ceiling, and only
+// b=AS reaches the stream again (max_bandwidth_bps). So on the connection that sends the stream both become the
+// stream's bitrate; Discord's server still caps the estimate (its REMB), capture's encoder never reads either.
 function withMaxBitrate(sdp: string, kbps: number): string {
   return sdp
     .replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) => (Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match))

@@ -1,9 +1,9 @@
-// The stream log (Liam, 2026-10-14): one logfmt file per Go Live through capture, written and rotated by the main
-// process (main/streamLog.js). Every quarter second a tick: capture's numbers (its stats come every 250 ms: main/
-// cast.js) and the Go Live sender's (the estimate, what went out, what Discord's server reports back); events as they
-// happen: the rate controller's reasons (zeroCopy.ts), the capture method changing (cast.ts), capture's key frames
-// and large frames, going over the estimate or Discord's cap, viewers, the game. Numbers, enums, the game's name and
-// capture's own messages only: no ids, names, addresses or titles, so a log can be shared as it is.
+// The stream log: one logfmt file per Go Live through capture, written and rotated by the main process
+// (main/streamLog.js). Every quarter second a tick: capture's numbers (its stats come every 250 ms: main/cast.js) and
+// the Go Live sender's (the estimate, what went out, what Discord's server reports back); events as they happen: the
+// rate controller's reasons (zeroCopy.ts), the capture method changing (cast.ts), capture's key frames and large
+// frames, going over the estimate or Discord's cap, viewers, the game. Numbers, enums, the game's name and capture's
+// own messages only: no ids, names, addresses or titles, so a log can be shared as it is.
 
 import type { CastSession } from './cast'
 import { host } from './host'

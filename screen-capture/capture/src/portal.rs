@@ -1,4 +1,4 @@
-// The portal source (P4): any desktop's xdg ScreenCast portal through ashpd (CreateSession, SelectSources, Start,
+// The portal source: any desktop's xdg ScreenCast portal through ashpd (CreateSession, SelectSources, Start,
 // OpenPipeWireRemote). The portal shows its own picker, unless it accepts the restore token of an earlier cast; with
 // persist mode 2 it hands out a new token for the next one. The cast's node is on the PipeWire remote the portal opens
 // for us (an fd), not on the default one. The calls run once, at startup, under a blocking executor; zbus runs the

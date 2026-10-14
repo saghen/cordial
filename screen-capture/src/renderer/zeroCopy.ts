@@ -424,7 +424,7 @@ export function attachSwap(pc: RTCPeerConnection, sender: RTCRtpSender) {
 }
 
 export const isZeroCopy = (sender: RTCRtpSender) => swaps.get(sender)?.state === 'active'
-/** The swap's counters (lab/bench). */
+/** The swap's counters (for the lab's bench). */
 export const zeroCopyStats = (sender: RTCRtpSender) => swaps.get(sender)?.stats
 
 const sendCodec = (sender: RTCRtpSender) => sender.getParameters().codecs?.[0]?.mimeType?.toLowerCase()

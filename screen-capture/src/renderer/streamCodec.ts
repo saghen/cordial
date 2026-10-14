@@ -35,9 +35,8 @@ export function codecConnection(c: typeof connection) {
  * Discord's codec list for a connection, the preferred codec first (priority = index + 1). It's sent once, when the
  * connection connects. AV1 isn't in Discord's list; with AV1 preferred it's added.
  *
- * With AV1 preferred, Liam's order (2026-10-13): "AV1 (hardware) -> VP9 (hardware) -> VP9 (cpu) -> h264 (hardware) ->
- * h264 (cpu)". The sender's list picks the codec, and a receiver must list AV1 first to take it (LOG Key finds, "The
- * codec list is also what a client receives"). So:
+ * With AV1 preferred, the order is AV1 (hardware), VP9 (hardware), VP9 (CPU), H.264 (hardware), H.264 (CPU). The
+ * sender's list picks the codec, and a receiver must list AV1 first to take it. So:
  * - our own Go Live connection: AV1, VP9, H.264 when capture encodes AV1; else VP9, H.264, the rest, AV1 last
  *   (Chromium encodes AV1 on the CPU: WebRtcAV1HWEncode is off);
  * - every other connection (voice and camera, watching): AV1, VP9, H.264. The camera is AV1 on the CPU then; VP9 for

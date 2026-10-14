@@ -363,7 +363,7 @@ byCode('canStreamWithSettings', 'location:"canStreamWithSettings"')
 // views/user_panel.tsx), then the stream; ending your own stream, and watching and stopping others' (stop: STREAM_CLOSE, then STREAM_STOP, which
 // keeps Discord's core from watching it again in a call)
 mangled('goLive', '.getDesktopSource(', { start: 'getDesktopSource(' })
-// a server's initials where it has no icon ("Mini Time" MT, "Liam's Lab" LL)
+// a server's initials where it has no icon ("Mini Time" MT, "The Cat's Den" TCD)
 mangled('names', ".replace(/'s /g,\" \")", { acronym: ".replace(/'s /g" })
 mangled('streams', 'type:"STREAM_START"', {
   stopOwn: 'getCurrentUserActiveStream();null!=',

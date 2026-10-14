@@ -28,7 +28,7 @@ export function Chat(p: { root: HTMLElement }) {
   const loaded = createMemo(() => (channelId() ? messages.list(channelId()!) : null))
   const list = createMemo(() => (loaded()?.toArray() ?? []) as Record[])
   // the NEW line: where ReadStateStore puts it when the channel is opened (or first, while it's shown), then kept there
-  // until Escape, Mark As Read or Mark Unread (Liam). The store's own goes when you send, and moves to the first message
+  // until Escape, Mark As Read or Mark Unread. The store's own goes when you send, and moves to the first message
   // that arrives after the window was left
   const [unread, setUnread] = createSignal<Id | null>(null)
   createEffect(

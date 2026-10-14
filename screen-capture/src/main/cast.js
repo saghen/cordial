@@ -12,13 +12,13 @@
 // "capture": false in <userData>/config.json, Go Live is Chromium's own capture (the portal).
 //
 // The lab: $CORDIAL_CAPTURE_CLIP=FILE.i420:WxH offers that clip as the only source ("clip:0", capture --clip), no niri
-// needed (screen-capture/lab/golive.py). $CORDIAL_CAPTURE_AUDIO=TARGET takes the sound from capture's TARGET (pid=N...)
-// whatever the source. $CORDIAL_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture alone talks to that
-// bus (the lab portal of screen-capture/lab/castsrc.py --portal, never the desktop's).
+// needed. $CORDIAL_CAPTURE_AUDIO=TARGET takes the sound from capture's TARGET (pid=N...) whatever the source.
+// $CORDIAL_CAPTURE_PORTAL_BUS=ADDRESS offers only the portal, and capture alone talks to that bus (a lab portal on its
+// own bus, never the desktop's).
 //
 // getDisplayMedia (Chromium's own capture: Go Live without capture, and capture's fallback) gets the portal's source:
 // on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. The lab answers with the asking
-// frame itself, no portal (the lab sway's portal is backed by Liam's niri).
+// frame itself, no portal (the lab sway's portal would ask the desktop's compositor).
 //
 // IPC (shell/preload.js): invoke cordial:cast-available () -> boolean, cordial:cast-codecs () -> 'av1'[],
 // cordial:cast-sources () -> CastSource[],
@@ -33,10 +33,9 @@ const { startCapture } = require('./capture.js')
 const { loadFdsock, rawRelay } = require('./raw.js')
 require('./streamLog.js')
 
-// WebRTC paces video at 1.1 x the bandwidth target (1.0 for screen content), so a big frame (a switch to a new
-// screen of text) waits in the pacer: 80-160 ms live at 1.1, 54-94 at 2.5 (LOG Key finds, "A jump's pause is the
-// pacer"; Liam picked 2.5). Every video stream of the process, the camera too; set before app ready (the shell
-// requires this file at its top level).
+// WebRTC paces video at 1.1 x the bandwidth target (1.0 for screen content), so a big frame (a switch to a new screen
+// of text) waits in the pacer: 80-160 ms live at 1.1, 54-94 at 2.5. Every video stream of the process, the camera too;
+// set before app ready (the shell requires this file at its top level).
 app.commandLine.appendSwitch(
   'force-fieldtrials',
   'WebRTC-Video-Pacing/factor:2.5/WebRTC-ProbingScreenshareBwe/2.5,2875,80,40,-60,3/',

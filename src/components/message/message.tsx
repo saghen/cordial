@@ -79,8 +79,7 @@ export function Message(p: {
         collapsed: p.collapsed,
         gone: p.gone,
       }}
-      // the hover time in the gutter: none on an author line, a call's line or a message without text (an image alone,
-      // Liam)
+      // the hover time in the gutter: none on an author line, a call's line or a message without text (an image alone)
       data-t={p.head || m.type === MessageType.Call || !hasText ? undefined : clock(m.timestamp)}
     >
       <Show when={p.day || p.isNew}>

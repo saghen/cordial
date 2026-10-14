@@ -122,7 +122,7 @@ fn opts() -> Opts {
         device: "auto".into(),
         kbps: 6000,
         refs: 2,
-        // (a floor of 10 let still content's scene cut cost half a second of bitrate: LOG; Liam picked 50)
+        // (a floor of 10 let still content's scene cut cost half a second of bitrate)
         min_qindex: 50,
         drop_ms: 300.0,
         stats_ms: 1000.0,

@@ -1,7 +1,7 @@
-// The stream log, main side (Liam, 2026-10-14): one logfmt file per Go Live in $XDG_STATE_HOME/cordial/streams
-// (~/.local/state/cordial/streams), its lines composed by the renderer (src/renderer/streamLog.ts). The last 10
-// streams within 10 MB are kept (the newest whatever its size); a finished file is compressed with zstd if it's on
-// PATH (one left open by a crash or a quit, at the next stream's start). Past 10 MB a stream keeps one tick in four.
+// The stream log, main side: one logfmt file per Go Live in $XDG_STATE_HOME/cordial/streams
+// (~/.local/state/cordial/streams), its lines composed by the renderer (src/renderer/streamLog.ts). The last 10 streams
+// within 10 MB are kept (the newest whatever its size); a finished file is compressed with zstd if it's on PATH (one
+// left open by a crash or a quit, at the next stream's start). Past 10 MB a stream keeps one tick in four.
 //
 // IPC (shell/preload.js): send cordial:stream-log ('open', firstLine) | ('line', text) | ('close')
 
@@ -30,7 +30,7 @@ function open(first) {
   fs.mkdirSync(dir, { recursive: true })
   // (any .log left is a stream that never closed)
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.log')) compress(path.join(dir, f))
-  // (local time: 2026-10-14T02-12-03)
+  // (local time, e.g. 2026-10-14T02-12-03)
   const d = new Date()
   const name = new Date(d.getTime() - d.getTimezoneOffset() * 60e3).toISOString().slice(0, 19).replaceAll(':', '-')
   const p = path.join(dir, `${name}.log`)
