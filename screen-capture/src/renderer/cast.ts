@@ -129,6 +129,8 @@ export class CastSession {
   resume: (() => void) | null = null
   /** what capture encodes (zeroCopy.ts sets it from the negotiated codec, setCodec) */
   codec: 'av1' | 'h264' = 'av1'
+  /** the stream's negotiated codec (its mime type), when zeroCopy.ts falls back because capture can't send it */
+  sentCodec: string | null = null
   private decoderCodec: 'av1' | 'h264' = 'av1'
   /** the preview decoder's configuration for the codec: undefined while probing, null when there's none */
   private decoderConfig: VideoDecoderConfig | null | undefined
@@ -462,8 +464,8 @@ export class CastSession {
     await track
       .applyConstraints({
         frameRate: { ideal: fps, max: fps },
-        width: { max: this.quality.gpuOnly ? 1920 : this.quality.width },
-        height: { max: this.quality.gpuOnly ? 1080 : this.quality.height },
+        width: { max: Math.round((this.quality.width * this.chromiumHeight()) / this.quality.height) },
+        height: { max: this.chromiumHeight() },
       })
       .catch((e) => logger.error('Fallback constraints failed', e))
     this.fallbackTrack = track
@@ -511,8 +513,8 @@ export class CastSession {
       rawWaiter = resolve
       this.rawFailed = () => resolve(null)
       setTimeout(() => resolve(null), RAW_TIMEOUT_MS)
-      // (1440p30 is for capture's AV1: Chromium's encoders get 1080p, streamQuality.ts GPU_AV1)
-      if (this.quality.gpuOnly) this.send({ type: 'height', height: 1080 })
+      const height = this.chromiumHeight()
+      if (height < this.quality.height) this.send({ type: 'height', height })
       this.send({ type: 'raw' })
     })
     rawWaiter = null
@@ -559,6 +561,17 @@ export class CastSession {
     } else this.warmedUp = true
     this.show(frame.clone())
     return this.writer.write(frame).catch(() => frame.close())
+  }
+
+  /**
+   * The height Chromium's encoders get: 1080p for GPU_AV1's 1440p30 (streamQuality.ts: 1440p30 is for capture's AV1),
+   * and for a codec other than AV1 above 1080p, which the motion scaler sends at 1080p anyway (so capture scales,
+   * not WebRTC on the CPU; "clarity" keeps the full size)
+   */
+  private chromiumHeight() {
+    const q = this.quality
+    const notAv1 = !!this.sentCodec && this.sentCodec.toLowerCase() !== 'video/av1' && this.pick.priority !== 'clarity'
+    return q.height > 1080 && (q.gpuOnly || notAv1) ? 1080 : q.height
   }
 
   /** Ends the stream: capture stops, the track ends (Discord ends the stream). */

@@ -623,6 +623,7 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   const codec = swapCodec(sender)
   if (!codec || !captureEncodes(codec)) {
     active.delete(sender)
+    session.sentCodec = sendCodec(sender) ?? null
     return session.fallback(
       codec
         ? `the stream is ${CODEC_NAMES[codec]}, which capture can't encode on this GPU`
@@ -651,7 +652,10 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
       return
     }
     const now = swapCodec(sender)
-    if (!now || !captureEncodes(now)) return session.fallback(`the codec is now ${sendCodec(sender)}`)
+    if (!now || !captureEncodes(now)) {
+      session.sentCodec = sendCodec(sender) ?? null
+      return session.fallback(`the codec is now ${sendCodec(sender)}`)
+    }
     swap.setCodec(now)
     try {
       // capture's target (targetRate.ts): WebRTC's bandwidth estimate under Discord's cap, except where the
