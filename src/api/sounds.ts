@@ -31,7 +31,7 @@ const SMALL = 25
 // Activities
 function sound<T>(stores: FluxStore[], state: () => T, pick: (prev: T, next: T) => string | void) {
   let prev = state()
-  const check = () => {
+  function check() {
     const next = state()
     const name = pick(prev, next)
     prev = next

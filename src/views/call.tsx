@@ -47,19 +47,19 @@ export function CallView() {
   // top bar; it hides as the pointer leaves both
   const over = (target: EventTarget | null) =>
     target instanceof Element && Boolean(target.closest('#cordial-root > :is(header, section.call)'))
-  const sleep = () => {
+  function sleep() {
     clearTimeout(timer)
     if (!section?.parentElement?.querySelector(':scope > header:hover, :scope > section.call > .call-bar:hover'))
       setAwake(false)
     else timer = setTimeout(sleep, IDLE)
   }
-  const wake = () => {
+  function wake() {
     setAwake(true)
     clearTimeout(timer)
     timer = setTimeout(sleep, IDLE)
   }
   const move = (e: PointerEvent) => over(e.target) && wake()
-  const out = (e: PointerEvent) => {
+  function out(e: PointerEvent) {
     if (!over(e.target) || over(e.relatedTarget)) return
     clearTimeout(timer)
     setAwake(false)
@@ -67,7 +67,7 @@ export function CallView() {
   document.addEventListener('pointermove', move)
   document.addEventListener('pointerout', out)
   // Electron leaves full screen on Escape only when the page asks
-  const escape = (e: KeyboardEvent) => {
+  function escape(e: KeyboardEvent) {
     if (e.key !== 'Escape' || !full()) return
     e.preventDefault()
     document.exitFullscreen()
@@ -95,7 +95,7 @@ export function CallView() {
           !states().length ||
           (!guildId() && !states().some((state) => state.selfStream || streams.videoOf(state.userId, null)))
         const watched = () => others().filter((state) => state.selfStream && streams.watching(state.userId, guildId()))
-        const focus = () => {
+        function focus() {
           const tile = focused()
           const id = tile?.replace('stream:', '')
           return states().some((state) => state.userId === id && (state.selfStream || tile === id)) ? tile : null

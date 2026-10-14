@@ -37,7 +37,7 @@ export const failed = (channel: Channel) => Boolean($.Search.getError(searchId(c
 export const results = (channel: Channel) => ($.Search.getMessages(searchId(channel)) ?? []) as Message[]
 
 // the field's placeholder: "Search {server}" in a server
-export const placeholder = (channel: Channel) => {
+export function placeholder(channel: Channel) {
   const guild = channel.guild_id && guilds.get(channel.guild_id)
   return guild ? text('SEARCH_IN', { name: guild.name }) : text('SEARCH')
 }

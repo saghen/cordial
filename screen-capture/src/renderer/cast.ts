@@ -454,7 +454,7 @@ export class CastSession {
 // The sender gets the encoder track wherever Discord puts its track (or a clone of it) on a connection. Discord's
 // clones are Discord's track.
 const clones = new WeakMap<MediaStreamTrack, CastSession>()
-const displayed = (track: MediaStreamTrack | null | undefined) => {
+function displayed(track: MediaStreamTrack | null | undefined) {
   const session = track && (sessions.get(track) ?? clones.get(track))
   return session && track !== session.encoder ? session : undefined
 }

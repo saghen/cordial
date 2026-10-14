@@ -17,7 +17,7 @@ export function LazyChunks<T>(p: {
     Array.from({ length: Math.ceil(p.items.length / size()) }, (_, i) => p.items.slice(i * size(), (i + 1) * size()))
   const near = new Map<Element, () => void>()
   let seeing: IntersectionObserver | undefined
-  const watch = (element: Element, show: () => void) => {
+  function watch(element: Element, show: () => void) {
     seeing ??= new IntersectionObserver(
       (entries, observer) => {
         for (const entry of entries) {

@@ -71,9 +71,12 @@ export interface RateSample {
 const ceilingOf = (bwe: number | undefined, cap: number) => RATE.HEADROOM * Math.min(bwe ?? cap, cap)
 const floor = (bps: number) => Math.max(RATE.MIN_BPS, bps)
 
-export function initialTarget(bps: number): RateState {
-  return { target: floor(bps), reason: 'start', lowSince: null, busy: [] }
-}
+export const initialTarget = (bps: number): RateState => ({
+  target: floor(bps),
+  reason: 'start',
+  lowSince: null,
+  busy: [],
+})
 
 /** Once a second, with the sender's stats. */
 export function updateTarget(state: RateState, sample: RateSample): RateState {

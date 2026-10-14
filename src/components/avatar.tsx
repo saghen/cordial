@@ -5,16 +5,18 @@ import type { Id, User } from '../api/types'
 import * as users from '../api/users'
 import { Status } from '../primitives/status'
 
-export const Avatar = (p: {
+export function Avatar(p: {
   user?: User
   src?: string
   guildId?: Id | null
   size: number
   status?: string
   speaking?: boolean
-}) => (
-  <span class={['avatar', { speaking: Boolean(p.speaking) }]} style={{ '--size': `${p.size}px` }}>
-    <img src={p.src ?? users.avatar(p.user!, p.guildId, p.size)} alt="" />
-    {p.status && <Status kind={p.status} />}
-  </span>
-)
+}) {
+  return (
+    <span class={['avatar', { speaking: Boolean(p.speaking) }]} style={{ '--size': `${p.size}px` }}>
+      <img src={p.src ?? users.avatar(p.user!, p.guildId, p.size)} alt="" />
+      {p.status && <Status kind={p.status} />}
+    </span>
+  )
+}

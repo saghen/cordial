@@ -175,12 +175,11 @@ const START_MAX_KBPS = 6000
 /** The rate a stream starts at under a max of `maxKbps` (the SDP's, and capture's first target). */
 export const startKbps = (maxKbps: number) => Math.min(START_MAX_KBPS, Math.round(maxKbps * START_FRACTION))
 
-function withStartBitrate(sdp: string): string {
-  return sdp.replace(
+const withStartBitrate = (sdp: string): string =>
+  sdp.replace(
     /x-google-max-bitrate=(\d+)(?![^\r\n]*x-google-start-bitrate)/g,
     (match, max: string) => `${match};x-google-start-bitrate=${startKbps(Number(max))}`,
   )
-}
 
 // The stream's bitrate. Discord's browser engine writes x-google-max-bitrate=2500 into every connection's SDP
 // (videoBitRate), and Chromium's own encoders (raw, the portal) hold their target at it whatever the estimate allows
@@ -189,8 +188,8 @@ function withStartBitrate(sdp: string): string {
 // (WebRtcVideoSendChannel::AddSendStream); a later x-google-max-bitrate only moves the estimate's ceiling, and only
 // b=AS reaches the stream again (max_bandwidth_bps). So on the connection that sends the stream both become the
 // stream's bitrate; Discord's server still caps the estimate (its REMB), capture's encoder never reads either.
-function withMaxBitrate(sdp: string, kbps: number): string {
-  return sdp
+const withMaxBitrate = (sdp: string, kbps: number): string =>
+  sdp
     .replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) =>
       Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match,
     )
@@ -201,7 +200,6 @@ function withMaxBitrate(sdp: string, kbps: number): string {
         : section,
     )
     .join('')
-}
 
 const originalSetRemoteDescription = RTCPeerConnection.prototype.setRemoteDescription
 RTCPeerConnection.prototype.setRemoteDescription = function (

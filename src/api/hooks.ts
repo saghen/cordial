@@ -30,7 +30,7 @@ export function useNow(until: () => number) {
 // files dropped anywhere on the window (left to the browser, a drop would navigate to the file)
 export function useFileDrop(onDrop: (files: File[]) => void) {
   const over = (e: DragEvent) => e.dataTransfer?.types.includes('Files') && e.preventDefault()
-  const drop = (e: DragEvent) => {
+  function drop(e: DragEvent) {
     if (!e.dataTransfer?.files.length) return
     e.preventDefault()
     onDrop([...e.dataTransfer.files])

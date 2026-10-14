@@ -38,7 +38,7 @@ export interface Incoming {
 export const incoming = () => $.IncomingCall.getIncomingCalls() as Incoming[]
 export const caller = (call: Incoming) => users.get(call.senderId)
 // Accept joins and opens the DM; Decline stops the ringing
-export const accept = (call: Incoming) => {
+export function accept(call: Incoming) {
   voice.join(call.channel)
   channels.open(call.channel)
 }

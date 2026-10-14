@@ -2,6 +2,6 @@
 
 import type { JSX } from '@solidjs/web'
 
-export const Badge = (p: { kind: 'count' | 'live' | 'app' | 'new'; children: JSX.Element }) => (
-  <i class={['badge', p.kind]}>{p.children}</i>
-)
+export function Badge(p: { kind: 'count' | 'live' | 'app' | 'new'; children: JSX.Element }) {
+  return <i class={['badge', p.kind]}>{p.children}</i>
+}

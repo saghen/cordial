@@ -24,9 +24,11 @@ function Chip(p: { message: Message; reaction: Reaction }) {
   )
 }
 
-export const Reactions = (p: { message: Message; onAdd(e: MouseEvent): void }) => (
-  <p class="reactions">
-    <For each={p.message.reactions}>{(reaction) => <Chip message={p.message} reaction={reaction} />}</For>
-    <IconButton class="reaction-add" icon="reaction" title="Add Reaction" onClick={p.onAdd} />
-  </p>
-)
+export function Reactions(p: { message: Message; onAdd(e: MouseEvent): void }) {
+  return (
+    <p class="reactions">
+      <For each={p.message.reactions}>{(reaction) => <Chip message={p.message} reaction={reaction} />}</For>
+      <IconButton class="reaction-add" icon="reaction" title="Add Reaction" onClick={p.onAdd} />
+    </p>
+  )
+}

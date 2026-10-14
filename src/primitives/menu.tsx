@@ -73,7 +73,7 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
 // a context menu at the pointer, above it or to its left where it wouldn't fit
 function popAt(menu: HTMLElement, e: MouseEvent) {
   e.preventDefault()
-  const show = () => {
+  function show() {
     menu.showPopover()
     const { width, height } = menu.getBoundingClientRect()
     Object.assign(menu.style, {
@@ -95,7 +95,7 @@ export function contextMenu<T>(p: {
 }) {
   const [target, setTarget] = createSignal<T>()
   let menu!: HTMLMenuElement
-  const show = (e: MouseEvent, value: T) => {
+  function show(e: MouseEvent, value: T) {
     setTarget(() => value)
     // rendered before popAt measures it
     flush()

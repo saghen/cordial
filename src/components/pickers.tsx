@@ -28,23 +28,25 @@ const rail =
   }
 
 // the footer: the item's image, its name, where it's from
-const Named = (p: { image?: JSX.Element; name: string; from?: string }) => (
-  <>
-    {p.image}
-    <b>{p.name}</b>
-    <small>{p.from}</small>
-  </>
-)
+function Named(p: { image?: JSX.Element; name: string; from?: string }) {
+  return (
+    <>
+      {p.image}
+      <b>{p.name}</b>
+      <small>{p.from}</small>
+    </>
+  )
+}
 
 export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => Channel | undefined }) {
   const [query, setQuery] = createSignal('')
   let menu!: HTMLElement
-  const all = () => {
+  function all() {
     const channel = p.channel()
     return channel ? pickers.emojiSections(channel) : []
   }
   const found = () => pickers.searchEmoji(p.channel()!, query())
-  const pick = (emoji: EmojiRecord) => {
+  function pick(emoji: EmojiRecord) {
     const box = p.box()
     // a space before it when it would join a word
     const before = box.value.slice(0, box.selectionStart)
@@ -123,16 +125,16 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
   // the open tile's name and stock's kind of result: Search, Category (a trending category's search), Trending
   const [view, setView] = createSignal<{ name: string; kind: string }>()
   let menu!: HTMLMenuElement
-  const items = () => {
+  function items() {
     if (view()?.kind === 'Favorites') return pickers.favoriteGifs()
     return query() || view() ? pickers.gifResults() : []
   }
-  const pick = (gif: Gif, index: number) => {
+  function pick(gif: Gif, index: number) {
     pickers.selectGif(gif, index, items(), view()?.kind ?? 'Search', query() || view()?.name)
     p.send(gif.url)
     menu.hidePopover()
   }
-  const back = () => {
+  function back() {
     setView(undefined)
     setQuery('')
     pickers.clearGifs()
@@ -231,12 +233,12 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
 export function StickerPicker(p: { channel: () => Channel | undefined; send: (stickerId: string) => void }) {
   const [query, setQuery] = createSignal('')
   let menu!: HTMLElement
-  const all = () => {
+  function all() {
     const channel = p.channel()
     return channel ? pickers.stickerSections(channel) : []
   }
   // a Lottie sticker by its name, as the chat shows one
-  const image = (sticker: Sticker) => {
+  function image(sticker: Sticker) {
     const src = pickers.stickerSrc(sticker)
     return src ? <img alt={sticker.name} src={src} loading="lazy" /> : sticker.name
   }

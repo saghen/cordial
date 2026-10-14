@@ -80,7 +80,7 @@ function startCapture(binary, args, onMessage, env, fdsock) {
   }
   let buffered = Buffer.alloc(0)
   let last = Date.now()
-  const close = (why) => {
+  function close(why) {
     if (closed) return
     closed = true
     clearInterval(watchdog)
@@ -143,10 +143,10 @@ function startCapture(binary, args, onMessage, env, fdsock) {
   child.stdin.on('error', () => {})
   return {
     pid: child.pid,
-    send: (command) => {
+    send(command) {
       if (!closed) child.stdin.write(commandLine(command) + '\n')
     },
-    kill: () => {
+    kill() {
       if (child.exitCode == null) child.kill('SIGTERM')
     },
   }

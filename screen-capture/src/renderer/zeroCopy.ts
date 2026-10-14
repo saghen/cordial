@@ -430,7 +430,7 @@ export function attachSwap(peer: RTCPeerConnection, sender: RTCRtpSender) {
   })().catch((e) => logger.error('Encoded frame relay failed', e))
   claims.set(sender, () => ({
     readable: new ReadableStream({
-      start: (controller) => {
+      start(controller) {
         sink.discord = controller
       },
     }),
@@ -451,14 +451,14 @@ const sendCodec = (sender: RTCRtpSender) => sender.getParameters().codecs?.[0]?.
  */
 async function negotiated(sender: RTCRtpSender) {
   const peer = senderPeers.get(sender)
-  const sending = () => {
+  function sending() {
     const direction = peer?.getTransceivers().find((transceiver) => transceiver.sender === sender)?.currentDirection
     return Boolean(sendCodec(sender)) && (!peer || direction === 'sendonly' || direction === 'sendrecv')
   }
   const until = performance.now() + NEGOTIATE_TIMEOUT_MS
   while (!sending() && performance.now() < until)
     await new Promise<void>((resolve) => {
-      const done = () => {
+      function done() {
         clearTimeout(timer)
         peer?.removeEventListener('signalingstatechange', done)
         resolve()

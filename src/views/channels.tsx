@@ -59,17 +59,19 @@ function TextChannel(p: { channel: Channel }) {
 }
 
 // a category: its name and a chevron; a click collapses or expands it
-const Category = (p: { channel: Channel }) => (
-  <Row
-    name="category"
-    data-id={p.channel.id}
-    class={{ collapsed: channels.collapsed(p.channel) }}
-    end={<Icon name="chevron" />}
-    onClick={() => channels.toggleCollapsed(p.channel)}
-  >
-    {p.channel.name}
-  </Row>
-)
+function Category(p: { channel: Channel }) {
+  return (
+    <Row
+      name="category"
+      data-id={p.channel.id}
+      class={{ collapsed: channels.collapsed(p.channel) }}
+      end={<Icon name="chevron" />}
+      onClick={() => channels.toggleCollapsed(p.channel)}
+    >
+      {p.channel.name}
+    </Row>
+  )
+}
 
 // a voice channel: its status under its name, how long the call has gone on at its end; who's in it under it
 function VoiceChannel(p: { channel: Channel }) {
@@ -157,14 +159,14 @@ export function Channels() {
 }
 
 // a right click on a channel or a category: stock's Mark As Read, Mute, Copy Link and Copy Channel ID
-function channelMenu() {
-  return contextMenu({
+const channelMenu = () =>
+  contextMenu({
     class: 'channel-menu',
     find(e) {
       const row = (e.target as Element).closest<HTMLElement>('nav > .channel, nav > .category')
       return row && channels.get(row.dataset.id!)
     },
-    children: (channel) => {
+    children(channel) {
       const category = channel().type === ChannelType.Category
       const muted = () => channels.muted(channel())
       return (
@@ -196,7 +198,6 @@ function channelMenu() {
       )
     },
   })
-}
 
 function muteLabel(category: boolean, muted: boolean) {
   if (category) return muted ? 'UNMUTE_CATEGORY' : 'MUTE_CATEGORY'

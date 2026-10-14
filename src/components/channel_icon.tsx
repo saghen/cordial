@@ -8,7 +8,7 @@ import { Icon } from '../primitives/icon'
 const TEXT_ICONS = { news: 'announce', nsfw: 'hash-nsfw', lock: 'hash-lock' } as const
 
 export function ChannelIcon(p: { channel: Channel }) {
-  const name = () => {
+  function name() {
     const kind = channels.kindOf(p.channel)
     if (p.channel.type === ChannelType.Voice) return kind === 'lock' ? 'voice-lock' : 'voice'
     return kind ? TEXT_ICONS[kind] : 'hash'

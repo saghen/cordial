@@ -38,7 +38,7 @@ export function Select<T extends string>(p: {
 }
 
 // onInput as it's dragged, onChange once it's let go
-export const Range = (p: {
+export function Range(p: {
   label: JSX.Element
   min?: number
   max: number
@@ -46,44 +46,50 @@ export const Range = (p: {
   disabled?: boolean
   onInput?(value: number): void
   onChange?(value: number): void
-}) => (
-  <label class="field">
-    <span>{p.label}</span>
-    <input
-      type="range"
-      min={p.min ?? 0}
-      max={p.max}
-      value={p.value}
-      disabled={p.disabled}
-      onInput={(e) => p.onInput?.(+e.currentTarget.value)}
-      onChange={(e) => p.onChange?.(+e.currentTarget.value)}
-    />
-  </label>
-)
+}) {
+  return (
+    <label class="field">
+      <span>{p.label}</span>
+      <input
+        type="range"
+        min={p.min ?? 0}
+        max={p.max}
+        value={p.value}
+        disabled={p.disabled}
+        onInput={(e) => p.onInput?.(+e.currentTarget.value)}
+        onChange={(e) => p.onChange?.(+e.currentTarget.value)}
+      />
+    </label>
+  )
+}
 
-export const Check = (p: { label: JSX.Element; checked: boolean; onChange(on: boolean): void }) => (
-  <label class="check">
-    <input type="checkbox" checked={p.checked} onChange={(e) => p.onChange(e.currentTarget.checked)} />
-    {p.label}
-  </label>
-)
+export function Check(p: { label: JSX.Element; checked: boolean; onChange(on: boolean): void }) {
+  return (
+    <label class="check">
+      <input type="checkbox" checked={p.checked} onChange={(e) => p.onChange(e.currentTarget.checked)} />
+      {p.label}
+    </label>
+  )
+}
 
-export const Radios = <T extends string>(p: {
+export function Radios<T extends string>(p: {
   label: JSX.Element
   name: string
   options: readonly (readonly [T, JSX.Element])[]
   value: T
   onChange(value: T): void
-}) => (
-  <fieldset class="field">
-    <legend>{p.label}</legend>
-    <For each={p.options}>
-      {([value, label]) => (
-        <label class="check">
-          <input type="radio" name={p.name} checked={value === p.value} onChange={() => p.onChange(value)} />
-          {label}
-        </label>
-      )}
-    </For>
-  </fieldset>
-)
+}) {
+  return (
+    <fieldset class="field">
+      <legend>{p.label}</legend>
+      <For each={p.options}>
+        {([value, label]) => (
+          <label class="check">
+            <input type="radio" name={p.name} checked={value === p.value} onChange={() => p.onChange(value)} />
+            {label}
+          </label>
+        )}
+      </For>
+    </fieldset>
+  )
+}

@@ -88,8 +88,8 @@ export const dayOf = (prev: Message | undefined, message: Message) =>
 export const authorGuild = (message: Message, guildId: Id | null | undefined) => (message.webhookId ? null : guildId)
 
 // message content as Discord's markdown AST (what its React output is built from), with message-content options
-export function contentAST(message: Pick<Message, 'id' | 'content'>, channelId: Id) {
-  return A.markdown.parseToAST(message.content, true, {
+export const contentAST = (message: Pick<Message, 'id' | 'content'>, channelId: Id) =>
+  A.markdown.parseToAST(message.content, true, {
     channelId,
     messageId: message.id,
     allowLinks: true,
@@ -97,7 +97,6 @@ export function contentAST(message: Pick<Message, 'id' | 'content'>, channelId: 
     allowList: true,
     allowEmojiLinks: true,
   }) as MarkdownNode[]
-}
 // an embed's text: links and lists
 export const embedAST = (text: string) =>
   A.markdown.parseToAST(text, true, { allowLinks: true, allowList: true }) as MarkdownNode[]

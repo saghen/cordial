@@ -24,7 +24,7 @@ const DEFAULT_ZOOM = 1.5
 // <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none);
 // { "keybinds": { "Ctrl+Shift+M": "TOGGLE_MUTE", ... } } are global shortcuts (read at start): TOGGLE_MUTE,
 // TOGGLE_DEAFEN, PUSH_TO_TALK
-const config = () => {
+function config() {
   try {
     return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8'))
   } catch {
@@ -110,7 +110,7 @@ ipcMain.on('cordial:games', (e, list) => {
 
 // discord:// links, handed to us by the desktop (the package's desktop entry; nothing here registers the scheme): their
 // path on discord.com, discord://-/channels/1/2 is /channels/1/2. A second launch passes its link to this one and quits
-const linkPath = (argv) => {
+function linkPath(argv) {
   const link = argv.find((arg) => arg.startsWith('discord:'))
   return link ? new URL(link).pathname.replace(/^\/*/, '/') : undefined
 }

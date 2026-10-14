@@ -3,7 +3,7 @@
 import * as guilds from '../api/guilds'
 import type { Guild } from '../api/types'
 
-export const GuildIcon = (p: { guild: Pick<Guild, 'id' | 'name' | 'icon'>; size: number }) => {
+export function GuildIcon(p: { guild: Pick<Guild, 'id' | 'name' | 'icon'>; size: number }) {
   const src = () => guilds.icon(p.guild, p.size)
   return (
     <span class="guild-icon" style={{ '--size': `${p.size}px` }}>

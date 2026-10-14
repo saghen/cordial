@@ -34,17 +34,19 @@ export function Attachment(p: { file: AttachmentRecord }) {
 
 type StickerItem = NonNullable<Message['stickerItems']>[number]
 
-export const Sticker = (p: { sticker: StickerItem }) => (
-  <Show when={pickers.stickerSrc(p.sticker)} fallback={<i class="sticker">{p.sticker.name}</i>}>
-    {(src) => (
-      <img
-        class="sticker"
-        alt={p.sticker.name}
-        title={p.sticker.name}
-        width={STICKER_SIZE}
-        height={STICKER_SIZE}
-        src={src()}
-      />
-    )}
-  </Show>
-)
+export function Sticker(p: { sticker: StickerItem }) {
+  return (
+    <Show when={pickers.stickerSrc(p.sticker)} fallback={<i class="sticker">{p.sticker.name}</i>}>
+      {(src) => (
+        <img
+          class="sticker"
+          alt={p.sticker.name}
+          title={p.sticker.name}
+          width={STICKER_SIZE}
+          height={STICKER_SIZE}
+          src={src()}
+        />
+      )}
+    </Show>
+  )
+}

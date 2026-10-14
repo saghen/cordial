@@ -9,7 +9,7 @@ import type { Id, AnyRecord } from '../adapter/discord'
 import { Permission, type Channel } from './types'
 import { can } from './users'
 
-export const preload = (id?: Id | null) => {
+export function preload(id?: Id | null) {
   if (!id || !S.Channel.getChannel(id)) return
   const loaded = S.Message.getMessages(id)
   if ((!loaded.ready || loaded.cached) && !loaded.loadingMore)
@@ -22,7 +22,7 @@ const HOVER_MS = 100
 export function onHover(channel: () => Id | null | undefined) {
   let timer = 0
   return {
-    onPointerEnter: () => {
+    onPointerEnter() {
       timer = setTimeout(() => preload(channel()), HOVER_MS)
     },
     onPointerLeave: () => clearTimeout(timer),
@@ -37,7 +37,7 @@ const readable = (channel: AnyRecord) =>
 // once per load, after the first connection, one channel at a time
 export function preloadChannels() {
   const count = G.config?.warm ?? 5
-  const start = async () => {
+  async function start() {
     await A.frecencySettings.loadIfNecessary().catch(() => {})
     const top = S.Frecency.getFrequentlyWithoutFetchingLatest().filter(readable).slice(0, count)
     top.forEach((channel, i) => setTimeout(() => preload(channel.id), 1000 + i * 300))

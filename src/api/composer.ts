@@ -84,13 +84,13 @@ export function useComposer(channelId: () => Id | null) {
   // as stock: the draft saves at most every 500 ms while it changes (first and last change included), and on a switch
   let last = 0
   let timer: ReturnType<typeof setTimeout> | undefined
-  const save = (id: Id) => {
+  function save(id: Id) {
     clearTimeout(timer)
     timer = undefined
     last = Date.now()
     A.drafts.saveDraft(id, S.Draft.getDraft(id, 0), 0)
   }
-  const saveSoon = (id: Id) => {
+  function saveSoon(id: Id) {
     const wait = last + 500 - Date.now()
     if (wait <= 0) save(id)
     else timer ??= setTimeout(() => save(id), wait)

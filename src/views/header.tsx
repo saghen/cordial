@@ -25,7 +25,7 @@ import { CallButtons } from './call'
 import { MembersToggle } from './members'
 
 export function Header() {
-  const title = () => {
+  function title() {
     const guildId = selectedGuild()
     return guildId ? guilds.get(guildId)?.name : text('DIRECT_MESSAGES')
   }
@@ -156,7 +156,7 @@ function Pins(p: { channel: Channel }) {
   const id = () => p.channel.id
   const pins = () => messages.pins(id())
   const items = () => pins()?.items ?? []
-  const none = () => {
+  function none() {
     const pinned = pins()
     return pinned && pinned.state !== 'LOADING' && !pinned.items.length
   }
@@ -205,7 +205,7 @@ function Search(p: { channel: Channel }) {
   const [offset, setOffset] = createSignal(0)
   let popover!: HTMLDivElement
   let query = ''
-  const run = (at: number) => {
+  function run(at: number) {
     setOffset(at)
     search.run(channel(), query, at)
     popover.showPopover()

@@ -39,7 +39,7 @@ export function Composer() {
     },
   )
 
-  const key = (e: KeyboardEvent) => {
+  function key(e: KeyboardEvent) {
     if (complete.key(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -47,7 +47,7 @@ export function Composer() {
     } else if (e.key === 'ArrowUp' && !box!.value && !state.editing() && state.editLast(id())) e.preventDefault()
   }
   // pasted files (a screenshot, a copied image) join the uploads, as + does
-  const paste = (e: ClipboardEvent) => {
+  function paste(e: ClipboardEvent) {
     const pasted = [...(e.clipboardData?.files ?? [])]
     if (!pasted.length || !state.open()) return
     e.preventDefault()
@@ -233,7 +233,7 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
   })
 
   // after each input: the token the caret ends
-  const update = () => {
+  function update() {
     const textarea = box()
     const match = TOKEN.exec(textarea.value.slice(0, textarea.selectionStart))
     setToken(match ? { kind: match[1], query: match[2], at: textarea.selectionStart - match[2].length - 1 } : null)
@@ -248,7 +248,7 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
     },
   )
 
-  const pick = (item: Item) => {
+  function pick(item: Item) {
     const textarea = box()
     textarea.setRangeText(`${item.text} `, token()!.at, textarea.selectionStart, 'end')
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
@@ -256,7 +256,7 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
   }
 
   // true when the key was the list's
-  const key = (e: KeyboardEvent) => {
+  function key(e: KeyboardEvent) {
     const count = list().length
     if (!count || !menu.matches(':popover-open')) return false
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp')

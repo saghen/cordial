@@ -15,16 +15,18 @@ import { Name } from '../name'
 import { Time } from '../time'
 
 // the avatar in the gutter, the name and the time beside it (and what a card adds: a search result's channel)
-export const Head = (p: { message: Message; guildId?: Id | null; children?: JSX.Element }) => (
-  <>
-    <Avatar user={p.message.author} guildId={p.guildId} size={40} />
-    <header>
-      <Name user={p.message.author} guildId={messages.authorGuild(p.message, p.guildId)} />
-      <Time at={p.message.timestamp} />
-      {p.children}
-    </header>
-  </>
-)
+export function Head(p: { message: Message; guildId?: Id | null; children?: JSX.Element }) {
+  return (
+    <>
+      <Avatar user={p.message.author} guildId={p.guildId} size={40} />
+      <header>
+        <Name user={p.message.author} guildId={messages.authorGuild(p.message, p.guildId)} />
+        <Time at={p.message.timestamp} />
+        {p.children}
+      </header>
+    </>
+  )
+}
 
 // a jump's target flashed, as stock
 export const flash = (row: Element) => row.animate([{ background: 'var(--mention-bg)' }, {}], { duration: 2000 })

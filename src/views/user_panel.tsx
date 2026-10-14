@@ -27,13 +27,15 @@ import { Popout } from '../primitives/popout'
 import { SearchInput } from '../primitives/search'
 import { Sections } from '../primitives/sections'
 
-export const UserPanel = () => (
-  <>
-    <VoicePanel />
-    <Account />
-    <AudioButtons />
-  </>
-)
+export function UserPanel() {
+  return (
+    <>
+      <VoicePanel />
+      <Account />
+      <AudioButtons />
+    </>
+  )
+}
 
 // the account, with what you're doing (or your status) under your name; its popout picks the status
 function Account() {
@@ -258,7 +260,7 @@ function AudioButtons() {
     class: 'devices',
     // the output's devices from deafen, the input's from mute
     find: (e) => ((e.target as Element).closest('.self-deafen') ? 'output' : 'input'),
-    children: (kind) => {
+    children(kind) {
       const output = () => kind() === 'output'
       return (
         <Items
@@ -336,7 +338,7 @@ function ScreenPicker() {
   onCleanup(() => {
     screen.host.pick = null
   })
-  const pick = (ask: Ask, source: screen.CastSource) => {
+  function pick(ask: Ask, source: screen.CastSource) {
     ask.resolve({
       source: source.id,
       name: source.name,

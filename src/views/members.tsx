@@ -14,7 +14,7 @@ import { Row } from '../primitives/row'
 export function MembersList() {
   let list!: HTMLElement
   let frame = 0
-  const subscribe = () => {
+  function subscribe() {
     frame ||= requestAnimationFrame(() => {
       frame = 0
       members.subscribe(list.scrollTop, list.clientHeight)
@@ -50,15 +50,17 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
   )
 }
 
-export const MembersToggle = () => (
-  <Show when={members.listed()}>
-    <Toggle
-      class="members-toggle"
-      on={members.open()}
-      icon="members"
-      title={text('SHOW_MEMBER_LIST')}
-      onTitle={text('HIDE_MEMBER_LIST')}
-      onClick={members.toggle}
-    />
-  </Show>
-)
+export function MembersToggle() {
+  return (
+    <Show when={members.listed()}>
+      <Toggle
+        class="members-toggle"
+        on={members.open()}
+        icon="members"
+        title={text('SHOW_MEMBER_LIST')}
+        onTitle={text('HIDE_MEMBER_LIST')}
+        onClick={members.toggle}
+      />
+    </Show>
+  )
+}

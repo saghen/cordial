@@ -81,11 +81,11 @@ function config() {
  * without its process spawn (~6 ms, the socket ~0.2 ms). Resolves to the reply's Ok value.
  * @returns {Promise<any>}
  */
-function niri(request) {
-  return new Promise((resolve, reject) => {
+const niri = (request) =>
+  new Promise((resolve, reject) => {
     const socket = createConnection(process.env.NIRI_SOCKET ?? '')
     let reply = ''
-    const fail = (e) => {
+    function fail(e) {
       socket.destroy()
       reject(e)
     }
@@ -106,7 +106,6 @@ function niri(request) {
     })
     socket.on('error', fail)
   })
-}
 
 // for testing (see the top of the file): a clip, a portal's bus, a sound target
 const clip = /^(.+):(\d+)x(\d+)$/.exec(process.env.CORDIAL_CAPTURE_CLIP ?? '')
@@ -257,7 +256,7 @@ function followOutput(output, set) {
   let stopped = false
   let busy = false
   let again = false
-  const update = async () => {
+  async function update() {
     if (busy) {
       again = true
       return

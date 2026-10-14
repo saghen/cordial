@@ -2,4 +2,6 @@
 
 import type { IconName } from './icons'
 
-export const Icon = (p: { name: IconName }) => <i class="icon" style={{ '--icon': `var(--icon-${p.name})` }} />
+export function Icon(p: { name: IconName }) {
+  return <i class="icon" style={{ '--icon': `var(--icon-${p.name})` }} />
+}

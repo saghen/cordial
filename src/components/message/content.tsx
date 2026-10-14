@@ -68,11 +68,13 @@ export function Content(p: { message: Message; channelId: Id; cache?: boolean })
 }
 
 // a forward: the message as it was, under stock's "Forwarded" line
-export const Forward = (p: { message: Message; channelId: Id }) => (
-  <blockquote class="forward">
-    <span class="forwarded">{text('MESSAGE_FORWARDED')}</span>
-    <div class="content" ref={(div) => renderAST(messages.contentAST(p.message, p.channelId), div)} />
-    <For each={p.message.attachments}>{(file) => <Attachment file={file} />}</For>
-    <For each={p.message.embeds}>{(embed) => <Embed embed={embed} />}</For>
-  </blockquote>
-)
+export function Forward(p: { message: Message; channelId: Id }) {
+  return (
+    <blockquote class="forward">
+      <span class="forwarded">{text('MESSAGE_FORWARDED')}</span>
+      <div class="content" ref={(div) => renderAST(messages.contentAST(p.message, p.channelId), div)} />
+      <For each={p.message.attachments}>{(file) => <Attachment file={file} />}</For>
+      <For each={p.message.embeds}>{(embed) => <Embed embed={embed} />}</For>
+    </blockquote>
+  )
+}

@@ -105,6 +105,6 @@ export function renderAST(nodes: MarkdownNode[], parent: HTMLElement | DocumentF
   return parent
 }
 
-export const Markdown = (p: { ast: MarkdownNode[]; inline?: boolean }) => (
-  <span class={['markdown', { inline: Boolean(p.inline) }]} ref={(span) => renderAST(p.ast, span)} />
-)
+export function Markdown(p: { ast: MarkdownNode[]; inline?: boolean }) {
+  return <span class={['markdown', { inline: Boolean(p.inline) }]} ref={(span) => renderAST(p.ast, span)} />
+}

@@ -19,29 +19,33 @@ import { Reactions } from './reactions'
 
 // the date divider (its label between two lines) and the first unread's red line with stock's NEW tag; on one row,
 // the date sits on the red line
-const Divider = (p: { day?: string; isNew: boolean }) => (
-  <div class={['divider', { new: p.isNew }]}>
-    <Show when={p.day}>
-      <span>{p.day}</span>
-    </Show>
-    <Show when={p.isNew}>
-      <Badge kind="new">{text('NEW')}</Badge>
-    </Show>
-  </div>
-)
+function Divider(p: { day?: string; isNew: boolean }) {
+  return (
+    <div class={['divider', { new: p.isNew }]}>
+      <Show when={p.day}>
+        <span>{p.day}</span>
+      </Show>
+      <Show when={p.isNew}>
+        <Badge kind="new">{text('NEW')}</Badge>
+      </Show>
+    </div>
+  )
+}
 
 // sending, then failed: stock's Retry and Delete
-const Failed = (p: { message: MessageRecord }) => (
-  <p class="failed">
-    {text('NOT_SENT')}
-    <Button variant="link" class="retry" onClick={() => messages.resend(p.message)}>
-      {text('RETRY')}
-    </Button>
-    <Button variant="link" class="discard" onClick={() => messages.remove(p.message, true)}>
-      {text('DELETE')}
-    </Button>
-  </p>
-)
+function Failed(p: { message: MessageRecord }) {
+  return (
+    <p class="failed">
+      {text('NOT_SENT')}
+      <Button variant="link" class="retry" onClick={() => messages.resend(p.message)}>
+        {text('RETRY')}
+      </Button>
+      <Button variant="link" class="discard" onClick={() => messages.remove(p.message, true)}>
+        {text('DELETE')}
+      </Button>
+    </p>
+  )
+}
 
 export function Message(p: {
   message: MessageRecord

@@ -13,7 +13,7 @@ import * as viewer from './viewer'
 const BOX = { media: [400, 300], thumb: [80, 80], sent: [550, 350] } as const
 type Box = keyof typeof BOX
 
-const fit = (media: Source, maxWidth: number, maxHeight: number) => {
+function fit(media: Source, maxWidth: number, maxHeight: number) {
   const scale = Math.min(1, maxWidth / media.width, maxHeight / media.height)
   return { width: Math.round(media.width * scale), height: Math.round(media.height * scale) }
 }

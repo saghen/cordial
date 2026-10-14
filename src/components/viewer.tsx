@@ -30,8 +30,8 @@ export function Viewer() {
   })
   const viewer = modal<Shown>({
     class: 'viewer',
-    children: (shown) => {
-      const copy = (e: KeyboardEvent) => {
+    children(shown) {
+      function copy(e: KeyboardEvent) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !getSelection()?.toString()) media.copyImage(shown().src)
       }
       document.addEventListener('keydown', copy)

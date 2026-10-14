@@ -44,7 +44,7 @@ const FREQUENT_STICKERS = 16
 // stock's StickerSendability.SENDABLE
 const SENDABLE = 0
 const premium = () => Boolean(S.User.getCurrentUser()?.premiumType)
-const guildSection = <T>(id: Id, items: T[]): Section<T> => {
+function guildSection<T>(id: Id, items: T[]): Section<T> {
   const guild = guilds.get(id)
   return { id, name: guild?.name ?? '', guild, items }
 }
@@ -164,7 +164,7 @@ export interface GifCategory {
   type: string
 }
 export const isVideo = (src: string) => /\.(mp4|webm)(\?|$)/.test(src)
-export const openGifs = () => {
+export function openGifs() {
   A.gifs.initialize()
   A.gifs.trendingCategories()
 }

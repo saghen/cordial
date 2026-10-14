@@ -15,7 +15,7 @@ export function Login() {
   const [busy, setBusy] = createSignal(false)
   const [picked, setPicked] = createSignal<session.CodeKind>()
   const kind = () => picked() ?? session.codeKinds()[0]
-  const submit = async (e: SubmitEvent) => {
+  async function submit(e: SubmitEvent) {
     e.preventDefault()
     const form = new FormData(e.currentTarget as HTMLFormElement)
     setBusy(true)

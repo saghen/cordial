@@ -189,7 +189,7 @@ export function ServerBar() {
 function AddServer() {
   const [invite, setInvite] = createSignal<Invite | null | undefined>()
   let form!: HTMLElement
-  const resolve = (link: string) => {
+  function resolve(link: string) {
     const code = guilds.inviteCode(link)
     if (!code) return setInvite(undefined)
     guilds.resolveInvite(code).then(setInvite)

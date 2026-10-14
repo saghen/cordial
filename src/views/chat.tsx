@@ -56,7 +56,7 @@ export function Chat() {
   // the runs of blocked or ignored messages shown, by their first message
   const [shown, setShown] = createSignal<Record<Id, boolean>>({})
 
-  const Row = (message: MessageRecord, i: () => number) => {
+  function Row(message: MessageRecord, i: () => number) {
     // as stock, a run of blocked (or ignored) messages is one line, "N blocked messages", until Show messages
     const hidden = messages.hiddenAs(message)
     const run = createMemo(() => {
@@ -116,7 +116,7 @@ export function Chat() {
     </div>
   ) as HTMLElement
   let jumping = false
-  const present = () => {
+  function present() {
     if (loaded()?.hasMoreAfter) {
       jumping = true
       messages.jumpToPresent(channelId()!)
@@ -125,7 +125,7 @@ export function Chat() {
 
   // Escape, as stock's, anywhere but another field or an open menu: the edit or the reply dropped, else the channel
   // read and back at its newest message; then the box has the focus
-  const escape = (e: KeyboardEvent) => {
+  function escape(e: KeyboardEvent) {
     const id = channelId()
     const target = e.target as Element
     if (e.key !== 'Escape' || e.defaultPrevented || !id || document.fullscreenElement) return
@@ -190,7 +190,7 @@ export function Chat() {
 // stock's new messages bar, while the channel has unreads: "N new messages since 10:59 PM", a click jumps to the oldest
 // unread, Mark As Read acks the channel
 function NewMessages(p: { channelId: () => Id | null; onRead(): void }) {
-  const bar = () => {
+  function bar() {
     const id = p.channelId()
     return id && messages.newMessages(id)
   }
@@ -262,26 +262,28 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
   const message = () => p.message
   const channel = () => channels.get(message().channel_id)!
   const can = (permission: bigint) => users.can(permission, channel())
-  const emojis = () => {
+  function emojis() {
     const search = query()
     return (search ? pickers.searchReactions(channel(), search, REACTION_RESULTS) : pickers.frequentReactions()).slice(
       0,
       REACTION_RESULTS,
     )
   }
-  const Emojis = (p: { each: EmojiRecord[] }) => (
-    <p>
-      <Items
-        items={p.each.map((emoji) => ({
-          name: 'react',
-          id: emoji.id ?? emoji.name,
-          title: `:${emoji.name}:`,
-          label: <Emoji emoji={emoji} />,
-          run: () => messages.react(message(), emoji),
-        }))}
-      />
-    </p>
-  )
+  function Emojis(p: { each: EmojiRecord[] }) {
+    return (
+      <p>
+        <Items
+          items={p.each.map((emoji) => ({
+            name: 'react',
+            id: emoji.id ?? emoji.name,
+            title: `:${emoji.name}:`,
+            label: <Emoji emoji={emoji} />,
+            run: () => messages.react(message(), emoji),
+          }))}
+        />
+      </p>
+    )
+  }
   return (
     <Show
       when={query() == null}
@@ -319,7 +321,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
             name: 'menu-edit',
             icon: 'pencil',
             label: text('EDIT_MESSAGE'),
-            run: () => {
+            run() {
               messages.startEdit(message())
               focus()
             },
@@ -328,7 +330,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
             name: 'menu-reply',
             icon: 'reply',
             label: text('MESSAGE_ACTION_REPLY'),
-            run: () => {
+            run() {
               messages.reply(message(), channel())
               focus()
             },
@@ -350,7 +352,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
             name: 'menu-unread',
             icon: 'unread',
             label: text('MARK_UNREAD'),
-            run: () => {
+            run() {
               messages.markUnread(message())
               p.onMarkUnread()
             },

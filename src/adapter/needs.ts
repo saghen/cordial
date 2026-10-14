@@ -17,7 +17,7 @@ interface Need {
 
 const needs: Need[] = []
 
-function storeNeed<K extends keyof Stores>(key: K, name: string, ...methods: (keyof Stores[K] & string)[]) {
+const storeNeed = <K extends keyof Stores>(key: K, name: string, ...methods: (keyof Stores[K] & string)[]) =>
   needs.push({
     name: `S.${key}`,
     what: `${name} { ${methods.join(', ')} }`,
@@ -31,9 +31,8 @@ function storeNeed<K extends keyof Stores>(key: K, name: string, ...methods: (ke
       return null
     },
   })
-}
 
-function moduleNeed<K extends keyof Actions>(key: K, what: string, search: () => any) {
+const moduleNeed = <K extends keyof Actions>(key: K, what: string, search: () => any) =>
   needs.push({
     name: `A.${key}`,
     what,
@@ -44,7 +43,6 @@ function moduleNeed<K extends keyof Actions>(key: K, what: string, search: () =>
       return null
     },
   })
-}
 
 const byProps = <K extends keyof Actions>(key: K, ...props: (keyof Actions[K] & string)[]) =>
   moduleNeed(key, `props ${props.join(', ')}`, () => find(hasProps(...props))?.[0])
@@ -53,7 +51,7 @@ const byCode = <K extends keyof Actions>(key: K, ...code: string[]) =>
   moduleNeed(key, `code ${code.map((snippet) => JSON.stringify(snippet)).join(' ')}`, () => find(hasCode(...code))?.[0])
 
 // a module whose exports are all minified: found by one code string in its factory, members by their own
-function mangled<K extends keyof Actions>(key: K, anchor: string, members: Record<keyof Actions[K] & string, string>) {
+const mangled = <K extends keyof Actions>(key: K, anchor: string, members: Record<keyof Actions[K] & string, string>) =>
   moduleNeed(key, `module ${JSON.stringify(anchor)} { ${Object.keys(members).join(', ')} }`, () => {
     const id = findModuleId(anchor)
     if (id == null) return null
@@ -66,16 +64,14 @@ function mangled<K extends keyof Actions>(key: K, anchor: string, members: Recor
     }
     return out
   })
-}
 
 // an action type we dispatch ourselves: some store must still handle it
-function dispatched(type: string, why: string) {
+const dispatched = (type: string, why: string) =>
   needs.push({
     name: `dispatch ${type}`,
     what: why,
     resolve: () => (A.dispatcher._actionHandlers?._tokensByActionType?.[type]?.length ? null : 'no store handles it'),
   })
-}
 
 // first: the store needs look stores up through Flux, the dispatch needs through the dispatcher
 byProps('dispatcher', 'dispatch', 'subscribe', 'unsubscribe', '_actionHandlers')
@@ -315,13 +311,13 @@ moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
   )
   if (!chunks.length) return null
   let actions: any
-  const load = async () => {
+  async function load() {
     await Promise.all(chunks.map((chunk) => wreq.e(chunk)))
     const exports = wreq(findModuleId('type:"SEARCH_MESSAGES_START"')!)
     return Object.values(exports).find((member: any) => typeof member?.fetchMessages === 'function')
   }
   return {
-    load: () => {
+    load() {
       actions ??= load()
       return actions
     },
@@ -426,7 +422,7 @@ needs.push({
 })
 
 // stock's messages that api/strings.ts names: an unknown name gives empty text instead of failing, so check them all
-export function textNeed(names: readonly string[]) {
+export const textNeed = (names: readonly string[]) =>
   needs.push({
     name: 'text',
     what: `${names.length} stock messages by name`,
@@ -436,7 +432,6 @@ export function textNeed(names: readonly string[]) {
       return gone.length ? `gone: ${gone.join(', ')}` : null
     },
   })
-}
 
 let report: {
   ok: boolean

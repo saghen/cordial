@@ -27,7 +27,7 @@ export function sections(channel: Channel): Section<Sound>[] {
     })
 }
 // the sounds whose name matches
-export const search = (channel: Channel, query: string) => {
+export function search(channel: Channel, query: string) {
   const lowered = query.toLowerCase()
   return sections(channel).flatMap((section) =>
     section.items.filter((sound) => sound.name.toLowerCase().includes(lowered)),
