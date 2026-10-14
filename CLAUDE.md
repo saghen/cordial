@@ -106,7 +106,7 @@ nix build            # the package: the build and nixpkgs' Electron; update npmD
 | `capture` | `screen-capture/` across those, and the binary's startup and protocol (`main.rs`, `out.rs`) |
 | `keybinds` | `global-keybinds/` |
 | `presence` | `game-detection/`: game detection, Rich Presence, the Wine bridge |
-| `build` | `flake.nix`, Vite, tsconfig, package.json, prettier, ty |
+| `build` | `flake.nix`, Vite, tsconfig, package.json, prettier |
 | `refactor` | a refactor across scopes (a restructure, a simplification pass); one inside a scope takes that scope |
 | `docs` | README, CLAUDE.md |
 
