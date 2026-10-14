@@ -9,7 +9,7 @@ is the point: interaction latency first, then memory and CPU. Screen sharing use
 
 ## Why this can work
 
-Measured in the lab (`ai/atlas/data/`, stock Equibop 3.2.2, Discord stable, October 2026):
+Measured in the lab (stock Equibop 3.2.2, Discord stable, October 2026):
 
 | | Stock Discord | Core only, no UI |
 |---|---|---|
@@ -25,9 +25,9 @@ same data (same guilds, DMs, friends and presences).
 
 Targets for the renderer: cached switches in 1-2 frames (15-25 ms at 144 Hz), popouts and menus in one frame, typing
 painted in the same frame, ~1 ms/s idle, 70-90 MB heap. The whole app only shrinks 5-20 %: on the test account our
-shell is ~515 MB (PSS with its swapped share, `ai/lab/pss.py`) against stock Equibop's ~620, of which arRPC is 94;
-Electron's other processes (~280 MB) stay. Phase 3 trims them; Tauri was ruled out (`ai/atlas/tauri.md`: no Discord
-voice in WebKitGTK yet, no CDP for the lab, no memory gain).
+shell is ~515 MB (PSS with its swapped share) against stock Equibop's ~620, of which arRPC is 94;
+Electron's other processes (~280 MB) stay. Phase 3 trims them; Tauri was ruled out (no Discord voice in
+WebKitGTK yet, no CDP for the lab, no memory gain).
 
 ## How it fits together
 
@@ -43,19 +43,22 @@ Anchor patch          Discord's root App component stays mounted (it starts the 
                       only its render is replaced with ours
 ```
 
-What makes it fragile, and what keeps it in check, is in [ai/ROADMAP.md](ai/ROADMAP.md#robustness). In short: stores and
-dispatch action types are stable, action creators need occasional new finds, and behaviour that Discord keeps inside
-its UI is caught by diffing what our renderer sends against stock Discord for the same scripted scenario.
+What makes it fragile, and what keeps it in check (from Vencord's core-access history, Oct 2024 - Oct 2026: 21 commits
+to store access and 34 to core utilities, against 750 plugin commits):
 
-## Planning
+| Layer | Stability | Expected breakage | Mitigation |
+|---|---|---|---|
+| Stores by name, their methods, dispatch action types | high | 1-2 a year (roles moved from GuildStore to GuildRoleStore) | startup self-check |
+| Action creators | medium | 4-6 small find fixes a year, around Discord's big updates | finds by code string, self-check after each update |
+| Behaviour Discord keeps in its UI (session start, managers, subscriptions, fetches, acks, typing) | low, failures silent | divergence rather than crashes | keep the App class (anchor), diff what we send against stock per scenario |
+| Discord CSS and class names | none | | own stylesheet |
 
-- **Feature map**: https://claude.ai/artifact/VfUwXYd3rQ3yiEBPRJ7KDx, every feature of the client as a tree with
-  measured element counts, backing stores, and a phase (1-4 or not included) and note per item. It is the source of
-  truth for scope.
-- `ai/atlas/plan.md`: the map's saved plan rendered per phase (`python3 ai/atlas/scripts/plan_report.py ai/atlas/plan-export/plan`).
-- [ai/ROADMAP.md](ai/ROADMAP.md): Phase 0 (foundations), how phases 1-4 are built, budgets, open decisions.
-- [ai/LOG.md](ai/LOG.md): open questions, the current state, key finds and decisions (the history is `git log`).
-- [ai/CLAUDE.md](ai/CLAUDE.md): how agents work on this repo (the iteration loop and its rules).
+If a find breaks after a Discord update, Discord's own UI shows instead and the console names what's missing.
+
+## Working on it
+
+[CLAUDE.md](CLAUDE.md) is the guide: build and check commands, how a feature is built and verified against stock, the
+performance budgets, and the code conventions.
 
 ## Layout
 
@@ -63,7 +66,7 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 |---|---|
 | `src/shell/` | the Electron shell: `main.js` opens discord.com/app (zoom, `<userData>/config.json`), `preload.js` injects `dist/cordial.js` before Discord's scripts run, with the config as `cordial.config` |
 | `src/adapter/` | the only code that touches Discord internals: `webpack.ts` hooks Discord's webpack (its require, module search, source patches), `anchor.ts` keeps Discord's App class and renders our root, `needs.ts` resolves what we use (`S`, `A`) and checks it at startup, `discord.ts` types them |
-| `src/api/` | what the UI calls (being built, ai/RESTRUCTURE.md): `store.ts` (Discord's stores as Solid dependencies), `records.ts` (its records, typed as far as we read them), `strings.ts` (stock's text by message name, its date formats), `hooks.ts` (onAction, useNow, useFileDrop), `session.ts` (connection, badge, login), `users.ts` (names, avatars, presence), `guilds.ts` (icons, folders, invites), `channels.ts` (the channel list, DMs, read and mute states, voice channels), `notifications.ts` (the bell's rules), `messages.ts` (the list, grouping, jumps, reactions, pins, the menu's actions), `pickers.ts` (emoji images, reactions, the pickers' sections, searches and GIFs), `search.ts` (message search), `composer.ts` (useComposer: the box's state and stock's send, edit, draft and upload actions; who's typing; autocomplete's queries), `voice.ts` (voice states, the connection, join and leave), `audio.ts` (mute, deafen, camera, devices, voice settings), `calls.ts` (DM calls, ringing), `streams.ts` (Go Live, videos), `sounds.ts` (stock's voice sounds, the ringtone), `soundboard.ts` (its sections, search, play), `members.ts` (the member list's rows and subscriptions), `cdn.ts`, `triggers.ts` (what Discord's UI did for the core), `preload.ts` (channels loaded before they open), `lab.ts` (`window.cordial` for lab scripts) |
+| `src/api/` | what the UI calls (conventions in `CLAUDE.md`): `store.ts` (Discord's stores as Solid dependencies), `records.ts` (its records, typed as far as we read them), `strings.ts` (stock's text by message name, its date formats), `hooks.ts` (onAction, useNow, useFileDrop), `session.ts` (connection, badge, login), `users.ts` (names, avatars, presence), `guilds.ts` (icons, folders, invites), `channels.ts` (the channel list, DMs, read and mute states, voice channels), `notifications.ts` (the bell's rules), `messages.ts` (the list, grouping, jumps, reactions, pins, the menu's actions), `pickers.ts` (emoji images, reactions, the pickers' sections, searches and GIFs), `search.ts` (message search), `composer.ts` (useComposer: the box's state and stock's send, edit, draft and upload actions; who's typing; autocomplete's queries), `voice.ts` (voice states, the connection, join and leave), `audio.ts` (mute, deafen, camera, devices, voice settings), `calls.ts` (DM calls, ringing), `streams.ts` (Go Live, videos), `sounds.ts` (stock's voice sounds, the ringtone), `soundboard.ts` (its sections, search, play), `members.ts` (the member list's rows and subscriptions), `cdn.ts`, `triggers.ts` (what Discord's UI did for the core), `preload.ts` (channels loaded before they open), `lab.ts` (`window.cordial` for lab scripts) |
 | `src/primitives/` | generic pieces, each with its `.css`: `icon.tsx` (Discord's icons, `icons.ts`, as CSS masks), `button.tsx` (Button, IconButton, Toggle), `badge.tsx`, `status.tsx`, `row.tsx` (list rows), `menu.tsx` (menus as data, submenus, context menus, `menu.css`), `popout.tsx`, `modal.tsx`, `search.tsx`, `fields.tsx`, `sections.tsx` (a picker's search, rail, sections and footer) with `lazy_chunks.tsx` |
 | `src/components/` | Discord-aware pieces: `message/` (a message row: head, content, attachments, embeds, reactions), `markdown.tsx` (markdown AST to DOM), `media.tsx` (images, videos, GIFs), `viewer.tsx` (an image full size), `emoji.tsx`, `pickers.tsx` (emoji, GIF, sticker), `time.tsx` (a message's time, stock's formats), `avatar.tsx`, `name.tsx`, `guild_icon.tsx`, `channel_icon.tsx`, `dm_icon.tsx`, `tile.tsx` (someone in a call), `video.tsx` |
 | `src/views/` | a file per region of the grid: `server_bar.tsx`, `channels.tsx` (channel and DM lists, voice rows, the channel menu), `chat.tsx` (messages, their menu, who's typing) with `scroller.ts`, `header.tsx`, `composer.tsx` (the reply bar, uploads, the box, autocomplete), `user_panel.tsx` (account, status, mute/deafen, voice panel), `call.tsx`, `members.tsx`, `login.tsx` |
@@ -71,13 +74,9 @@ its UI is caught by diffing what our renderer sends against stock Discord for th
 | `boundary.mjs` | the layer boundary, run by `npm run check`: views, components and primitives never import `adapter/`, primitives no `api/` |
 | `global-keybinds/` | config.json's global keybinds through the desktop's GlobalShortcuts portal, presses and releases (push to talk), for the shell |
 | `flake.nix` | the package (Vite build, nixpkgs' Electron) and a dev shell |
-| `ai/` | what agents work from: `CLAUDE.md`, `LOG.md`, `ROADMAP.md` |
-| `ai/atlas/` | the feature map (`feature-map.html`), its data (element counts, stores, enums), the saved plan, and the CDP scripts that measured them |
-| `ai/lab/` | test account login and server setup, scenarios, the conformance recorder (`conformance.py`), the budget runner (`budgets.py`), the grouping check against stock (`grouping.py`), the login fallback check (`loggedout.py`), the older-history rule check (`older.py`), the status setter check (`status.py`), screenshots before and after a CSS change (`shots.py`, with `--diff`), the unattended build check (`buildcheck.py`, against the differences accepted in `expected.json`), measurements (`ai/lab/data/`) |
-| `design/` | the Phase 1 design draft (`phase1.md`) and its mockup |
 
-The lab harness itself (isolated headless Electron, CDP client, input-driven benchmarks) lives in
-`~/code/personal/discord-uiprof`; cordial's scripts import its `cdp.py` and `bench.py`.
+Testing happens in a lab outside this repo: isolated headless Electron instances driven over CDP, running scripted
+scenarios against cordial and stock Discord side by side (what each sends, diffed), the budgets, and screenshots.
 
 ## Test accounts
 

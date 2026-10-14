@@ -2,7 +2,7 @@
    the message, each of its parts a row of the grid */
 article {
   display: grid; grid-template-columns: 72px minmax(0, 1fr); padding: 2px 16px 2px 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
-  /* offscreen rows skip style and layout until scrolled to (ai/LOG.md, Key finds) */
+  /* offscreen rows skip style and layout until scrolled to */
   content-visibility: auto; contain-intrinsic-size: auto 26px;
   > * { grid-column: 2; }
   /* a row that continues a group: its time in the gutter while hovered */
