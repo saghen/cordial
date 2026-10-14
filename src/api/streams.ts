@@ -7,6 +7,7 @@ import type { Rec } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
 import type { Channel, Id } from './records'
 import { $ } from './store'
+import { text } from './strings'
 
 // "guild:{guildId}:{channelId}:{ownerId}" or "call:{channelId}:{ownerId}"
 export const key = (s: Rec) =>
@@ -29,6 +30,16 @@ export function toggleWatch(ownerId: Id, guildId: Id | null) {
 // a user's camera, or (context "stream") the stream you watch: its video's stream id
 export const videoOf = (userId: Id, guildId: Id | null, context?: 'stream') =>
   $.VideoStream.getStreamId(userId, guildId, context) as string | undefined
+// the quality the owner of a stream you watch announced, as stock's badge: "720p 30FPS" (or "Source 60FPS")
+export function quality(userId: Id, guildId: Id | null) {
+  const d = $.VideoStream.getUserStreamData(userId, guildId, 'stream')
+  if (!d?.maxResolution || !d.maxFrameRate) return null
+  const res =
+    d.maxResolution.type === 'source'
+      ? text('SCREENSHARE_SOURCE')
+      : text('SCREENSHARE_RESOLUTION_ABBREVIATED', { resolution: d.maxResolution.height })
+  return `${res} ${text('SCREENSHARE_FPS_ABBREVIATED', { fps: d.maxFrameRate })}`
+}
 // a video while shown: its MediaStream, counted as a view (the first view asks for the video, the last drops it)
 export function view(streamId: string) {
   A.video.watch(streamId)

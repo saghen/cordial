@@ -1,26 +1,54 @@
-/* the call view: a Tile per person, Join below them; someone's Go Live: Watch Stream until watched, then the stream,
-   larger and letterboxed */
+/* the call view: over the top bar's row and the call's, across the chat's and the member list's columns (the member
+   list starts below it), on black; expanded, over the chat and the composer too. Its tiles in a grid of equal 16:9
+   ones (app's columns and width, call.tsx), the room for the top bar above them and the buttons below; focused, one
+   tile filling the area. Compact (a DM's avatars alone): a row in a shorter area */
+&:has(> section.call) {
+  grid-template-areas: "notice notice notice notice" "servers top top top" "servers panels call call" "servers panels chat members"
+    "servers panels compose members";
+  > header { position: relative; z-index: 2; border-bottom-color: transparent; }
+  > header > .channel { transition: opacity .3s; }
+}
+&:has(> section.call.idle) > header > .channel { opacity: 0; }
 & > section.call {
-  grid-area: call; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 16px; background: var(--bg-deep);
+  --ui: 1; position: relative; z-index: 1; grid-row: top-start / call-end; grid-column: call-start / call-end;
+  display: grid; grid-template-columns: repeat(var(--cols), var(--tile-width)); gap: 8px; place-content: center; height: 50vh;
+  padding: 56px 16px 80px; background: #000;
+  &.expanded { grid-row: top-start / compose-end; grid-column: call-start / members-end; height: auto; }
+  &.compact { display: flex; justify-content: center; align-items: center; gap: 16px; height: 240px; }
+  > figure.tile:not(.compact) { aspect-ratio: 16 / 9; }
+  &.focused > figure.tile:not(.focus) { display: none; }
+  &.focused > figure.focus { position: absolute; inset: 0; border-radius: 0; }
+  /* the UI fades while the pointer is elsewhere or still, and the cursor with it over the call */
+  &.idle:not(:has(:focus-visible)) { --ui: 0; cursor: none; }
+  :is(.name, .badges, .stream-full), > :is(.call-bar, .call-expand) { opacity: var(--ui); transition: opacity .3s; }
+  &.idle:not(:has(:focus-visible)) :is(button, .name) { pointer-events: none; }
 }
+/* the call's buttons in the middle below the tiles: round, red while muted, deafened or to disconnect; Stop Watching
+   and Join as text; Expand at the bottom right */
+section.call > .call-bar {
+  position: absolute; inset: auto 0 16px; display: flex; justify-content: center; gap: 8px; font-size: 14px;
+  > .icon-button { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-floating); color: var(--text-strong); }
+  > .icon-button:hover { filter: brightness(1.2); }
+  > :is(.call-mute, .call-deafen).on, > .call-disconnect { background: var(--danger); color: var(--on-color); }
+  > :is(.call-camera, .call-screen).on { background: var(--text-strong); color: #000; }
+  > .button { border-radius: 24px; }
+  > :is(.call-join, .call-join-video) { width: 56px; height: 40px; border-radius: 4px; background: var(--positive); color: var(--on-color); }
+  > .button.call-join { width: auto; }
+}
+section.call > .call-expand { position: absolute; inset: auto 24px 28px auto; color: #fff; }
+/* someone's Go Live: Watch Stream until watched, then the stream letterboxed, its quality and LIVE at the top right,
+   Full Screen at the bottom right */
 section.call > figure.stream {
-  position: relative; z-index: 0; display: grid; place-items: center; align-content: center; gap: 8px; width: 160px; height: 90px;
-  padding: 6px 8px; border-radius: 8px; background: var(--bg-raised); font-size: 14px; font-weight: 500;
-  > video { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; border-radius: 8px; object-fit: contain; }
-  > span::after { content: " · LIVE"; color: var(--danger); font-weight: 700; }
-  > button { padding: 4px 12px; }
-  &.watching { width: 480px; height: 270px; place-items: end start; align-content: stretch; background: #000; }
-  &.watching > button { position: absolute; inset: 6px 8px auto auto; opacity: .8; }
-  &.watching > .stream-full { inset: auto 8px 6px auto; width: 32px; height: 32px; padding: 0; border-radius: 4px; background: #0008; color: #fff; }
+  place-items: center; background: var(--bg-raised);
+  > video { object-fit: contain; }
+  &.watching { background: #000; }
+  > .badges { place-self: start end; display: flex; gap: 4px; margin: 8px; }
+  > .badges > .quality { padding: 0 6px; border-radius: 8px; background: #0009; font: 700 11px/16px var(--font); text-transform: uppercase; }
+  > .stream-full { place-self: end end; width: 32px; height: 32px; margin: 8px; border-radius: 4px; background: #0009; color: #fff; }
   /* full screen: the stream alone, the window's size */
-  &:fullscreen { width: 100%; height: 100%; padding: 0; border-radius: 0; }
-  &:fullscreen > video { border-radius: 0; }
-  &:fullscreen > span { display: none; }
+  &:fullscreen { border-radius: 0; }
+  &:fullscreen > :not(video) { display: none; }
 }
-/* Join on a row of its own below the tiles; a DM's are icons */
-section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; font-size: 14px; }
-section.call > footer > .icon-button { width: 56px; height: 40px; border-radius: 4px; }
-section.call > footer > .icon-button, dialog.incoming > button { background: var(--positive); color: var(--on-color); }
 /* a call ringing for you, at the top of the window: the caller, Accept and Decline */
 dialog.incoming {
   position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid: "avatar name accept decline" auto "avatar sub accept decline" auto / auto 1fr auto auto;
@@ -28,7 +56,7 @@ dialog.incoming {
   > .avatar { grid-area: avatar; margin-right: 8px; }
   > .name { grid-area: name; }
   > small { grid-area: sub; color: var(--text-muted); }
-  > button { width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+  > button { width: 40px; height: 40px; padding: 0; border-radius: 50%; background: var(--positive); color: var(--on-color); }
   > .incoming-accept { grid-area: accept; }
   > .incoming-decline { grid-area: decline; background: var(--danger); }
 }

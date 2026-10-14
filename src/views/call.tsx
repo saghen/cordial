@@ -1,9 +1,11 @@
-// The call view: who's in the selected voice channel, or in the DM's call, as tiles above its messages (a voice
-// channel's text chat), with Join below them while elsewhere; the DM header's call buttons; incoming calls with Accept
-// and Decline.
+// The call view, as stock's: who's in the selected voice channel or DM call as tiles filling the area (the top bar's
+// too, which it puts on the call's black), a click on one fills the area with it; under them the call's buttons, or
+// Join while you're elsewhere; the DM header's call buttons; incoming calls with Accept and Decline. Its badges, pills,
+// buttons and the top bar fade while the pointer is elsewhere or still for 5 s; Expand puts the call over the chat.
 
-import { createSignal, For, onCleanup, Show } from 'solid-js'
+import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 
+import * as audio from '../api/audio'
 import * as calls from '../api/calls'
 import * as channels from '../api/channels'
 import { useRingtone } from '../api/sounds'
@@ -17,18 +19,84 @@ import { Avatar } from '../components/avatar'
 import { Name } from '../components/name'
 import { Tile } from '../components/tile'
 import { Video } from '../components/video'
-import { Button, IconButton } from '../primitives/button'
+import { Badge } from '../primitives/badge'
+import { Button, IconButton, Toggle } from '../primitives/button'
+import { Icon } from '../primitives/icon'
+
+const IDLE = 5000
+// the tiles' gap (call.css)
+const GAP = 8
 
 export function CallView() {
+  const [expanded, setExpanded] = createSignal(false)
+  // the tile filling the area: a user's id, or "stream:" and theirs
+  const [focused, setFocused] = createSignal<string | null>(null)
+  const [awake, setAwake] = createSignal(true)
+  const [size, setSize] = createSignal({ w: 0, h: 0 })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let section: HTMLElement | undefined
+  // the UI shows while the pointer moves over the call, and while it rests on the buttons
+  const sleep = () => {
+    clearTimeout(timer)
+    if (!section?.querySelector('.call-bar:hover')) setAwake(false)
+    else timer = setTimeout(sleep, IDLE)
+  }
+  const wake = () => {
+    setAwake(true)
+    clearTimeout(timer)
+    timer = setTimeout(sleep, IDLE)
+  }
+  // the room for the tiles: inside the section's padding, which leaves the top bar's and the buttons'
+  const observer = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
+  onCleanup(() => {
+    clearTimeout(timer)
+    observer.disconnect()
+  })
   return (
     <Show when={calls.callIn(selectedChannel())}>
       {(c) => {
         const guildId = () => c().guild_id
         const states = () => voice.states(c().id)
-        // as stock's DM call without cameras or streams: round avatars alone
-        const compact = () => !guildId() && !states().some((v) => v.selfStream || streams.videoOf(v.userId, null))
+        const others = () => states().filter((v) => v.userId !== users.me()?.id)
+        // as stock's DM call without cameras or streams: round avatars alone (and an empty channel's Join, shorter)
+        const compact = () =>
+          !states().length || (!guildId() && !states().some((v) => v.selfStream || streams.videoOf(v.userId, null)))
+        const watched = () => others().filter((v) => v.selfStream && streams.watching(v.userId, guildId()))
+        const focus = () => {
+          const f = focused(),
+            id = f?.replace('stream:', '')
+          return states().some((v) => v.userId === id && (v.selfStream || f === id)) ? f : null
+        }
+        // the column count giving the largest equal 16:9 tiles in the room left for them
+        const grid = createMemo(() => {
+          const n = states().length + states().filter((v) => v.selfStream).length,
+            { w, h } = size()
+          let best = { cols: 1, width: 0 }
+          for (let cols = 1; cols <= n; cols++) {
+            const rows = Math.ceil(n / cols),
+              width = Math.min((w - GAP * (cols - 1)) / cols, ((h - GAP * (rows - 1)) / rows) * (16 / 9))
+            if (width > best.width) best = { cols, width }
+          }
+          return best
+        })
         return (
-          <section class="call">
+          <section
+            ref={(s) => {
+              section = s
+              observer.observe(s)
+              wake()
+            }}
+            class={['call', { compact: compact(), idle: !awake(), expanded: expanded(), focused: !!focus() }]}
+            style={{ '--cols': grid().cols, '--tile-width': `${Math.floor(grid().width)}px` }}
+            onPointerMove={wake}
+            onPointerLeave={sleep}
+            onClick={(e) => {
+              const tile = (e.target as Element).closest('figure.tile')
+              if (!tile || compact() || (e.target as Element).closest('button')) return
+              const id = (tile.classList.contains('stream') ? 'stream:' : '') + (tile as HTMLElement).dataset.id
+              setFocused(focus() === id ? null : id)
+            }}
+          >
             <For each={states()}>
               {(v) => (
                 <Show when={users.get(v.userId)}>
@@ -42,40 +110,78 @@ export function CallView() {
                         deafened={voice.deafened(v)}
                         video={streams.videoOf(v.userId, guildId())}
                         compact={compact()}
+                        focus={focus() === v.userId}
                       />
                       <Show when={v.selfStream}>
-                        <StreamTile state={v} channel={c()} name={users.displayName(user(), guildId())} />
+                        <StreamTile
+                          state={v}
+                          channel={c()}
+                          name={users.displayName(user(), guildId())}
+                          focus={focus() === `stream:${v.userId}`}
+                        />
                       </Show>
                     </>
                   )}
                 </Show>
               )}
             </For>
-            {/* as stock, below the tiles while you're elsewhere: Join Voice, or a DM call's video and voice */}
-            <Show when={!voice.connected(c())}>
-              <footer>
-                <Show
-                  when={!guildId()}
-                  fallback={
-                    <Button variant="positive" class="call-join" onClick={() => voice.join(c())}>
-                      {text('JOIN_VOICE')}
-                    </Button>
-                  }
-                >
-                  <IconButton
-                    class="call-join-video"
-                    icon="video"
-                    title={text('JOIN_VIDEO_CALL')}
-                    onClick={() => calls.join(c(), true)}
-                  />
-                  <IconButton
-                    class="call-join"
-                    icon="call"
-                    title={text('JOIN_CALL')}
-                    onClick={() => calls.join(c(), false)}
-                  />
+            {/* the call's buttons while you're in it; Join (a DM's video and voice) while you're elsewhere */}
+            <footer class="call-bar">
+              <Show when={voice.connected(c())} fallback={<JoinButtons channel={c()} />}>
+                <Toggle
+                  class="call-mute"
+                  on={audio.selfMuted()}
+                  icon="mic"
+                  onIcon="mic-off"
+                  title={text('MUTE')}
+                  onTitle={text('UNMUTE')}
+                  onClick={audio.toggleMute}
+                />
+                <Toggle
+                  class="call-deafen"
+                  on={audio.selfDeafened()}
+                  icon="headphones"
+                  onIcon="deaf"
+                  title={text('DEAFEN')}
+                  onTitle={text('UNDEAFEN')}
+                  onClick={audio.toggleDeafen}
+                />
+                <Toggle
+                  class="call-camera"
+                  on={audio.camera()}
+                  icon="video-slash"
+                  onIcon="video"
+                  title={text('CAMERA_ON')}
+                  onTitle={text('CAMERA_OFF')}
+                  onClick={audio.toggleCamera}
+                />
+                <Toggle
+                  class="call-screen"
+                  on={streams.live()}
+                  icon="screen"
+                  onIcon="screen-x"
+                  title={text('SHARE_YOUR_SCREEN')}
+                  onTitle={text('STOP_STREAMING')}
+                  onClick={() => streams.toggleLive(c())}
+                />
+                <Show when={watched().length}>
+                  <Button
+                    class="call-stop-watching"
+                    onClick={() => watched().forEach((v) => streams.toggleWatch(v.userId, guildId()))}
+                  >
+                    {text('STOP_WATCHING')}
+                  </Button>
                 </Show>
-              </footer>
+                <IconButton class="call-disconnect" icon="hangup" title={text('DISCONNECT_SELF')} onClick={voice.leave} />
+              </Show>
+            </footer>
+            <Show when={!compact()}>
+              <IconButton
+                class="call-expand"
+                icon={expanded() ? 'fullscreen-exit' : 'fullscreen'}
+                title={text(expanded() ? 'COLLAPSE' : 'EXPAND')}
+                onClick={() => setExpanded((on) => !on)}
+              />
             </Show>
           </section>
         )
@@ -84,13 +190,35 @@ export function CallView() {
   )
 }
 
-// someone's Go Live, beside their tile: Watch Stream until watched, then the stream, larger, with Stop Watching and
-// Full Screen (or a double click on it; Escape leaves). In a call, Discord's core watches a stream the other person
-// starts by itself. Your own: its preview (the core's local video, watched while you stream), with Stop Streaming
-function StreamTile(p: { state: VoiceState; channel: Channel; name: string }) {
+// as stock, while you're elsewhere: Join Voice, or a DM call's video and voice
+function JoinButtons(p: { channel: Channel }) {
+  return (
+    <Show
+      when={!p.channel.guild_id}
+      fallback={
+        <Button variant="positive" class="call-join" onClick={() => voice.join(p.channel)}>
+          {text('JOIN_VOICE')}
+        </Button>
+      }
+    >
+      <IconButton
+        class="call-join-video"
+        icon="video"
+        title={text('JOIN_VIDEO_CALL')}
+        onClick={() => calls.join(p.channel, true)}
+      />
+      <IconButton class="call-join" icon="call" title={text('JOIN_CALL')} onClick={() => calls.join(p.channel, false)} />
+    </Show>
+  )
+}
+
+// someone's Go Live, beside their tile: Watch Stream until watched (in a call, Discord's core watches a stream the other
+// person starts by itself), then the stream with its quality and LIVE, and Full Screen (or a double click on it;
+// Escape leaves); Stop Watching is in the call's buttons. Your own: its preview (the core's local video, watched while
+// you stream)
+function StreamTile(p: { state: VoiceState; channel: Channel; name: string; focus: boolean }) {
   const owner = () => p.state.userId
   const guildId = () => p.channel.guild_id
-  const self = () => owner() === users.me()?.id
   const watching = () => !!streams.watching(owner(), guildId())
   const [full, setFull] = createSignal(false)
   let tile!: HTMLElement
@@ -109,11 +237,18 @@ function StreamTile(p: { state: VoiceState; channel: Channel; name: string }) {
         tile = f
         f.addEventListener('fullscreenchange', () => setFull(document.fullscreenElement === f))
       }}
-      class={{ stream: true, watching: watching() }}
+      class={['tile', 'stream', { watching: watching(), focus: p.focus }]}
       data-id={owner()}
       onDblClick={(e) => e.target instanceof HTMLVideoElement && toggleFull()}
     >
-      <Show when={watching() && streams.videoOf(owner(), guildId(), 'stream')}>
+      <Show
+        when={watching() && streams.videoOf(owner(), guildId(), 'stream')}
+        fallback={
+          <Button class="stream-watch" onClick={() => streams.toggleWatch(owner(), guildId())}>
+            {text('WATCH_STREAM')}
+          </Button>
+        }
+      >
         {(id) => (
           <>
             <Video id={id()} />
@@ -126,19 +261,14 @@ function StreamTile(p: { state: VoiceState; channel: Channel; name: string }) {
           </>
         )}
       </Show>
-      <span>{p.name}</span>
-      <Show
-        when={!self()}
-        fallback={
-          <Button class="stream-watch" onClick={() => streams.toggleLive(p.channel)}>
-            {text('STOP_STREAMING')}
-          </Button>
-        }
-      >
-        <Button class="stream-watch" onClick={() => streams.toggleWatch(owner(), guildId())}>
-          {text(watching() ? 'STOP_WATCHING' : 'WATCH_STREAM')}
-        </Button>
-      </Show>
+      <span class="badges">
+        <Show when={streams.quality(owner(), guildId())}>{(q) => <i class="quality">{q()}</i>}</Show>
+        <Badge kind="live">LIVE</Badge>
+      </span>
+      <b class="name">
+        <Icon name="screen" />
+        {p.name}
+      </b>
     </figure>
   )
 }

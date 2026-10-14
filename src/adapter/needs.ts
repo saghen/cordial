@@ -128,7 +128,7 @@ storeNeed('NotificationSettings', 'NotificationSettingsStore', 'getDisableUnread
 storeNeed('Soundpack', 'SoundpackStore', 'getSoundpack')
 storeNeed('Search', 'SearchMessageStore', 'getMessages', 'getTotalCount', 'getIsFetching', 'getError')
 storeNeed('Soundboard', 'SoundboardStore', 'getSounds', 'isPlayingSound')
-storeNeed('VideoStream', 'VideoStreamStore', 'getStreamId')
+storeNeed('VideoStream', 'VideoStreamStore', 'getStreamId', 'getUserStreamData')
 storeNeed('ChannelPins', 'ChannelPinsStore', 'getPins')
 storeNeed('Stickers', 'StickersStore', 'getAllGuildStickers', 'getPremiumPacks', 'getStickerById', 'getStickerPack')
 storeNeed('StickersPersisted', 'StickersPersistedStore', 'hasPendingUsage')

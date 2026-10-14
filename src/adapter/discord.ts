@@ -156,6 +156,8 @@ export interface Stores {
   // context: "default" (a camera) or "stream" (a Go Live)
   VideoStream: FluxStore & {
     getStreamId(userId: Id, guildId: Id | null, context?: 'default' | 'stream'): string | undefined
+    // with the quality its owner announced: maxResolution { type: "fixed" | "source", width, height }, maxFrameRate
+    getUserStreamData(userId: Id, guildId: Id | null, context?: 'default' | 'stream'): Rec | undefined
   }
   // sounds by server id ("0": Discord's)
   Soundboard: FluxStore & { getSounds(): Map<Id, Rec[]>; isPlayingSound(soundId: Id): boolean }
