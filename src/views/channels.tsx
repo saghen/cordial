@@ -10,6 +10,7 @@ import { ChannelType, type Channel, type PrivateChannel, type VoiceState } from 
 import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
 import * as users from '../api/users'
+import * as voice from '../api/voice'
 import { Avatar } from '../components/avatar'
 import { ChannelIcon } from '../components/channel_icon'
 import { DmIcon } from '../components/dm_icon'
@@ -81,15 +82,15 @@ function VoiceChannel(p: { channel: Channel }) {
       <Row
         name="voice"
         data-id={c().id}
-        class={{ live: channels.voiceStates(c()).length > 0, sel: channels.connected(c()) }}
+        class={{ live: voice.states(c().id).length > 0, sel: voice.connected(c()) }}
         icon={<ChannelIcon channel={c()} />}
         sub={channels.voiceStatus(c())}
         end={start() && <time>{channels.elapsed(now() - start()!)}</time>}
-        onClick={() => channels.join(c())}
+        onClick={() => voice.join(c())}
       >
         {c().name}
       </Row>
-      <For each={channels.voiceStates(c())}>{(v) => <VoiceUser state={v} channel={c()} />}</For>
+      <For each={voice.states(c().id)}>{(v) => <VoiceUser state={v} channel={c()} />}</For>
     </>
   )
 }
@@ -104,10 +105,10 @@ function VoiceUser(p: { state: VoiceState; channel: Channel }) {
     <Row
       name="voice-user"
       data-id={v().userId}
-      class={{ forced: v().mute || v().deaf, elsewhere: channels.elsewhere(v(), p.channel) }}
+      class={{ forced: voice.forced(v()), elsewhere: voice.elsewhere(v(), p.channel) }}
       icon={
         <Show when={user()}>
-          {(u) => <Avatar user={u()} guildId={p.channel.guild_id} size={24} speaking={channels.speaking(v())} />}
+          {(u) => <Avatar user={u()} guildId={p.channel.guild_id} size={24} speaking={voice.speaking(v().userId)} />}
         </Show>
       }
       end={

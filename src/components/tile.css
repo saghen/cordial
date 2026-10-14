@@ -1,0 +1,17 @@
+/* someone in a call: the avatar in the middle, the camera under everything, the name at the bottom left, the mic or
+   headphones struck through at the top right, a ring while speaking; compact, a round avatar alone (its name on
+   hover) */
+figure.tile {
+  position: relative; z-index: 0; display: grid; width: 160px; height: 90px; padding: 6px 8px; border-radius: 8px; background: var(--bg-raised);
+  font-size: 14px; font-weight: 500; outline: 2px solid transparent; outline-offset: -2px;
+  > * { grid-area: 1 / 1; }
+  > .avatar { place-self: center; }
+  > .name { place-self: end start; font-weight: inherit; }
+  > .icon { --icon-size: 16px; place-self: start end; color: var(--danger); }
+  > video { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
+  &:has(> video) > .avatar { visibility: hidden; }
+  &.speaking { outline-color: var(--positive); }
+  &.compact { width: 80px; height: 80px; padding: 0; border-radius: 50%; outline-offset: 2px; }
+  &.compact > .name { display: none; }
+  &.compact > .icon { --icon-size: 20px; place-self: end end; }
+}

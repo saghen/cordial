@@ -37,7 +37,7 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 & > h1 { grid-area: side; }
 
 /* Discord's icons (icons.ts): a mask over the text colour, --i picks which */
-section.call > figure:is(.mute, .deaf)::after, menu > nav > button[style]::before {
+menu > nav > button[style]::before {
   content: ""; flex: none; width: 20px; height: 20px; background: currentColor; mask: var(--i) center / contain no-repeat;
 }
 /* the status: stock's shape at the avatar's bottom right, cut out of it. Masks, top first: the shape's cut (offline's
@@ -54,67 +54,6 @@ section.call > figure:is(.mute, .deaf)::after, menu > nav > button[style]::befor
 [data-status=dnd] { --status: var(--danger); --cut: linear-gradient(#000 0 0) 91.5% 86.2% / 18% 6% no-repeat; }
 
 
-/* the side column: the channel list or the DMs, then the voice panel and the user panel, each in its own row, so
-   neither panel covers the list */
-section.side { grid-area: panels; display: grid; grid: "nav" minmax(0, 1fr) "voice" auto "me" 60px / minmax(0, 1fr); }
-/* the voice panel. Rows: the voice settings when open, the status, the channel; the buttons a column each beside
-   the last two */
-section.side > footer {
-  grid-area: voice; display: grid; background: var(--bg); grid: auto auto auto / 1fr repeat(5, auto); padding: 8px; border-top: 1px solid var(--bg-raised);
-  font-size: 14px;
-  > b { grid-area: 2 / 1; font-weight: 600; color: var(--warning); }
-  &[data-state=RTC_CONNECTED] > b { color: var(--positive); }
-  > small { grid-area: 3 / 1; font-size: 12px; color: var(--text-muted); }
-  > button:nth-of-type(2) { grid-column: 3; } > button:nth-of-type(3) { grid-column: 4; }
-  > button:nth-of-type(4) { grid-column: 5; } > button:nth-of-type(5) { grid-column: 6; }
-  > button.voice-camera.on { color: var(--positive); }
-  > button.voice-camera:hover { color: var(--text-strong); }
-  > button { grid-area: 2 / 2 / 4; width: 32px; height: 32px; border-radius: 4px; color: var(--text-muted); }
-  > button:hover { background: var(--bg-raised); color: var(--danger); }
-  > button.voice-screen.on { color: var(--positive); }
-  > button:is(.voice-screen, .voice-soundboard, .voice-settings-button):hover, > button.voice-settings-button.on { color: var(--text-strong); }
-}
-/* Go Live's picker: a list of the sources, modal */
-dialog.screen-picker {
-  width: min(480px, 100% - 32px); max-height: 80vh; padding: 16px; border: 0; border-radius: 8px; background: var(--bg-floating);
-  color: var(--text); font-size: 14px; box-shadow: 0 8px 16px #0006;
-  &[open] { display: grid; gap: 8px; }
-  &::backdrop { background: #000a; }
-  > h2 { font-size: 20px; color: var(--text-strong); }
-  > .source { display: grid; justify-items: start; padding: 8px 12px; font-weight: 600; }
-  > .screen-cancel { justify-self: end; color: var(--text-muted); }
-}
-/* the soundboard: each server's sounds as tiles, over the panel */
-menu.soundboard {
-  inset: auto auto 72px 80px; width: 420px; max-height: 60vh; overflow-y: auto;
-  > h3 { padding: 8px 4px 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
-  > p { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  > p > button { display: flex; gap: 6px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg-raised); color: var(--text); font: inherit; font-size: 13px; text-align: left; overflow: hidden; }
-  > p > button.on { outline: 2px solid var(--positive); }
-  > p > button:disabled { opacity: 0.4; cursor: default; }
-  > p > button > img { width: 20px; height: 20px; object-fit: contain; }
-}
-/* the voice settings: a column of labelled controls, a section of the voice panel above its line */
-form.voice-settings {
-  grid-area: 1 / 1 / 2 / -1; display: grid; gap: 12px; max-height: 60vh; overflow-y: auto; margin: 0 -8px 8px; padding: 4px 8px 12px;
-  border-bottom: 1px solid var(--bg-raised); font-size: 14px; font-weight: 500;
-}
-
-/* the user panel (a button: it opens the account popout), and mute and deafen over its end (user_panel.tsx) */
-section.side > button {
-  grid-area: me; display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; padding: 0 8px;
-  border-top: 1px solid var(--bg-raised); text-align: left; font: inherit; font-weight: 500; color: var(--text-strong);
-  > .avatar { grid-row: span 2; align-self: center; }
-  > small { font-size: 12px; }
-  &.user-panel { padding-right: 88px; }
-  &:is(.self-mute, .self-deafen) {
-    justify-self: end; align-self: center; width: 32px; height: 32px; margin-right: 8px; padding: 0; border: 0; border-radius: 4px;
-    grid: auto / auto; place-content: center; color: var(--text-muted);
-    &:hover { background: var(--bg-raised); }
-    &.on { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
-  }
-  &.self-mute { margin-right: 44px; }
-}
 
 /* menus: the account popout above the panel (popovertarget makes the panel its anchor), the context menus at the
    pointer, the pickers above the box */
@@ -268,44 +207,4 @@ menu.gif-picker {
   > div > div { columns: 2; column-gap: 8px; }
   > div > div > button { display: block; width: 100%; margin-bottom: 8px; padding: 0; border-radius: 8px; overflow: hidden; break-inside: avoid; }
   > div > div > button > :is(img, video) { display: block; width: 100%; height: auto; }
-}
-/* the call view: a tile per person (avatar, name, a ring while speaking), Join below them; a camera fills its tile,
-   under the name; someone's Go Live: Watch Stream until watched, then the stream, larger and letterboxed */
-& > section.call {
-  grid-area: call; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 16px; background: var(--bg-deep);
-}
-section.call {
-  > figure {
-    display: grid; place-items: end start; width: 160px; height: 90px; padding: 6px 8px; border-radius: 8px; font-size: 14px; font-weight: 500;
-    background: var(--icon, none) center / 48px no-repeat, var(--bg-raised); outline: 2px solid transparent; outline-offset: -2px;
-    position: relative; z-index: 0;
-  }
-  > figure > video { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
-  > figure.stream { place-items: center; align-content: center; gap: 8px; background: var(--bg-raised); }
-  > figure.stream.watching { width: 480px; height: 270px; place-items: end start; align-content: stretch; background: #000; }
-  > figure.stream > video { object-fit: contain; }
-  > figure.stream > span::after { content: " · LIVE"; color: var(--danger); font-weight: 700; }
-  > figure.stream > button { padding: 4px 12px; }
-  > figure.stream.watching > button { position: absolute; inset: 6px 8px auto auto; opacity: .8; }
-  > figure.speaking { outline-color: var(--positive); }
-  > figure.mute { --i: var(--i-mic-off); }
-  > figure.deaf { --i: var(--i-deaf); }
-  > figure:is(.mute, .deaf)::after { grid-area: 1 / 1; place-self: start end; width: 16px; height: 16px; color: var(--danger); }
-  /* a DM call without cameras or streams, as stock's: round avatars, the name on hover, the icon at the bottom right */
-  &.dm:not(:has(video, figure.stream)) > figure {
-    width: 80px; height: 80px; padding: 0; border-radius: 50%; font-size: 0; background: var(--icon, none) center / cover, var(--bg-raised); outline-offset: 2px;
-  }
-  &.dm:not(:has(video, figure.stream)) > figure:is(.mute, .deaf)::after { place-self: end end; width: 20px; height: 20px; }
-}
-/* Join on a row of its own below the tiles; a DM's are icons */
-section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; font-size: 14px; }
-section.call > footer > .icon-button { width: 56px; height: 40px; }
-section.call > footer > .icon-button, dialog.incoming > button { border-radius: 4px; background: var(--positive); color: #fff; }
-/* a call ringing for you, at the top of the window */
-dialog.incoming {
-  position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid-template-columns: 1fr auto auto; gap: 4px 8px; align-items: center; width: 280px;
-  padding: 16px 16px 16px 80px; background: var(--icon) 16px center / 48px no-repeat, var(--bg-floating);
-  > small { grid-column: 1; color: var(--text-muted); }
-  > button { grid-row: 1 / 3; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
-  > button.incoming-decline { background: var(--danger); }
 }

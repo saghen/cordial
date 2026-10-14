@@ -1,23 +1,27 @@
 // The user panel: the account and its status picker, mute and deafen with their device menus, and the voice panel
-// above it while connected (stock's selectVoiceChannel: Discord's own voice engine makes the call).
+// above it while connected: its status, the channel, the camera, Go Live, the soundboard, the voice settings and
+// Disconnect.
 
 import { createSignal, For, onCleanup, Show } from 'solid-js'
 
 import * as screen from '../../screen-capture/src/renderer'
 
-import { A, S } from '../adapter/needs'
-import type { Rec } from '../adapter/discord'
+import * as audio from '../api/audio'
 import * as channels from '../api/channels'
-import { emojiSrc } from '../api/pickers'
-import type { PrivateChannel } from '../api/records'
-import { me, nameOf } from '../api/users'
+import * as guilds from '../api/guilds'
+import type { Channel, PrivateChannel } from '../api/records'
+import * as soundboard from '../api/soundboard'
+import { text } from '../api/strings'
+import * as streams from '../api/streams'
+import * as users from '../api/users'
+import * as voice from '../api/voice'
 import { Avatar } from '../components/avatar'
-import { contextMenu, Items } from '../primitives/menu'
-import { $ } from '../api/store'
+import { Emoji } from '../components/emoji'
 import { Button, IconButton, Toggle } from '../primitives/button'
+import { Check, Radios, Range, Select } from '../primitives/fields'
+import { contextMenu, Items } from '../primitives/menu'
 import { modal } from '../primitives/modal'
 import { Popout } from '../primitives/popout'
-import { Check, Radios, Range, Select } from '../primitives/fields'
 
 export const UserPanel = () => (
   <>
@@ -27,42 +31,25 @@ export const UserPanel = () => (
   </>
 )
 
-const STATUSES = { online: 'Online', idle: 'Idle', dnd: 'Do Not Disturb', invisible: 'Invisible' } as Record<
-  string,
-  string
->
-
-// the user panel, and its account popout with the status picker: a popover the panel opens, placed by CSS anchor
-// positioning. A pick calls stock's status setter as its menu does (a synced setting)
-// what you're doing, as stock words it under your name: Playing, Streaming, Listening to, Watching, Competing in
-const VERBS = ['Playing', 'Streaming', 'Listening to', 'Watching', '', 'Competing in']
-
+// the account, with what you're doing (or your status) under your name; its popout picks the status
 function Me() {
-  const status = () => $.SelfPresence.getStatus()
-  const playing = () => {
-    const a = $.LocalActivity.getPrimaryActivity()
-    return a && a.type !== 4 && VERBS[a.type] ? `${VERBS[a.type]} ${a.name}` : undefined
-  }
-  const pick = (next: string) => {
-    const prevStatus = S.SelfPresence.getStatus()
-    if (next !== prevStatus) A.setStatus({ nextStatus: next, prevStatus })
-  }
+  const status = users.selfStatus
   return (
     <>
       <button class="user-panel" popovertarget="mc-account">
-        <Show when={me()}>{(u) => <Avatar user={u()} size={32} status={status()} />}</Show>
-        {nameOf(me())}
-        <small>{playing() ?? STATUSES[status()] ?? status()}</small>
+        <Show when={users.me()}>{(u) => <Avatar user={u()} size={32} status={status()} />}</Show>
+        {users.nameOf(users.me())}
+        <small>{users.activity() ?? (users.STATUSES[status()] ? text(users.STATUSES[status()]) : status())}</small>
       </button>
       <Popout name="account" class="account">
         <Items
-          items={Object.entries(STATUSES).map(([value, label]) => ({
+          items={Object.entries(users.STATUSES).map(([value, label]) => ({
             name: 'set-status',
             id: value,
-            label,
+            label: text(label),
             status: value,
             class: { sel: status() === value },
-            run: () => pick(value),
+            run: () => users.setStatus(value),
           }))}
         />
       </Popout>
@@ -70,65 +57,54 @@ function Me() {
   )
 }
 
-const STATES: Record<string, string> = {
-  RTC_CONNECTED: 'Voice Connected',
-  NO_ROUTE: 'No Route',
-  DISCONNECTED: 'Disconnected',
-}
-
 function VoicePanel() {
-  const channel = () => $.Channel.getChannel($.RTCConnection.getChannelId()!)
   // the voice settings open as a section above the panel's line
   const [settings, setSettings] = createSignal(false)
   return (
-    <Show when={channel()}>
+    <Show when={voice.channel()}>
       {(c) => (
-        <footer class="voice-panel" data-state={$.RTCConnection.getState()}>
+        <footer class="voice-panel" data-state={voice.state()}>
           <Show when={settings()}>
             <VoiceSettings />
           </Show>
-          <b>{STATES[$.RTCConnection.getState()] ?? 'Connecting…'}</b>
+          <b>{voice.stateText()}</b>
           <small>
-            {c().guild_id
-              ? `${c().name} / ${$.Guild.getGuild(c().guild_id)?.name}`
-              : channels.dmName(c() as PrivateChannel)}
+            {c().guild_id ? `${c().name} / ${guilds.get(c().guild_id!)?.name}` : channels.dmName(c() as PrivateChannel)}
           </small>
-          <Toggle
-            class="voice-camera"
-            on={$.MediaEngine.isVideoEnabled()}
-            icon="video-slash"
-            onIcon="video"
-            title="Turn On Camera"
-            onTitle="Turn Off Camera"
-            onClick={() => A.audio.setVideoEnabled(!S.MediaEngine.isVideoEnabled())}
-          />
-          <Toggle
-            class="voice-screen"
-            on={!!$.ApplicationStreaming.getCurrentUserActiveStream()}
-            icon="screen"
-            onIcon="screen-x"
-            title="Share Your Screen"
-            onTitle="Stop Streaming"
-            onClick={() =>
-              S.ApplicationStreaming.getCurrentUserActiveStream()
-                ? A.streams.stopOwn(false)
-                : A.goLive.start(c().guild_id ?? null, c().id, [])
-            }
-          />
-          <IconButton
-            class="voice-soundboard"
-            icon="soundboard"
-            title="Open Soundboard"
-            popovertarget="mc-soundboard"
-          />
-          <Toggle
-            class="voice-settings-button"
-            on={settings()}
-            icon="settings"
-            title="Voice Settings"
-            onClick={() => setSettings((on) => !on)}
-          />
-          <IconButton class="voice-disconnect" icon="hangup" title="Disconnect" onClick={() => A.voice.disconnect()} />
+          <div class="voice-buttons">
+            <Toggle
+              class="voice-camera"
+              on={audio.camera()}
+              icon="video-slash"
+              onIcon="video"
+              title={text('CAMERA_ON')}
+              onTitle={text('CAMERA_OFF')}
+              onClick={audio.toggleCamera}
+            />
+            <Toggle
+              class="voice-screen"
+              on={streams.live()}
+              icon="screen"
+              onIcon="screen-x"
+              title={text('SHARE_YOUR_SCREEN')}
+              onTitle={text('STOP_STREAMING')}
+              onClick={() => streams.toggleLive(c())}
+            />
+            <IconButton
+              class="voice-soundboard"
+              icon="soundboard"
+              title={text('SOUNDBOARD_OPEN_SOUNDBOARD')}
+              popovertarget="mc-soundboard"
+            />
+            <Toggle
+              class="voice-settings-button"
+              on={settings()}
+              icon="settings"
+              title={text('VOICE_SETTINGS')}
+              onClick={() => setSettings((on) => !on)}
+            />
+            <IconButton class="voice-disconnect" icon="hangup" title={text('DISCONNECT_SELF')} onClick={voice.leave} />
+          </div>
           <Soundboard channel={c()} />
           <ScreenPicker />
         </footer>
@@ -137,35 +113,25 @@ function VoicePanel() {
   )
 }
 
-// the soundboard, as stock's: the sounds of this server, the others' and Discord's, the ones you can't use greyed (stock's
-// rule: Nitro for other servers' sounds); a click plays it in the call, unless you're muted. The sounds load on open
-function Soundboard(p: { channel: Rec }) {
-  const sections = () => {
-    const all = $.Soundboard.getSounds(),
-      here = p.channel.guild_id
-    const ids = [here, ...[...all.keys()].filter((id) => id !== here && id !== '0'), '0']
-    return ids
-      .filter((id) => all.get(id)?.length)
-      .map((id) => [id === '0' ? 'Default' : $.Guild.getGuild(id)?.name, all.get(id)!] as const)
-  }
-  const usable = (sound: Rec) => A.soundboard.canUse(S.User.getCurrentUser(), sound, p.channel, true)
+// the soundboard: each server's sounds, the ones you can't use greyed; a click plays one in the call
+function Soundboard(p: { channel: Channel }) {
   return (
-    <Popout name="soundboard" class="soundboard" onOpen={() => A.soundboardSounds.fetch()}>
-      <For each={sections()}>
-        {([name, sounds]) => (
+    <Popout name="soundboard" class="soundboard" onOpen={soundboard.fetch}>
+      <For each={soundboard.sections(p.channel)}>
+        {(section) => (
           <>
-            <h3>{name}</h3>
+            <h3>{section.name}</h3>
             <p>
-              <For each={sounds}>
+              <For each={section.sounds}>
                 {(sound) => (
                   <button
-                    class={['sound', { on: $.Soundboard.isPlayingSound(sound.soundId) }]}
+                    class={['sound', { on: soundboard.playing(sound) }]}
                     data-id={sound.soundId}
-                    disabled={!usable(sound)}
-                    onClick={() => A.soundboard.canPlay(p.channel) && A.soundboard.play(sound, p.channel.id, [])}
+                    disabled={!soundboard.usable(sound, p.channel)}
+                    onClick={() => soundboard.play(sound, p.channel)}
                   >
                     <Show when={sound.emojiId} fallback={sound.emojiName}>
-                      <img alt="" src={emojiSrc({ id: sound.emojiId })} />
+                      <Emoji emoji={{ id: sound.emojiId, name: sound.emojiName ?? '' }} />
                     </Show>
                     {sound.name}
                   </button>
@@ -180,88 +146,95 @@ function Soundboard(p: { channel: Rec }) {
 }
 
 // the voice settings (Liam's, in place of stock's noise suppression button): devices, volumes, input mode and
-// sensitivity, and the audio processing, through stock's setters; MediaEngineStore keeps them on this client
+// sensitivity, and the audio processing
 function VoiceSettings() {
-  const M = () => $.MediaEngine
-  const devices = (all: Record<string, Rec>) =>
-    Object.values(all).map((d) => [d.id as string, d.name as string, !!d.disabled] as const)
-  const mode = (changes: Rec, next = M().getMode()) => A.audio.setMode(next, { ...M().getModeOptions(), ...changes })
+  const devices = (all: audio.Device[]) => all.map((d) => [d.id, d.name, d.disabled] as const)
   return (
     <form class="voice-settings" onSubmit={(e) => e.preventDefault()}>
       <Select
-        label="Input Device"
-        options={devices(M().getInputDevices())}
-        value={M().getInputDeviceId()}
-        onChange={A.audio.setInputDevice}
+        label={text('FORM_LABEL_INPUT_DEVICE')}
+        options={devices(audio.inputs())}
+        value={audio.input()}
+        onChange={audio.setInput}
       />
       <Select
-        label="Output Device"
-        options={devices(M().getOutputDevices())}
-        value={M().getOutputDeviceId()}
-        onChange={A.audio.setOutputDevice}
+        label={text('FORM_LABEL_OUTPUT_DEVICE')}
+        options={devices(audio.outputs())}
+        value={audio.output()}
+        onChange={audio.setOutput}
       />
-      <Range label="Input Volume" max={100} value={M().getInputVolume()} onInput={A.audio.setInputVolume} />
-      <Range label="Output Volume" max={200} value={M().getOutputVolume()} onInput={A.audio.setOutputVolume} />
+      <Range
+        label={text('FORM_LABEL_INPUT_VOLUME')}
+        max={100}
+        value={audio.inputVolume()}
+        onInput={audio.setInputVolume}
+      />
+      <Range
+        label={text('FORM_LABEL_OUTPUT_VOLUME')}
+        max={200}
+        value={audio.outputVolume()}
+        onInput={audio.setOutputVolume}
+      />
       <Radios
-        label="Input Mode"
+        label={text('FORM_LABEL_INPUT_MODE')}
         name="mode"
         options={[
-          ['VOICE_ACTIVITY', 'Voice Activity'],
-          ['PUSH_TO_TALK', 'Push to Talk'],
+          ['VOICE_ACTIVITY', text('INPUT_MODE_VAD')],
+          ['PUSH_TO_TALK', text('INPUT_MODE_PTT')],
         ]}
-        value={M().getMode()}
-        onChange={(value) => mode({}, value)}
+        value={audio.mode()}
+        onChange={audio.setMode}
       />
-      <Show when={M().getMode() === 'VOICE_ACTIVITY'}>
+      <Show when={audio.mode() === 'VOICE_ACTIVITY'}>
         <Check
-          label="Automatically determine input sensitivity"
-          checked={!!M().getModeOptions().autoThreshold}
-          onChange={(on) => mode({ autoThreshold: on })}
+          label={text('FORM_LABEL_AUTOMATIC_VAD')}
+          checked={audio.autoThreshold()}
+          onChange={audio.setAutoThreshold}
         />
         <Range
-          label="Input Sensitivity"
+          label={text('FORM_LABEL_INPUT_SENSITIVTY')}
           min={-100}
           max={0}
-          value={M().getModeOptions().threshold}
-          disabled={!!M().getModeOptions().autoThreshold}
-          onChange={(threshold) => mode({ threshold })}
+          value={audio.threshold()}
+          disabled={audio.autoThreshold()}
+          onChange={audio.setThreshold}
         />
       </Show>
-      <Check label="Noise Suppression" checked={M().getNoiseSuppression()} onChange={A.audio.setNoiseSuppression} />
-      <Show when={M().isNoiseCancellationSupported()}>
-        <Check label="Krisp" checked={M().getNoiseCancellation()} onChange={A.audio.setNoiseCancellation} />
-      </Show>
-      <Check label="Echo Cancellation" checked={M().getEchoCancellation()} onChange={A.audio.setEchoCancellation} />
       <Check
-        label="Automatic Gain Control"
-        checked={M().getAutomaticGainControl()}
-        onChange={A.audio.setAutomaticGainControl}
+        label={text('NOISE_SUPPRESSION')}
+        checked={audio.noiseSuppression()}
+        onChange={audio.setNoiseSuppression}
       />
+      <Show when={audio.krispSupported()}>
+        <Check label={text('KRISP')} checked={audio.krisp()} onChange={audio.setKrisp} />
+      </Show>
+      <Check
+        label={text('ECHO_CANCELLATION')}
+        checked={audio.echoCancellation()}
+        onChange={audio.setEchoCancellation}
+      />
+      <Check label={text('AUTOMATIC_GAIN_CONTROL')} checked={audio.gainControl()} onChange={audio.setGainControl} />
     </form>
   )
 }
 
-// the user panel's mute and deafen, in or out of a call (stock's: a local setting, and the voice state while in one);
-// a right click picks the input or the output device, as on stock's
+// mute and deafen, in or out of a call; a right click picks the input or the output device, as on stock's
 function AudioButtons() {
-  const M = () => $.MediaEngine
   const menu = contextMenu({
     class: 'devices',
     // the output's devices from deafen, the input's from mute
     find: (e) => ((e.target as Element).closest('.self-deafen') ? 'output' : 'input'),
     children: (kind) => {
       const output = () => kind() === 'output'
-      const devices = () => Object.values(output() ? M().getOutputDevices() : M().getInputDevices()) as Rec[]
-      const current = () => (output() ? M().getOutputDeviceId() : M().getInputDeviceId())
       return (
         <Items
-          items={devices().map((d) => ({
+          items={(output() ? audio.outputs() : audio.inputs()).map((d) => ({
             name: 'device',
             id: d.id,
             label: d.name,
-            checked: current() === d.id,
+            checked: (output() ? audio.output() : audio.input()) === d.id,
             disabled: d.disabled,
-            run: () => (output() ? A.audio.setOutputDevice(d.id) : A.audio.setInputDevice(d.id)),
+            run: () => (output() ? audio.setOutput(d.id) : audio.setInput(d.id)),
           }))}
         />
       )
@@ -271,22 +244,22 @@ function AudioButtons() {
     <>
       <Toggle
         class="self-mute"
-        on={M().isSelfMute()}
+        on={audio.selfMuted()}
         icon="mic"
         onIcon="mic-off"
-        title="Mute"
-        onTitle="Unmute"
-        onClick={() => A.audio.toggleSelfMute()}
+        title={text('MUTE')}
+        onTitle={text('UNMUTE')}
+        onClick={audio.toggleMute}
         onContextMenu={menu.open}
       />
       <Toggle
         class="self-deafen"
-        on={M().isSelfDeaf()}
+        on={audio.selfDeafened()}
         icon="headphones"
         onIcon="deaf"
-        title="Deafen"
-        onTitle="Undeafen"
-        onClick={() => A.audio.toggleSelfDeaf()}
+        title={text('DEAFEN')}
+        onTitle={text('UNDEAFEN')}
+        onClick={audio.toggleDeafen}
         onContextMenu={menu.open}
       />
       {menu.view}

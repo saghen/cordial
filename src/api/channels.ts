@@ -6,10 +6,11 @@ import { createEffect } from 'solid-js'
 import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
 import * as cdn from './cdn'
-import { ChannelType, type Channel, type PrivateChannel, type VoiceState } from './records'
+import { ChannelType, type Channel, type PrivateChannel } from './records'
 import { $, selected } from './store'
 import { text } from './strings'
 import * as users from './users'
+import * as voice from './voice'
 
 export const get = (id: Id) => $.Channel.getChannel(id) as Channel | undefined
 
@@ -104,17 +105,12 @@ export const title = (c: Channel) =>
       ? `@${dmName(c as PrivateChannel)}`
       : dmName(c as PrivateChannel)
 
-// Voice channels: who's in them, since when, and their status
+// Voice channels: since when the call in them has gone on, and their status (who's in them: api/voice.ts)
 
-export const voiceStates = (c: Channel) => Object.values($.VoiceState.getVoiceStatesForChannel(c.id)) as VoiceState[]
 // when the call in it began, while anyone's in it
-export const callStart = (c: Channel) => (voiceStates(c).length ? $.VoiceChannelStartTime.getStartTime(c) : undefined)
+export const callStart = (c: Channel) =>
+  voice.states(c.id).length ? $.VoiceChannelStartTime.getStartTime(c) : undefined
 export const voiceStatus = (c: Channel) => $.ChannelStatus.getChannelStatus(c)
-export const connected = (c: Channel) => $.RTCConnection.getChannelId() === c.id
-export const join = (c: Channel) => A.voice.selectVoiceChannel(c.id)
-export const speaking = (v: VoiceState) => $.Speaking.isSpeaking(v.userId)
-// as stock: you, connected from another client
-export const elsewhere = (v: VoiceState, c: Channel) => v.userId === users.me()?.id && !connected(c)
 
 // how long a call has gone on, as stock: 2:57:00, 05:12
 export function elapsed(ms: number) {

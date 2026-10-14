@@ -1,0 +1,60 @@
+/* the side column: the channel list or the DMs, then the voice panel, then the user panel with mute and deafen
+   beside it, each in a row of its own, so neither panel covers the list. A line across the user panel's row */
+section.side {
+  grid-area: panels; display: grid;
+  grid: "nav nav nav" minmax(0, 1fr) "voice voice voice" auto "me mute deafen" 60px / minmax(0, 1fr) auto auto;
+  &::after { content: ""; grid-row: me; grid-column: 1 / -1; border-top: 1px solid var(--bg-raised); pointer-events: none; }
+}
+/* the voice panel: the voice settings when open, then the status and the channel, the buttons beside them */
+section.side > footer {
+  grid-area: voice; display: grid; grid: "settings settings" auto "status buttons" auto "channel buttons" auto / minmax(0, 1fr) auto;
+  padding: 8px; border-top: 1px solid var(--bg-raised); background: var(--bg); font-size: 14px;
+  > b { grid-area: status; font-weight: 600; color: var(--warning); }
+  &[data-state=RTC_CONNECTED] > b { color: var(--positive); }
+  > small { grid-area: channel; font-size: 12px; color: var(--text-muted); }
+  > .voice-buttons { grid-area: buttons; align-self: start; display: flex; }
+  > .voice-buttons > button { width: 32px; height: 32px; border-radius: 4px; color: var(--text-muted); }
+  > .voice-buttons > button:hover { background: var(--bg-raised); color: var(--text-strong); }
+  > .voice-buttons > button:is(.voice-camera, .voice-screen).on { color: var(--positive); }
+  > .voice-buttons > button.voice-settings-button.on { color: var(--text-strong); }
+  > .voice-buttons > button.voice-disconnect:hover { color: var(--danger); }
+}
+/* the voice settings: a column of labelled controls, a section of the voice panel above its line */
+form.voice-settings {
+  grid-area: settings; display: grid; gap: 12px; max-height: 60vh; overflow-y: auto; margin: 0 -8px 8px; padding: 4px 8px 12px;
+  border-bottom: 1px solid var(--bg-raised); font-size: 14px; font-weight: 500;
+}
+/* Go Live's picker: a list of the sources, modal */
+dialog.screen-picker {
+  width: min(480px, 100% - 32px); max-height: 80vh; padding: 16px; border: 0; border-radius: 8px; background: var(--bg-floating);
+  color: var(--text); font-size: 14px; box-shadow: 0 8px 16px #0006;
+  &[open] { display: grid; gap: 8px; }
+  &::backdrop { background: #000a; }
+  > h2 { font-size: 20px; color: var(--text-strong); }
+  > .source { display: grid; justify-items: start; padding: 8px 12px; font-weight: 600; }
+  > .screen-cancel { justify-self: end; color: var(--text-muted); }
+}
+/* the soundboard: each server's sounds as tiles, over the panel */
+menu.soundboard {
+  inset: auto auto 72px 80px; width: 420px; max-height: 60vh; overflow-y: auto;
+  > h3 { padding: 8px 4px 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
+  > p { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  > p > button { display: flex; gap: 6px; align-items: center; padding: 8px; border-radius: 8px; background: var(--bg-raised); color: var(--text); font: inherit; font-size: 13px; text-align: left; overflow: hidden; }
+  > p > button.on { outline: 2px solid var(--positive); }
+  > p > button:disabled { opacity: 0.4; cursor: default; }
+  > p > button > img { width: 20px; height: 20px; object-fit: contain; }
+}
+/* the user panel (a button: it opens the account popout), then mute and deafen */
+section.side > .user-panel {
+  grid-area: me; display: grid; grid: auto auto / auto 1fr; column-gap: 8px; align-content: center; padding: 0 12px 0 8px;
+  text-align: left; font: inherit; font-weight: 500; color: var(--text-strong);
+  > .avatar { grid-row: span 2; align-self: center; }
+  > small { font-size: 12px; }
+}
+section.side > :is(.self-mute, .self-deafen) {
+  align-self: center; width: 32px; height: 32px; margin-right: 4px; border-radius: 4px; color: var(--text-muted);
+  &:hover { background: var(--bg-raised); }
+  &.on { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+}
+section.side > .self-mute { grid-area: mute; }
+section.side > .self-deafen { grid-area: deafen; margin-right: 8px; }

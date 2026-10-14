@@ -3,7 +3,8 @@
 import { createEffect, createMemo, Show } from 'solid-js'
 
 import { Channels } from './views/channels'
-import { CallButtons, CallView, IncomingCalls, voiceSounds } from './views/call'
+import { voiceSounds } from './api/sounds'
+import { CallButtons, CallView, IncomingCalls } from './views/call'
 import { NotificationBell, Pins, Search } from './views/header'
 import { Chat } from './views/chat'
 import * as channels from './api/channels'
@@ -73,7 +74,7 @@ export function App(p: { root: HTMLElement }) {
           )}
         </Show>
         <Show when={dm()}>
-          <CallButtons channel={channel()!} />
+          <CallButtons channel={channel() as PrivateChannel} />
         </Show>
         <Show when={channel()?.guild_id ? channel() : undefined}>{(c) => <NotificationBell channel={c()} />}</Show>
         <Show when={channel()}>{(c) => <Pins channel={c()} />}</Show>
