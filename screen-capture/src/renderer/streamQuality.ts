@@ -99,6 +99,10 @@ export function applyToStreamConnection(q: StreamQuality): boolean {
 // ---- The Go Live sender ----
 
 const streamTracks = new WeakSet<MediaStreamTrack>()
+let liveSender: RTCRtpSender | null = null
+
+/** The sender our newest Go Live track went on (status.ts). */
+export const streamSender = () => liveSender
 
 /** Whether a track is a Go Live track we set up (for stats, overlays). */
 export const isStreamTrack = (track: MediaStreamTrack | null | undefined) => !!track && streamTracks.has(track)
@@ -161,6 +165,7 @@ function applyToSender(sender: RTCRtpSender) {
       .call(sender, withSoundRate(sender, sender.getParameters()))
       .catch((e) => logger.error("Failed to set the sound's bitrate", e))
   if (!sender.track || !streamTracks.has(sender.track)) return
+  liveSender = sender
   origSetParameters
     .call(sender, withQuality(sender, sender.getParameters()))
     .catch((e) => logger.error('Failed to set the stream quality', e))
