@@ -1,6 +1,10 @@
-# cordial
+<p align="center">
+  <h2 align="center">Cordial</h2>
+</p>
 
-A fast, minimal Discord client for Linux, with a new UI built on Discord's core.
+<p align="center">
+  Fast, minimal Discord client for Linux, with a new UI built on top of the official core.
+</p>
 
 - **Screen sharing:** Matches or exceeds Windows' quality (Hardware AV1, CPU VP9 fallback, ~1% overhead on niri)
 - **Rich game presence:** Using a shim for Discord's official IPC
@@ -9,7 +13,7 @@ A fast, minimal Discord client for Linux, with a new UI built on Discord's core.
 - **Minimal:** -70% cpu usage, -20% RAM usage (still high, ideas welcome!)
 - **Fast:** <20ms click latency for all actions
 
-## Install
+### Install
 
 ```sh
 nix run github:saghen/cordial
@@ -23,7 +27,7 @@ inputs.cordial.url = "github:saghen/cordial";
 environment.systemPackages = [ inputs.cordial.packages.x86_64-linux.default ];
 ```
 
-## How it works
+### How it works
 
 Discord's web client keeps its logic (stores, actions, the gateway, REST, voice) separate from the React UI. Cordial loads the official client, leaving the core untouched, and swaps the UI for our own. Similar to Equibop/Vesktop, we provide shims for improved screen sharing, rich presence, and global keybinds. All three are written from scratch for Cordial, not forked from Equibop or Vesktop.
 
@@ -33,7 +37,7 @@ Discord's web client keeps its logic (stores, actions, the gateway, REST, voice)
 - **Discord's core:** stores, actions, gateway, REST, voice: untouched, so traffic stays identical to the official client
 - **Native helpers:** Rust programs that fill in for Discord desktop's native modules: screen capture, game detection/rich presence and global keybinds
 
-## Dropping Electron
+### Dropping Electron
 
 Going native would mean rewriting the entire core of Discord. Much of Discord's API is documented by the community or officially in the bot API docs. However, the state logic does not have documentation, and would have to be determined from the Discord source (permissions, unreads, caching, subscriptions, e2ee voice, ...), and traffic would no longer look like the official client. The potential simplicity of the screen share stack alongside a natively rendered UI though...
 
@@ -42,7 +46,7 @@ Going native would mean rewriting the entire core of Discord. Much of Discord's 
 - [Songbird](https://github.com/serenity-rs/songbird): voice support
   - [Serenity](https://github.com/serenity-rs/serenity): text support which songbird is built on. can we use songbird on discord-user-rs?
 
-## AI Usage
+### AI Usage
 
 The original idea came after exploring the Equicord and Vencord projects, seeing how they hooked into the core's stores and actions. Afterwards, I wrote the core adapters, screen sharing scaffold, file structure, feature list/behavior, and so on myself. The core along with a style guide and hand-written plan was passed off to an AI to iterate on.
 
