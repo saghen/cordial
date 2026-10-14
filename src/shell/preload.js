@@ -18,7 +18,8 @@ function observeGames(list, cb) {
 
 // Rich Presence: apps connect to discord-ipc-N (in CORDIAL_IPC_DIR if set, else where Discord desktop puts it), and
 // Discord's own RPC server in the page speaks the protocol; this only carries each connection's bytes
-const dir = process.env.CORDIAL_IPC_DIR ?? process.env.XDG_RUNTIME_DIR ?? process.env.TMPDIR ?? '/tmp'
+const env = process.env
+const dir = env.CORDIAL_IPC_DIR || env.XDG_RUNTIME_DIR || env.TMPDIR || env.TMP || env.TEMP || '/tmp'
 const sockets = new Map()
 const rpc = {
   async listen(cb) {
