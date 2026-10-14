@@ -1,0 +1,27 @@
+/* menus: the account popout above the panel (popovertarget makes the panel its anchor), the context menus at the
+   pointer, the pickers above the box */
+menu {
+  inset: auto; margin: 0 0 8px; position-area: top span-right; width: 224px; padding: 8px;
+  &:popover-open { display: grid; gap: 2px; }
+  > button { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; color: inherit; font: inherit; font-size: 14px; text-align: left; }
+  > button:hover, > button.sel { background: var(--bg-raised); color: var(--text-strong); }
+  /* a radio item: its ring at the end, filled while checked */
+  > button[role=menuitemradio]::after {
+    content: ""; flex: none; margin-left: auto; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%;
+  }
+  > button[aria-checked=true]::after { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, #0000 50%); }
+  /* a submenu: beside its item while the item or the submenu is hovered or focused. Fixed, so it's placed against the
+     window, not inside its menu; hidden by opacity, so its items stay focusable (focus moving in blurs the item first,
+     and an item that's display: none then can't take it) */
+  > .submenu { display: grid; position: fixed; margin: 0; position-area: right span-bottom; opacity: 0; pointer-events: none; }
+  > button:is(:hover, :focus-visible) + .submenu, > .submenu:is(:hover, :focus-within) { opacity: 1; pointer-events: auto; }
+  > button.danger { color: var(--danger); }
+  > button:disabled { opacity: 0.5; cursor: default; }
+  > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
+  > input { padding: 6px 8px; outline: 0; color: inherit; }
+  > p { display: grid; grid-template-columns: repeat(6, 1fr); }
+  > p > button { padding: 4px; border-radius: 4px; }
+  > p > button:hover { background: var(--bg-raised); }
+  > p > button > img { width: 24px; height: 24px; object-fit: contain; }
+  &:is(.message-menu, .server-menu, .channel-menu, .devices) { position: fixed; margin: 0; }
+}

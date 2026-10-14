@@ -1,14 +1,19 @@
-// The channel header's buttons: notification settings (stock's bell popout: mute, then the channel's level), pinned
-// messages and search
+// The top bar, as stock's: the server's name over the channel list, then the channel's icon, name and topic and its
+// buttons: a DM's call buttons, notification settings (stock's bell popout: mute, then the channel's level), pinned
+// messages, the member list's toggle and search
 
 import { createEffect, createSignal, For, Show } from 'solid-js'
 
 import * as channels from '../api/channels'
+import * as guilds from '../api/guilds'
 import * as messages from '../api/messages'
 import * as notifications from '../api/notifications'
-import type { Channel, Id, Message } from '../api/records'
+import type { Channel, Id, Message, PrivateChannel } from '../api/records'
 import * as search from '../api/search'
+import { selectedChannel, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
+import { ChannelIcon } from '../components/channel_icon'
+import { DmIcon } from '../components/dm_icon'
 import { Attachment } from '../components/message/attachment'
 import { Content } from '../components/message/content'
 import { Head } from '../components/message/head'
@@ -16,6 +21,31 @@ import { Button, IconButton } from '../primitives/button'
 import { Items } from '../primitives/menu'
 import { Popout } from '../primitives/popout'
 import { SearchInput } from '../primitives/search'
+import { CallButtons } from './call'
+import { MembersToggle } from './members'
+
+export function Header() {
+  return (
+    <header>
+      <h1>{selectedGuild() ? guilds.get(selectedGuild()!)?.name : text('DIRECT_MESSAGES')}</h1>
+      <Show when={selectedChannel()}>
+        {(c) => (
+          <div class="channel">
+            {c().guild_id ? <ChannelIcon channel={c()} /> : <DmIcon channel={c() as PrivateChannel} size={24} status />}
+            {c().guild_id ? c().name : channels.dmName(c() as PrivateChannel)}
+            <small>{c().topic}</small>
+            <div class="toolbar">
+              {c().guild_id ? <NotificationBell channel={c()} /> : <CallButtons channel={c() as PrivateChannel} />}
+              <Pins channel={c()} />
+              <MembersToggle />
+              <Search channel={c()} />
+            </div>
+          </div>
+        )}
+      </Show>
+    </header>
+  )
+}
 
 export function NotificationBell(p: { channel: Channel }) {
   const c = () => p.channel

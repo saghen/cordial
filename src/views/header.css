@@ -1,0 +1,54 @@
+/* the top bar: a subgrid of the root's columns, so the server's name sits over the channel list; then the channel's
+   icon, name and topic, its buttons in a toolbar at the end (the member list's toggle, then search) */
+& > header {
+  grid-area: top; display: grid; grid-template-columns: subgrid; anchor-name: --header; border-bottom: 1px solid var(--bg-raised);
+  font-size: 16px; font-weight: 600; color: var(--text-strong); white-space: nowrap;
+  > h1, > .channel { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 16px; overflow: hidden; }
+  > h1 { font: inherit; }
+  > .channel { grid-column: 2 / -1; }
+  > .channel > .icon { --icon-size: 24px; color: var(--text-muted); }
+}
+& > header .toolbar {
+  display: flex; align-items: center; gap: 16px; margin-left: auto;
+  > button { color: var(--text-muted); }
+  > button:hover, > button.on { color: var(--text-strong); }
+  /* pins: a dot while there are new ones, cut out of the icon by a ring of the header's background */
+  > button.pins { position: relative; }
+  > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
+  /* search: a box at the end, wider while in use */
+  > input.search {
+    width: 160px; height: 28px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
+    &:focus { width: 240px; }
+  }
+}
+/* the bell's menu: an item's second line (when a mute ends, what the default is) under its label */
+menu.notifications-menu {
+  margin: 8px 0 0; position-area: bottom span-left;
+  > button { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; }
+  > button > small { grid-column: 1; font-size: 12px; }
+  > button::after { grid-area: 1 / 2 / span 2; align-self: center; }
+}
+/* the pins under their button, the search results down the right side under the header (anchored to it): messages as cards, Jump on
+   hover */
+div:is(.pins-list, .search-results) {
+  overflow-y: auto; padding: 0 0 16px; font-weight: 400;
+  > h2 { padding: 16px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
+  > article.head { position: relative; margin: 0 8px 8px; padding-top: 8px; padding-bottom: 8px; border-radius: 4px; background: var(--bg); }
+  > article > button { position: absolute; top: 8px; right: 8px; display: none; }
+  > article:hover > button { display: block; }
+  .button { padding: 2px 8px; font-size: 12px; }
+}
+div.pins-list {
+  inset: auto; margin: 8px 0 0; position-area: bottom span-left; width: 420px; max-height: 70vh;
+  > p { padding: 16px; color: var(--text-muted); text-align: center; }
+  > button { display: block; margin: 0 auto; }
+}
+div.search-results {
+  position-anchor: --header; inset: anchor(bottom) 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
+  color: var(--text);
+  > h2 { display: flex; }
+  > h2 > button { margin-left: auto; }
+  > :is(p, nav) { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 16px; color: var(--text-muted); }
+  > article > header > small { margin-left: 8px; color: var(--text-muted); font-size: 12px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+}

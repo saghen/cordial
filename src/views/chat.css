@@ -1,23 +1,23 @@
 /* the messages: column-reverse keeps the view at the bottom (scroller.ts); scroll anchoring keeps it still when rows
    arrive while scrolled up */
-.messages { grid-area: main; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+.messages { grid-area: chat; overflow-y: auto; display: flex; flex-direction: column-reverse; }
 .messages > div { padding: 16px 0 24px; }
 /* the new messages bar, across the messages' top */
 & > div.new-messages {
-  grid-area: main; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
+  grid-area: chat; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
   color: #fff; font-size: 14px; font-weight: 500; line-height: 24px;
   > button { padding: 0 12px; color: inherit; }
   > button:first-child { flex: 1; text-align: left; }
 }
 /* back to the present, at the messages' bottom right */
 & > button.jump {
-  --icon-size: 28px; grid-area: main; align-self: end; justify-self: end; z-index: 2; width: 48px; height: 48px;
+  --icon-size: 28px; grid-area: chat; align-self: end; justify-self: end; z-index: 2; width: 48px; height: 48px;
   margin: 0 28px 40px 0; border-radius: 50%; background: var(--bg-floating); box-shadow: 0 4px 8px #0006;
 }
 /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
    on the background with a fade above, over what scrolls under it */
 & > output.typing {
-  grid-area: main; align-self: end; z-index: 1; margin: 0 16px; padding: 0 16px; font-size: 12px; line-height: 24px; color: var(--text-muted);
+  grid-area: chat; align-self: end; z-index: 1; margin: 0 16px; padding: 0 16px; font-size: 12px; line-height: 24px; color: var(--text-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   &::before {
     content: ""; display: inline-block; width: 22px; height: 6px; margin-right: 8px; vertical-align: middle;
@@ -29,3 +29,9 @@
 &:has(> .messages.up) > output.typing { background: var(--bg); box-shadow: 0 -8px 8px var(--bg); }
 
 @keyframes mc-typing { to { mask-position: 0; } }
+/* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
+menu.message-menu {
+  > button { --icon-size: 18px; padding: 8px; font-weight: 500; }
+  > p:first-child { grid-template-columns: repeat(4, 1fr); gap: 6px; padding-bottom: 4px; }
+  > p:first-child > button { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); }
+}

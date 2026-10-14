@@ -2,35 +2,29 @@
 
 import { createEffect, createMemo, Show } from 'solid-js'
 
-import { Channels } from './views/channels'
-import { voiceSounds } from './api/sounds'
-import { CallButtons, CallView, IncomingCalls } from './views/call'
-import { NotificationBell, Pins, Search } from './views/header'
-import { Chat } from './views/chat'
-import * as channels from './api/channels'
 import { warm } from './api/preload'
-import type { PrivateChannel } from './api/records'
 import * as session from './api/session'
-import { $, selectedChannel, selectedGuild } from './api/store'
-import { text } from './api/strings'
-import { ChannelIcon } from './components/channel_icon'
-import { DmIcon } from './components/dm_icon'
-import { MembersList, MembersToggle } from './views/members'
-import { Composer } from './views/composer'
-import { ServerBar } from './views/server_bar'
+import { voiceSounds } from './api/sounds'
 import { ICONS } from './primitives/icons'
+import { CallView, IncomingCalls } from './views/call'
+import { Channels } from './views/channels'
+import { Chat } from './views/chat'
+import { Composer } from './views/composer'
+import { Header } from './views/header'
+import { MembersList } from './views/members'
+import { ServerBar } from './views/server_bar'
 import { UserPanel } from './views/user_panel'
 
-// Every .css file under src/ (app.css first, the rest by path), nested under #mincord-root once so Discord's own layers
-// never see them, with the icons as custom properties on the root. @keyframes can't nest: they go after it
+// Every .css file under src/, nested under #mincord-root once so Discord's own layers never see them, with the icons as
+// custom properties on the root. By layer, so a piece's rules come after the bases they refine: app.css, primitives,
+// components, views (each by path). @keyframes can't nest: they go after it
 const files = import.meta.glob<string>('./**/*.css', { query: '?inline', import: 'default', eager: true })
+const LAYERS = ['./app.css', './primitives/', './components/', './views/']
+const layer = (f: string) => LAYERS.findIndex((l) => f.startsWith(l))
 const frames: string[] = []
-const rules = [
-  files['./app.css'],
-  ...Object.keys(files)
-    .filter((f) => f !== './app.css')
-    .map((f) => files[f]),
-]
+const rules = Object.keys(files)
+  .sort((a, b) => layer(a) - layer(b) || a.localeCompare(b))
+  .map((f) => files[f])
   .join('\n')
   .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, (k) => (frames.push(k), ''))
 export const CSS = `#mincord-root {\n${ICONS}\n${rules}}\n${frames.join('\n')}`
@@ -42,8 +36,6 @@ function Connection() {
 }
 
 export function App(p: { root: HTMLElement }) {
-  const channel = selectedChannel
-  const dm = () => channel() && !channel()!.guild_id
   // the badge in the window title, as on the web; the shell turns it into the app badge (src/shell/main.js)
   createEffect(createMemo(session.badge), (b) => {
     document.title = `${b}Discord`
@@ -54,33 +46,11 @@ export function App(p: { root: HTMLElement }) {
     <>
       <Connection />
       <ServerBar />
-      <h1>{selectedGuild() ? $.Guild.getGuild(selectedGuild()!)?.name : text('DIRECT_MESSAGES')}</h1>
       <section class="side">
         <Channels />
         <UserPanel />
       </section>
-      <header>
-        <Show when={channel()}>
-          {(c) => (
-            <>
-              {c().guild_id ? (
-                <ChannelIcon channel={c()} />
-              ) : (
-                <DmIcon channel={c() as PrivateChannel} size={24} status />
-              )}
-              {c().guild_id ? c().name : channels.dmName(c() as PrivateChannel)}
-              <small>{c().topic}</small>
-            </>
-          )}
-        </Show>
-        <Show when={dm()}>
-          <CallButtons channel={channel() as PrivateChannel} />
-        </Show>
-        <Show when={channel()?.guild_id ? channel() : undefined}>{(c) => <NotificationBell channel={c()} />}</Show>
-        <Show when={channel()}>{(c) => <Pins channel={c()} />}</Show>
-        <MembersToggle />
-        <Show when={channel()}>{(c) => <Search channel={c()} />}</Show>
-      </header>
+      <Header />
       <CallView />
       <Chat root={p.root} />
       <IncomingCalls />

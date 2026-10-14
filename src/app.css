@@ -1,8 +1,7 @@
-/* The shell: the palette, the base rules and the root's grid, then (until the restructure moves them into a .css next
-   to each piece, ai/RESTRUCTURE.md) every region's rules. The root is one grid; list rows are subgrids of their list
-   (icon, label, badge). Elements are styled by tag, each region's rules under its element so they can't reach
-   another's. app.tsx nests every .css file under #mincord-root, so Discord's own layers never see these rules, and
-   puts the icons (primitives/icons.ts) on the root. */
+/* The shell: the palette, the base rules, the scrollbars and the root's grid; every piece's rules are in the .css next
+   to it. The root is one grid of the regions: the server bar, the side column and the member list as columns, the top
+   bar, the call, the chat and the composer as rows between them. app.tsx nests every .css file under #mincord-root,
+   so Discord's own layers never see these rules, and puts the icons (primitives/icons.ts) on the root. */
 
 & {
   --bg: #1e1e2e; --bg-raised: #2c2c3f; --bg-selected: #363645; --bg-floating: #313244; --bg-deep: #11111b; --accent: #5f8cfb; --link: #89b4fa;
@@ -10,7 +9,7 @@
   --mention-bg: #5f8cfb3d; --mention-fg: #a9bbff; --danger: #da3e44; --positive: #3d9e60; --warning: #fdb833;
   --i: var(--i-hash);
   position: fixed; inset: 0; z-index: 1; display: grid;
-  grid: "notice notice notice notice" auto "servers side head head" 48px "servers panels call members" auto "servers panels main members" 1fr
+  grid: "notice notice notice notice" auto "servers top top top" 48px "servers panels call members" auto "servers panels chat members" 1fr
     "servers panels compose members" auto / 72px 300px minmax(0, 1fr) auto;
   background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
 }
@@ -30,97 +29,4 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 :hover { --thumb: var(--bg-floating); }
 
 & > p { grid-area: notice; padding: 8px; text-align: center; background: var(--accent); color: var(--text-strong); }
-& > h1, & > header {
-  display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--bg-raised);
-  font-size: 16px; font-weight: 600; color: var(--text-strong); white-space: nowrap; overflow: hidden;
-}
-& > h1 { grid-area: side; }
-
-
-
-
-/* menus: the account popout above the panel (popovertarget makes the panel its anchor), the context menus at the
-   pointer, the pickers above the box */
-menu {
-  inset: auto; margin: 0 0 8px; position-area: top span-right; width: 224px; padding: 8px;
-  &:popover-open { display: grid; gap: 2px; }
-  > button { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; color: inherit; font: inherit; font-size: 14px; text-align: left; }
-  > button:hover, > button.sel { background: var(--bg-raised); color: var(--text-strong); }
-  /* a radio item: its ring at the end, filled while checked */
-  > button[role=menuitemradio]::after {
-    content: ""; flex: none; margin-left: auto; width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%;
-  }
-  > button[aria-checked=true]::after { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, #0000 50%); }
-  /* a submenu: beside its item while the item or the submenu is hovered or focused. Fixed, so it's placed against the
-     window, not inside its menu; hidden by opacity, so its items stay focusable (focus moving in blurs the item first,
-     and an item that's display: none then can't take it) */
-  > .submenu { display: grid; position: fixed; margin: 0; position-area: right span-bottom; opacity: 0; pointer-events: none; }
-  > button:is(:hover, :focus-visible) + .submenu, > .submenu:is(:hover, :focus-within) { opacity: 1; pointer-events: auto; }
-  > button.danger { color: var(--danger); }
-  > button:disabled { opacity: 0.5; cursor: default; }
-  > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
-  > input { padding: 6px 8px; outline: 0; color: inherit; }
-  > p { display: grid; grid-template-columns: repeat(6, 1fr); }
-  > p > button { padding: 4px; border-radius: 4px; }
-  > p > button:hover { background: var(--bg-raised); }
-  > p > button > img { width: 24px; height: 24px; object-fit: contain; }
-  &:is(.message-menu, .server-menu, .channel-menu, .devices) { position: fixed; margin: 0; }
-}
-/* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
-menu.message-menu {
-  > button { --icon-size: 18px; padding: 8px; font-weight: 500; }
-  > p:first-child { grid-template-columns: repeat(4, 1fr); gap: 6px; padding-bottom: 4px; }
-  > p:first-child > button { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); }
-}
-
-
-/* the header: the channel's name and topic; its buttons, the member list's toggle last */
-& > header {
-  grid-area: head; anchor-name: --header;
-  > .icon { --icon-size: 24px; color: var(--text-muted); }
-  > button { color: var(--text-muted); }
-  > button:first-of-type { margin-left: auto; }
-  > button + button { margin-left: 16px; }
-  > button:hover, > button.on { color: var(--text-strong); }
-  /* pins: a dot while there are new ones, cut out of the icon by a ring of the header's background */
-  > button.pins { position: relative; }
-  > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
-  /* search: a box at the header's end, wider while in use */
-  > input.search {
-    width: 160px; height: 28px; margin-left: 16px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
-    &:focus { width: 240px; }
-  }
-}
-/* the bell's menu: an item's second line (when a mute ends, what the default is) under its label */
-menu.notifications-menu {
-  margin: 8px 0 0; position-area: bottom span-left;
-  > button { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; }
-  > button > small { grid-column: 1; font-size: 12px; }
-  > button::after { grid-area: 1 / 2 / span 2; align-self: center; }
-}
-/* the pins under their button, the search results down the right side under the header (anchored to it): messages as cards, Jump on
-   hover */
-div:is(.pins-list, .search-results) {
-  overflow-y: auto; padding: 0 0 16px; font-weight: 400;
-  > h2 { padding: 16px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
-  > article.head { position: relative; margin: 0 8px 8px; padding-top: 8px; padding-bottom: 8px; border-radius: 4px; background: var(--bg); }
-  > article > button { position: absolute; top: 8px; right: 8px; display: none; }
-  > article:hover > button { display: block; }
-  .button { padding: 2px 8px; font-size: 12px; }
-}
-div.pins-list {
-  inset: auto; margin: 8px 0 0; position-area: bottom span-left; width: 420px; max-height: 70vh;
-  > p { padding: 16px; color: var(--text-muted); text-align: center; }
-  > button { display: block; margin: 0 auto; }
-}
-div.search-results {
-  position-anchor: --header; inset: anchor(bottom) 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
-  color: var(--text);
-  > h2 { display: flex; }
-  > h2 > button { margin-left: auto; }
-  > :is(p, nav) { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 16px; color: var(--text-muted); }
-  > article > header > small { margin-left: 8px; color: var(--text-muted); font-size: 12px; }
-  button:disabled { opacity: 0.5; cursor: default; }
-}
-
 
