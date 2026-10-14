@@ -22,7 +22,10 @@ export function Tile(p: {
 }) {
   return (
     <figure
-      class={['tile', { speaking: p.speaking, mute: p.muted, deaf: p.deafened, compact: !!p.compact, focus: !!p.focus }]}
+      class={[
+        'tile',
+        { speaking: p.speaking, mute: p.muted, deaf: p.deafened, compact: !!p.compact, focus: !!p.focus },
+      ]}
       data-id={p.user.id}
       title={users.displayName(p.user, p.guildId)}
       style={{ '--tile-color': averageColor(users.avatar(p.user, p.guildId, 16)) }}

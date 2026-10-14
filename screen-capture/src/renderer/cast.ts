@@ -20,13 +20,7 @@
 import { host } from './host'
 import { logger as makeLogger } from './log'
 import { startStreamLog } from './streamLog'
-import {
-  applyToStreamConnection,
-  isStreamSound,
-  markStreamSound,
-  StreamQuality,
-  streamQuality,
-} from './streamQuality'
+import { applyToStreamConnection, isStreamSound, markStreamSound, StreamQuality, streamQuality } from './streamQuality'
 
 const logger = makeLogger('cordial:cast')
 

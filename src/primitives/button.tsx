@@ -11,7 +11,9 @@ import type { IconName } from './icons'
 type Attrs = Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, 'title' | 'children'>
 
 export function Button(
-  p: JSX.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'positive' | 'danger' | 'secondary' | 'link' },
+  p: JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: 'primary' | 'positive' | 'danger' | 'secondary' | 'link'
+  },
 ) {
   const rest = omit(p, 'variant', 'class')
   return <button {...rest} class={['button', p.variant ?? 'secondary', p.class]} />

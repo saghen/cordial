@@ -14,10 +14,14 @@ app.commandLine.appendSwitch(
   'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication' +
     (process.env.CORDIAL_EXP_DISABLE ? ',' + process.env.CORDIAL_EXP_DISABLE : ''),
 )
-app.commandLine.appendSwitch('js-flags', '--heap-growing-percent=50' + (process.env.CORDIAL_EXP_JS ? ' ' + process.env.CORDIAL_EXP_JS : ''))
+app.commandLine.appendSwitch(
+  'js-flags',
+  '--heap-growing-percent=50' + (process.env.CORDIAL_EXP_JS ? ' ' + process.env.CORDIAL_EXP_JS : ''),
+)
 // EXPERIMENT (memory): extra switches by env
 if (process.env.CORDIAL_EXP_ENABLE) app.commandLine.appendSwitch('enable-features', process.env.CORDIAL_EXP_ENABLE)
-for (const sw of (process.env.CORDIAL_EXP_SWITCHES ?? '').split(' ').filter(Boolean)) app.commandLine.appendSwitch(...sw.split('='))
+for (const sw of (process.env.CORDIAL_EXP_SWITCHES ?? '').split(' ').filter(Boolean))
+  app.commandLine.appendSwitch(...sw.split('='))
 
 // Chrome's zoom steps between 0.5 and 3
 const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]

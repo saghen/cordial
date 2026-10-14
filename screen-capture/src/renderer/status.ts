@@ -54,11 +54,14 @@ export async function streamStatus(): Promise<StreamStatus | null> {
       }
     : {
         // (Chromium only says which without a camera or microphone permission)
-        encoder: rtp.encoderImplementation && rtp.encoderImplementation + (rtp.powerEfficientEncoder ? ' (HW)' : ' (SW)'),
+        encoder:
+          rtp.encoderImplementation && rtp.encoderImplementation + (rtp.powerEfficientEncoder ? ' (HW)' : ' (SW)'),
         width: rtp.frameWidth,
         height: rtp.frameHeight,
         fps: per(last.frames, prev?.frames),
-        captured: source?.width ? ` (captured ${source.width}×${source.height} @ ${round(source.framesPerSecond)})` : '',
+        captured: source?.width
+          ? ` (captured ${source.width}×${source.height} @ ${round(source.framesPerSecond)})`
+          : '',
         target: rtp.targetBitrate,
         qp: frames > 0 ? (last.qpSum - prev!.qpSum) / frames : undefined,
         limitation: rtp.qualityLimitationReason,

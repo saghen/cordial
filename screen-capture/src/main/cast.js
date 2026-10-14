@@ -157,7 +157,10 @@ function portalSources() {
   const detail = "through the desktop's screen sharing"
   const choose = { id: 'portal:choose', kind: 'output', name: 'Choose a screen or window', detail, width: 0, height: 0 }
   if (!last) return [choose]
-  return [{ id: 'portal:last', kind: 'output', name: 'Same as last time', detail, width: last.width, height: last.height }, choose]
+  return [
+    { id: 'portal:last', kind: 'output', name: 'Same as last time', detail, width: last.width, height: last.height },
+    choose,
+  ]
 }
 
 /**

@@ -185,9 +185,13 @@ function withStartBitrate(sdp: string): string {
 // stream's bitrate; Discord's server still caps the estimate (its REMB), capture's encoder never reads either.
 function withMaxBitrate(sdp: string, kbps: number): string {
   return sdp
-    .replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) => (Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match))
+    .replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) =>
+      Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match,
+    )
     .split(/(?=\r\nm=)/)
-    .map((m) => (m.startsWith('\r\nm=video') && !m.includes('\r\nb=AS:') ? m.replace(/\r\nc=[^\r\n]*/, `$&\r\nb=AS:${kbps}`) : m))
+    .map((m) =>
+      m.startsWith('\r\nm=video') && !m.includes('\r\nb=AS:') ? m.replace(/\r\nc=[^\r\n]*/, `$&\r\nb=AS:${kbps}`) : m,
+    )
     .join('')
 }
 

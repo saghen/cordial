@@ -219,16 +219,16 @@ class Swap implements CastConsumer {
     if (next.reason === prev.reason) return
     logRate({ reason: next.reason, target: next.target, bwe: this.bwe, wire, queue: sendDelay })
     settings.streamLog?.([
-        {
-          event: 'rate',
-          t: Math.round(performance.now()),
-          state: next.reason,
-          target: Math.round(next.target),
-          bwe: this.bwe,
-          wire: wire && Math.round(wire),
-          sendDelay: sendDelay && Math.round(sendDelay * 10) / 10,
-        },
-      ])
+      {
+        event: 'rate',
+        t: Math.round(performance.now()),
+        state: next.reason,
+        target: Math.round(next.target),
+        bwe: this.bwe,
+        wire: wire && Math.round(wire),
+        sendDelay: sendDelay && Math.round(sendDelay * 10) / 10,
+      },
+    ])
   }
 
   private guard(sendDelay?: number) {
@@ -308,7 +308,11 @@ class Swap implements CastConsumer {
     const wire = bytes >= s.bytes ? ((bytes - s.bytes) * 8) / ((at - s.at) / 1000) : undefined
     const sendDelay = packets > s.packets ? ((delay - s.delay) / (packets - s.packets)) * 1000 : undefined
     this.cap = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
-    this.setRate(updateTarget(this.rate, { t: performance.now(), bwe, cap: this.cap, wire, sendDelay }), wire, sendDelay)
+    this.setRate(
+      updateTarget(this.rate, { t: performance.now(), bwe, cap: this.cap, wire, sendDelay }),
+      wire,
+      sendDelay,
+    )
   }
 
   private send(key: boolean, tUs: number, data: ArrayBuffer) {
@@ -372,11 +376,8 @@ const swaps = new WeakMap<RTCRtpSender, Swap>()
 const senderPcs = new WeakMap<RTCRtpSender, RTCPeerConnection>()
 const claims = new WeakMap<RTCRtpSender, () => { readable: ReadableStream; writable: WritableStream }>()
 
-const origCreate: (() => { readable: ReadableStream; writable: WritableStream }) | undefined = navigator.userAgent.includes(
-  'Linux',
-)
-  ? (RTCRtpSender.prototype as any).createEncodedStreams
-  : undefined
+const origCreate: (() => { readable: ReadableStream; writable: WritableStream }) | undefined =
+  navigator.userAgent.includes('Linux') ? (RTCRtpSender.prototype as any).createEncodedStreams : undefined
 
 if (origCreate) {
   // Discord's DAVE on the createEncodedStreams path (see the top of the file)
