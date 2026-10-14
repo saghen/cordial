@@ -81,13 +81,6 @@
           '';
         };
         inherit game-detection wine-bridge global-keybinds capture fdsock;
-        # ai/lab/wine.py's stand-in for a Windows game
-        lab-wine-client = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
-          name = "cordial-lab-wine-client";
-          src = fs.toSource { root = ./ai/lab; fileset = ./ai/lab/wine-client.c; };
-          buildPhase = "$CC -O2 -Wall -static -o wine-client.exe wine-client.c";
-          installPhase = "install -D wine-client.exe $out/wine-client.exe";
-        };
         inherit (pkgs) electron;
       };
 
