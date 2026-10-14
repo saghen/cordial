@@ -14,12 +14,12 @@ section.call > figure.stream {
 }
 /* Join on a row of its own below the tiles; a DM's are icons */
 section.call > footer { display: flex; flex-basis: 100%; justify-content: center; gap: 8px; font-size: 14px; }
-section.call > footer > .icon-button { width: 56px; height: 40px; }
-section.call > footer > .icon-button, dialog.incoming > button { border-radius: 4px; background: var(--positive); color: var(--on-color); }
+section.call > footer > .icon-button { width: 56px; height: 40px; border-radius: 4px; }
+section.call > footer > .icon-button, dialog.incoming > button { background: var(--positive); color: var(--on-color); }
 /* a call ringing for you, at the top of the window: the caller, Accept and Decline */
 dialog.incoming {
   position: fixed; inset: 16px 0 auto; z-index: 3; display: grid; grid: "avatar name accept decline" auto "avatar sub accept decline" auto / auto 1fr auto auto;
-  gap: 4px 8px; align-items: center; width: max-content; min-width: 280px; padding: 16px; background: var(--bg-floating);
+  gap: 4px 8px; align-items: center; width: max-content; min-width: 280px; padding: 16px;
   > .avatar { grid-area: avatar; margin-right: 8px; }
   > .name { grid-area: name; }
   > small { grid-area: sub; color: var(--text-muted); }

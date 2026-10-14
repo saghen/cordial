@@ -99,8 +99,8 @@ function VoiceChannel(p: { channel: Channel }) {
 function VoiceUser(p: { state: VoiceState; channel: Channel }) {
   const v = () => p.state
   const user = () => users.get(v().userId)
-  const mute = () => v().selfMute || v().mute || deaf(),
-    deaf = () => v().selfDeaf || v().deaf
+  const deaf = () => voice.deafened(v()),
+    mute = () => voice.muted(v()) || deaf()
   return (
     <Row
       name="voice-user"
@@ -127,7 +127,7 @@ function VoiceUser(p: { state: VoiceState; channel: Channel }) {
         )
       }
     >
-      {users.nameOf(user(), user() && users.member(user()!, p.channel.guild_id)?.nick)}
+      {users.displayName(user(), p.channel.guild_id)}
     </Row>
   )
 }
@@ -193,7 +193,7 @@ function channelMenu() {
             {
               name: 'menu-copy-link',
               label: text('COPY_LINK'),
-              run: () => navigator.clipboard.writeText(`https://discord.com/channels/${c().guild_id}/${c().id}`),
+              run: () => navigator.clipboard.writeText(channels.link(c())),
             },
             { name: 'menu-copy-id', label: text('COPY_ID_CHANNEL'), run: () => navigator.clipboard.writeText(c().id) },
           ]}

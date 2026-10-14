@@ -47,7 +47,7 @@ export function Header() {
   )
 }
 
-export function NotificationBell(p: { channel: Channel }) {
+function NotificationBell(p: { channel: Channel }) {
   const c = () => p.channel
   const muted = () => channels.muted(c())
   return (
@@ -140,7 +140,7 @@ function Card(p: { m: Message; guildId?: Id | null; jump: string; onJump?: () =>
 
 // the header's pins: the channel's pinned messages in a popover, newest pin first, each with Jump (stock's: to the
 // message's link); opening it acks the pins (stock's CHANNEL_PINS_ACK, the button's dot)
-export function Pins(p: { channel: Channel }) {
+function Pins(p: { channel: Channel }) {
   const id = () => p.channel.id
   const pins = () => messages.pins(id())
   const items = () => pins()?.items ?? []
@@ -182,7 +182,7 @@ export function Pins(p: { channel: Channel }) {
 
 // search, as stock's header search bar: Enter searches the server (or the DM); the results open on the right, a page
 // at a time
-export function Search(p: { channel: Channel }) {
+function Search(p: { channel: Channel }) {
   const c = () => p.channel
   const [offset, setOffset] = createSignal(0)
   let pop!: HTMLDivElement,

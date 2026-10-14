@@ -1,5 +1,6 @@
 /* the top bar: a subgrid of the root's columns, so the server's name sits over the channel list; then the channel's
-   icon, name and topic, its buttons in a toolbar at the end (the member list's toggle, then search) */
+   icon, name and topic, its buttons in a toolbar at the end (the bell or a DM's call buttons, pins, the member list's
+   toggle, search) */
 & > header {
   grid-area: top; display: grid; grid-template-columns: subgrid; anchor-name: --header; border-bottom: 1px solid var(--bg-raised);
   font-size: 16px; font-weight: 600; color: var(--text-strong); white-space: nowrap;
@@ -10,8 +11,6 @@
 }
 & > header .toolbar {
   display: flex; align-items: center; gap: 16px; margin-left: auto;
-  > button { color: var(--text-muted); }
-  > button:hover, > button.on { color: var(--text-strong); }
   /* pins: a dot while there are new ones, cut out of the icon by a ring of what's behind */
   > button.pins { position: relative; }
   > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
@@ -50,5 +49,4 @@ div.search-results {
   > h2 > button { margin-left: auto; }
   > :is(p, nav) { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 16px; color: var(--text-muted); }
   > article > header > small { margin-left: 8px; color: var(--text-muted); font-size: 12px; }
-  button:disabled { opacity: 0.5; cursor: default; }
 }

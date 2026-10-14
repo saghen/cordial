@@ -14,7 +14,6 @@
   /* what's behind: each surface sets it to its background, and what has to match it (rings cut out of an icon, the date
      label over its line, the typing line's fade, sticky headings) reads it */
   --surface: var(--bg);
-  --i: var(--i-hash);
   position: fixed; inset: 0; z-index: 1; display: grid;
   grid: "notice notice notice notice" auto "servers top top top" 48px "servers panels call members" auto "servers panels chat members" 1fr
     "servers panels compose members" auto / 72px 300px minmax(0, 1fr) auto;

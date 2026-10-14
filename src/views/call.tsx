@@ -28,7 +28,7 @@ export function CallView() {
         // as stock's DM call without cameras or streams: round avatars alone
         const compact = () => !guildId() && !states().some((v) => v.selfStream || streams.videoOf(v.userId, null))
         return (
-          <section class={['call', { dm: !guildId() }]}>
+          <section class="call">
             <For each={states()}>
               {(v) => (
                 <Show when={users.get(v.userId)}>
@@ -44,11 +44,7 @@ export function CallView() {
                         compact={compact()}
                       />
                       <Show when={v.selfStream && v.userId !== users.me()?.id}>
-                        <StreamTile
-                          state={v}
-                          guildId={guildId()}
-                          name={users.nameOf(user(), users.member(user(), guildId())?.nick)}
-                        />
+                        <StreamTile state={v} guildId={guildId()} name={users.displayName(user(), guildId())} />
                       </Show>
                     </>
                   )}

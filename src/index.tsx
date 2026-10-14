@@ -10,7 +10,7 @@ import './adapter/screen'
 import { expose } from './api/lab'
 import { loggedIn } from './api/session'
 import { App, CSS } from './app'
-import { resetContent } from './views/chat'
+import { resetContent } from './components/message/content'
 import { Login } from './views/login'
 
 expose({ list: { reset: resetContent } })

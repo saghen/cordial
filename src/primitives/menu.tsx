@@ -10,7 +10,6 @@ import type { JSX } from '@solidjs/web'
 import { Icon } from './icon'
 import { Status } from './status'
 import type { IconName } from './icons'
-import { popAt } from './popover'
 
 export type Item = {
   name: string
@@ -71,6 +70,22 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
   )
 }
 
+// a context menu at the pointer, above it or to its left where it wouldn't fit
+function popAt(menu: HTMLElement, e: MouseEvent) {
+  e.preventDefault()
+  const show = () => {
+    menu.showPopover()
+    const { width, height } = menu.getBoundingClientRect()
+    Object.assign(menu.style, {
+      left: `${e.clientX + width > innerWidth ? e.clientX - width : e.clientX}px`,
+      top: `${e.clientY + height > innerHeight ? e.clientY - height : e.clientY}px`,
+    })
+  }
+  // on Linux contextmenu fires on the press: opened before the release, the release would light-dismiss it
+  if (e.buttons) addEventListener('pointerup', show, { once: true })
+  else show()
+}
+
 // A menu at the pointer for what a right click finds (nothing found, no menu), or for a target given (show). Its
 // contents mount for each target while it's open, so each opening starts afresh
 export function contextMenu<T>(p: {
@@ -95,7 +110,7 @@ export function contextMenu<T>(p: {
     view: (
       <menu
         ref={menu}
-        class={p.class}
+        class={['context-menu', p.class]}
         popover
         // the toggle event comes late: by then a right click elsewhere may have opened it again
         onToggle={(e) => e.newState === 'closed' && !menu.matches(':popover-open') && setTarget(undefined)}

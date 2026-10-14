@@ -19,9 +19,5 @@ menu {
   > button:disabled { opacity: 0.5; cursor: default; }
   > hr { margin: 4px 8px; border: 0; border-top: 1px solid #ffffff1a; }
   > input { padding: 6px 8px; outline: 0; color: inherit; }
-  > p { display: grid; grid-template-columns: repeat(6, 1fr); }
-  > p > button { padding: 4px; border-radius: 4px; }
-  > p > button:hover { background: var(--bg-raised); }
-  > p > button > img { width: 24px; height: 24px; object-fit: contain; }
-  &:is(.message-menu, .server-menu, .channel-menu, .devices) { position: fixed; margin: 0; }
+  &.context-menu { position: fixed; margin: 0; }
 }

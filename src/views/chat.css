@@ -31,6 +31,11 @@
 @keyframes mc-typing { to { mask-position: 0; } }
 /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */
 menu.message-menu {
+  /* emoji: the quick reactions, the react search's results */
+  > p { display: grid; grid-template-columns: repeat(6, 1fr); }
+  > p > button { padding: 4px; border-radius: 4px; }
+  > p > button:hover { background: var(--bg-raised); }
+  > p > button > img { width: 24px; height: 24px; object-fit: contain; }
   > button { --icon-size: 18px; padding: 8px; font-weight: 500; }
   > p:first-child { grid-template-columns: repeat(4, 1fr); gap: 6px; padding-bottom: 4px; }
   > p:first-child > button { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; background: var(--bg-raised); }

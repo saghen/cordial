@@ -5,7 +5,7 @@
 import { For, Show } from 'solid-js'
 
 import * as messages from '../../api/messages'
-import type { Id, Message } from '../../api/records'
+import { MessageType, type Id, type Message } from '../../api/records'
 import { text, textAround } from '../../api/strings'
 import * as users from '../../api/users'
 import { renderAST } from '../markdown'
@@ -41,7 +41,7 @@ function callLine(m: Message): Node[] {
 }
 
 function build(m: Message, channelId: Id): Node[] {
-  if (m.type === 3 /* CALL */) return callLine(m)
+  if (m.type === MessageType.Call) return callLine(m)
   if (!messages.isUser(m)) return [document.createTextNode(messages.systemText(m))]
   const nodes = [...renderAST(messages.contentAST(m, channelId), document.createDocumentFragment()).childNodes]
   // as stock: emoji alone (up to 30) show large

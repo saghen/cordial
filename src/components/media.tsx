@@ -10,9 +10,9 @@ import * as viewer from './viewer'
 
 // the box media fits: embeds' media, a thumbnail, a sent image (larger, but GIFs stay at embeds' size)
 const BOX = { media: [400, 300], thumb: [80, 80], sent: [550, 350] } as const
-export type Box = keyof typeof BOX
+type Box = keyof typeof BOX
 
-export const fit = (m: Source, w: number, h: number) => {
+const fit = (m: Source, w: number, h: number) => {
   const s = Math.min(1, w / m.width, h / m.height)
   return { width: Math.round(m.width * s), height: Math.round(m.height * s) }
 }
@@ -40,7 +40,7 @@ export function Media(p: { media: Source; box: Box; href?: string }) {
 
 // a video at its box's size (when it's known): with controls, or a GIF's (muted, looping, playing while the window is
 // focused)
-export function Video(p: { src: string; media: Source; poster?: string; gif?: boolean }) {
+export function Clip(p: { src: string; media: Source; poster?: string; gif?: boolean }) {
   const { width, height } = p.media.width ? fit(p.media, ...BOX.media) : { width: undefined, height: undefined }
   let video!: HTMLVideoElement
   if (p.gif) createEffect(windowFocused, (on) => void (on ? video.play() : video.pause()))

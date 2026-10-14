@@ -2,8 +2,11 @@
 // stickers, as their images from Discord's CDN at stock's 160 px (an APNG animates with passthrough), a Lottie one (an
 // animated vector) as its name.
 
+import { Show } from 'solid-js'
+
+import * as pickers from '../../api/pickers'
 import type { Attachment as File, Message } from '../../api/records'
-import { Media, Video } from '../media'
+import { Clip, Media } from '../media'
 
 const size = (n: number) =>
   n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`
@@ -13,7 +16,7 @@ export function Attachment(p: { file: File }) {
     type = f.content_type?.split('/')[0],
     media = { url: f.url, proxyURL: f.proxy_url, width: f.width!, height: f.height! }
   if (type === 'image' && f.width) return <Media media={media} box="sent" />
-  if (type === 'video') return <Video src={f.url} media={media} />
+  if (type === 'video') return <Clip src={f.url} media={media} />
   return (
     <a class="file" href={f.url} target="_blank" rel="noreferrer noopener">
       {f.filename}
@@ -24,16 +27,8 @@ export function Attachment(p: { file: File }) {
 
 type StickerItem = NonNullable<Message['stickerItems']>[number]
 
-export const Sticker = (p: { sticker: StickerItem }) =>
-  p.sticker.format_type === 3 ? (
-    <i class="sticker">{p.sticker.name}</i>
-  ) : (
-    <img
-      class="sticker"
-      alt={p.sticker.name}
-      title={p.sticker.name}
-      width={160}
-      height={160}
-      src={`https://media.discordapp.net/stickers/${p.sticker.id}.${p.sticker.format_type === 4 ? 'gif' : 'png'}?size=160${p.sticker.format_type === 2 ? '&passthrough=true' : ''}`}
-    />
-  )
+export const Sticker = (p: { sticker: StickerItem }) => (
+  <Show when={pickers.stickerSrc(p.sticker)} fallback={<i class="sticker">{p.sticker.name}</i>}>
+    {(src) => <img class="sticker" alt={p.sticker.name} title={p.sticker.name} width={160} height={160} src={src()} />}
+  </Show>
+)

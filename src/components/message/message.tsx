@@ -7,7 +7,7 @@ import { For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
 import * as messages from '../../api/messages'
-import type { Channel, Message as Record } from '../../api/records'
+import { MessageType, type Channel, type Message as Record } from '../../api/records'
 import { clock, text } from '../../api/strings'
 import { Badge } from '../../primitives/badge'
 import { Button } from '../../primitives/button'
@@ -68,15 +68,15 @@ export function Message(p: {
         failed: m.state === 'SEND_FAILED',
         head: p.head,
         system: !messages.isUser(m),
-        call: m.type === 3,
-        missed: m.type === 3 && messages.missed(m),
+        call: m.type === MessageType.Call,
+        missed: m.type === MessageType.Call && messages.missed(m),
         new: p.isNew,
         mention: m.mentioned,
         replying: p.replying,
         collapsed: p.collapsed,
         gone: p.gone,
       }}
-      data-t={p.head || m.type === 3 ? undefined : clock(m.timestamp)}
+      data-t={p.head || m.type === MessageType.Call ? undefined : clock(m.timestamp)}
     >
       <Show when={p.day || p.isNew}>
         <Divider day={p.day} isNew={p.isNew} />

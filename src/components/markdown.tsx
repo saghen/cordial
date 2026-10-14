@@ -17,10 +17,6 @@ const TAGS: Record<string, string> = {
   link: 'a',
   url: 'a',
   autolink: 'a',
-  mention: 'mark',
-  channelMention: 'mark',
-  roleMention: 'mark',
-  timestamp: 'time',
 }
 
 const text = (n: Node): string =>

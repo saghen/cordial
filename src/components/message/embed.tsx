@@ -5,7 +5,7 @@
 import * as messages from '../../api/messages'
 import type { Embed as Record } from '../../api/records'
 import { Markdown } from '../markdown'
-import { Media, Video } from '../media'
+import { Clip, Media } from '../media'
 
 const TYPES = new Set(['link', 'article', 'video', 'rich', 'image', 'gifv'])
 
@@ -15,7 +15,7 @@ export function Embed(p: { embed: Record }) {
   // media only, as stock: a GIF, or an image or video with no title or author
   if ((e.image || e.video) && (e.type === 'gifv' || (e.type !== 'rich' && !e.author && !e.rawTitle))) {
     if (e.video?.proxyURL)
-      return <Video src={e.video.proxyURL} media={e.video} poster={e.thumbnail?.proxyURL} gif={e.type === 'gifv'} />
+      return <Clip src={e.video.proxyURL} media={e.video} poster={e.thumbnail?.proxyURL} gif={e.type === 'gifv'} />
     const m = e.image ?? e.thumbnail
     return m ? <Media media={m} box="media" /> : null
   }

@@ -175,8 +175,7 @@ export function useComposer(channelId: () => Id | null) {
 }
 
 // the replied-to message's author, as the author line names them (a webhook by its own name)
-export const replyName = (m: Message, guildId: Id | null) =>
-  users.nameOf(m.author, m.webhookId ? undefined : users.member(m.author, guildId)?.nick)
+export const replyName = (m: Message, guildId: Id | null) => users.displayName(m.author, m.webhookId ? null : guildId)
 
 // who else is typing in a channel, by the names the author line uses
 export function typingNames(channelId: Id) {
@@ -184,10 +183,7 @@ export function typingNames(channelId: Id) {
     guildId = channels.get(channelId)?.guild_id
   return Object.keys($.Typing.getTypingUsers(channelId))
     .filter((id) => id !== me)
-    .map((id) => {
-      const u = users.get(id)
-      return users.nameOf(u, u && users.member(u, guildId)?.nick)
-    })
+    .map((id) => users.displayName(users.get(id), guildId))
 }
 
 // autocomplete: stock's @ results (members, @everyone and @here, then roles: as stock's box, every role with the

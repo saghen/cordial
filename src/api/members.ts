@@ -10,7 +10,7 @@ import { text } from './strings'
 import * as users from './users'
 
 // a row's height, as the range helper counts rows
-export const ROW = 44
+const ROW = 44
 
 // a server's channels and group DMs have a list; whether it's open is stock's (toggled from the header)
 export const listed = () => !!selectedGuild() || selectedChannel()?.type === ChannelType.GroupDM

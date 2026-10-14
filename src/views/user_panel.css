@@ -13,10 +13,9 @@ section.side > footer {
   &[data-state=RTC_CONNECTED] > b { color: var(--positive); }
   > small { grid-area: channel; font-size: 12px; color: var(--text-muted); }
   > .voice-buttons { grid-area: buttons; align-self: start; display: flex; }
-  > .voice-buttons > button { width: 32px; height: 32px; border-radius: 4px; color: var(--text-muted); }
+  > .voice-buttons > button { width: 32px; height: 32px; border-radius: 4px; }
   > .voice-buttons > button:hover { background: var(--bg-raised); color: var(--text-strong); }
   > .voice-buttons > button:is(.voice-camera, .voice-screen).on { color: var(--positive); }
-  > .voice-buttons > button.voice-settings-button.on { color: var(--text-strong); }
   > .voice-buttons > button.voice-disconnect:hover { color: var(--danger); }
 }
 /* the voice settings: a column of labelled controls, a section of the voice panel above its line */

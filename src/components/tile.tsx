@@ -24,7 +24,7 @@ export function Tile(p: {
     <figure
       class={['tile', { speaking: p.speaking, compact: !!p.compact }]}
       data-id={p.user.id}
-      title={users.nameOf(p.user, users.member(p.user, p.guildId)?.nick)}
+      title={users.displayName(p.user, p.guildId)}
     >
       <Show when={p.video}>{(id) => <Video id={id()} />}</Show>
       <Avatar user={p.user} guildId={p.guildId} size={p.compact ? 80 : 48} />

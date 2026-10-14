@@ -17,6 +17,9 @@ export const member = (user: User, guildId?: Id | null): Member | undefined =>
 
 // stock's order: the server nickname, the display name, the username
 export const nameOf = (user?: Rec | null, nick?: string | null): string => nick ?? user?.globalName ?? user?.username
+// a user's name in a server (their nickname there, else their own), as the author line names them
+export const displayName = (user: User | undefined, guildId?: Id | null) =>
+  nameOf(user, user && member(user, guildId)?.nick)
 
 export const avatar = (user: User, guildId: Id | null | undefined, px: number) =>
   user.getAvatarURL(guildId, cdn.size(px))

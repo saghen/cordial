@@ -6,7 +6,8 @@ import { createEffect } from 'solid-js'
 import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
 import * as cdn from './cdn'
-import { ChannelType, type Channel, type PrivateChannel } from './records'
+import * as notifications from './notifications'
+import { ChannelType, Permission, type Channel, type PrivateChannel } from './records'
 import { $, selected } from './store'
 import { text } from './strings'
 import * as users from './users'
@@ -26,7 +27,7 @@ export function kindOf(c: Channel): 'news' | 'nsfw' | 'lock' | undefined {
   if (c.type === ChannelType.Announcement) return 'news'
   if (c.nsfw) return 'nsfw'
   const deny = BigInt(c.permissionOverwrites?.[c.guild_id!]?.deny ?? 0)
-  const closed = c.type === ChannelType.Voice ? (1n << 10n) | (1n << 20n) : 1n << 10n
+  const closed = c.type === ChannelType.Voice ? Permission.VIEW_CHANNEL | Permission.CONNECT : Permission.VIEW_CHANNEL
   return deny & closed ? 'lock' : undefined
 }
 
@@ -35,15 +36,12 @@ export const mentions = (c: Channel) => $.ReadState.getMentionCount(c.id)
 export const canMarkRead = (c: Channel) => c.type === ChannelType.Category || unread(c)
 export const markRead = (c: Channel) => A.acks.markRead(c)
 
+// a server channel's link, as Copy Link copies it
+export const link = (c: Channel) => `https://discord.com/channels/${c.guild_id}/${c.id}`
+
 // a server channel's mute
 export const muted = (c: Channel) => $.UserGuildSettings.isChannelMuted(c.guild_id!, c.id)
-export const setMuted = (c: Channel, on: boolean) =>
-  A.notifications.updateChannelOverrideSettings({
-    guildId: c.guild_id!,
-    channelId: c.id,
-    settings: { muted: on },
-    label: on ? 'muted' : 'unmuted',
-  })
+export const setMuted = (c: Channel, on: boolean) => notifications.update(c, { muted: on }, on ? 'muted' : 'unmuted')
 
 // a category's collapse is a user guild setting: it syncs
 export const collapsed = (cat: Channel) => $.CategoryCollapse.isCollapsed(cat.id)
@@ -97,7 +95,7 @@ export function dmSub(c: PrivateChannel) {
   return $.Presence.getActivities(user.id).find((a) => a.type === 4)?.state
 }
 
-// a channel's name as the header and the composer name it: #general, @user, a group's names
+// a channel's name as the composer and incoming calls name it: #general, @user, a group's names
 export const title = (c: Channel) =>
   c.guild_id
     ? `#${c.name}`

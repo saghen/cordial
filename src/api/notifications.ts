@@ -7,7 +7,8 @@ import { ChannelType, type Channel } from './records'
 import { $ } from './store'
 import { text } from './strings'
 
-const update = (c: Channel, settings: Rec, label: string) =>
+// a channel's override settings, with stock's label for the change
+export const update = (c: Channel, settings: Rec, label: string) =>
   A.notifications.updateChannelOverrideSettings({ guildId: c.guild_id!, channelId: c.id, settings, label })
 
 // stock's mute durations, in seconds; -1 until unmuted

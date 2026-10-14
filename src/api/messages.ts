@@ -11,8 +11,6 @@ import { day, text } from './strings'
 import { automaticAck, channelDimensions } from './triggers'
 import * as users from './users'
 
-export type { Message }
-
 // a channel's loaded messages: a new ChannelMessages object on every change
 export const list = (channelId: Id) => $.Message.getMessages(channelId)
 export const get = (channelId: Id, id: Id) => S.Message.getMessage(channelId, id) as Message | undefined
@@ -87,7 +85,6 @@ export const systemText = (m: Message) => A.systemMessages.stringify(m) ?? (m.co
 
 // a DM call that I wasn't in
 export const missed = (m: Message) => !(m.call?.participants ?? []).includes(S.Auth.getId())
-// a reply's message, once loaded (ReferencedMessageStore): null while unknown, its message null when deleted
 // the replied-to message, and its state (stock's ReferencedMessageState: 0 loaded, 1 not loaded, 2 deleted)
 export const replied = (m: Message) =>
   m.type === MessageType.Reply && m.messageReference
