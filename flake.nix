@@ -51,7 +51,7 @@
             root = ./.;
             fileset = fs.unions [ ./src ./screen-capture/src ./package.json ./package-lock.json ./vite.config.ts ./tsconfig.json ];
           };
-          npmDepsHash = "sha256-QFMwblwopJFT5qZ0c8GUFtYRixNTLPy2ctAvgvl9wMA=";
+          npmDepsHash = "sha256-3X71mefPLaLmsuYOjExJ2GY4oRE05hWW7FMKOcjEKFM=";
           nativeBuildInputs = [ pkgs.makeWrapper pkgs.copyDesktopItems ];
           # discord:// links come to cordial when the desktop picks it as their handler (main.js routes them)
           desktopItems = [
