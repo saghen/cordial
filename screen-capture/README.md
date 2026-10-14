@@ -5,7 +5,8 @@ process takes the screen cast as DMA-BUFs, scales it on the GPU and encodes it t
 so only the bitstream leaves VRAM. Discord's own Go Live sender (Chromium's WebRTC, with DAVE encryption) then sends
 those frames in place of its own encode ("the swap"). Where that can't run, there are fallbacks (below).
 
-Status: P1 (the C port) in progress; `capture/` builds and encodes (`nix build .#capture`, or `make` in the dev shell).
+Status: P1-P3 done (the C port, the Rust port, Rust chosen); P4 (the portal source, H.264, the fallback) next.
+`capture/` builds with `nix build .#capture`, or `cargo build --release` in the dev shell.
 Plan, state and the work loop are in `ai/`.
 
 ## Paths
@@ -20,7 +21,7 @@ Plan, state and the work loop are in `ai/`.
 
 | Path | What |
 |---|---|
-| `capture/` | the native capture and encode process (C at first: castscale from the Equibop work, renamed) |
+| `capture/` | the native capture and encode process, in Rust (a port of castscale, the Equibop work's C, renamed) |
 | `addon/` | Node addon for Electron's main process: a socketpair whose messages carry fds (`fdsock`), for the fallback path |
 | `src/main/` | main-process side: starting `capture`, its protocol, relaying frames to the renderer |
 | `src/renderer/` | renderer side: the cast session and its track, the swap, rate and padding, stream quality rules |

@@ -34,6 +34,13 @@
       };
       # Go Live's capture and encoder (screen-capture/)
       capture = pkgs.callPackage ./screen-capture/capture { };
+      # its fallback's fd socket for Electron's main process (N-API: the symbols resolve from Electron at load)
+      fdsock = pkgs.stdenv.mkDerivation {
+        name = "mincord-fdsock";
+        src = fs.toSource { root = ./screen-capture/addon; fileset = ./screen-capture/addon/fdsock.c; };
+        buildPhase = "$CC -shared -fPIC -O2 -Wall -I${pkgs.nodejs}/include/node -o fdsock.node fdsock.c";
+        installPhase = "install -D fdsock.node $out/lib/fdsock.node";
+      };
     in
     {
       packages.x86_64-linux = {
@@ -63,16 +70,17 @@
             cp -r dist package.json $out/lib/mincord/
             cp -r src/shell $out/lib/mincord/src/
             mkdir -p $out/lib/mincord/screen-capture/src
-            cp -r screen-capture/src/main $out/lib/mincord/screen-capture/src/
+            cp -r screen-capture/src/main screen-capture/src/preload $out/lib/mincord/screen-capture/src/
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/mincord --add-flags $out/lib/mincord \
               --set-default MINCORD_GAME_DETECTION ${game-detection}/bin/game-detection \
               --set-default MINCORD_WINE_BRIDGE ${wine-bridge}/bridge.exe \
               --set-default MINCORD_GLOBAL_KEYBINDS ${global-keybinds}/bin/global-keybinds \
-              --set-default MINCORD_CAPTURE ${capture}/bin/mincord-capture
+              --set-default MINCORD_CAPTURE ${capture}/bin/mincord-capture \
+              --set-default MINCORD_FDSOCK ${fdsock}/lib/fdsock.node
             runHook postInstall
           '';
         };
-        inherit game-detection wine-bridge global-keybinds capture;
+        inherit game-detection wine-bridge global-keybinds capture fdsock;
         # ai/lab/wine.py's stand-in for a Windows game
         lab-wine-client = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
           name = "mincord-lab-wine-client";
@@ -84,7 +92,7 @@
       };
 
       devShells.x86_64-linux.default = pkgs.mkShell {
-        packages = [ pkgs.nodejs pkgs.electron pkgs.prettier pkgs.cargo pkgs.rustc pkgs.pkg-config ];
+        packages = [ pkgs.nodejs pkgs.electron pkgs.prettier pkgs.cargo pkgs.rustc pkgs.pkg-config pkgs.rustPlatform.bindgenHook ];
         inputsFrom = [ capture ];
       };
     };

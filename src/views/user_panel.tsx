@@ -279,14 +279,8 @@ function AudioButtons() {
 }
 
 // Go Live's picker (screen-capture's host.pick), which stock's start asks for through getDisplayMedia: niri's outputs
-// and windows, a click streams one; the priority is what to give up first when the encoder or network can't keep up
-// (resolution and frame rate follow the source and what the account allows). Escape or Cancel declines, as Chromium's
-// own picker
-const PRIORITIES = [
-  ['balanced', 'Balanced'],
-  ['smoothness', 'Smoothness'],
-  ['clarity', 'Clarity'],
-] as const
+// and windows, a click streams one (resolution and frame rate follow what the account allows). Escape or Cancel
+// declines, as Chromium's own picker
 
 function ScreenPicker() {
   type Ask = { sources: screen.CastSource[]; resolve: (p: screen.CastPick) => void; reject: (e: Error) => void }
@@ -307,12 +301,6 @@ function ScreenPicker() {
             </Button>
           )}
         </For>
-        <Select
-          label="Priority"
-          options={PRIORITIES}
-          value={screen.settings.priority}
-          onChange={(v) => (screen.settings.priority = v)}
-        />
         <Button variant="link" class="screen-cancel" onClick={picker.close}>
           Cancel
         </Button>
@@ -327,8 +315,6 @@ function ScreenPicker() {
       name: s.name,
       width: s.width,
       height: s.height,
-      priority: screen.settings.priority,
-      codec: screen.settings.codec,
     })
     picker.close()
   }

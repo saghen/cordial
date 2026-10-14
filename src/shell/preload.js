@@ -56,8 +56,13 @@ const answers = (p) =>
 // Go Live through capture (screen-capture/src/main/cast.js): its frames arrive on a MessagePort, handed on to the
 // page's world the way Electron documents for context isolation (screen-capture/src/renderer/cast.ts takes it)
 ipcRenderer.on('mincord:cast-port', (e) => window.postMessage({ mincordCastPort: true }, '*', e.ports))
+// and the fallback's frames, VideoFrames on a port of their own (screen-capture/src/preload/raw.js)
+require('../../screen-capture/src/preload/raw.js').receiveRaw((port) =>
+  window.postMessage({ mincordRawPort: true }, '*', [port]),
+)
 const cast = {
   available: () => ipcRenderer.invoke('mincord:cast-available'),
+  codecs: () => ipcRenderer.invoke('mincord:cast-codecs'),
   sources: () => ipcRenderer.invoke('mincord:cast-sources'),
   start: (opts) => ipcRenderer.invoke('mincord:cast-start', opts),
 }

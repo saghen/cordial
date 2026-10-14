@@ -1,6 +1,6 @@
 // Steady wire rate (setting "steadyWireRate", zeroCopy.ts): capture's frames are topped up to the target's
 // per-frame budget with stuffing, so the sender is never application limited on simple scenes (the bandwidth
-// estimate then has no low rate of ours to fall to, targetRate.ts). Pure: no DOM, no imports (lab/unit).
+// estimate then has no low rate of ours to fall to, targetRate.ts). Pure: no DOM, no imports.
 //
 // The stuffing is an AV1 metadata OBU (obu_type 5) of an unregistered user-private metadata_type, which decoders
 // ignore (AV1 spec 6.7.1: "decoders should ignore metadata OBUs with unknown or private metadata_type"):
@@ -80,7 +80,7 @@ export function stuffingOffset(tu: Uint8Array): number {
   return i
 }
 
-/** `tu` with a stuffing OBU of `bytes` in front of its frame; `tu` itself when it can't be stuffed. */
+/** `tu` with a metadata OBU of `bytes` in front of its frame; `tu` itself when it can't be stuffed. */
 export function stuff(tu: Uint8Array, bytes: number): Uint8Array {
   if (bytes < MIN_STUFF) return tu
   const at = stuffingOffset(tu)

@@ -7,42 +7,76 @@ const MAGIC = 0x315a5343 // "CSZ1"
 const FRAME = 2
 const INFO = 3
 const PREVIEW = 4
+const AUDIO = 5
 /** No message (capture sends stats every second) for this long: it's stuck. */
 const STALL_MS = 3000
 
 /**
  * @typedef {{ type: 'frame', seq: number, t: number, key: boolean, w: number, h: number, data: ArrayBuffer }
  *   | { type: 'preview', t: number, w: number, h: number, data: ArrayBuffer }
+ *   | { type: 'audio', t: number, rate: number, channels: number, data: ArrayBuffer }
  *   | { type: 'info', t: number, info: any }
+ *   | { type: 'raw', raw: RawMessage, fds: number[] }
  *   | { type: 'closed', why: string }} CaptureMessage
- * @typedef {{ type: 'start', kbps: number, height?: number } | { type: 'bitrate', kbps: number } | { type: 'key' }
- *   | { type: 'height', height: number } | { type: 'stop' }} CaptureCommand
+ * @typedef {{ type: 'buffer', id: number, width: number, height: number, modifier: string,
+ *   planes: { offset: number, stride: number, size: number }[] } | { type: 'frame', id: number, seq: number, t: number }}
+ *   RawMessage  on raw's socket (capture's main.rs): fds, ours to close, come with a buffer
+ * @typedef {{ type: 'start', kbps: number, height?: number } | { type: 'raw' }
+ *   | { type: 'bitrate', kbps: number } | { type: 'key' } | { type: 'height', height: number } | { type: 'fps', fps: number }
+ *   | { type: 'audio', target: string } | { type: 'stop' }} CaptureCommand  audio: off | pid=N | steam=N | name=S
  * @typedef {{ pid: number | undefined, send(c: CaptureCommand): void, kill(): void }} Capture
  */
 
 /** @param {CaptureCommand} c */
-const commandLine = (c) =>
-  c.type === 'start'
-    ? `start kbps=${c.kbps | 0}${c.height ? ` height=${c.height | 0}` : ''}`
-    : c.type === 'bitrate'
-      ? `bitrate ${c.kbps | 0}`
-      : c.type === 'height'
-        ? `height ${c.height | 0}`
-        : c.type
+function commandLine(c) {
+  switch (c.type) {
+    case 'start':
+      return `start kbps=${c.kbps | 0}${c.height ? ` height=${c.height | 0}` : ''}`
+    case 'bitrate':
+      return `bitrate ${c.kbps | 0}`
+    case 'height':
+      return `height ${c.height | 0}`
+    case 'fps':
+      return `fps ${c.fps | 0}`
+    case 'audio':
+      return `audio ${c.target.replace(/\s/g, '')}`
+    default:
+      return c.type
+  }
+}
 
 /**
- * Starts capture; every message (and finally "closed") goes to onMessage.
+ * Starts capture; every message (and finally "closed") goes to onMessage. With fdsock (addon/fdsock.c), capture gets
+ * raw's socket as fd 3 ("raw": the fallback's frames, as raw messages).
  * @param {string} bin
  * @param {string[]} args
  * @param {(m: CaptureMessage) => void} onMessage
  * @param {NodeJS.ProcessEnv} [env]
+ * @param {any} [fdsock]
  * @returns {Capture}
  */
-function startCapture(bin, args, onMessage, env) {
-  // stderr ignored: capture then logs to $XDG_RUNTIME_DIR/mincord-capture/<pid>.log
-  const child = spawn(bin, args, { stdio: ['pipe', 'pipe', 'ignore'], env })
-  let buf = Buffer.alloc(0)
+function startCapture(bin, args, onMessage, env, fdsock) {
+  const [sock, childSock] = fdsock ? fdsock.open() : []
   let closed = false
+  // stderr ignored: capture then logs to $XDG_RUNTIME_DIR/mincord-capture/<pid>.log
+  const child = spawn(bin, fdsock ? [...args, '--socket-fd', '3'] : args, {
+    stdio: ['pipe', 'pipe', 'ignore', ...(fdsock ? [childSock] : [])],
+    env,
+  })
+  if (fdsock) {
+    fdsock.close(childSock)
+    fdsock.listen(sock, (data, fds) => {
+      if (!data) return fdsock.close(sock)
+      if (closed) return fds.forEach(fdsock.close)
+      try {
+        onMessage({ type: 'raw', raw: JSON.parse(data.toString()), fds })
+      } catch (e) {
+        fds.forEach(fdsock.close)
+        console.error('[capture] bad raw message', e)
+      }
+    })
+  }
+  let buf = Buffer.alloc(0)
   let last = Date.now()
   const close = (why) => {
     if (closed) return
@@ -80,6 +114,9 @@ function startCapture(bin, args, onMessage, env) {
         } else if (type === PREVIEW) {
           const wh = p.readUInt32LE(0)
           onMessage({ type: 'preview', t, w: wh & 0xffff, h: wh >>> 16, data: copy(p.subarray(4)) })
+        } else if (type === AUDIO) {
+          const rate = p.readUInt32LE(0)
+          onMessage({ type: 'audio', t, rate, channels: p.readUInt32LE(4), data: copy(p.subarray(8)) })
         }
       } catch (e) {
         console.error('[capture] bad message', e)

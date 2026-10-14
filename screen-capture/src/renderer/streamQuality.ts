@@ -1,62 +1,20 @@
-// Go Live quality: which resolution/frame-rate pairs the account may stream (Discord's own
-// rules), which of them to stream at for a given source and codec, and how the stream trades
-// resolution against frame rate once it's live.
+// Go Live quality: the stream's size, frame rate and bitrate for the account, held on the Go Live sender whoever
+// watches, and the Go Live connection's SDP (its start and max bitrate).
 
 import { host } from './host'
 import { logger as makeLogger } from './log'
-import { settings } from './settings'
-import { isZeroCopy, startZeroCopy } from './zeroCopy'
+import { attachSwap, startZeroCopy } from './zeroCopy'
 
 const logger = makeLogger('mincord:quality')
 
-export const StreamResolutions = ['480', '720', '1080', '1440', '2160'] as const
-export const StreamFps = ['15', '30', '60'] as const
-export type StreamResolution = (typeof StreamResolutions)[number]
-export type StreamFps = (typeof StreamFps)[number]
-
-/**
- * What to give up first when the encoder or the network can't keep up.
- * - balanced: drop both a little (WebRTC "balanced"), never down to a slideshow or a smear
- * - smoothness: keep the frame rate, drop resolution ("maintain-framerate")
- * - clarity: keep the resolution, drop frames ("maintain-resolution")
- */
-export type StreamPriority = 'balanced' | 'smoothness' | 'clarity'
-
-export const PriorityLabels: Record<StreamPriority, string> = {
-  balanced: 'Balanced',
-  smoothness: 'Smoothness',
-  clarity: 'Clarity',
-}
-
-export const PriorityDescriptions: Record<StreamPriority, string> = {
-  balanced: 'Lowers resolution and frame rate together when needed. Best for games.',
-  smoothness: 'Keeps the frame rate; the picture goes soft when the bitrate runs short.',
-  clarity: 'Keeps the picture sharp; the frame rate drops when the bitrate runs short. Best for text.',
-}
-
-const DegradationPreference: Record<StreamPriority, RTCDegradationPreference> = {
-  balanced: 'balanced',
-  smoothness: 'maintain-framerate',
-  clarity: 'maintain-resolution',
-}
-
-// Discord's canStreamWithSettings (host.ts): its table of pairs, each free, Nitro-only, or allowed by the server's
-// boost level.
+// Discord's canStreamWithSettings (host.ts): whether the account (Nitro, or the server's boost level) may stream a
+// resolution and frame rate.
 const PRESET_CUSTOM = 3
 
-// Discord calls the top resolution "source" (0); we offer it as 2160.
-const discordResolution = (r: StreamResolution) => (r === '2160' ? 0 : Number(r))
-
-export function canStream(resolution: StreamResolution, fps: StreamFps): boolean {
+function canStream(height: number, fps: number): boolean {
   try {
     const d = host.discord!
-    return d.canStreamWithSettings(
-      PRESET_CUSTOM,
-      discordResolution(resolution),
-      Number(fps),
-      d.currentUser(),
-      d.voiceGuildPremiumTier(),
-    )
+    return d.canStreamWithSettings(PRESET_CUSTOM, height, fps, d.currentUser(), d.voiceGuildPremiumTier())
   } catch (e) {
     // Discord moved the function (or no host yet); offer everything rather than nothing.
     logger.error('canStreamWithSettings unavailable', e)
@@ -64,27 +22,8 @@ export function canStream(resolution: StreamResolution, fps: StreamFps): boolean
   }
 }
 
-export interface QualityChoice {
-  resolution: StreamResolution
-  frameRate: StreamFps
-}
-
-/** Every allowed pair, by resolution. */
-export function allowedQualities(): Map<StreamResolution, StreamFps[]> {
-  const out = new Map<StreamResolution, StreamFps[]>()
-  for (const r of StreamResolutions) {
-    const fps = StreamFps.filter((f) => canStream(r, f))
-    if (fps.length) out.set(r, fps)
-  }
-  return out
-}
-
-// ---- Automatic resolution / frame rate ----
-
 export const StreamCodecs = ['AV1', 'H264', 'VP9', 'VP8'] as const
 export type StreamCodec = (typeof StreamCodecs)[number]
-
-export const CodecNames: Record<StreamCodec, string> = { AV1: 'AV1', H264: 'H.264', VP9: 'VP9', VP8: 'VP8' }
 
 let encodable: StreamCodec[] | undefined
 
@@ -101,129 +40,42 @@ export function encodableCodecs(): StreamCodec[] {
   return encodable
 }
 
-/** The codec the stream will (most likely) be sent in: the preferred one if this client can encode it. */
-export function effectiveCodec(preferred: StreamCodec = settings.codec): StreamCodec {
-  const codecs = encodableCodecs()
-  if (codecs.includes(preferred)) return preferred
-  // Discord's own order otherwise leads with H.264
-  return (['H264', 'VP8', 'VP9'] as const).find((c) => codecs.includes(c)) ?? 'H264'
-}
+// ---- The stream's quality ----
+//
+// capture's AV1 (on the GPU) streams 1080p60 on every account, past Discord's rules for an account without Nitro
+// (720p30) at that account's 3.5 Mbps (Liam, 2026-10-13: "Use 1080p60 for AV1 free"), and 1440p60 with Nitro at 9 Mbps.
+// Chromium's own encoders (raw and the portal: VP9 on the CPU for a stock viewer, libaom when capture's encoder
+// fails) get 1080p, at 30 fps where the account may not stream 1080p60: VP9 at 3.5 Mbps needs the bits per pixel
+// (LOG Key finds, "What 3.5 Mbps buys"), and at 1440p60 its frames take longer than the frame interval (14.5 ms a
+// frame on 4 threads; "Chromium's encoders past 2.5 Mbps").
 
-// Discord's per-stream bitrate cap (web bundle constants): 9 Mbps above 720p, above 30 fps or at
-// source resolution, else 3.5 Mbps.
-const HIGH_MAX_BITRATE = 9_000_000
-const LOW_MAX_BITRATE = 3_500_000
-
-export function discordMaxBitrate(resolution: StreamResolution, frameRate: StreamFps): number {
-  return resolution === '2160' || Number(resolution) > 720 || Number(frameRate) > 30
-    ? HIGH_MAX_BITRATE
-    : LOW_MAX_BITRATE
-}
-
-// Fewest bits per pixel per frame (at Discord's cap for the pair) worth streaming at. Measured on
-// Deadlock footage at Discord's 9 Mbps cap, scored against the 4K original (Equibop lab/runs/res4k):
-// - AV1 (libaom): 1440p60 (0.041 bpp) 34.0 dB / SSIM 0.923 at 3.9 cores vs 1080p60 (0.072 bpp)
-//   33.7 dB / 0.928 at 2.9 cores on fast motion, but on a still desktop 1440p60 is far better
-//   (0.950 vs 0.914; lab/runs/desktop). So AV1 streams 1440p60 and the motion scaler below sends
-//   1080p while the motion is too much for the bitrate.
-// - H.264 (VA-API): 1080p60 32.8 dB / 0.916; asked for 1440p60 it degrades to 960p (29.1 dB),
-//   for 4K60 to 720p.
-// 30 fps raises per-frame quality 1.5-2 dB but judders on game motion (Equibop lab/runs/codec1), so 60 fps
-// is preferred whenever a 60 fps pair clears the floor.
-const AV1_MIN_BPP = 0.04
-const VP9_MIN_BPP = 0.055
-const H264_MIN_BPP = 0.06
-const VP8_MIN_BPP = 0.06
-
-const MinBitsPerPixel: Record<StreamCodec, number> = {
-  AV1: AV1_MIN_BPP,
-  VP9: VP9_MIN_BPP,
-  H264: H264_MIN_BPP,
-  VP8: VP8_MIN_BPP,
-}
-
-export interface Size {
+export interface StreamQuality {
+  /** capture's box: 16:9 at `height`, the source fitted into it (never scaled up) */
   width: number
   height: number
-}
-
-export interface AutoQuality extends QualityChoice {
-  codec: StreamCodec
-  /** Largest capture size: what the track constraints and Discord's maxResolution get. */
-  width: number
-  height: number
-  /** Discord's bitrate cap for this pair, in bits per second. */
+  fps: number
+  /** what Chromium's own encoders get */
+  chromium: { height: number; fps: number }
+  /** Discord's bitrate for the account, bits/s */
   maxBitrate: number
-  /** Bits per encoded pixel per frame at that cap. */
-  bitsPerPixel: number
 }
 
-/** Assumed source when its size isn't known yet (the picker, before getDisplayMedia resolves). */
-export const UNKNOWN_SOURCE: Size = { width: 3840, height: 2160 }
-
-/** The biggest box a resolution allows: 16:9 at that height, or the source's own size for "source". */
-function captureBox(resolution: StreamResolution, source: Size): Size {
-  if (resolution === '2160') return { width: source.width, height: source.height }
-  const height = Number(resolution)
-  return { width: Math.round(height * (16 / 9)), height }
+/** The stream's quality for the account; `captureAv1`: capture encodes AV1 here (else Chromium encodes it all). */
+export function streamQuality(captureAv1: boolean): StreamQuality {
+  const nitro = canStream(1440, 60)
+  const sixty = nitro || canStream(1080, 60)
+  const chromium = { height: 1080, fps: sixty ? 60 : 30 }
+  const { height, fps } = captureAv1 ? { height: nitro ? 1440 : 1080, fps: 60 } : chromium
+  return { width: Math.round((height * 16) / 9), height, fps, chromium, maxBitrate: sixty ? 9_000_000 : 3_500_000 }
 }
 
-/** Pixels actually encoded: the source scaled down (never up) to fit the box, keeping its aspect. */
-function encodedPixels(box: Size, source: Size): number {
-  const scale = Math.min(1, box.width / source.width, box.height / source.height)
-  return Math.round(source.width * scale) * Math.round(source.height * scale)
-}
+let current: StreamQuality | null = null
 
-/**
- * Picks the resolution and frame rate for a stream: among the pairs the account may stream, 60 fps
- * at the highest resolution whose bits per pixel at Discord's cap clear the codec's floor, never
- * above the source; else the same at 30 fps; else the lowest allowed pair.
- */
-export function autoQuality(
-  source: Size | undefined,
-  codec: StreamCodec,
-  allowed: Map<StreamResolution, StreamFps[]> = allowedQualities(),
-): AutoQuality {
-  const src = source?.width && source.height ? source : UNKNOWN_SOURCE
-  // The source's height rounded down to a tier; anything below 480 still streams at the 480 tier.
-  const sourceTier = StreamResolutions.filter((r) => Number(r) <= src.height).at(-1) ?? StreamResolutions[0]
-
-  const describe = (resolution: StreamResolution, frameRate: StreamFps): AutoQuality => {
-    const box = captureBox(resolution, src)
-    const maxBitrate = discordMaxBitrate(resolution, frameRate)
-    const bitsPerPixel = maxBitrate / (encodedPixels(box, src) * Number(frameRate))
-    return { resolution, frameRate, codec, ...box, maxBitrate, bitsPerPixel }
-  }
-
-  const pairs = [...allowed]
-    .filter(([r]) => Number(r) <= Number(sourceTier))
-    .flatMap(([r, fps]) => fps.map((f) => describe(r, f)))
-  const byResolution = (a: AutoQuality, b: AutoQuality) => Number(a.resolution) - Number(b.resolution)
-
-  for (const fps of ['60', '30'] as const) {
-    const best = pairs
-      .filter((p) => p.frameRate === fps && p.bitsPerPixel >= MinBitsPerPixel[codec])
-      .sort(byResolution)
-      .at(-1)
-    if (best) return best
-  }
-
-  const lowestResolution = [...allowed.keys()].sort((a, b) => Number(a) - Number(b))[0]
-  if (!lowestResolution) return describe('720', '30')
-  const lowestFps = [...allowed.get(lowestResolution)!].sort((a, b) => Number(a) - Number(b))[0]
-  return describe(lowestResolution, lowestFps)
-}
-
-/** e.g. "1440p60" (the source's own height at source resolution). */
-export const qualityLabel = (q: AutoQuality) => `${q.height}p${q.frameRate}`
-
-let current: AutoQuality | null = null
-
-/** The quality of the stream that's live now, as chosen once its source size was known. */
+/** The quality of the stream that's live now. */
 export const currentStreamQuality = () => current
 
 /** Records the live stream's quality until its track ends. */
-export function setCurrentStreamQuality(track: MediaStreamTrack, q: AutoQuality) {
+export function setCurrentStreamQuality(track: MediaStreamTrack, q: StreamQuality) {
   current = q
   track.addEventListener('ended', () => {
     if (current === q) current = null
@@ -231,224 +83,87 @@ export function setCurrentStreamQuality(track: MediaStreamTrack, q: AutoQuality)
 }
 
 /** Writes the max resolution and frame rate onto our Go Live connection, which Discord's encoder setup reads. */
-export function applyToStreamConnection(q: AutoQuality): boolean {
+export function applyToStreamConnection(q: StreamQuality): boolean {
   const d = host.discord
   const user = d?.currentUser()
   const conn = d && user && [...d.connections()].find((connection) => connection.streamUserId === user.id)
   if (!conn) return false
   const params = conn.videoStreamParameters[0]
-  params.maxFrameRate = Number(q.frameRate)
+  params.maxFrameRate = q.fps
   params.maxResolution ??= { width: 0, height: 0 }
   params.maxResolution.width = q.width
   params.maxResolution.height = q.height
   return true
 }
 
-// ---- Live stream tuning ----
+// ---- The Go Live sender ----
 
-let priority: StreamPriority = 'balanced'
 const streamTracks = new WeakSet<MediaStreamTrack>()
 
 /** Whether a track is a Go Live track we set up (for stats, overlays). */
 export const isStreamTrack = (track: MediaStreamTrack | null | undefined) => !!track && streamTracks.has(track)
 
-/** Marks a getDisplayMedia track as ours and sets how it degrades. */
-export function tuneStreamTrack(track: MediaStreamTrack, p: StreamPriority) {
-  priority = p
+/** Marks a Go Live track as ours: "motion" keeps WebRTC out of screen-content mode (QP floor, frame dropping). */
+export function tuneStreamTrack(track: MediaStreamTrack) {
   streamTracks.add(track)
-  // "motion" keeps WebRTC out of screen-content mode (QP floor, aggressive frame dropping).
-  // "detail" is what clarity wants: screen-content mode suits text.
-  track.contentHint = p === 'clarity' ? 'detail' : 'motion'
+  track.contentHint = 'motion'
 }
 
-function withPreference(sender: RTCRtpSender, params: RTCRtpSendParameters) {
-  if (isStreamTrack(sender.track)) {
-    params.degradationPreference = DegradationPreference[priority]
-    // As soon as someone watches, Discord's quality manager sets the stream to about 600 kbps per
-    // megapixel at 30 fps (2.2 Mbps for 1440p), far under the 9 Mbps and 60 fps the plan allows; on a
-    // live call (2026-10-11) the same stream ran at 7-9.6 Mbps with no loss once this was lifted.
-    // Discord's server still holds the stream to the plan: its feedback keeps the bandwidth
-    // estimate at exactly 9 Mbps, so a higher maxBitrate gains nothing.
-    const enc = params.encodings?.[0]
-    const q = currentStreamQuality()
-    if (enc && q) {
-      if (enc.maxBitrate != null && enc.maxBitrate < q.maxBitrate) enc.maxBitrate = q.maxBitrate
-      if (enc.maxFramerate != null && enc.maxFramerate < Number(q.frameRate)) enc.maxFramerate = Number(q.frameRate)
-    }
-  }
+// The stream's sound goes out at up to 96 kbps, over the 64 kbps Discord gives every sound sender (its voice rate).
+// Measured, not understood: at 64 kbps WebRTC's estimate fell to about 0.9 Mbps at its first backoff, a third of a
+// second into every Nitro AV1 stream, and took 35 s to reach 9 Mbps; at 96 kbps it fell to about 4.4 Mbps and reached
+// 9 Mbps in 12 s (DM call, 2026-10-13: LOG Known issues, "The stream's start hangs on the sound's bitrate").
+const SOUND_BPS = 96_000
+const soundTracks = new WeakSet<MediaStreamTrack>()
+
+/** Marks a track as the stream's sound (cast.ts). */
+export const markStreamSound = (track: MediaStreamTrack) => void soundTracks.add(track)
+export const isStreamSound = (track: MediaStreamTrack | null | undefined) => !!track && soundTracks.has(track)
+
+function withSoundRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
+  if (isStreamSound(sender.track)) for (const e of params.encodings ?? []) e.maxBitrate = SOUND_BPS
   return params
 }
 
-// ---- Motion scaling ----
-//
-// Above 1080p (AV1's 1440p60), fast game motion looks better at 1080p for the same bitrate and
-// anything calmer much better at full size (see AV1_MIN_BPP). So while the encoder's QP (AV1
-// qindex 0-255; Deadlock at 1440p runs 160-205, at 1080p 140-185) stays high, the stream is sent at
-// 1080p through scaleResolutionDownBy, and at full size again once it settles. Each switch costs a
-// keyframe, hence the dwell. On a desktop-then-Deadlock clip (Equibop lab/runs/motion) this beats fixed
-// 1440p on both parts: shown SSIM 0.9877 / 0.9406 vs 0.9855 / 0.9336. WebRTC's own quality scaler,
-// even retuned (WebRTC-Video-BalancedDegradationSettings), reacts ~5 s late and backs off after
-// climbing back, ending below fixed 1440p (0.9735 / 0.9313). Not for "clarity", which keeps the
-// resolution by definition. Equibop lab/bench's cfg.motionScale runs the same numbers.
-const MOTION = { down: 185, up: 145, downSecs: 3, upSecs: 6, dwell: 8, warmup: 5 }
-const MOTION_HEIGHT = 1080
-
-// Per sender: our extra downscale (1: full size), Discord's own scaleResolutionDownBy, what we last wrote over it
-const motion = new WeakMap<RTCRtpSender, { factor: number; discord?: number; applied?: number; running?: boolean }>()
-
-/** Discord's scale times ours; remembers Discord's (a value we wrote ourselves isn't Discord's). */
-function withMotionScale(sender: RTCRtpSender, params: RTCRtpSendParameters) {
+// As soon as someone watches, Discord's quality manager sets the stream to about 600 kbps per megapixel at 30 fps
+// (2.2 Mbps for 1440p), and a scale for a viewer that shows it small. The stream stays at its quality whoever
+// watches (Liam, 2026-10-13: "We always want to stream the max quality, regardless of size of the viewer"); on a live
+// call (2026-10-11) the same stream ran at 7-9.6 Mbps with no loss once this was lifted. Discord's server still holds
+// the stream to the account's rate (its feedback keeps the bandwidth estimate at it).
+function withQuality(sender: RTCRtpSender, params: RTCRtpSendParameters) {
   const enc = params.encodings?.[0]
-  if (!enc || !isStreamTrack(sender.track)) return params
-  let m = motion.get(sender)
-  if (!m) motion.set(sender, (m = { factor: 1, discord: enc.scaleResolutionDownBy }))
-  else if (enc.scaleResolutionDownBy !== m.applied) m.discord = enc.scaleResolutionDownBy
-  enc.scaleResolutionDownBy = m.factor === 1 ? m.discord : (m.discord ?? 1) * m.factor
-  m.applied = enc.scaleResolutionDownBy
+  const q = current
+  if (!enc || !q || !isStreamTrack(sender.track)) return params
+  params.degradationPreference = 'balanced'
+  enc.maxBitrate = q.maxBitrate
+  enc.maxFramerate = q.fps
+  enc.scaleResolutionDownBy = 1
   return params
 }
 
-// Only Chromium's own encoder (libaom: no capture, or its fallback); capture's size follows Discord's scale by
-// itself (zeroCopy.ts)
-function startMotionScaler(sender: RTCRtpSender) {
-  withMotionScale(sender, sender.getParameters())
-  const m = motion.get(sender)
-  if (!m || m.running) return
-  m.running = true
-  let tick = 0
-  let since = 0
-  let qps: number[] = []
-  let prev: { qpSum: number; framesEncoded: number } | null = null
-
-  const setFast = (fast: boolean, why: string) => {
-    // from the capture's real height: it can be smaller than the chosen quality (a small window), and scaling a
-    // 1080p capture by 1440/1080 would send 810p
-    const height = sender.track?.getSettings().height ?? 0
-    const factor = fast && height > MOTION_HEIGHT ? height / MOTION_HEIGHT : 1
-    if (m.factor === factor) return
-    m.factor = factor
-    since = tick
-    qps = []
-    logger.info(`Motion scaling: ${fast ? `${MOTION_HEIGHT}p` : 'full size'} (${why})`)
-    origSetParameters
-      .call(sender, withMotionScale(sender, withPreference(sender, sender.getParameters())))
-      .catch((e) => logger.error('Failed to apply motion scaling', e))
-  }
-  const reset = (why: string) => {
-    prev = null
-    setFast(false, why)
-  }
-
-  const timer = setInterval(async () => {
-    const { track } = sender
-    if (!track || !isStreamTrack(track) || track.readyState === 'ended') {
-      clearInterval(timer)
-      m.running = false
-      return
-    }
-    if (isZeroCopy(sender)) return reset('capture encodes')
-    tick++
-    let out: any
-    let codec: string | undefined
-    try {
-      const stats = await sender.getStats()
-      stats.forEach((s) => {
-        if (s.type === 'outbound-rtp' && s.kind === 'video') out = s
-      })
-      codec = out?.codecId ? stats.get(out.codecId)?.mimeType : undefined
-    } catch {
-      return // a renegotiation in progress; the next tick tries again
-    }
-    if (!out || !currentStreamQuality() || (track.getSettings().height ?? 0) <= MOTION_HEIGHT || priority === 'clarity')
-      return reset('not above 1080p')
-    // The QP thresholds are AV1's; another codec (a viewer without AV1) can't hold 1440p60 at 9 Mbps anyway.
-    if (codec && codec !== 'video/AV1') return setFast(true, `${codec} negotiated`)
-    const cur = { qpSum: out.qpSum ?? 0, framesEncoded: out.framesEncoded ?? 0 }
-    const frames = prev ? cur.framesEncoded - prev.framesEncoded : 0
-    if (prev && frames > 0) qps.push((cur.qpSum - prev.qpSum) / frames)
-    prev = cur
-    if (!frames || tick < MOTION.warmup || tick - since < MOTION.dwell) return
-    const mean = (n: number) => qps.slice(-n).reduce((a, b) => a + b, 0) / Math.min(n, qps.length)
-    if (m.factor === 1 && qps.length >= MOTION.downSecs && mean(MOTION.downSecs) > MOTION.down)
-      setFast(true, `QP ${mean(MOTION.downSecs).toFixed(0)}`)
-    else if (m.factor !== 1 && qps.length >= MOTION.upSecs && mean(MOTION.upSecs) < MOTION.up)
-      setFast(false, `QP ${mean(MOTION.upSecs).toFixed(0)}`)
-  }, 1000)
-}
-
-// Discord sets maxBitrate/maxFramerate/scaleResolutionDownBy through setParameters whenever its
-// quality manager updates; ride along: degradation preference, bitrate cap, motion scale.
+// Discord sets maxBitrate/maxFramerate/scaleResolutionDownBy through setParameters whenever its quality manager
+// updates: ours replace them.
 const origSetParameters = RTCRtpSender.prototype.setParameters
 RTCRtpSender.prototype.setParameters = function (this: RTCRtpSender, params, ...rest) {
   try {
-    withMotionScale(this, withPreference(this, params))
+    withSoundRate(this, withQuality(this, params))
   } catch (e) {
-    logger.error('Failed to set degradation preference', e)
+    logger.error('Failed to set the stream quality', e)
   }
   return origSetParameters.call(this, params, ...rest)
 }
 
-// ---- Start bitrate ----
-//
-// Discord's browser engine writes the remote SDP itself and sets only x-google-max-bitrate, so
-// WebRTC starts every stream at its default 300 kbps. The encoder picks its first resolution
-// from that (480x270 for a 1080p source) and climbs back one step every few seconds: the first
-// half minute of every stream is a smear. Starting near the cap gives full resolution at once,
-// and the bandwidth estimator still backs off within a second or two if the uplink can't take it.
-const START_FRACTION = 0.7
-const START_MAX_KBPS = 6000
-
-export function withStartBitrate(sdp: string): string {
-  return sdp.replace(/x-google-max-bitrate=(\d+)(?![^\r\n]*x-google-start-bitrate)/g, (match, max: string) => {
-    const start = Math.min(START_MAX_KBPS, Math.round(Number(max) * START_FRACTION))
-    return `${match};x-google-start-bitrate=${start}`
-  })
-}
-
-// Setting "goLiveMinBitrate" (experimental, off): a floor under the Go Live connection's bandwidth estimate,
-// x-google-min-bitrate next to Discord's x-google-max-bitrate (WebRTC's min bitrate, which bounds the estimate from
-// below: MinAllocAsLowerBound), so an estimate cut can't fall to a still screen's rate (live: 4.9 Mbps -> 70 kbps).
-// Only on the connection that sends the stream (its track is on a sender when Discord renegotiates to send it), so
-// voice and cameras are untouched. A real uplink under the floor then queues: zeroCopy.ts' pacer-delay guard cuts
-// capture's target, but the estimate (and the pacing rate) stay at the floor.
-const MIN_FRACTION = 0.5
-
-export function withMinBitrate(sdp: string): string {
-  return sdp.replace(/x-google-max-bitrate=(\d+)(?![^\r\n]*x-google-min-bitrate)/g, (match, max: string) => {
-    return `${match};x-google-min-bitrate=${Math.round(Number(max) * MIN_FRACTION)}`
-  })
-}
-
-const origSetRemoteDescription = RTCPeerConnection.prototype.setRemoteDescription
-RTCPeerConnection.prototype.setRemoteDescription = function (
-  this: RTCPeerConnection,
-  desc: RTCSessionDescriptionInit,
-  ...rest: unknown[]
-) {
-  try {
-    if (desc?.sdp?.includes('x-google-max-bitrate')) desc = { type: desc.type, sdp: withStartBitrate(desc.sdp) }
-    if (
-      desc?.sdp?.includes('x-google-max-bitrate') &&
-      settings.goLiveMinBitrate &&
-      this.getSenders().some((s) => isStreamTrack(s.track))
-    ) {
-      desc = { type: desc.type, sdp: withMinBitrate(desc.sdp!) }
-      logger.info('Go Live connection: bandwidth estimate floor at', MIN_FRACTION, "x Discord's max bitrate")
-    }
-  } catch (e) {
-    logger.error('Failed to set start bitrate', e)
-  }
-  return (origSetRemoteDescription as any).call(this, desc, ...rest)
-} as typeof origSetRemoteDescription
-
-// Discord only calls setParameters when its own numbers change, so also apply the preference
-// when our track is attached to a sender.
+// Discord only calls setParameters when its own numbers change, so also apply ours when our track is attached to a
+// sender, and send capture's video from it (zeroCopy.ts).
 function applyToSender(sender: RTCRtpSender) {
+  if (isStreamSound(sender.track))
+    origSetParameters
+      .call(sender, withSoundRate(sender, sender.getParameters()))
+      .catch((e) => logger.error("Failed to set the sound's bitrate", e))
   if (!sender.track || !streamTracks.has(sender.track)) return
   origSetParameters
-    .call(sender, withMotionScale(sender, withPreference(sender, sender.getParameters())))
-    .catch((e) => logger.error('Failed to set degradation preference', e))
-  startMotionScaler(sender)
+    .call(sender, withQuality(sender, sender.getParameters()))
+    .catch((e) => logger.error('Failed to set the stream quality', e))
   startZeroCopy(sender, sender.track).catch((e) => logger.error('Zero-copy failed to start', e))
 }
 
@@ -458,9 +173,11 @@ RTCRtpSender.prototype.replaceTrack = async function (this: RTCRtpSender, track)
   applyToSender(this)
 }
 
+// (a video sender's encoded streams are made as it is: zeroCopy.ts' attachSwap)
 const origAddTrack = RTCPeerConnection.prototype.addTrack
 RTCPeerConnection.prototype.addTrack = function (this: RTCPeerConnection, ...args) {
   const sender = origAddTrack.apply(this, args)
+  if (args[0].kind === 'video') attachSwap(this, sender)
   applyToSender(sender)
   return sender
 }
@@ -468,6 +185,64 @@ RTCPeerConnection.prototype.addTrack = function (this: RTCPeerConnection, ...arg
 const origAddTransceiver = RTCPeerConnection.prototype.addTransceiver
 RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, ...args) {
   const transceiver = origAddTransceiver.apply(this, args as Parameters<typeof origAddTransceiver>)
+  if ((typeof args[0] === 'string' ? args[0] : args[0].kind) === 'video') attachSwap(this, transceiver.sender)
   applyToSender(transceiver.sender)
   return transceiver
 }
+
+// ---- The Go Live connection's SDP ----
+//
+// Start bitrate: Discord's browser engine writes the remote SDP itself and sets only x-google-max-bitrate, so WebRTC
+// starts every stream at its default 300 kbps. Chromium's encoder picks its first resolution from that (480x270 for a
+// 1080p source) and climbs back one step every few seconds; capture's target follows the estimate. Starting near the
+// cap gives full resolution at once, and the bandwidth estimator still backs off within a second or two if the uplink
+// can't take it.
+const START_FRACTION = 0.7
+const START_MAX_KBPS = 6000
+
+/** The rate a stream starts at under a max of `maxKbps` (the SDP's, and capture's first target). */
+export const startKbps = (maxKbps: number) => Math.min(START_MAX_KBPS, Math.round(maxKbps * START_FRACTION))
+
+export function withStartBitrate(sdp: string): string {
+  return sdp.replace(
+    /x-google-max-bitrate=(\d+)(?![^\r\n]*x-google-start-bitrate)/g,
+    (match, max: string) => `${match};x-google-start-bitrate=${startKbps(Number(max))}`,
+  )
+}
+
+// The stream's bitrate (Liam, 2026-10-13: "Make the goLiveMaxBitrate permanent"). Discord's browser engine writes
+// x-google-max-bitrate=2500 into every connection's SDP (videoBitRate), and Chromium's own encoders (raw, the portal)
+// hold their target at it whatever the estimate allows (live: VP9 sent 2.5 Mbps at a 4.2 Mbps estimate). libwebrtc
+// seeds the send stream's max from the codec's x-google-max-bitrate when the stream is made, before the stream's track
+// is on the sender (WebRtcVideoSendChannel::AddSendStream); a later x-google-max-bitrate only moves the estimate's
+// ceiling, and only b=AS reaches the stream again (max_bandwidth_bps). So on the connection that sends the stream
+// both become the stream's bitrate; Discord's server still caps the estimate (its REMB), capture's encoder never
+// reads either.
+export function withMaxBitrate(sdp: string, kbps: number): string {
+  const raised = sdp.replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) =>
+    Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match,
+  )
+  return raised
+    .split(/(?=\r\nm=)/)
+    .map((m) => (m.startsWith('\r\nm=video') && !m.includes('\r\nb=AS:') ? m.replace(/\r\nc=[^\r\n]*/, `$&\r\nb=AS:${kbps}`) : m))
+    .join('')
+}
+
+const origSetRemoteDescription = RTCPeerConnection.prototype.setRemoteDescription
+RTCPeerConnection.prototype.setRemoteDescription = function (
+  this: RTCPeerConnection,
+  desc: RTCSessionDescriptionInit,
+  ...rest: unknown[]
+) {
+  try {
+    const q = current
+    if (desc?.sdp?.includes('x-google-max-bitrate') && q && this.getSenders().some((s) => isStreamTrack(s.track))) {
+      desc = { type: desc.type, sdp: withMaxBitrate(desc.sdp, Math.round(q.maxBitrate / 1000)) }
+      logger.info('Go Live connection: max bitrate', q.maxBitrate)
+    }
+    if (desc?.sdp?.includes('x-google-max-bitrate')) desc = { type: desc.type, sdp: withStartBitrate(desc.sdp) }
+  } catch (e) {
+    logger.error('Failed to set the start bitrate', e)
+  }
+  return (origSetRemoteDescription as any).call(this, desc, ...rest)
+} as typeof origSetRemoteDescription
