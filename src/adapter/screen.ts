@@ -1,6 +1,6 @@
 // Go Live through screen-capture (screen-capture/README.md): its renderer hooks are installed when this module is
 // evaluated, before Discord's scripts; here they get Discord's pieces (host.discord, from the adapter's needs), the
-// shell's cast IPC (host.native, shell/preload.js) and the codec order patch. capture is offered only when the
+// shell's cast IPC (host.native, src/shell/preload.js) and the codec order patch. capture is offered only when the
 // adapter's check passed and the patch applied; otherwise getDisplayMedia is Chromium's own capture, as in stock. The
 // picker (host.pick) is the voice panel's (views/user_panel.tsx).
 

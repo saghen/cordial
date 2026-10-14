@@ -4,7 +4,7 @@
 // sets the app's activity. requireModule() answers for these two when DiscordNative is missing (off desktop it throws
 // for every module), and two gates that are desktop-only open for them.
 //
-// window.cordialNative (shell/preload.js) is absent with CORDIAL_PRESENCE=0, and then none of this runs.
+// window.cordialNative (src/shell/preload.js) is absent with CORDIAL_PRESENCE=0, and then none of this runs.
 
 import { G } from './anchor'
 import { patch } from './webpack'
@@ -19,7 +19,8 @@ interface Native {
   }
 }
 const native = (window as any).cordialNative as Native | undefined
-// the shell's image actions (shell/main.js): one copied to the clipboard (false when it isn't PNG or JPEG), one saved
+// the shell's image actions (src/shell/main.js): one copied to the clipboard (false when it isn't PNG or JPEG), one
+// saved
 export const image = (window as any).cordialNative?.image as
   { copy(url: string): Promise<boolean>; save(url: string): void } | undefined
 

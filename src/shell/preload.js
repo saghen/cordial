@@ -9,7 +9,7 @@ const src = fs.readFileSync(path.join(__dirname, '../../dist/cordial.js'), 'utf8
 // Discord desktop's native modules (adapter/native.ts). CORDIAL_PRESENCE=0 leaves them out: no game detection, no Rich
 // Presence
 
-// game detection: shell/main.js runs game-detection/ on Discord's list of games
+// game detection: src/shell/main.js runs game-detection/ on Discord's list of games
 function observeGames(list, cb) {
   ipcRenderer.removeAllListeners('cordial:games')
   ipcRenderer.on('cordial:games', (_, games) => cb(games))
@@ -70,7 +70,7 @@ const cast = {
   log: (op, text) => ipcRenderer.send('cordial:stream-log', op, text),
 }
 
-// an image copied, or saved (shell/main.js)
+// an image copied, or saved (src/shell/main.js)
 const image = {
   copy: (url) => ipcRenderer.invoke('cordial:copy-image', url),
   save: (url) => ipcRenderer.send('cordial:save', url),
