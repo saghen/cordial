@@ -103,7 +103,7 @@ function niri(request) {
 // for testing (see the top of the file): a clip, a portal's bus, a sound target
 const clip = /^(.+):(\d+)x(\d+)$/.exec(process.env.CORDIAL_CAPTURE_CLIP ?? '')
 const portalBus = process.env.CORDIAL_CAPTURE_PORTAL_BUS || null
-const labAudio = process.env.CORDIAL_CAPTURE_AUDIO || null
+const testAudio = process.env.CORDIAL_CAPTURE_AUDIO || null
 
 /** The source kind: the test clip, the test portal, niri, the desktop's portal (any Wayland desktop), or none. */
 function via() {
@@ -352,7 +352,7 @@ function startCast(e, opts) {
       console.log(`[cast] capture ${cap.pid} sound: ${target}`)
       cap.send({ type: 'audio', target })
     }
-    if (labAudio) send(labAudio)
+    if (testAudio) send(testAudio)
     else if (kind === 'window')
       niri('Windows')
         .then((r) => audioTarget(/** @type {NiriWindow[]} */ (r.Windows).find((w) => String(w.id) === id)))

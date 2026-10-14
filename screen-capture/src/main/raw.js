@@ -2,9 +2,9 @@
 // imported once with Electron's sharedTexture and sent to the page's frame under a key of its own; then one IPC
 // message per frame, cordial:cast-raw (key, seq, t). preload/raw.js makes a VideoFrame on the import for each, which
 // Chromium encodes. A new size is a new ring under the same ids: its buffers get new keys (a frame never lands on the
-// old buffer of its id), and the old imports are released 2 s later (cordial:cast-raw-drop for the page's): releasing
-// one while a frame from it is still in the encoder or compositor crashes the renderer (the last reference then drops
-// off the main thread).
+// old buffer of its id), and the old imports are released 2 s later (cordial:cast-raw-drop for the page's), so the last
+// reference drops off the main thread: releasing one while a frame from it is still in the encoder or compositor
+// crashes the renderer.
 
 const { sharedTexture } = require('electron')
 const { closeSync } = require('node:fs')
