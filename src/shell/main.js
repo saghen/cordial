@@ -11,9 +11,13 @@ app.userAgentFallback = app.userAgentFallback.replace(/ (cordial|Electron)\/\S+/
 // the full GCs that cause switch spikes at the same memory
 app.commandLine.appendSwitch(
   'disable-features',
-  'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication',
+  'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication' +
+    (process.env.CORDIAL_EXP_DISABLE ? ',' + process.env.CORDIAL_EXP_DISABLE : ''),
 )
-app.commandLine.appendSwitch('js-flags', '--heap-growing-percent=50')
+app.commandLine.appendSwitch('js-flags', '--heap-growing-percent=50' + (process.env.CORDIAL_EXP_JS ? ' ' + process.env.CORDIAL_EXP_JS : ''))
+// EXPERIMENT (memory): extra switches by env
+if (process.env.CORDIAL_EXP_ENABLE) app.commandLine.appendSwitch('enable-features', process.env.CORDIAL_EXP_ENABLE)
+for (const sw of (process.env.CORDIAL_EXP_SWITCHES ?? '').split(' ').filter(Boolean)) app.commandLine.appendSwitch(...sw.split('='))
 
 // Chrome's zoom steps between 0.5 and 3
 const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]
@@ -133,8 +137,15 @@ app.whenReady().then(() => {
     width: 1280,
     height: 800,
     backgroundColor: '#1e1e2e',
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), sandbox: false, zoomFactor: zoom },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      sandbox: false,
+      zoomFactor: zoom,
+      ...(process.env.CORDIAL_EXP_NOSPELL ? { spellcheck: false } : {}),
+    },
   })
+  // EXPERIMENT (memory): hide the window after N s, as in the tray
+  if (process.env.CORDIAL_EXP_HIDE) setTimeout(() => win.hide(), Number(process.env.CORDIAL_EXP_HIDE) * 1000)
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -172,7 +183,7 @@ app.whenReady().then(() => {
   win.on('page-title-updated', (_, title) => app.setBadgeCount(+(title.match(/^\((\d+)\) /)?.[1] ?? 0)))
   // hidden rather than auto-hidden: Alt doesn't show it, its shortcuts (DevTools, reload) still work
   win.setMenuBarVisibility(false)
-  win.loadURL(`https://discord.com${linkPath(process.argv) ?? '/app'}`)
+  win.loadURL(process.env.CORDIAL_EXP_BLANK ? 'about:blank' : `https://discord.com${linkPath(process.argv) ?? '/app'}`)
   bindKeys(config().keybinds ?? {})
 })
 
