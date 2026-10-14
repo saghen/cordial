@@ -210,7 +210,7 @@ pub fn spawn(
             let sh2 = sh.clone();
             if let Err(e) = run(sh, va, o, node, remote, mods, rx) {
                 eprintln!("pipewire: {e:#}");
-                sh2.quit("no PipeWire");
+                sh2.quit(crate::Quit::Failed("no PipeWire"));
             }
         })
         .expect("thread");
@@ -241,7 +241,7 @@ fn run(
             move |id, _seq, res, msg| {
                 eprintln!("pipewire error id {id}: {msg} ({res})");
                 if id == pw::core::PW_ID_CORE && res == -libc::EPIPE {
-                    sh.quit("pipewire gone");
+                    sh.quit(crate::Quit::Failed("pipewire gone"));
                 }
             }
         })
@@ -280,7 +280,7 @@ fn run(
         &mut [pod],
     ) {
         eprintln!("pw_stream_connect: {e}");
-        sh.quit("cast not connectable");
+        sh.quit(crate::Quit::Failed("cast not connectable"));
     }
     stage("pw-connect");
     let _stop = stop.attach(ml.loop_(), {
@@ -311,7 +311,7 @@ impl Input {
         match state {
             StreamState::Paused => stage("pw-paused"),
             StreamState::Streaming => stage("pw-streaming"),
-            StreamState::Error(_) | StreamState::Unconnected => self.sh.quit("cast closed"),
+            StreamState::Error(_) | StreamState::Unconnected => self.sh.quit(crate::Quit::CastClosed),
             StreamState::Connecting => {}
         }
     }
@@ -495,7 +495,7 @@ impl Input {
             if vpp_submit(&p.ctx, p.w, p.h, surf, p.surf.ids[0], false, false).is_ok() {
                 stage("first-vpp");
                 p.submitted = true;
-                *prev_next = t0 + self.o.prev_interval;
+                *prev_next = t0 + crate::PREVIEW_INTERVAL_S;
             }
         }
         if let (Some(i), Some(r)) = (slot, ring.as_mut()) {
@@ -515,7 +515,7 @@ impl Input {
     fn renegotiate_without(&mut self, g: &mut State, stream: &Stream, bad: u64) {
         self.mods.retain(|&m| m != bad);
         if self.mods.is_empty() {
-            g.quit("no importable modifiers");
+            g.quit(crate::Quit::Failed("no importable modifiers"));
             return;
         }
         eprintln!("renegotiating without modifier 0x{bad:x} ({} left)", self.mods.len());

@@ -21,25 +21,29 @@ const STALL_MS = 3000
  * @typedef {{ type: 'buffer', id: number, width: number, height: number, modifier: string,
  *   planes: { offset: number, stride: number, size: number }[] } | { type: 'frame', id: number, seq: number, t: number }}
  *   RawMessage  on raw's socket (capture's main.rs): fds, ours to close, come with a buffer
- * @typedef {{ type: 'start', kbps: number, height?: number, codec?: 'av1' | 'h264' } | { type: 'raw' }
+ * @typedef {{ type: 'start', kbps: number, height?: number } | { type: 'raw' }
  *   | { type: 'bitrate', kbps: number } | { type: 'key' } | { type: 'height', height: number } | { type: 'fps', fps: number }
  *   | { type: 'audio', target: string } | { type: 'stop' }} CaptureCommand  audio: off | pid=N | steam=N | name=S
  * @typedef {{ pid: number | undefined, send(c: CaptureCommand): void, kill(): void }} Capture
  */
 
 /** @param {CaptureCommand} c */
-const commandLine = (c) =>
-  c.type === 'start'
-    ? `start kbps=${c.kbps | 0}${c.height ? ` height=${c.height | 0}` : ''}${c.codec ? ` codec=${c.codec}` : ''}`
-    : c.type === 'bitrate'
-      ? `bitrate ${c.kbps | 0}`
-      : c.type === 'height'
-        ? `height ${c.height | 0}`
-        : c.type === 'fps'
-          ? `fps ${c.fps | 0}`
-        : c.type === 'audio'
-          ? `audio ${c.target.replace(/\s/g, '')}`
-          : c.type
+function commandLine(c) {
+  switch (c.type) {
+    case 'start':
+      return `start kbps=${c.kbps | 0}${c.height ? ` height=${c.height | 0}` : ''}`
+    case 'bitrate':
+      return `bitrate ${c.kbps | 0}`
+    case 'height':
+      return `height ${c.height | 0}`
+    case 'fps':
+      return `fps ${c.fps | 0}`
+    case 'audio':
+      return `audio ${c.target.replace(/\s/g, '')}`
+    default:
+      return c.type
+  }
+}
 
 /**
  * Starts capture; every message (and finally "closed") goes to onMessage. With fdsock (addon/fdsock.c), capture gets
@@ -53,6 +57,7 @@ const commandLine = (c) =>
  */
 function startCapture(bin, args, onMessage, env, fdsock) {
   const [sock, childSock] = fdsock ? fdsock.open() : []
+  let closed = false
   // stderr ignored: capture then logs to $XDG_RUNTIME_DIR/mincord-capture/<pid>.log
   const child = spawn(bin, fdsock ? [...args, '--socket-fd', '3'] : args, {
     stdio: ['pipe', 'pipe', 'ignore', ...(fdsock ? [childSock] : [])],
@@ -72,7 +77,6 @@ function startCapture(bin, args, onMessage, env, fdsock) {
     })
   }
   let buf = Buffer.alloc(0)
-  let closed = false
   let last = Date.now()
   const close = (why) => {
     if (closed) return

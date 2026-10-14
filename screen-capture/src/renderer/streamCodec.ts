@@ -2,7 +2,7 @@
 // connection module (mincord registers it with adapter/webpack.ts' patch; the replacement calls back through the
 // `mincord` global, where the glue puts this module's exports as `mincord.screen`).
 
-import { captureEncodes } from './cast'
+import { captureAv1 } from './cast'
 import { host } from './host'
 import { settings } from './settings'
 import { encodableCodecs, StreamCodec } from './streamQuality'
@@ -46,17 +46,12 @@ export function codecConnection(c: typeof connection) {
  * VP9 and H.264 are Chromium's encoders, which take the GPU's when there is one (no AMD GPU encodes VP9).
  */
 export function orderCodecs(list: string[]): string[] {
-  let out = list
   try {
-    out = order(list)
-  } catch {}
-  codecOrders.push({ context: connection?.context, out })
-  if (codecOrders.length > 20) codecOrders.shift()
-  return out
+    return order(list)
+  } catch {
+    return list
+  }
 }
-
-/** The last orders given, with their connection's context (for the lab) */
-export const codecOrders: { context?: string; out: string[] }[] = []
 
 function order(list: string[]): string[] {
   const encodable = encodableCodecs()
@@ -69,5 +64,5 @@ function order(list: string[]): string[] {
   const goLive = connection?.context === 'stream' && !!self && connection.streamUserId === self
   const next = ['VP9', 'H264'].filter((c) => list.includes(c) && encodable.includes(c as StreamCodec))
   const rest = list.filter((c) => !next.includes(c))
-  return goLive && !captureEncodes('av1') ? [...next, ...rest, 'AV1'] : ['AV1', ...next, ...rest]
+  return goLive && !captureAv1() ? [...next, ...rest, 'AV1'] : ['AV1', ...next, ...rest]
 }

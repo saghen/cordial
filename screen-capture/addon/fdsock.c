@@ -1,10 +1,9 @@
 // fdsock: a SOCK_SEQPACKET socketpair whose messages can carry file descriptors (SCM_RIGHTS), for Node. Node's own
-// sockets drop passed fds; castscale (native/castscale) hands its DMA-BUFs over one of these.
+// sockets drop passed fds; capture hands its raw frames' DMA-BUFs over one of these.
 //
-//   const { open, listen, send, close } = require("./fdsock.node")
+//   const { open, listen, close } = require("./fdsock.node")
 //   const [fd, childFd] = open()                    // give childFd to the child (spawn's stdio), then close(childFd)
 //   listen(fd, (data, fds) => {})                   // data: Buffer, fds: number[] (ours to close); (null) at EOF
-//   send(fd, "text")                                // non-blocking; false if the socket is full or gone
 #define _GNU_SOURCE
 #include <errno.h>
 #include <pthread.h>
@@ -142,19 +141,6 @@ static napi_value js_listen(napi_env env, napi_callback_info info)
 	return NULL;
 }
 
-static napi_value js_send(napi_env env, napi_callback_info info)
-{
-	size_t argc = 2, len;
-	napi_value argv[2], ret;
-	int32_t fd;
-	char buf[MAX_LEN];
-	CHECK(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-	CHECK(env, napi_get_value_int32(env, argv[0], &fd));
-	CHECK(env, napi_get_value_string_utf8(env, argv[1], buf, sizeof(buf), &len));
-	napi_get_boolean(env, send(fd, buf, len, MSG_DONTWAIT | MSG_NOSIGNAL) == (ssize_t)len, &ret);
-	return ret;
-}
-
 static napi_value js_close(napi_env env, napi_callback_info info)
 {
 	size_t argc = 1;
@@ -171,7 +157,6 @@ NAPI_MODULE_INIT()
 	napi_property_descriptor props[] = {
 		{"open", NULL, js_open, NULL, NULL, NULL, napi_default, NULL},
 		{"listen", NULL, js_listen, NULL, NULL, NULL, napi_default, NULL},
-		{"send", NULL, js_send, NULL, NULL, NULL, napi_default, NULL},
 		{"close", NULL, js_close, NULL, NULL, NULL, napi_default, NULL},
 	};
 	napi_define_properties(env, exports, sizeof(props) / sizeof(props[0]), props);

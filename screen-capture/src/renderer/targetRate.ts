@@ -1,5 +1,4 @@
-// capture's bitrate target while it encodes the stream (zeroCopy.ts). Pure: no DOM, no imports (lab/unit runs it
-// with node).
+// capture's bitrate target while it encodes the stream (zeroCopy.ts). Pure: no DOM, no imports.
 //
 // Why not just "target = 0.95 x the bandwidth estimate": capture's VCN encoder is CBR but puts out far less than
 // its target on simple scenes (3-4 of 8.55 Mbps), and every cut of WebRTC's estimate lands at about the rate it
@@ -17,12 +16,7 @@
 // - never lets a held target build a pacer queue: a pacer delay over QUEUE_MS (packets' mean time in the pacer)
 //   puts the target under the estimate at once (QUEUE_CUT), and while it is held above the estimate, frames that
 //   come out at more than BURST_RATIO x the estimate over BURST_MS (the content got complex) release it to the
-//   estimate (guardTarget, run on every frame / fast stats poll);
-// - while it holds above an estimate that fell to our app-limited rate, asks for a probe (`probe`, at most every
-//   PROBE_GAP_MS): zeroCopy.ts nudges the encoding's maxBitrate, and goog_cc's ProbeController probes at once when
-//   the max allocated bitrate changes in ALR (probe_controller.cc OnMaxTotalAllocatedBitrate, "probe_max_allocation",
-//   on by default: probes at min(max allocated, 2 x estimate), then 2 x the max allocated while not limited); a
-//   probe result above the estimate replaces it (delay_based_bwe.cc). Setting "bweProbeNudge".
+//   estimate (guardTarget, run on every frame / fast stats poll).
 
 export const RATE = {
   /** target = this x min(estimate, cap): room for RTP/DAVE overhead and retransmissions */
@@ -41,8 +35,6 @@ export const RATE = {
   /** held above the estimate: our frames at more than this x the estimate over BURST_MS release the hold */
   BURST_RATIO: 1.25,
   BURST_MS: 500,
-  /** held: a probe asked for at most this often */
-  PROBE_GAP_MS: 5000,
   /** never below this (capture's encoder needs something) */
   MIN_BPS: 150_000,
 }
@@ -59,10 +51,6 @@ export interface RateState {
   busy: { t: number; busy: boolean }[]
   /** the last ceiling (HEADROOM x min(estimate, cap)) seen */
   ceiling?: number
-  /** ms: the last probe asked for */
-  probeAt: number | null
-  /** this update asks for a probe (held above an estimate that fell to our app-limited rate) */
-  probe?: boolean
   /** updates in a row with the pacer delay over QUEUE_MS */
   queued?: number
 }
@@ -84,7 +72,7 @@ const ceilingOf = (bwe: number | undefined, cap: number) => RATE.HEADROOM * Math
 const floor = (bps: number) => Math.max(RATE.MIN_BPS, bps)
 
 export function initialTarget(bps: number): RateState {
-  return { target: floor(bps), reason: 'start', lowSince: null, busy: [], probeAt: null }
+  return { target: floor(bps), reason: 'start', lowSince: null, busy: [] }
 }
 
 /** Once a second, with the sender's stats. */
@@ -100,22 +88,18 @@ export function updateTarget(s: RateState, x: RateSample): RateState {
     lowSince,
     busy,
     ceiling,
-    probeAt: s.probeAt,
     queued,
   })
 
   if (x.bwe === undefined) return next(s.target, s.target > max ? 'cap' : s.reason, s.lowSince)
-  if ((queued >= 2 || (x.sendDelay ?? 0) > 3 * RATE.QUEUE_MS) && x.bwe !== undefined)
+  if (queued >= 2 || (x.sendDelay ?? 0) > 3 * RATE.QUEUE_MS)
     return next(Math.min(s.target, RATE.QUEUE_CUT * ceiling), 'queue')
   if (ceiling >= s.target) return next(ceiling, 'estimate')
   // the estimate is under the target: the network's, or our own app-limited rate?
   const lowSince = s.lowSince ?? x.t
   const busySecs = busy.filter((b) => b.t >= lowSince - 1000 && b.busy).length
   if (x.t - lowSince >= RATE.LOW_SECS * 1000 && busySecs >= RATE.BUSY_SECS) return next(ceiling, 'follow')
-  const held = next(s.target, 'hold', lowSince)
-  if (!now.busy && x.wire !== undefined && (s.probeAt === null || x.t - s.probeAt >= RATE.PROBE_GAP_MS))
-    return { ...held, probe: true, probeAt: x.t }
-  return held
+  return next(s.target, 'hold', lowSince)
 }
 
 export interface GuardSample {
@@ -135,16 +119,9 @@ export function guardTarget(s: RateState, x: GuardSample): RateState {
   if (x.bwe === undefined) return s
   const ceiling = ceilingOf(x.bwe, x.cap)
   if ((x.sendDelay ?? 0) > RATE.QUEUE_MS && s.target > RATE.QUEUE_CUT * ceiling)
-    return {
-      ...s,
-      target: floor(RATE.QUEUE_CUT * ceiling),
-      reason: 'queue',
-      lowSince: null,
-      ceiling,
-      probe: false,
-    }
+    return { ...s, target: floor(RATE.QUEUE_CUT * ceiling), reason: 'queue', lowSince: null, ceiling }
   if (s.target > ceiling && (x.sentRate ?? 0) > RATE.BURST_RATIO * x.bwe)
-    return { ...s, target: floor(ceiling), reason: 'burst', lowSince: null, ceiling, probe: false }
+    return { ...s, target: floor(ceiling), reason: 'burst', lowSince: null, ceiling }
   return s
 }
 

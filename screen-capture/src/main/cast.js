@@ -27,7 +27,6 @@
 const { app, desktopCapturer, ipcMain, MessageChannelMain, session } = require('electron')
 const { execFile } = require('node:child_process')
 const fs = require('node:fs')
-const { readdir, readFile } = require('node:fs/promises')
 const { createConnection } = require('node:net')
 const path = require('node:path')
 const { startCapture } = require('./capture.js')
@@ -36,11 +35,10 @@ const { loadFdsock, rawRelay } = require('./raw.js')
 // WebRTC paces video at 1.1 x the bandwidth target (1.0 for screen content), so a big frame (a switch to a new
 // screen of text) waits in the pacer: 80-160 ms live at 1.1, 54-94 at 2.5 (LOG Key finds, "A jump's pause is the
 // pacer"; Liam picked 2.5). Every video stream of the process, the camera too; set before app ready (the shell
-// requires this file at its top level). The lab: $MINCORD_PACING=F paces at F instead.
-const pacing = process.env.MINCORD_PACING ?? '2.5'
+// requires this file at its top level).
 app.commandLine.appendSwitch(
   'force-fieldtrials',
-  `WebRTC-Video-Pacing/factor:${pacing}/WebRTC-ProbingScreenshareBwe/${pacing},2875,80,40,-60,3/`,
+  'WebRTC-Video-Pacing/factor:2.5/WebRTC-ProbingScreenshareBwe/2.5,2875,80,40,-60,3/',
 )
 
 /**
@@ -105,27 +103,28 @@ function niri(request) {
   })
 }
 
+// The lab (see the top of the file): its clip, its portal's bus, a sound target
 const clip = /^(.+):(\d+)x(\d+)$/.exec(process.env.MINCORD_CAPTURE_CLIP ?? '')
 const portalBus = process.env.MINCORD_CAPTURE_PORTAL_BUS || null
+const labAudio = process.env.MINCORD_CAPTURE_AUDIO || null
+
 /** The source kind: the lab's clip, the lab's portal, niri, the desktop's portal (any Wayland desktop), or none. */
-const via = () =>
-  clip
-    ? 'clip'
-    : portalBus
-      ? 'portal'
-      : process.env.NIRI_SOCKET
-        ? 'niri'
-        : process.env.WAYLAND_DISPLAY
-          ? 'portal'
-          : null
+function via() {
+  if (clip) return 'clip'
+  if (portalBus) return 'portal'
+  if (process.env.NIRI_SOCKET) return 'niri'
+  if (process.env.WAYLAND_DISPLAY) return 'portal'
+  return null
+}
 
 /** Whether Go Live captures through capture: a source kind, capture installed, not off in config.json. */
 const castAvailable = () => process.platform === 'linux' && !!via() && config().capture !== false && !!captureBin()
 
 let codecs
 /**
- * What capture encodes on its GPU (`capture --probe`, ~10 ms, asked once): ['av1', 'h264'], a part of it, or [].
- * @returns {Promise<('av1' | 'h264')[]>}
+ * What capture encodes on its GPU (`capture --probe`, ~10 ms, asked once): ['av1'], or [] (it then only hands its
+ * frames to Chromium, raw).
+ * @returns {Promise<string[]>}
  */
 function castCodecs() {
   if (!castAvailable()) return Promise.resolve([])
@@ -187,7 +186,6 @@ async function castSources() {
     niri('Windows').then((r) => /** @type {NiriWindow[]} */ (r.Windows)),
     niri('Outputs').then((r) => /** @type {Record<string, NiriOutput>} */ (r.Outputs)),
   ])
-  const own = new Set([process.pid, ...(await descendants(process.pid))])
   return [
     ...Object.values(outputs)
       .filter((o) => o.current_mode != null)
@@ -203,7 +201,8 @@ async function castSources() {
         }
       }),
     ...windows
-      .filter((w) => !own.has(w.pid ?? -1))
+      // (not mincord's own: niri's pid for a window is its Wayland client's, Electron's main process)
+      .filter((w) => w.pid !== process.pid)
       .sort((a, b) => Number(b.is_focused) - Number(a.is_focused) || (a.workspace_id ?? 0) - (b.workspace_id ?? 0))
       .map((w) => ({
         id: `window:${w.id}`,
@@ -214,43 +213,6 @@ async function castSources() {
         height: w.layout?.window_size?.[1] ?? 0,
       })),
   ]
-}
-
-// (CONFIG_PROC_CHILDREN)
-const hasChildLists = fs.existsSync(`/proc/${process.pid}/task/${process.pid}/children`)
-
-/**
- * Pids of every process below `pid`: the kernel's per-thread child lists (/proc/<pid>/task/<tid>/children), level by
- * level (~1 ms; scanning all of /proc for parent links took ~40 ms with 1500 processes), else that scan.
- * @returns {Promise<number[]>}
- */
-async function descendants(pid) {
-  if (hasChildLists) {
-    // (a process that exits meanwhile has no children to list)
-    const childrenOf = async (p) => {
-      const tasks = await readdir(`/proc/${p}/task`).catch(() => [])
-      const lists = await Promise.all(
-        tasks.map((t) => readFile(`/proc/${p}/task/${t}/children`, 'utf8').catch(() => '')),
-      )
-      return lists.join(' ').split(/\s+/).filter(Boolean).map(Number)
-    }
-    const out = []
-    for (let level = [pid]; level.length;) {
-      level = (await Promise.all(level.map(childrenOf))).flat()
-      out.push(...level)
-    }
-    return out
-  }
-  const parents = new Map()
-  for (const d of await readdir('/proc').catch(() => [])) {
-    if (!/^\d+$/.test(d)) continue
-    const stat = await readFile(`/proc/${d}/stat`, 'utf8').catch(() => '')
-    const ppid = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1])
-    if (ppid) parents.set(ppid, [...(parents.get(ppid) ?? []), Number(d)])
-  }
-  const out = []
-  for (const todo = [pid]; todo.length;) for (const c of parents.get(todo.pop()) ?? []) (out.push(c), todo.push(c))
-  return out
 }
 
 /**
@@ -301,8 +263,7 @@ function followOutput(output, set) {
       ])
       const ws = /** @type {NiriWorkspace[]} */ (workspaces).find((w) => w.output === output && w.is_active)
       const win = /** @type {NiriWindow[]} */ (windows).find((w) => w.id === ws?.active_window_id)
-      const own = win?.pid != null && (win.pid === process.pid || (await descendants(process.pid)).includes(win.pid))
-      const target = own ? last : await audioTarget(win)
+      const target = win?.pid === process.pid ? last : await audioTarget(win)
       if (!stopped && target != null && target !== last) set((last = target))
     } catch (e) {
       console.error('[cast] sound target:', e)
@@ -391,7 +352,7 @@ function startCast(e, opts) {
       }
       // (a MessagePortMain only transfers ports: frames, ~20 kB, and previews are copied)
       if (open) port1.postMessage(m)
-      if (m.type === 'closed') session.close()
+      if (m.type === 'closed') cast.close()
     },
     // the lab portal's bus for capture alone (mincord stays on the desktop's)
     portalBus && kind === 'portal' ? { ...process.env, DBUS_SESSION_BUS_ADDRESS: portalBus } : undefined,
@@ -402,14 +363,14 @@ function startCast(e, opts) {
       console.log(`[cast] capture ${cap.pid} sound: ${target}`)
       cap.send({ type: 'audio', target })
     }
-    if (process.env.MINCORD_CAPTURE_AUDIO) send(process.env.MINCORD_CAPTURE_AUDIO)
+    if (labAudio) send(labAudio)
     else if (kind === 'window')
       niri('Windows')
         .then((r) => audioTarget(/** @type {NiriWindow[]} */ (r.Windows).find((w) => String(w.id) === id)))
         .then(send, (e) => console.error('[cast] sound target:', e))
     else if (kind === 'output') stopAudio = followOutput(id, send)
   }
-  const session = {
+  const cast = {
     close() {
       if (!open) return
       open = false
@@ -417,12 +378,12 @@ function startCast(e, opts) {
       cap.send({ type: 'stop' })
       setTimeout(() => cap.kill(), 2000).unref()
       port1.close()
-      if (current === session) current = null
+      if (current === cast) current = null
     },
   }
-  current = session
-  port1.on('message', ({ data }) => (data?.type === 'stop' ? session.close() : cap.send(data)))
-  port1.on('close', () => session.close())
+  current = cast
+  port1.on('message', ({ data }) => (data?.type === 'stop' ? cast.close() : cap.send(data)))
+  port1.on('close', () => cast.close())
   port1.start()
   e.sender.postMessage('mincord:cast-port', null, [port2])
   console.log(`[cast] capture ${cap.pid}: ${args.join(' ')}`)
@@ -445,4 +406,4 @@ ipcMain.handle('mincord:cast-sources', castSources)
 ipcMain.handle('mincord:cast-start', startCast)
 app.on('will-quit', () => current?.close())
 
-module.exports = { castAvailable, castCodecs, castSources, descendants }
+module.exports = { castAvailable, castCodecs, castSources }

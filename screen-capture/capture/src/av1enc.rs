@@ -1,6 +1,21 @@
-// av1enc: low-delay AV1 encoding through VA-API, ported from the C build's av1enc.c (at f59ff8c; its header has the
-// why: what Mesa's VA frontend and radeonsi want, the references, rate control, the quantizer floor, the quality
-// preset). Byte for byte the same parameters and packed headers, so the same bitstream.
+// av1enc: low-delay AV1 encoding through VA-API. How Mesa's VA frontend (picture_av1_enc.c) and radeonsi want it, as
+// of Mesa 26.2:
+// - We pack the Sequence Header and Frame Header OBUs ourselves. Mesa parses them (the sequence header completely, the
+//   frame header up to uniform_tile_spacing_flag) and radeonsi writes both again from the parsed values, the frame
+//   header through the firmware, which fills in what rate control decides (base_q_idx, loop filter, CDEF): the packed
+//   bytes are a description, not output. Without them radeonsi writes its defaults (show_frame = 0 on every frame).
+// - The DPB is two reconstructed surfaces we own, by slot as in ffmpeg's vaapi_encode_av1: each inter frame refreshes
+//   the slot the previous frame isn't in and predicts from LAST (the previous frame) and GOLDEN (the one before);
+//   without GOLDEN a clip scores 0.0018 SSIM less at 9 Mbps. Three surfaces rotate (the one written is never read).
+// - Rate control: CBR, the target from the RateControl buffer; radeonsi re-initialises its rate control when the
+//   target changes, so a new one takes effect on the next frame without a keyframe. Bit stuffing off.
+// - Minimum qindex: on static content CBR drives the quantizer to ~1 to fill the target, and the next scene cut comes
+//   out near lossless too (0.6-0.87 MB frames at 9 Mbps that stall the stream). radeonsi honours the picture's
+//   min_base_qindex (not the HRD, not a max frame size), hence the floor (capture's --av1-min-q, 50) and capture's
+//   frame dropper. The HRD buffer (500 ms) is passed on but not enforced.
+// - Quality: "balance". The presets differ by < 0.001 SSIM at 9 Mbps on the 9070 XT, but a 1440p frame takes 2.2 /
+//   2.4 / 5.7 / 15.7 ms (speed / balance / quality / high quality).
+// - The firmware rate-controls per superblock around a fixed base_q_idx and reports no average QP (Frame.qp is 0).
 
 use std::time::Instant;
 
@@ -27,7 +42,6 @@ pub struct Cfg {
 
 pub struct Frame {
     pub key: bool,
-    #[allow(dead_code)] // (for the stdout frame message, not ported yet)
     pub qp: u32,
     pub ms_encode: f64,
 }
@@ -98,11 +112,8 @@ pub struct Av1Enc {
 }
 
 impl Av1Enc {
-    pub fn open(va: &Va, mut cfg: Cfg) -> Result<Self> {
-        if cfg.fps == 0 {
-            cfg.fps = 60;
-        }
-        let kbps = if cfg.kbps > 0 { cfg.kbps } else { 6000 };
+    pub fn open(va: &Va, cfg: Cfg) -> Result<Self> {
+        let kbps = cfg.kbps;
         let level = pick_level(cfg.width, cfg.height, cfg.fps);
         let attr = |type_| sys::VAConfigAttrib { type_, value: 0 };
         let mut q = [

@@ -1,16 +1,14 @@
 // capture: a niri cast of a window or an output (--window, --output; the Mutter ScreenCast D-Bus API, mutter.rs), the
-// desktop's ScreenCast portal (--portal, portal.rs), a PipeWire node (--node) or the clip (--clip), with its protocol
-// (stdin commands, stdout frames, previews, info and stats), the VPP, the encoder (AV1, or H.264 with --codec h264),
-// the frame dropper and the repeats. It is the Rust port of the C build (castscale renamed; P3 chose Rust and removed
-// the C, whose capture.c, last at f59ff8c, has the design); it follows the C function by function.
+// desktop's ScreenCast portal (--portal, portal.rs), a PipeWire node (--node) or the clip (--clip, clip.rs), with its
+// protocol (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1 encoder (av1enc.rs), the frame
+// dropper and the repeats.
 //
 //   mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID
 //                    | --clip F.i420 --clip-size WxH) [--size WxH]
 //                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
-//                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 50] [--av1-align WxH] [--h264-min-qp 0]
-//                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
-//                   [--encode-out F.ivf|F.h264] [--socket-fd N] [--audio SPEC]
-//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | fps N | audio SPEC | stop
+//                   [--av1-refs 1|2] [--av1-min-q 50] [--drop-ms 300] [--seconds N] [--start] [--encode-out F.ivf]
+//                   [--socket-fd N] [--audio SPEC]
+//   stdin: start [kbps=N] [height=N] [codec=av1] | raw | bitrate N | key | height N | fps N | audio SPEC | stop
 //   (audio: the stream's sound, from the apps SPEC names: audio.rs)
 //
 // raw (mincord's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
@@ -24,15 +22,14 @@
 // ring (and into the preview surface when one is due) and requeues the buffer at once; it never waits for the GPU. A
 // stdin thread takes the commands (when stdin is a pipe). The main thread is the worker: it encodes submitted slots
 // (waiting for the VPP with poll() on the slot's DMA-BUF), reads the preview back and writes to stdout. All of them
-// share one State under one lock (the C's loop lock), dropped for everything slow. With --clip, a reader thread reads
-// the clip, stamps the barcode and converts I420 to NV12 (CLIP_RING frames ahead), and the main thread paces it at
-// --fps, uploads it and runs the VPPs itself.
+// share one State under one lock, dropped for everything slow. With --clip, a reader thread reads the clip, stamps the
+// barcode and converts it to NV12, and the main thread paces it at --fps, uploads it and runs the VPPs itself.
 
 mod audio;
 mod av1enc;
 mod bits;
 mod cast;
-mod h264enc;
+mod clip;
 mod mutter;
 mod out;
 mod portal;
@@ -41,22 +38,27 @@ mod va;
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::os::fd::{AsRawFd, OwnedFd};
-use std::os::unix::fs::{FileExt, FileTypeExt};
+use std::os::unix::fs::FileTypeExt;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc, Condvar, Mutex, MutexGuard};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::Duration;
 
 use anyhow::{bail, Context as _, Result};
 
 use out::{info, now, stage};
+use av1enc::Av1Enc;
 use va::{fence_wait, surface_attr, sys, vpp_submit, Context, Image, Surfaces, Va};
 
 const RING: usize = 3;
-const CLIP_RING: usize = 6;
 // raw (the fallback, "raw"): the ring mincord imports, and how long a handed-out slot isn't written again (Chromium
 // reads it back for its encoder long before: README's fallback)
 const RAW_RING: usize = 8;
 const RAW_HOLD_S: f64 = 0.1;
+// nothing new from the cast for this long: the last frame again (Worker::repeat)
+const REPEAT_S: f64 = 1.0;
+// the 1 fps preview: Discord's stream thumbnail and mincord's templates
+const PREVIEW_BOX: (u32, u32) = (640, 360);
+const PREVIEW_INTERVAL_S: f64 = 1.0;
 
 struct Opts {
     window: Option<u64>,
@@ -73,21 +75,15 @@ struct Opts {
     fps: u32,
     device: String,
     kbps: u32,
-    h264: bool, // --codec h264
     refs: u32,
     min_qindex: u32,
-    min_qp: u32, // H.264's quantizer floor
     drop_ms: f64,
-    repeat_ms: f64,
-    prev_box: (u32, u32),
-    prev_interval: f64,
     seconds: f64,
     start: bool,
     ivf: Option<String>,
     probe: bool,
-    av1_align: Option<(u32, u32)>, // --av1-align WxH (else av1enc::align's)
-    socket: Option<i32>,           // --socket-fd N: raw's socket (SOCK_SEQPACKET, mincord's fdsock)
-    audio: Option<audio::Target>,  // --audio SPEC: the stream's sound from the start (the lab; mincord sends "audio")
+    socket: Option<i32>,          // --socket-fd N: raw's socket (SOCK_SEQPACKET, mincord's fdsock)
+    audio: Option<audio::Target>, // --audio SPEC: the stream's sound from the start (the lab; mincord sends "audio")
 }
 
 fn usage() -> ! {
@@ -95,10 +91,9 @@ fn usage() -> ! {
         "usage: mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
          \x20                       | --clip FILE.i420 --clip-size WxH)\n\
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
-         \x20                      [--kbps 6000] [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 50] [--av1-align WxH] [--h264-min-qp 0]\n\
-         \x20                      [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N]\n\
-         \x20                      [--start] [--encode-out FILE.ivf|FILE.h264] [--socket-fd N] [--audio SPEC] | --probe [--device ...]\n\
-         stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | audio SPEC | stop\n\
+         \x20                      [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 50] [--drop-ms 300] [--seconds N]\n\
+         \x20                      [--start] [--encode-out FILE.ivf] [--socket-fd N] [--audio SPEC] | --probe [--device ...]\n\
+         stdin: start [kbps=N] [height=N] [codec=av1] | raw | bitrate N | key | height N | fps N | audio SPEC | stop\n\
          (SPEC: off | pid=N | steam=N | name=S, audio.rs); stdout: see out.rs"
     );
     std::process::exit(2)
@@ -127,20 +122,14 @@ fn opts() -> Opts {
         fps: 60,
         device: "auto".into(),
         kbps: 6000,
-        h264: false,
         refs: 2,
         // (a floor of 10 let still content's scene cut cost half a second of bitrate: LOG; Liam picked 50)
         min_qindex: 50,
-        min_qp: 0,
         drop_ms: 300.0,
-        repeat_ms: 1000.0,
-        prev_box: (640, 360),
-        prev_interval: 1.0,
         seconds: 0.0,
         start: false,
         ivf: None,
         probe: false,
-        av1_align: None,
         socket: None,
         audio: None,
     };
@@ -163,25 +152,13 @@ fn opts() -> Opts {
             "--fps" => o.fps = num(v()),
             "--device" => o.device = v(),
             "--kbps" => o.kbps = num(v()),
-            "--codec" => {
-                o.h264 = match v().as_str() {
-                    "av1" => false,
-                    "h264" => true,
-                    _ => usage(),
-                }
-            }
             "--av1-refs" => o.refs = num(v()),
             "--av1-min-q" => o.min_qindex = num(v()),
-            "--h264-min-qp" => o.min_qp = num(v()),
             "--drop-ms" => o.drop_ms = num(v()),
-            "--repeat-ms" => o.repeat_ms = num(v()),
-            "--preview" => o.prev_box = parse_size(&v(), 0),
-            "--preview-fps" => o.prev_interval = 1.0 / num::<f64>(v()).max(0.01),
             "--seconds" => o.seconds = num(v()),
             "--start" => o.start = true,
             "--encode-out" => o.ivf = Some(v()),
             "--probe" => o.probe = true,
-            "--av1-align" => o.av1_align = Some(parse_size(&v(), 2)),
             "--socket-fd" => o.socket = Some(num(v())),
             "--audio" => o.audio = Some(audio::Target::parse(&v()).unwrap_or_else(|| usage())),
             _ => usage(),
@@ -189,11 +166,8 @@ fn opts() -> Opts {
     }
     let clip = !o.clip.is_empty();
     let sources = [o.window.is_some(), o.output.is_some(), o.node.is_some(), o.portal, clip];
-    if !o.probe && sources.iter().filter(|&&s| s).count() != 1 || (clip && o.clip_w == 0) || o.fps == 0 {
+    if !o.probe && sources.iter().filter(|&&s| s).count() != 1 || (clip && o.clip_w == 0) || o.fps == 0 || o.kbps == 0 {
         usage()
-    }
-    if o.prev_box.1 == 0 {
-        o.prev_box.0 = 0; // --preview 0x0: none
     }
     o
 }
@@ -232,7 +206,7 @@ fn fit(iw: u32, ih: u32, bw: u32, bh: u32, (wa, ha): (u32, u32), min: u32) -> (u
     ((fw as u32 / wa * wa).max(min), (fh as u32 / ha * ha).max(min))
 }
 
-// ---------------------------------------------------------------- the shared state (the C's S under the loop lock)
+// ---------------------------------------------------------------- the shared state
 
 /// an encode ring slot's state: free, VPP submitted (the worker encodes it next), being encoded
 #[derive(Clone, Copy, PartialEq, Default)]
@@ -268,7 +242,7 @@ impl Slot {
 /// import (`exports`), no encoder. Field order is drop order.
 struct Ring {
     ctx: Context,
-    fences: Vec<Vec<OwnedFd>>,
+    fences: Vec<OwnedFd>,
     exports: Vec<va::Export>,
     surfs: Surfaces,
     slots: Vec<Slot>,
@@ -292,7 +266,7 @@ impl Ring {
         let fences = surfs
             .ids
             .iter()
-            .map(|&s| va.export_fds(s))
+            .map(|&s| va.export_fd(s))
             .collect::<Result<Vec<_>>>()?;
         let exports = match raw {
             true => surfs
@@ -342,17 +316,16 @@ impl Drop for Ring {
         // the VPPs still writing the slots first
         for (s, f) in self.slots.iter().zip(&self.fences) {
             if s.state == SlotState::Submitted {
-                fence_wait(f[0].as_raw_fd(), 1000);
+                fence_wait(f.as_raw_fd(), 1000);
             }
         }
     }
 }
 
-/// the preview surface (BGRx), read back through a derived image (the map blits it to a staging buffer and waits), or
-/// through vaGetImage where the driver can't derive. Field order is drop order.
+/// the preview surface (BGRx), read back through a derived image (the map blits it to a staging buffer and waits).
+/// Field order is drop order.
 struct Preview {
     img: Image,
-    derived: bool,
     ctx: Context,
     surf: Surfaces,
     w: u32,
@@ -374,29 +347,18 @@ impl Preview {
         ];
         let surf = va.surfaces(sys::VA_RT_FORMAT_RGB32, w, h, 1, &mut attrs)?;
         let ctx = va.context(vpp_cfg, w, h, &surf.ids)?;
-        let derived = va.derive_image(surf.ids[0]).filter(|d| {
-            let f = d.img.format.fourcc;
-            (f == sys::VA_FOURCC_BGRX || f == sys::VA_FOURCC_BGRA) && d.img.num_planes == 1 && d.img.pitches[0] >= w * 4
-        });
-        let (img, derived) = match derived {
-            Some(img) => (img, true),
-            None => {
-                let bgrx = sys::VAImageFormat {
-                    fourcc: sys::VA_FOURCC_BGRX,
-                    byte_order: sys::VA_LSB_FIRST,
-                    bits_per_pixel: 32,
-                    depth: 24,
-                    red_mask: 0xff0000,
-                    green_mask: 0xff00,
-                    blue_mask: 0xff,
-                    ..Default::default()
-                };
-                (va.image(bgrx, w, h)?, false)
-            }
-        };
+        // (radeonsi derives it, the 9070 XT's and the Raphael iGPU's)
+        let img = va
+            .derive_image(surf.ids[0])
+            .filter(|d| {
+                let f = d.img.format.fourcc;
+                (f == sys::VA_FOURCC_BGRX || f == sys::VA_FOURCC_BGRA)
+                    && d.img.num_planes == 1
+                    && d.img.pitches[0] >= w * 4
+            })
+            .context("the preview: no BGRx image derived")?;
         Ok(Preview {
             img,
-            derived,
             ctx,
             surf,
             w,
@@ -412,7 +374,6 @@ impl Preview {
         let mut buf = Vec::with_capacity(w * h * 4 + 4);
         buf.extend_from_slice(&(self.w | self.h << 16).to_le_bytes());
         let read = va.sync_surface(self.surf.ids[0]).is_ok()
-            && (self.derived || self.img.get(self.surf.ids[0]).is_ok())
             && self
                 .img
                 .read(|p, off, pitch| {
@@ -471,14 +432,14 @@ struct State {
     active: bool,          // encoding ("start", --start)
     req_kbps: u32,         // target (0: --kbps)
     req_h: u32,            // maximum height (0: --size's)
-    h264: bool,            // the codec: --codec, then "start codec=" (the call's codec is known only once negotiated)
     fps: u32,              // the frame rate: --fps, then "fps N" (a pair only AV1 gets falls back for another codec)
     raw: bool,             // "raw": frames to mincord over the socket, not encoded
+    encodes: bool,         // the device encodes AV1
     av1_align: (u32, u32), // AV1's encode size alignment (av1enc::align)
     want_key: bool,
-    failed: bool,         // the encoder broke: no encoding until the next "start"
-    quit: Option<String>, // why
-    input: (u32, u32),    // the source's size (0: unknown yet)
+    failed: bool,       // the encoder broke: no encoding until the next "start"
+    quit: Option<Quit>, // why
+    input: (u32, u32),  // the source's size (0: unknown yet)
     want: (u32, u32),     // the encode size for the input and request
     full: (u32, u32),     // ... with no height asked for
     prev_want: (u32, u32),
@@ -500,13 +461,25 @@ struct State {
     st: Stats,
 }
 
+/// why capture stops
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Quit {
+    Signal,
+    Stopped, // "stop"
+    StdinClosed,
+    Seconds, // --seconds
+    // the cast ended by itself (the window closed): mincord ends the stream instead of falling back
+    CastClosed,
+    Failed(&'static str),
+}
+
 struct Shared {
     m: Mutex<State>,
     cv: Condvar, // wakes the worker: a frame submitted, a command
 }
 
 impl Shared {
-    fn quit(&self, why: &str) {
+    fn quit(&self, why: Quit) {
         self.m.lock().unwrap().quit(why);
         self.cv.notify_one();
     }
@@ -519,17 +492,17 @@ extern "C" fn on_signal(_: libc::c_int) {
 }
 
 impl State {
-    fn quit(&mut self, why: &str) {
-        self.quit.get_or_insert_with(|| why.to_string());
+    fn quit(&mut self, why: Quit) {
+        self.quit.get_or_insert(why);
     }
 
     /// whether to stop: asked to, a signal, stdout gone
     fn quitting(&mut self) -> bool {
         if SIGNALLED.load(Ordering::Relaxed) {
-            self.quit("");
+            self.quit(Quit::Signal);
         }
         if out::broken() {
-            self.quit("stdout broken");
+            self.quit(Quit::Failed("stdout broken"));
         }
         self.quit.is_some()
     }
@@ -554,13 +527,7 @@ impl State {
             bw = (bw as u64 * self.req_h as u64 / bh as u64) as u32;
             bh = self.req_h;
         }
-        let align = if self.raw {
-            (2, 2)
-        } else if self.h264 {
-            (8, 2)
-        } else {
-            self.av1_align
-        };
+        let align = if self.raw { (2, 2) } else { self.av1_align };
         self.full = fit(iw, ih, o.max_w, o.max_h, align, 16);
         self.want = fit(iw, ih, bw, bh, align, 16);
         if self.prev_box.0 > 0 {
@@ -578,14 +545,16 @@ impl State {
     }
 
     /// one command line:
-    ///   start [kbps=N] [height=N] [codec=av1|h264]
-    ///                               encode (the preview runs regardless); a new codec re-opens the encoder
+    ///   start [kbps=N] [height=N] [codec=av1]
+    ///                               encode (the preview runs regardless)
     ///   raw                         stop encoding, hand frames out over --socket-fd (mincord's fallback)
     ///   bitrate N                   new target (kbps), from the next frame
     ///   key                         the next frame a keyframe
     ///   height N                    maximum encode height (0: --size's); a new size starts with a keyframe
+    ///   fps N                       the frame rate (the encoder re-opens at it)
+    ///   audio SPEC                  the stream's sound (audio.rs)
     ///   stop                        exit (as does EOF)
-    fn command(&mut self, line: &str, o: &Opts, (av1, h264): (bool, bool)) {
+    fn command(&mut self, line: &str, o: &Opts) {
         let kv = |key: &str, def: u32| {
             line.find(key).map_or(def, |i| {
                 let s = &line[i + key.len()..];
@@ -596,22 +565,13 @@ impl State {
         };
         let arg = |s: &str| s.trim().parse::<u64>().unwrap_or(0);
         if line.starts_with("start") {
-            let want = if line.contains("codec=h264") {
-                true
-            } else if line.contains("codec=av1") {
-                false
-            } else {
-                self.h264
-            };
-            if !(if want { h264 } else { av1 }) {
-                let name = if want { "H.264" } else { "AV1" };
+            if !self.encodes || line.contains("codec=") && !line.contains("codec=av1") {
                 info(&format!(
-                    "{{\"type\":\"error\",\"message\":\"no {name} encoder on {}\"}}",
+                    "{{\"type\":\"error\",\"message\":\"no such encoder on {}\"}}",
                     o.device
                 ));
                 return;
             }
-            self.h264 = want;
             self.active = true;
             self.raw = false;
             self.req_kbps = kv("kbps=", self.kbps(o));
@@ -619,8 +579,7 @@ impl State {
             self.want_key = true;
             self.failed = false;
             self.update_sizes(o);
-            let codec = if self.h264 { "H.264" } else { "AV1" };
-            eprintln!("cmd: start {} kbps, height {}, {codec}", self.req_kbps, self.req_h);
+            eprintln!("cmd: start {} kbps, height {}", self.req_kbps, self.req_h);
             stage("start");
         } else if line == "raw" {
             if o.socket.is_none() {
@@ -648,13 +607,13 @@ impl State {
                 None => eprintln!("cmd: bad audio target {t:?}"),
             }
         } else if line == "stop" {
-            self.quit("stopped");
+            self.quit(Quit::Stopped);
         }
     }
 }
 
 /// commands from a pipe (mincord); stdin from /dev/null or a terminal isn't watched (lab and cost runs)
-fn watch_stdin(sh: Arc<Shared>, o: Arc<Opts>, supported: (bool, bool)) {
+fn watch_stdin(sh: Arc<Shared>, o: Arc<Opts>) {
     let piped =
         std::fs::metadata("/proc/self/fd/0").is_ok_and(|m| m.file_type().is_fifo() || m.file_type().is_socket());
     if !piped {
@@ -688,47 +647,15 @@ fn watch_stdin(sh: Arc<Shared>, o: Arc<Opts>, supported: (bool, bool)) {
                 let line: Vec<u8> = buf.drain(..=nl).collect();
                 sh.m.lock()
                     .unwrap()
-                    .command(String::from_utf8_lossy(&line[..nl]).as_ref(), &o, supported);
+                    .command(String::from_utf8_lossy(&line[..nl]).as_ref(), &o);
                 sh.cv.notify_one();
             }
             if buf.len() >= 511 {
                 buf.clear(); // garbage
             }
         }
-        sh.quit("stdin closed");
+        sh.quit(Quit::StdinClosed);
     });
-}
-
-// ---------------------------------------------------------------- the clip
-
-/// the clip's frames as NV12 with the barcode, in order, CLIP_RING ahead of the encoder
-fn clip_reader(file: File, w: u32, h: u32, count: u64, tx: mpsc::SyncSender<Vec<u8>>) {
-    let ysize = (w * h) as usize;
-    let fsize = ysize * 3 / 2;
-    let mut raw = vec![0u8; fsize];
-    for idx in 0u64.. {
-        if file.read_exact_at(&mut raw, (idx % count) * fsize as u64).is_err() {
-            raw.fill(128);
-        }
-        // barcode: the frame index's 16 bits as 32x32 blocks along the bottom
-        for b in 0..16 {
-            let v = if (idx >> b) & 1 != 0 { 235 } else { 16 };
-            for r in h - 32..h {
-                let at = (r * w) as usize + b * 32;
-                raw[at..at + 32].fill(v);
-            }
-        }
-        let mut d = vec![0u8; fsize];
-        d[..ysize].copy_from_slice(&raw[..ysize]);
-        let (u, v) = raw[ysize..].split_at(ysize / 4);
-        for (i, uv) in d[ysize..].as_chunks_mut::<2>().0.iter_mut().enumerate() {
-            uv[0] = u[i];
-            uv[1] = v[i];
-        }
-        if tx.send(d).is_err() {
-            return;
-        }
-    }
 }
 
 // ---------------------------------------------------------------- stats, output
@@ -817,60 +744,6 @@ fn ivf_header(f: &mut File, w: u32, h: u32, fps: u32, frames: u32) -> Result<()>
 
 // ---------------------------------------------------------------- the worker: encode, preview
 
-enum Enc {
-    Av1(av1enc::Av1Enc),
-    H264(h264enc::H264Enc),
-}
-
-impl Enc {
-    fn open(va: &Va, o: &Opts, h264: bool, (width, height): (u32, u32), fps: u32, kbps: u32) -> Result<Enc> {
-        Ok(if h264 {
-            let min_qp = o.min_qp;
-            Enc::H264(h264enc::H264Enc::open(
-                va,
-                h264enc::Cfg {
-                    width,
-                    height,
-                    fps,
-                    kbps,
-                    min_qp,
-                },
-            )?)
-        } else {
-            let (min_qindex, refs) = (o.min_qindex, o.refs);
-            Enc::Av1(av1enc::Av1Enc::open(
-                va,
-                av1enc::Cfg {
-                    width,
-                    height,
-                    fps,
-                    kbps,
-                    min_qindex,
-                    refs,
-                },
-            )?)
-        })
-    }
-
-    fn h264(&self) -> bool {
-        matches!(self, Enc::H264(_))
-    }
-
-    fn set_kbps(&mut self, kbps: u32) {
-        match self {
-            Enc::Av1(e) => e.set_kbps(kbps),
-            Enc::H264(e) => e.set_kbps(kbps),
-        }
-    }
-
-    fn encode(&mut self, src: u32, key: bool) -> Result<(&[u8], av1enc::Frame)> {
-        match self {
-            Enc::Av1(e) => e.encode(src, key),
-            Enc::H264(e) => e.encode(src, key),
-        }
-    }
-}
-
 type Guard<'a> = MutexGuard<'a, State>;
 
 struct Worker<'a> {
@@ -878,9 +751,9 @@ struct Worker<'a> {
     o: &'a Opts,
     va: &'a Va,
     vpp_cfg: &'a va::Config,
-    enc: Option<Enc>, // with the ring
-    enc_fps: u32,     // the frame rate it was opened for
-    last_enc_t: f64,  // frame dropper: bits sent over the target
+    enc: Option<Av1Enc>, // with the ring
+    enc_fps: u32,        // the frame rate it was opened for
+    last_enc_t: f64,     // frame dropper: bits sent over the target
     debt: f64,
     ivf: Option<File>,
     ivf_frames: u32,
@@ -936,7 +809,7 @@ impl<'a> Worker<'a> {
             ..Default::default()
         };
         if self.o.seconds > 0.0 && t - g.st.t_start >= self.o.seconds {
-            g.quit("--seconds");
+            g.quit(Quit::Seconds);
         }
         drop(g);
         out::send(out::MSG_INFO, 0, t, json.as_bytes(), &[], true);
@@ -947,12 +820,12 @@ impl<'a> Worker<'a> {
     fn reconcile(&mut self, g: &mut State) {
         let want = (g.active || g.raw) && g.want.0 > 0 && !g.failed;
         if let Some(r) = &g.ring {
-            let recodec = r.raw != g.raw || self.enc.as_ref().is_some_and(|e| e.h264() != g.h264 || self.enc_fps != g.fps);
-            if !want || (r.w, r.h) != g.want || recodec {
+            let reopen = r.raw != g.raw || (self.enc.is_some() && self.enc_fps != g.fps);
+            if !want || (r.w, r.h) != g.want || reopen {
                 let why = if !want {
                     ""
-                } else if recodec {
-                    " (codec)"
+                } else if reopen {
+                    " (mode)"
                 } else {
                     " (resize)"
                 };
@@ -978,19 +851,25 @@ impl<'a> Worker<'a> {
                 }
             }
         }
-        if want && g.ring.is_none() {
-            let kbps = g.kbps(self.o);
+        if want && !g.raw && g.ring.is_none() {
+            let ((width, height), o) = (g.want, self.o);
+            let cfg = av1enc::Cfg {
+                width,
+                height,
+                fps: g.fps,
+                kbps: g.kbps(o),
+                min_qindex: o.min_qindex,
+                refs: o.refs,
+            };
             let created = Ring::create(self.va, self.vpp_cfg, g.want, false)
-                .and_then(|r| Ok((r, Enc::open(self.va, self.o, g.h264, g.want, g.fps, kbps)?)));
+                .and_then(|r| Ok((r, Av1Enc::open(self.va, cfg)?)));
             match created {
                 Ok((r, enc)) => {
                     g.want_key = true;
                     stage("encoder");
                     info(&format!(
-                        "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"{}\"}}",
-                        r.w,
-                        r.h,
-                        if g.h264 { "H264" } else { "AV1" }
+                        "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"AV1\"}}",
+                        r.w, r.h
                     ));
                     g.ring = Some(r);
                     self.enc = Some(enc);
@@ -1029,7 +908,7 @@ impl<'a> Worker<'a> {
         let kbps = g.kbps(self.o);
         let r = g.ring.as_mut().unwrap();
         r.slots[i].state = SlotState::Busy;
-        let (surf, fence, slot, wh) = (r.surfs.ids[i], r.fences[i][0].as_raw_fd(), r.slots[i], r.w | r.h << 16);
+        let (surf, fence, slot, wh) = (r.surfs.ids[i], r.fences[i].as_raw_fd(), r.slots[i], r.w | r.h << 16);
         drop(g);
 
         if !repeat {
@@ -1054,11 +933,8 @@ impl<'a> Worker<'a> {
                 Ok((data, fi)) => {
                     self.debt += data.len() as f64 * 8.0;
                     if let Some(f) = self.ivf.as_mut() {
-                        // IVF for AV1; H.264 is Annex B as it comes
-                        if !self.o.h264 {
-                            let _ = f.write_all(&(data.len() as u32).to_le_bytes());
-                            let _ = f.write_all(&(self.ivf_frames as u64).to_le_bytes());
-                        }
+                        let _ = f.write_all(&(data.len() as u32).to_le_bytes());
+                        let _ = f.write_all(&(self.ivf_frames as u64).to_le_bytes());
                         let _ = f.write_all(data);
                         self.ivf_frames += 1;
                     }
@@ -1155,7 +1031,7 @@ impl<'a> Worker<'a> {
         g.want_key = false;
         let r = g.ring.as_mut().unwrap();
         r.slots[i].state = SlotState::Busy;
-        let (fence, slot) = (r.fences[i][0].as_raw_fd(), r.slots[i]);
+        let (fence, slot) = (r.fences[i].as_raw_fd(), r.slots[i]);
         drop(g);
 
         if !repeat {
@@ -1246,7 +1122,7 @@ impl<'a> Worker<'a> {
             } else {
                 let mut repeated = false;
                 let raw = g.ring.as_ref().is_some_and(|r| r.raw);
-                if (self.enc.is_some() || raw) && (g.want_key || idle_ms >= self.o.repeat_ms) {
+                if (self.enc.is_some() || raw) && (g.want_key || idle_ms >= REPEAT_S * 1e3) {
                     (g, repeated) = self.repeat(g);
                 }
                 if !repeated {
@@ -1254,123 +1130,6 @@ impl<'a> Worker<'a> {
                 }
             }
         }
-    }
-
-    /// --clip: a raw I420 file played in real time (the lab's file source: same frames, the frame index stamped as
-    /// the bench's barcode), uploaded to NV12 and VPP-scaled into the encode ring like a cast frame (put straight into
-    /// the slot at its own size: Mesa's VPP isn't an exact copy). The upload is CPU work the real path doesn't have.
-    fn run_clip(&mut self) -> Result<()> {
-        let o = self.o;
-        let (w, h) = (o.clip_w, o.clip_h);
-        let ysize = (w * h) as usize;
-        let file = File::open(&o.clip).with_context(|| format!("clip {}", o.clip))?;
-        let count = file.metadata()?.len() / (ysize * 3 / 2) as u64;
-        if count == 0 {
-            bail!("clip {}: shorter than one frame", o.clip);
-        }
-        let src = self.va.surfaces(sys::VA_RT_FORMAT_YUV420, w, h, 1, &mut [])?;
-        let nv12 = sys::VAImageFormat {
-            fourcc: sys::VA_FOURCC_NV12,
-            byte_order: sys::VA_LSB_FIRST,
-            bits_per_pixel: 12,
-            ..Default::default()
-        };
-        let img = self.va.image(nv12, w, h)?;
-        let (tx, rx) = mpsc::sync_channel(CLIP_RING);
-        let reader = std::thread::spawn(move || clip_reader(file, w, h, count, tx));
-        eprintln!("clip: {} {w}x{h}, {count} frames at {} fps", o.clip, o.fps);
-        let mut g = self.lock();
-        g.update_sizes(o);
-        info(&format!(
-            "{{\"type\":\"input\",\"width\":{w},\"height\":{h},\"encodeWidth\":{},\"encodeHeight\":{}}}",
-            g.full.0, g.full.1
-        ));
-        let (mut next, period) = (0.0f64, 1.0 / o.fps as f64);
-        let mut idx = 0u64;
-        while !g.quitting() {
-            g = self.tick(g);
-            self.reconcile(&mut g);
-            if g.prev.as_ref().is_some_and(|p| p.submitted) {
-                g = self.preview_send(g);
-            }
-            drop(g);
-
-            // pacing: the clip in real time
-            let t = now();
-            if next == 0.0 {
-                next = t;
-            }
-            if next > t {
-                std::thread::sleep(Duration::from_secs_f64(next - t));
-            }
-            next += period;
-            if now() - next > 0.5 {
-                next = now(); // way behind (stopped in a debugger...): don't burst
-            }
-            let f = rx.recv()?;
-            img.write(|p, off, pitch| {
-                for r in 0..h as usize {
-                    let at = off[0] as usize + r * pitch[0] as usize;
-                    p[at..at + w as usize].copy_from_slice(&f[r * w as usize..][..w as usize]);
-                }
-                for r in 0..h as usize / 2 {
-                    let at = off[1] as usize + r * pitch[1] as usize;
-                    p[at..at + w as usize].copy_from_slice(&f[ysize + r * w as usize..][..w as usize]);
-                }
-            })?;
-
-            g = self.lock();
-            g.st.n_in += 1;
-            let t = now();
-            let uploaded = img.put(src.ids[0]).is_ok();
-            // the clip plays in real time at --fps; the stream takes frames at its rate ("fps N"), as from a cast
-            g.credit = (g.credit + (t - g.last_in) * g.fps as f64).min(2.0);
-            g.last_in = t;
-            let due = g.credit >= 1.0;
-            if due {
-                g.credit -= 1.0;
-            }
-            let State {
-                prev,
-                prev_next,
-                ring,
-                st,
-                ..
-            } = &mut *g;
-            if let Some(p) = prev.as_mut().filter(|p| uploaded && !p.submitted && t >= *prev_next) {
-                if vpp_submit(&p.ctx, p.w, p.h, src.ids[0], p.surf.ids[0], true, false).is_ok() {
-                    p.submitted = true;
-                    *prev_next = t + o.prev_interval;
-                }
-            }
-            let slot = ring
-                .as_mut()
-                .filter(|r| uploaded && due && (self.enc.is_some() || r.raw))
-                .and_then(|r| {
-                    let i = r.free_slot()?;
-                    let s = r.surfs.ids[i];
-                    let submitted = if (r.w, r.h) == (w, h) {
-                        img.put(s)
-                    } else {
-                        vpp_submit(&r.ctx, r.w, r.h, src.ids[0], s, true, true)
-                    };
-                    submitted.ok()?;
-                    r.slots[i] = Slot::submitted(t, idx);
-                    Some(i)
-                });
-            if let Some(i) = slot {
-                st.total_sub += 1;
-                g = self.deliver(g, i, false);
-            }
-            idx += 1;
-            if self.ivf.is_some() && o.seconds <= 0.0 && idx >= count {
-                break;
-            }
-        }
-        drop(g);
-        drop(rx);
-        let _ = reader.join();
-        Ok(())
     }
 }
 
@@ -1445,19 +1204,13 @@ fn main() {
     std::process::exit(code)
 }
 
-/// --probe: what this device encodes, one JSON line on stdout (`{"device":"/dev/dri/renderD128","codecs":["av1","h264"]}`);
-/// mincord orders the codecs it advertises by it
+/// --probe: what this device encodes, one JSON line on stdout (`{"device":"/dev/dri/renderD128","codecs":["av1"]}`, or
+/// `[]`); mincord orders the codecs it advertises by it
 fn probe(device: &str) -> i32 {
-    let Ok(va) = Va::open(device) else {
-        println!("{{\"device\":\"{device}\",\"codecs\":[]}}");
-        return 1;
-    };
-    let codecs: Vec<_> = [("av1", av1enc::supported(&va)), ("h264", h264enc::supported(&va))]
-        .into_iter()
-        .filter_map(|(c, ok)| ok.then(|| format!("\"{c}\"")))
-        .collect();
-    println!("{{\"device\":\"{device}\",\"codecs\":[{}]}}", codecs.join(","));
-    0
+    let va = Va::open(device);
+    let av1 = va.as_ref().is_ok_and(av1enc::supported);
+    println!("{{\"device\":\"{device}\",\"codecs\":[{}]}}", if av1 { "\"av1\"" } else { "" });
+    va.is_err() as i32
 }
 
 fn run(o: Arc<Opts>) -> Result<()> {
@@ -1494,18 +1247,14 @@ fn run(o: Arc<Opts>) -> Result<()> {
         sys::VAEntrypoint::VAEntrypointVideoProc,
         &mut [],
     )?;
-    let (av1, h264) = (av1enc::supported(&va), h264enc::supported(&va));
-    let supported = if o.h264 { h264 } else { av1 };
-    let yes = |b| if b { "yes" } else { "no" };
-    let align = o.av1_align.unwrap_or_else(|| av1enc::align(&va));
+    let (encodes, align) = (av1enc::supported(&va), av1enc::align(&va));
     eprintln!(
-        "va: {}: {}, AV1 encode: {} (sizes aligned to {}x{}), H.264 encode: {}",
+        "va: {}: {}, AV1 encode: {} (sizes aligned to {}x{})",
         o.device,
         va.vendor(),
-        yes(av1),
+        if encodes { "yes" } else { "no" },
         align.0,
-        align.1,
-        yes(h264)
+        align.1
     );
     stage("va");
 
@@ -1517,26 +1266,24 @@ fn run(o: Arc<Opts>) -> Result<()> {
     }
 
     let ivf = match &o.ivf {
-        Some(p) if supported => {
+        Some(p) if encodes => {
             let mut f = File::create(p).with_context(|| format!("--encode-out {p}"))?;
-            if !o.h264 {
-                f.seek(SeekFrom::Start(32))?;
-            }
+            f.seek(SeekFrom::Start(32))?; // the header goes in at the end, with the frame count
             Some(f)
         }
-        Some(_) => bail!("--encode-out: no {} encoder", if o.h264 { "H.264" } else { "AV1" }),
+        Some(_) => bail!("--encode-out: no AV1 encoder"),
         None => None,
     };
     let t_start = now();
-    let active = (o.start || ivf.is_some()) && supported;
+    let active = (o.start || ivf.is_some()) && encodes;
     let state = State {
         active,
         want_key: active,
-        h264: o.h264,
         fps: o.fps,
+        encodes,
         av1_align: align,
         input: (o.clip_w, o.clip_h),
-        prev_box: o.prev_box,
+        prev_box: PREVIEW_BOX,
         credit: 1.0,
         last_in: t_start,
         st: Stats {
@@ -1603,7 +1350,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         (g.st.t_start, g.st.t_tick, g.last_in) = (t, t, t);
     }
 
-    watch_stdin(sh.clone(), o.clone(), (av1, h264));
+    watch_stdin(sh.clone(), o.clone());
     let remote = portal.as_mut().and_then(|p| p.fd.take());
     let cast = o
         .node
@@ -1636,14 +1383,13 @@ fn run(o: Arc<Opts>) -> Result<()> {
     }
 
     let mut g = sh.m.lock().unwrap();
-    let why = g.quit.clone().unwrap_or_default();
-    eprintln!("quit: {}", if why.is_empty() { "signal" } else { &why });
-    // the cast ended by itself (the window closed): mincord ends the stream instead of falling back
-    if why == "cast closed" {
-        info("{\"type\":\"ended\",\"reason\":\"cast closed\"}");
-    } else if !["stopped", "stdin closed", "--seconds"].contains(&why.as_str()) {
-        let msg = if why.is_empty() { "terminated" } else { &why };
-        info(&format!("{{\"type\":\"error\",\"message\":\"{msg}\"}}"));
+    let why = g.quit.unwrap_or(Quit::Signal);
+    eprintln!("quit: {why:?}");
+    match why {
+        Quit::CastClosed => info("{\"type\":\"ended\",\"reason\":\"cast closed\"}"),
+        Quit::Stopped | Quit::StdinClosed | Quit::Seconds => {}
+        Quit::Signal => info("{\"type\":\"error\",\"message\":\"terminated\"}"),
+        Quit::Failed(msg) => info(&format!("{{\"type\":\"error\",\"message\":\"{msg}\"}}")),
     }
     let el = now() - g.st.t_start;
     let cpu = cpu_s();
@@ -1666,7 +1412,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         }
     );
     eprintln!("gpu: busy ms:{}", gpu_ms(st.total_sub));
-    if let (Some(f), Some(r), false) = (w.ivf.as_mut(), g.ring.as_ref(), o.h264) {
+    if let (Some(f), Some(r)) = (w.ivf.as_mut(), g.ring.as_ref()) {
         ivf_header(f, r.w, r.h, o.fps, w.ivf_frames)?;
     }
     // VA objects before the VPP config they were made with

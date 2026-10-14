@@ -31,8 +31,9 @@ use crate::out::{info, now, send, MSG_AUDIO};
 pub const RATE: u32 = 48000;
 pub const CHANNELS: u32 = 2;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum Target {
+    #[default]
     Off,
     Pid(u32),
     Steam(String),
@@ -78,16 +79,12 @@ struct Graph {
     ports: HashMap<u32, Port>,
     links: HashMap<(u32, u32), pw::link::Link>, // (output port, our input port) ->
     own: Option<u32>,                           // our stream's node
-    target: Option<Target>,
+    target: Target,
     linked: Vec<String>,                        // the apps linked, as last reported
 }
 
-/// the audio thread's handle: its target, set from the stdin thread
-pub struct Audio {
-    tx: pw::channel::Sender<Target>,
-}
-
-static AUDIO: Mutex<Option<Audio>> = Mutex::new(None);
+/// the audio thread's target channel, set from the stdin thread
+static AUDIO: Mutex<Option<pw::channel::Sender<Target>>> = Mutex::new(None);
 
 /// sets what the stream's sound comes from; the audio thread starts on the first call
 pub fn set_target(t: Target) {
@@ -103,10 +100,10 @@ pub fn set_target(t: Target) {
                 }
             })
             .expect("audio thread");
-        *a = Some(Audio { tx });
+        *a = Some(tx);
     }
     eprintln!("audio: target {t:?}");
-    let _ = a.as_ref().unwrap().tx.send(t);
+    let _ = a.as_ref().unwrap().send(t);
 }
 
 fn stat_ppid(pid: u32) -> Option<u32> {
@@ -142,10 +139,10 @@ impl Graph {
             return false;
         }
         match &self.target {
-            None | Some(Target::Off) => false,
-            Some(Target::Pid(p)) => app.ancestors.contains(p),
-            Some(Target::Steam(id)) => app.steam.as_ref() == Some(id),
-            Some(Target::Name(n)) => app.names.iter().any(|x| x == n),
+            Target::Off => false,
+            Target::Pid(p) => app.ancestors.contains(p),
+            Target::Steam(id) => app.steam.as_ref() == Some(id),
+            Target::Name(n) => app.names.iter().any(|x| x == n),
         }
     }
 
@@ -391,7 +388,7 @@ fn run(targets: pw::channel::Receiver<Target>) -> Result<()> {
         let core = core.clone();
         move |t| {
             let mut g = g.borrow_mut();
-            g.target = Some(t);
+            g.target = t;
             g.sync(&core);
         }
     });

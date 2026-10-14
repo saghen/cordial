@@ -58,7 +58,7 @@ pub fn start(sh: Arc<Shared>, cursor: u32, restore: Option<&str>) -> Result<Port
                 if let Ok(mut s) = watch.session.receive_closed().await {
                     if s.next().await.is_some() {
                         closed.store(true, Ordering::Relaxed);
-                        sh.quit("cast closed");
+                        sh.quit(crate::Quit::CastClosed);
                     }
                 }
             })

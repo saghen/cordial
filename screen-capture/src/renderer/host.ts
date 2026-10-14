@@ -16,8 +16,8 @@ export interface Discord {
 export interface Native {
   /** niri and capture are there: Go Live captures through capture */
   available(): Promise<boolean>
-  /** what capture encodes on this machine's GPU (capture --probe) */
-  codecs(): Promise<('av1' | 'h264')[]>
+  /** what capture encodes on this machine's GPU (capture --probe): ['av1'], or none */
+  codecs(): Promise<string[]>
   sources(): Promise<CastSource[]>
   /** Starts capture; true: its port follows as a window message ({ mincordCastPort: true }, ports[0]) */
   start(opts: CastStart): Promise<boolean>

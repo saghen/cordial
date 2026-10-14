@@ -1,6 +1,6 @@
 // Steady wire rate (setting "steadyWireRate", zeroCopy.ts): capture's frames are topped up to the target's
 // per-frame budget with stuffing, so the sender is never application limited on simple scenes (the bandwidth
-// estimate then has no low rate of ours to fall to, targetRate.ts). Pure: no DOM, no imports (lab/unit).
+// estimate then has no low rate of ours to fall to, targetRate.ts). Pure: no DOM, no imports.
 //
 // The stuffing is an AV1 metadata OBU (obu_type 5) of an unregistered user-private metadata_type, which decoders
 // ignore (AV1 spec 6.7.1: "decoders should ignore metadata OBUs with unknown or private metadata_type"):
@@ -10,10 +10,6 @@
 //   in the clear and the payload encrypted;
 // - it goes in front of the first frame / frame-header OBU (after the temporal delimiter and sequence header, where
 //   encoders put metadata), so the frame OBU stays last (DAVE drops the size field of the last OBU).
-// H.264 (Annex B, as capture writes it): a filler data NAL unit (nal_unit_type 12, nal_ref_idc 0: 0xFF bytes and the
-// rbsp trailing bits) at the end of the access unit, where filler goes (H.264 7.4.1.2.3: not before the picture's
-// first slice). Decoders discard it; libdave (ProcessFrameH264) leaves NAL units other than slices unencrypted, and
-// it has no 00 00 to escape.
 // Cost: the viewers' downlink is always near the target too.
 
 /** AV1 obu_type OBU_METADATA */
@@ -84,27 +80,9 @@ export function stuffingOffset(tu: Uint8Array): number {
   return i
 }
 
-/** An Annex B filler data NAL unit (start code included) of `total` bytes (>= MIN_STUFF). */
-export function fillerNal(total: number): Uint8Array {
-  const out = new Uint8Array(total).fill(0xff)
-  out.set([0, 0, 0, 1, 12], 0)
-  out[total - 1] = 0x80
-  return out
-}
-
-/**
- * `frame` with `bytes` of stuffing: AV1, a metadata OBU in front of its frame; H.264, a filler NAL unit after it.
- * `frame` itself when it can't be stuffed.
- */
-export function stuff(frame: Uint8Array, bytes: number, codec: 'av1' | 'h264' = 'av1'): Uint8Array {
-  if (bytes < MIN_STUFF) return frame
-  if (codec === 'h264') {
-    const out = new Uint8Array(frame.length + bytes)
-    out.set(frame, 0)
-    out.set(fillerNal(bytes), frame.length)
-    return out
-  }
-  const tu = frame
+/** `tu` with a metadata OBU of `bytes` in front of its frame; `tu` itself when it can't be stuffed. */
+export function stuff(tu: Uint8Array, bytes: number): Uint8Array {
+  if (bytes < MIN_STUFF) return tu
   const at = stuffingOffset(tu)
   if (at < 0) return tu
   const obu = stuffingObu(bytes)

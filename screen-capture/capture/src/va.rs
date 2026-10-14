@@ -7,7 +7,7 @@
 use std::os::fd::{FromRawFd, OwnedFd, RawFd};
 use std::sync::Arc;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context as _, Result};
 pub use cros_libva as sys;
 use sys::{VABufferID, VAConfigID, VAContextID, VASurfaceID};
 
@@ -150,11 +150,10 @@ impl Va {
         )?;
         Ok(Image { va: self.clone(), img })
     }
-}
 
-impl Va {
-    /// the surface exported as DMA-BUF (read only, separate layers): its objects' fds, for poll()ing the work writing it
-    pub fn export_fds(&self, surf: VASurfaceID) -> Result<Vec<OwnedFd>> {
+    /// the surface exported as DMA-BUF (read only, separate layers): its first object's fd, for poll()ing the work
+    /// writing it
+    pub fn export_fd(&self, surf: VASurfaceID) -> Result<OwnedFd> {
         let mut d = sys::VADRMPRIMESurfaceDescriptor::default();
         // SAFETY: d is written on success; the fds it holds are ours to close
         check(
@@ -169,29 +168,13 @@ impl Va {
             },
             "vaExportSurfaceHandle",
         )?;
-        Ok(d.objects[..d.num_objects as usize]
+        // SAFETY: as above; the other objects' fds (if any) are closed as they drop
+        let mut fds = d.objects[..d.num_objects as usize]
             .iter()
-            .map(|o| unsafe { OwnedFd::from_raw_fd(o.fd) })
-            .collect())
+            .map(|o| unsafe { OwnedFd::from_raw_fd(o.fd) });
+        fds.next().context("vaExportSurfaceHandle: no objects")
     }
-}
 
-/// a surface exported for another process to import (mincord's fallback: Chromium's sharedTexture): one fd, the
-/// modifier and each plane's offset, pitch and size
-pub struct Export {
-    pub fd: OwnedFd,
-    pub modifier: u64,
-    pub planes: Vec<(u32, u32, u32)>,
-}
-
-// va_drmcommon.h's VADRMFormatModifierList (not in cros-libva's bindings)
-#[repr(C)]
-struct ModifierList {
-    num: u32,
-    modifiers: *mut u64,
-}
-
-impl Va {
     /// n NV12 surfaces in LINEAR layout (what Chromium imports for sure), VPP targets that are exported
     pub fn linear_nv12(&self, w: u32, h: u32, n: usize) -> Result<Surfaces> {
         const DRM_FORMAT_MOD_LINEAR: u64 = 0;
@@ -256,9 +239,7 @@ impl Va {
             planes,
         })
     }
-}
 
-impl Va {
     /// a DMA-BUF in XRGB8888 (the cast's buffer) as a BGRx surface; `planes`: fd, offset, stride. The fds stay the
     /// caller's.
     pub fn import(&self, w: u32, h: u32, modifier: u64, planes: &[(i32, u32, u32)]) -> Result<Surfaces> {
@@ -305,6 +286,21 @@ impl Va {
         ];
         self.surfaces(sys::VA_RT_FORMAT_RGB32, w, h, 1, &mut attrs)
     }
+}
+
+/// a surface exported for another process to import (mincord's fallback: Chromium's sharedTexture): one fd, the
+/// modifier and each plane's offset, pitch and size
+pub struct Export {
+    pub fd: OwnedFd,
+    pub modifier: u64,
+    pub planes: Vec<(u32, u32, u32)>,
+}
+
+// va_drmcommon.h's VADRMFormatModifierList (not in cros-libva's bindings)
+#[repr(C)]
+struct ModifierList {
+    num: u32,
+    modifiers: *mut u64,
 }
 
 /// wait up to timeout_ms for the fences in a DMA-BUF's reservation (POLLOUT: all of them, the VPP's write among them)
@@ -496,16 +492,6 @@ impl Image {
             sys::vaUnmapBuffer(dpy, self.img.buf);
         }
         Ok(())
-    }
-
-    /// `surf` (same size) copied into the image
-    pub fn get(&self, surf: VASurfaceID) -> Result<()> {
-        let (w, h) = (self.img.width as u32, self.img.height as u32);
-        // SAFETY: the surface and image live on this display
-        check(
-            unsafe { sys::vaGetImage(self.va.dpy(), surf, 0, 0, w, h, self.img.image_id) },
-            "vaGetImage",
-        )
     }
 
     /// the image into the whole of `surf` (same size)

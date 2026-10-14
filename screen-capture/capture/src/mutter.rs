@@ -79,7 +79,7 @@ pub fn start(sh: Arc<Shared>, source: Source, cursor: u32) -> Result<Cast> {
     std::thread::spawn(move || {
         if signals.into_iter().next().is_some() {
             closed.store(true, Ordering::Relaxed);
-            sh.quit("cast closed");
+            sh.quit(crate::Quit::CastClosed);
         }
     });
     let cursor_mode = || ("cursor-mode", Value::U32(cursor));
