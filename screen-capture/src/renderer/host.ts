@@ -11,6 +11,10 @@ export interface Discord {
   connections(): Iterable<any>
   /** Discord's canStreamWithSettings(preset, resolution, fps, user, guildPremiumTier) */
   canStreamWithSettings(preset: number, resolution: number, fps: number, user: unknown, tier?: number): boolean
+  /** how many watch our Go Live (the stream log) */
+  viewers?(): number
+  /** the game being played (the "Playing" activity), for the stream log */
+  game?(): string | null
 }
 
 export interface Native {
@@ -21,6 +25,8 @@ export interface Native {
   sources(): Promise<CastSource[]>
   /** Starts capture; true: its port follows as a window message ({ mincordCastPort: true }, ports[0]) */
   start(opts: CastStart): Promise<boolean>
+  /** the stream log's file (main/streamLog.js): open with its first line, a line, close */
+  log?(op: 'open' | 'line' | 'close', text?: string): void
 }
 
 export const host: {

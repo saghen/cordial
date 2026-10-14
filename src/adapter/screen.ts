@@ -20,6 +20,17 @@ screen.host.discord = {
   },
   connections: () => S.MediaEngine.getMediaEngine().connections,
   canStreamWithSettings: (...a) => A.canStreamWithSettings(...a),
+  viewers() {
+    const s = S.ApplicationStreaming.getCurrentUserActiveStream()
+    if (!s) return 0
+    const key = s.guildId ? `guild:${s.guildId}:${s.channelId}:${s.ownerId}` : `call:${s.channelId}:${s.ownerId}`
+    return S.ApplicationStreaming.getViewerIds(key).length
+  },
+  // (type 0: playing)
+  game() {
+    const a = S.LocalActivity.getPrimaryActivity()
+    return a?.type === 0 ? a.name : null
+  },
 }
 
 const native = (window as any).mincordNative?.cast

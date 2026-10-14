@@ -55,6 +55,8 @@ const PREVIEW_BOX: (u32, u32) = (640, 360);
 const PREVIEW_INTERVAL_S: f64 = 1.0;
 // --size's default: no box (the source's own size)
 const NO_BOX: u32 = 16384;
+// a frame over this much of the target's bits is reported ("frame" info): 6 frames' worth at 60 fps
+const LARGE_MS: f64 = 100.0;
 
 struct Opts {
     window: Option<u64>,
@@ -74,6 +76,7 @@ struct Opts {
     refs: u32,
     min_qindex: u32,
     drop_ms: f64,
+    stats_ms: f64, // stats this often (mincord's stream log: 250)
     seconds: f64,
     start: bool,
     ivf: Option<String>,
@@ -87,7 +90,7 @@ fn usage() -> ! {
         "usage: mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID\n\
          \x20                       | --clip FILE.i420 --clip-size WxH)\n\
          \x20                      [--size WxH] [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN]\n\
-         \x20                      [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 50] [--drop-ms 300] [--seconds N]\n\
+         \x20                      [--kbps 6000] [--av1-refs 1|2] [--av1-min-q 50] [--drop-ms 300] [--stats-ms 1000] [--seconds N]\n\
          \x20                      [--start] [--encode-out FILE.ivf] [--socket-fd N] [--audio SPEC] | --probe [--device ...]\n\
          stdin: start [kbps=N] [height=N] [codec=av1] | raw | bitrate N | key | height N | fps N | audio SPEC | stop\n\
          (SPEC: off | pid=N | steam=N | name=S, audio.rs); stdout: see out.rs"
@@ -122,6 +125,7 @@ fn opts() -> Opts {
         // (a floor of 10 let still content's scene cut cost half a second of bitrate: LOG; Liam picked 50)
         min_qindex: 50,
         drop_ms: 300.0,
+        stats_ms: 1000.0,
         seconds: 0.0,
         start: false,
         ivf: None,
@@ -151,6 +155,7 @@ fn opts() -> Opts {
             "--av1-refs" => o.refs = num(v()),
             "--av1-min-q" => o.min_qindex = num(v()),
             "--drop-ms" => o.drop_ms = num(v()),
+            "--stats-ms" => o.stats_ms = f64::max(num(v()), 50.0),
             "--seconds" => o.seconds = num(v()),
             "--start" => o.start = true,
             "--encode-out" => o.ivf = Some(v()),
@@ -444,7 +449,7 @@ struct State {
     raw: bool,             // "raw": frames to mincord over the socket, not encoded
     encodes: bool,         // the device encodes AV1
     av1_align: (u32, u32), // AV1's encode size alignment (av1enc::align)
-    want_key: bool,
+    want_key: Option<&'static str>, // a key frame next, and why (start, request, size, lost)
     failed: bool,       // the encoder broke: no encoding until the next "start"
     quit: Option<Quit>, // why
     input: (u32, u32),  // the source's size (0: unknown yet)
@@ -584,7 +589,7 @@ impl State {
             self.raw = false;
             self.req_kbps = kv("kbps=", self.kbps(o));
             self.req_h = kv("height=", self.req_h);
-            self.want_key = true;
+            self.want_key = Some("start");
             self.failed = false;
             self.update_sizes(o);
             eprintln!("cmd: start {} kbps, height {}", self.req_kbps, self.req_h);
@@ -605,7 +610,7 @@ impl State {
             self.fps = (arg(n) as u32).clamp(1, 240);
             eprintln!("cmd: fps {}", self.fps);
         } else if line == "key" {
-            self.want_key = true;
+            self.want_key = Some("request");
         } else if let Some(n) = line.strip_prefix("height ") {
             self.req_h = arg(n) as u32;
             self.update_sizes(o);
@@ -766,11 +771,11 @@ impl<'a> Worker<'a> {
         self.sh.m.lock().unwrap()
     }
 
-    /// every second a "stats" info (also into the log)
+    /// every --stats-ms a "stats" info (also into the log)
     fn tick(&self, mut g: Guard<'a>) -> Guard<'a> {
         let t = now();
         let st = &g.st;
-        if t - st.t_tick < 1.0 {
+        if t - st.t_tick < self.o.stats_ms / 1000.0 {
             return g;
         }
         let cpu_now = cpu_s();
@@ -859,7 +864,7 @@ impl<'a> Worker<'a> {
             let (what, codec) = if g.raw { ("raw", "raw") } else { ("encoder", "AV1") };
             match created {
                 Ok((r, enc)) => {
-                    g.want_key = true; // the last frame at once (repeat), however static the cast
+                    g.want_key.get_or_insert("size"); // the last frame at once (repeat), however static the cast
                     if enc.is_some() {
                         stage("encoder");
                     }
@@ -899,7 +904,8 @@ impl<'a> Worker<'a> {
 
     /// encode slot i, send the temporal unit; the lock is dropped meanwhile
     fn encode(&mut self, mut g: Guard<'a>, i: usize, repeat: bool) -> Guard<'a> {
-        let key = std::mem::take(&mut g.want_key);
+        let key_why = g.want_key.take();
+        let key = key_why.is_some();
         let kbps = g.kbps(self.o);
         let r = g.ring.as_mut().unwrap();
         r.slots[i].state = SlotState::Busy;
@@ -944,6 +950,17 @@ impl<'a> Worker<'a> {
                     if sent == out::Sent::Ok {
                         stage("first-frame");
                     }
+                    // key frames, and frames over LARGE_MS of the target's bits (mincord's stream log)
+                    let budget_ms = data.len() as f64 * 8.0 / per_s * 1e3;
+                    if fi.key || budget_ms > LARGE_MS {
+                        info(&format!(
+                            "{{\"type\":\"frame\",\"seq\":{},\"bytes\":{},\"key\":{},\"why\":\"{}\",\"budgetMs\":{budget_ms:.0}}}",
+                            slot.seq,
+                            data.len(),
+                            fi.key,
+                            key_why.unwrap_or(if fi.key { "start" } else { "large" })
+                        ));
+                    }
                     let recon = fi.recon;
                     done = Some((data.len(), fi, sent));
                     ssim = self.ssim_sample(surf, recon, t_now);
@@ -977,7 +994,7 @@ impl<'a> Worker<'a> {
         }
         if done.is_some_and(|(_, _, sent)| sent == out::Sent::Dropped) {
             g.st.n_outdrop += 1;
-            g.want_key = true; // mincord lost a frame: restart the stream
+            g.want_key = Some("lost"); // mincord lost a frame: restart the stream
         }
         let r = g.ring.as_mut().unwrap();
         r.last_slot = Some(i);
@@ -1064,7 +1081,7 @@ impl<'a> Worker<'a> {
 
     /// raw: slot i to mincord once its VPP is done (a repeat: the same surface again, as a new frame)
     fn hand_out(&mut self, mut g: Guard<'a>, i: usize, repeat: bool) -> Guard<'a> {
-        g.want_key = false;
+        g.want_key = None;
         let r = g.ring.as_mut().unwrap();
         r.slots[i].state = SlotState::Busy;
         let (fence, slot) = (r.fences[i].as_raw_fd(), r.slots[i]);
@@ -1153,7 +1170,7 @@ impl<'a> Worker<'a> {
                 g = self.preview_send(g);
             } else {
                 let mut repeated = false;
-                if g.want_key || idle_ms >= REPEAT_S * 1e3 {
+                if g.want_key.is_some() || idle_ms >= REPEAT_S * 1e3 {
                     (g, repeated) = self.repeat(g);
                 }
                 if !repeated {
@@ -1276,6 +1293,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         align.0,
         align.1
     );
+    info(&format!("{{\"type\":\"device\",\"driver\":{:?}}}", va.vendor()));
     stage("va");
 
     // SAFETY: the handler only stores an atomic
@@ -1298,7 +1316,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
     let active = (o.start || ivf.is_some()) && encodes;
     let state = State {
         active,
-        want_key: active,
+        want_key: active.then_some("start"),
         fps: o.fps,
         encodes,
         av1_align: align,

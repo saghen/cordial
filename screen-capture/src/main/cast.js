@@ -31,6 +31,7 @@ const { createConnection } = require('node:net')
 const path = require('node:path')
 const { startCapture } = require('./capture.js')
 const { loadFdsock, rawRelay } = require('./raw.js')
+require('./streamLog.js')
 
 // WebRTC paces video at 1.1 x the bandwidth target (1.0 for screen content), so a big frame (a switch to a new
 // screen of text) waits in the pacer: 80-160 ms live at 1.1, 54-94 at 2.5 (LOG Key finds, "A jump's pause is the
@@ -307,6 +308,9 @@ function startCast(e, opts) {
     `${opts.size[0] | 0}x${opts.size[1] | 0}`,
     '--fps',
     String(opts.fps | 0),
+    // (the stream log's ticks: renderer/streamLog.ts)
+    '--stats-ms',
+    '250',
   ]
   const { port1, port2 } = new MessageChannelMain()
   let open = true

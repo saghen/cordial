@@ -65,6 +65,8 @@ const cast = {
   codecs: () => ipcRenderer.invoke('mincord:cast-codecs'),
   sources: () => ipcRenderer.invoke('mincord:cast-sources'),
   start: (opts) => ipcRenderer.invoke('mincord:cast-start', opts),
+  // the stream log's file (screen-capture/src/main/streamLog.js)
+  log: (op, text) => ipcRenderer.send('mincord:stream-log', op, text),
 }
 
 // an image copied, or saved (shell/main.js)

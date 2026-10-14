@@ -19,6 +19,7 @@
 
 import { host } from './host'
 import { logger as makeLogger } from './log'
+import { startStreamLog } from './streamLog'
 import {
   applyToStreamConnection,
   isStreamSound,
@@ -114,6 +115,13 @@ export class CastSession {
   stats: any = null
   /** the fallback capture has fed the track long enough for Chromium's encoder to see its frame rate */
   warmedUp = false
+  /** who encodes and from what (the stream log): capture (zero-copy), Chromium from capture's frames (raw) or from
+   * the portal's capture (portal) */
+  method: 'zero-copy' | 'raw' | 'portal' = 'zero-copy'
+  fallbackWhy?: string
+  endWhy?: string
+  /** capture's info messages (the stream log) */
+  onInfo: ((info: any) => void) | null = null
 
   private port: MessagePort | null = null
   private writer = this.encoder.writable.getWriter()
@@ -219,6 +227,7 @@ export class CastSession {
     if (m.type === 'audio') return this.writeAudio(m)
     if (this.state === 'ended') return
     const info = m.type === 'info' ? m.info : null
+    if (info) this.onInfo?.(info)
     if (info?.type === 'stats') this.stats = info
     else if (info && info.type !== 'stage') logger.info('capture:', info)
     // the window closed: the stream ends with it
@@ -307,6 +316,7 @@ export class CastSession {
     if (this.state === 'fallback' || this.state === 'ended') return
     logger.warn(`Falling back to Chromium's encoder: ${why}`)
     this.state = 'fallback'
+    this.fallbackWhy = why
     this.consumer?.stop()
     this.consumer = null
     if (await this.raw()) return
@@ -337,6 +347,7 @@ export class CastSession {
       })
       .catch((e) => logger.error('Fallback constraints failed', e))
     this.fallbackTrack = track
+    this.method = 'portal'
     track.addEventListener('ended', () => this.end('the capture ended'))
     const reader = new MediaStreamTrackProcessor({ track }).readable.getReader()
     const warmUntil = performance.now() + FALLBACK_WARMUP_MS
@@ -376,6 +387,7 @@ export class CastSession {
     }
     logger.info("Chromium encodes capture's frames")
     this.rawPort = port
+    this.method = 'raw'
     const warmUntil = performance.now() + FALLBACK_WARMUP_MS
     // (writes still pending past 2: Chromium's encoder is behind, the frame is dropped)
     let pending = 0
@@ -416,6 +428,7 @@ export class CastSession {
     if (this.state === 'ended') return
     logger.info(`Capture ended: ${why}`)
     this.state = 'ended'
+    this.endWhy = why
     this.started(false)
     this.closeCast()
     this.fallbackTrack?.stop()
@@ -510,6 +523,7 @@ export async function castDisplayMedia(
       }))
   const quality = streamQuality(captureAv1())
   const session = (latest = new CastSession(pick, quality, displayMedia, !!opts?.audio))
+  startStreamLog(session)
   try {
     applyToStreamConnection(quality)
   } catch (e) {

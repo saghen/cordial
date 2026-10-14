@@ -28,6 +28,7 @@
 import { CastConsumer, CastMessage, CastSession, captureAv1, castSessionFor } from './cast'
 import { logger as makeLogger } from './log'
 import { settings } from './settings'
+import { logRate } from './streamLog'
 import { startKbps } from './streamQuality'
 import { fill, FillState, initialFill, stuff } from './stuffing'
 import { guardTarget, initialTarget, RATE, RateState, RateWindow, updateTarget } from './targetRate'
@@ -213,7 +214,8 @@ class Swap implements CastConsumer {
     const prev = this.rate
     this.rate = next
     this.setBitrate(next.target, next.target === prev.target)
-    // the stream log (lab): every change of the controller's state
+    // the stream log (streamLog.ts; the lab's: settings.streamLog): every change of the controller's state
+    if (next.reason !== prev.reason) logRate({ reason: next.reason, target: next.target, bwe: this.bwe, wire, queue: sendDelay })
     if (next.reason !== prev.reason)
       settings.streamLog?.([
         {
