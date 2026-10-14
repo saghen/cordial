@@ -22,7 +22,7 @@ export function Tile(p: {
 }) {
   return (
     <figure
-      class={['tile', { speaking: p.speaking, compact: !!p.compact }]}
+      class={['tile', { speaking: p.speaking, mute: p.muted, deaf: p.deafened, compact: !!p.compact }]}
       data-id={p.user.id}
       title={users.displayName(p.user, p.guildId)}
     >
