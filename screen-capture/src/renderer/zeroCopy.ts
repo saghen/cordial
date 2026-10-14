@@ -214,10 +214,11 @@ class Swap implements CastConsumer {
     const prev = this.rate
     this.rate = next
     this.setBitrate(next.target, next.target === prev.target)
-    // the stream log (streamLog.ts, and settings.streamLog): every change of the controller's state
-    if (next.reason !== prev.reason) logRate({ reason: next.reason, target: next.target, bwe: this.bwe, wire, queue: sendDelay })
-    if (next.reason !== prev.reason)
-      settings.streamLog?.([
+    // the stream log (streamLog.ts, and settings.streamLog): each change of the controller's reason (a target moving
+    // under the same reason isn't logged)
+    if (next.reason === prev.reason) return
+    logRate({ reason: next.reason, target: next.target, bwe: this.bwe, wire, queue: sendDelay })
+    settings.streamLog?.([
         {
           event: 'rate',
           t: Math.round(performance.now()),
