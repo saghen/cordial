@@ -2,9 +2,9 @@
 
 import { createEffect, createMemo, Show } from 'solid-js'
 
-import { warm } from './api/preload'
+import { preloadChannels } from './api/preload'
 import * as session from './api/session'
-import { voiceSounds } from './api/sounds'
+import { useVoiceSounds } from './api/sounds'
 import { ICONS } from './primitives/icons'
 import { CallView, IncomingCalls } from './views/call'
 import { Channels } from './views/channels'
@@ -15,13 +15,11 @@ import { MembersList } from './views/members'
 import { ServerBar } from './views/server_bar'
 import { UserPanel } from './views/user_panel'
 
-// Every .css file under src/, nested under #cordial-root once so Discord's own layers never see them, with the icons as
-// custom properties on the root. By layer, so a piece's rules come after the bases they refine: app.css, primitives,
-// components, views (each by path). @keyframes can't nest: they go after it
+// Load every css file under #cordial-root
 const files = import.meta.glob<string>('./**/*.css', { query: '?inline', import: 'default', eager: true })
-const LAYERS = ['./app.css', './primitives/', './components/', './views/']
+const LAYERS = ['./app.css', './primitives/', './components/', './views/'] // order the loads
 const layer = (f: string) => LAYERS.findIndex((l) => f.startsWith(l))
-const frames: string[] = []
+const frames: string[] = [] // keyframes cant nest, put them after
 const rules = Object.keys(files)
   .sort((a, b) => layer(a) - layer(b) || a.localeCompare(b))
   .map((f) => files[f])
@@ -36,12 +34,10 @@ function Connection() {
 }
 
 export function App(p: { root: HTMLElement }) {
-  // the badge in the window title, as on the web; the shell turns it into the app badge (src/shell/main.js)
-  createEffect(createMemo(session.badge), (b) => {
-    document.title = `${b}Discord`
-  })
-  warm()
-  voiceSounds()
+  // window title
+  createEffect(createMemo(session.badge), (b) => { document.title = `${b}Discord` })
+  preloadChannels()
+  useVoiceSounds()
   return (
     <>
       <Connection />

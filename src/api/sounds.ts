@@ -38,7 +38,7 @@ function sound<T>(stores: FluxStore[], state: () => T, pick: (prev: T, next: T) 
 const STAGE = ChannelType.Stage
 const voiceChannel = () => S.Channel.getChannel(S.SelectedChannel.getVoiceChannelId()!)
 
-export function voiceSounds() {
+export function useVoiceSounds() {
   const { MediaEngine: me, SelectedChannel: sel, RTCConnection: rtc, Speaking: speaking, VoiceState: vs } = S
   sound(
     [me, sel],

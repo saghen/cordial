@@ -28,7 +28,7 @@ const readable = (c: Rec) =>
   typeof c.isPrivate === 'function' && !c.isGuildVocal() && can(Permission.READ_MESSAGE_HISTORY, c as Channel)
 
 // once per load, after the first connection, one channel at a time
-export function warm() {
+export function preloadChannels() {
   const n = G.config?.warm ?? 5
   const start = async () => {
     await A.frecencySettings.loadIfNecessary().catch(() => {})
