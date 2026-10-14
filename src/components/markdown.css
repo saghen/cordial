@@ -14,7 +14,7 @@
   a { color: var(--link); } a:hover { text-decoration: underline; }
   img { width: 22px; height: 22px; vertical-align: bottom; object-fit: contain; }
   img.jumbo { width: 48px; height: 48px; }
-  mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
+  mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; font-weight: 500; }
   /* a channel link: each part an icon and a name; a server's icon round */
   mark.channel-link { cursor: pointer; }
   mark.channel-link > span > :is(.icon, img) { display: inline-block; --icon-size: 16px; width: 16px; height: 16px; margin-right: 2px; vertical-align: -3px; }
