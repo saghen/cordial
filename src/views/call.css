@@ -17,7 +17,7 @@
   &.compact { display: flex; justify-content: center; align-items: center; gap: 16px; height: 240px; }
   > figure.tile:not(.compact) { aspect-ratio: 16 / 9; }
   &.focused > figure.tile:not(.focus) { display: none; }
-  &.focused > figure.focus { position: absolute; inset: 0; border-radius: 0; }
+  &.focused > figure.focus { position: absolute; inset: 0; aspect-ratio: auto; border-radius: 0; }
   /* the UI fades while the pointer is elsewhere or still, and the cursor with it over the call */
   &.idle:not(:has(:focus-visible)) { --ui: 0; cursor: none; }
   :is(.name, .badges, .stream-full), > :is(.call-bar, .call-expand) { opacity: var(--ui); transition: opacity .3s; }
@@ -45,9 +45,6 @@ section.call > figure.stream {
   > .badges { place-self: start end; display: flex; gap: 4px; margin: 8px; }
   > .badges > .quality { padding: 0 6px; border-radius: 8px; background: #0009; font: 700 11px/16px var(--font); text-transform: uppercase; }
   > .stream-full { place-self: end end; width: 32px; height: 32px; margin: 8px; border-radius: 4px; background: #0009; color: #fff; }
-  /* full screen: the stream alone, the window's size */
-  &:fullscreen { border-radius: 0; }
-  &:fullscreen > :not(video) { display: none; }
 }
 /* a call ringing for you, at the top of the window: the caller, Accept and Decline */
 dialog.incoming {

@@ -32,6 +32,10 @@ export function CallView() {
   // the tile filling the area: a user's id, or "stream:" and theirs
   const [focused, setFocused] = createSignal<string | null>(null)
   const [awake, setAwake] = createSignal(true)
+  // full screen: the call view, a stream filling it, with its UI as in the window
+  const [full, setFull] = createSignal(false)
+  // the tile that filled the area before, back on leaving full screen
+  let before: string | null = null
   const [size, setSize] = createSignal({ w: 0, h: 0 })
   let timer: ReturnType<typeof setTimeout> | undefined
   let section: HTMLElement | undefined
@@ -47,8 +51,16 @@ export function CallView() {
     timer = setTimeout(sleep, IDLE)
   }
   // the room for the tiles: inside the section's padding, which leaves the top bar's and the buttons'
+  // Electron leaves full screen on Escape only when the page asks
+  const escape = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || !full()) return
+    e.preventDefault()
+    document.exitFullscreen()
+  }
+  document.addEventListener('keydown', escape)
   const observer = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
   onCleanup(() => {
+    document.removeEventListener('keydown', escape)
     clearTimeout(timer)
     observer.disconnect()
   })
@@ -84,6 +96,11 @@ export function CallView() {
             ref={(s) => {
               section = s
               observer.observe(s)
+              s.addEventListener('fullscreenchange', () => {
+                const on = document.fullscreenElement === s
+                setFull(on)
+                if (!on) setFocused(before)
+              })
               wake()
             }}
             class={['call', { compact: compact(), idle: !awake(), expanded: expanded(), focused: !!focus() }]}
@@ -118,6 +135,13 @@ export function CallView() {
                           channel={c()}
                           name={users.displayName(user(), guildId())}
                           focus={focus() === `stream:${v.userId}`}
+                          full={full()}
+                          onFull={() => {
+                            if (full()) return document.exitFullscreen()
+                            before = focused()
+                            setFocused(`stream:${v.userId}`)
+                            section!.requestFullscreen()
+                          }}
                         />
                       </Show>
                     </>
@@ -175,7 +199,7 @@ export function CallView() {
                 <IconButton class="call-disconnect" icon="hangup" title={text('DISCONNECT_SELF')} onClick={voice.leave} />
               </Show>
             </footer>
-            <Show when={!compact()}>
+            <Show when={!compact() && !full()}>
               <IconButton
                 class="call-expand"
                 icon={expanded() ? 'fullscreen-exit' : 'fullscreen'}
@@ -213,33 +237,25 @@ function JoinButtons(p: { channel: Channel }) {
 }
 
 // someone's Go Live, beside their tile: Watch Stream until watched (in a call, Discord's core watches a stream the other
-// person starts by itself), then the stream with its quality and LIVE, and Full Screen (or a double click on it;
-// Escape leaves); Stop Watching is in the call's buttons. Your own: its preview (the core's local video, watched while
+// person starts by itself), then the stream with its quality and LIVE, and Full Screen (or a double click on it): the
+// call view full screen with the stream filling it; Stop Watching is in the call's buttons. Your own: its preview (the core's local video, watched while
 // you stream)
-function StreamTile(p: { state: VoiceState; channel: Channel; name: string; focus: boolean }) {
+function StreamTile(p: {
+  state: VoiceState
+  channel: Channel
+  name: string
+  focus: boolean
+  full: boolean
+  onFull: () => void
+}) {
   const owner = () => p.state.userId
   const guildId = () => p.channel.guild_id
   const watching = () => !!streams.watching(owner(), guildId())
-  const [full, setFull] = createSignal(false)
-  let tile!: HTMLElement
-  const toggleFull = () => (full() ? document.exitFullscreen() : tile.requestFullscreen())
-  // Electron leaves full screen on Escape only when the page asks
-  const escape = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape' || !full()) return
-    e.preventDefault()
-    document.exitFullscreen()
-  }
-  document.addEventListener('keydown', escape)
-  onCleanup(() => document.removeEventListener('keydown', escape))
   return (
     <figure
-      ref={(f) => {
-        tile = f
-        f.addEventListener('fullscreenchange', () => setFull(document.fullscreenElement === f))
-      }}
       class={['tile', 'stream', { watching: watching(), focus: p.focus }]}
       data-id={owner()}
-      onDblClick={(e) => e.target instanceof HTMLVideoElement && toggleFull()}
+      onDblClick={(e) => e.target instanceof HTMLVideoElement && p.onFull()}
     >
       <Show
         when={watching() && streams.videoOf(owner(), guildId(), 'stream')}
@@ -254,9 +270,9 @@ function StreamTile(p: { state: VoiceState; channel: Channel; name: string; focu
             <Video id={id()} />
             <IconButton
               class="stream-full"
-              icon={full() ? 'fullscreen-exit' : 'fullscreen'}
-              title={text(full() ? 'EXIT_FULL_SCREEN' : 'FULL_SCREEN')}
-              onClick={toggleFull}
+              icon={p.full ? 'fullscreen-exit' : 'fullscreen'}
+              title={text(p.full ? 'EXIT_FULL_SCREEN' : 'FULL_SCREEN')}
+              onClick={p.onFull}
             />
           </>
         )}
