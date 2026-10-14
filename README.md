@@ -2,7 +2,7 @@
 
 Performant, minimal Discord UI rewrite on top of the official core for Linux.
 
-- **Screen-sharing:** Matches or exceeds Windows' quality (Hardware AV1, CPU VP9 fallback, ~1% overhead on niri)
+- **Screen sharing:** Matches or exceeds Windows' quality (Hardware AV1, CPU VP9 fallback, ~1% overhead on niri)
 - **Rich game presence:** Using a shim for Discord's official IPC
 - **Global keybinds:** Push to talk, mute, go live, ... on wayland
 - **Debloated UI:** No store, nitro, games (activities), gift button, ...

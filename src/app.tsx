@@ -1,5 +1,3 @@
-// The shell: one grid (app.css), one element per region and per list row; and the renderer's CSS.
-
 import { createEffect, createMemo, Show } from 'solid-js'
 
 import { preloadChannels } from './api/preload'
@@ -28,19 +26,21 @@ const rules = Object.keys(files)
 export const CSS = `#cordial-root {\n${ICONS}\n${rules}}\n${frames.join('\n')}`
 
 // the gateway's state while it's not connected
-function Connection() {
+function ConnectionWarning() {
   const notice = session.useConnection()
   return <Show when={notice()}>{(n) => <p class="notice">{n()}</p>}</Show>
 }
 
 export function App(p: { root: HTMLElement }) {
   // window title
-  createEffect(createMemo(session.badge), (b) => { document.title = `${b}Discord` })
+  createEffect(createMemo(session.badge), (b) => {
+    document.title = `${b}Discord`
+  })
   preloadChannels()
   useVoiceSounds()
   return (
     <>
-      <Connection />
+      <ConnectionWarning />
       <ServerBar />
       <section class="side">
         <Channels />

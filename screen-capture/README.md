@@ -15,7 +15,7 @@ In game: +0.5 % frame time, within noise (Witcher 3 at 3840x2160 on an RX 9070 X
 |---|---|
 | zero-copy (default) | `capture` encodes AV1 in VRAM; the renderer swaps its frames into the Go Live sender in front of DAVE |
 | raw | for calls in another codec (a stock viewer makes the call VP9) or a GPU without AV1 encode: `capture` scales into NV12 surfaces and hands them over as DMA-BUFs; Electron's `sharedTexture` imports them and Chromium encodes, reading each frame back (VP9 1080p60: about 1.7 cores) |
-| last resort | Chromium's own capture through the portal (no `capture` binary, or `capture` died) |
+| fallback | Chromium's own capture through the portal (no `capture` binary, or `capture` died) |
 
 ## Layout
 

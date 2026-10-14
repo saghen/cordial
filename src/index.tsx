@@ -1,6 +1,3 @@
-// The bundle's entry, injected by shell/preload.js: mounts the shell (app.tsx), or logged out the login form
-// (views/login.tsx), where the anchor puts our root.
-
 import { render } from '@solidjs/web'
 import { Show } from 'solid-js'
 
