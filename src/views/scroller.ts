@@ -7,6 +7,8 @@
 import * as messages from '../api/messages'
 import type { Id } from '../api/types'
 
+const REPORT_DEBOUNCE_MS = 200
+
 export function createScroller(scroller: HTMLElement, channel: () => Id | null) {
   // only toward where the reader is heading (api/messages.ts loadMore)
   const more = (channelId: Id) =>
@@ -19,8 +21,8 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
 
   // column-reverse: scrollTop runs from 0 at the bottom to -(height - view) at the top
   function report(channelId: Id) {
-    const height = scroller.scrollHeight,
-      view = scroller.clientHeight
+    const height = scroller.scrollHeight
+    const view = scroller.clientHeight
     messages.reportPosition(
       channelId,
       scroller.scrollTop > -1 ? height - view : Math.round(height - view + scroller.scrollTop),
@@ -36,11 +38,11 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   function pin() {
     anchor = null
     if (scroller.scrollTop > -1) return
-    const top = scroller.getBoundingClientRect().top,
-      rows = scroller.firstElementChild!.children
+    const top = scroller.getBoundingClientRect().top
+    const rows = scroller.firstElementChild!.children
     // the first row reaching below the view's top
-    let lo = 0,
-      hi = rows.length - 1
+    let lo = 0
+    let hi = rows.length - 1
     while (lo < hi) {
       const mid = (lo + hi) >> 1
       if (rows[mid].getBoundingClientRect().bottom > top) hi = mid
@@ -51,8 +53,8 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   }
   function keepPlace() {
     const row = anchor && rowOf(anchor.id)
-    if (row) {
-      const moved = row.getBoundingClientRect().top - anchor!.top
+    if (anchor && row) {
+      const moved = row.getBoundingClientRect().top - anchor.top
       if (Math.abs(moved) >= 1) scroller.scrollTop += moved
     }
     pin()
@@ -60,11 +62,11 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
 
   // once per frame, never inside a dispatch (lists render from store listeners). The position is reported after a
   // render or resize, and while scrolling 200 ms after the last scroll event, as stock debounces it
-  let queued = false,
-    toBottom = false,
-    dims = false,
-    acking: Id | null = null,
-    timer = 0
+  let queued = false
+  let toBottom = false
+  let dims = false
+  let acking: Id | null = null
+  let timer = 0
   function update() {
     if (queued) return
     queued = true
@@ -91,9 +93,9 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
 
   // which way the reader is going, from the wheel, keys and the scrollbar (scroll events also come from anchoring and
   // truncation). A wheel at either end doesn't scroll, but may still need more history
-  let down = false,
-    dragging = false,
-    last = 0
+  let down = false
+  let dragging = false
+  let last = 0
   scroller.addEventListener(
     'wheel',
     (e) => {
@@ -102,8 +104,12 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     },
     { passive: true },
   )
-  scroller.addEventListener('pointerdown', () => (dragging = true))
-  addEventListener('pointerup', () => (dragging = false))
+  scroller.addEventListener('pointerdown', () => {
+    dragging = true
+  })
+  addEventListener('pointerup', () => {
+    dragging = false
+  })
   addEventListener('keydown', (e) => {
     if (/^(PageDown|ArrowDown|End| )$/.test(e.key)) down = true
     else if (/^(PageUp|ArrowUp|Home)$/.test(e.key)) down = false
@@ -119,7 +125,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       timer = window.setTimeout(() => {
         const channelId = channel()
         if (channelId) report(channelId)
-      }, 200)
+      }, REPORT_DEBOUNCE_MS)
       update()
     },
     { passive: true },

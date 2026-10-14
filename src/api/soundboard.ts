@@ -16,11 +16,11 @@ export type Sound = Rec
 // the sections in stock's order, as the pickers' (the rail shows each server's icon): each server's sounds, Discord's
 // under "Default"
 export function sections(c: Channel): Section<Sound>[] {
-  const all = $.Soundboard.getSounds() as Map<Id, Sound[]>,
-    here = c.guild_id
+  const all = $.Soundboard.getSounds() as Map<Id, Sound[]>
+  const here = c.guild_id
   const ids = [here, ...[...all.keys()].filter((id) => id !== here && id !== '0'), '0']
   return ids
-    .filter((id): id is Id => !!id && !!all.get(id)?.length)
+    .filter((id): id is Id => id != null && (all.get(id)?.length ?? 0) > 0)
     .map((id) => {
       const guild = id === '0' ? undefined : guilds.get(id)
       return { id, name: guild?.name ?? text('DEFAULT'), guild, items: all.get(id)! }

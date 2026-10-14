@@ -14,6 +14,7 @@ import { Attachment } from './attachment'
 import { Embed } from './embed'
 
 let built = new WeakMap<Message, Node[]>()
+const JUMBO_MAX = 30
 
 // a cold measurement: every row parses its content again
 export function resetContent() {
@@ -23,15 +24,9 @@ export function resetContent() {
 // a DM call: stock's line with the caller's name as an author's, then the time. The call record's duration is a
 // moment duration (stock's "a few seconds", "15 minutes")
 function callLine(m: Message): Node[] {
-  const duration = m.call?.duration?.humanize(),
-    who = (<b class="name">{users.nameOf(m.author)}</b>) as HTMLElement
-  const name = messages.missed(m)
-    ? duration
-      ? 'SYSTEM_MESSAGE_CALL_MISSED_WITH_DURATION_HOOK'
-      : 'SYSTEM_MESSAGE_CALL_MISSED_HOOK'
-    : duration
-      ? 'SYSTEM_MESSAGE_CALL_STARTED_WITH_DURATION_HOOK'
-      : 'SYSTEM_MESSAGE_CALL_STARTED_HOOK'
+  const duration = m.call?.duration?.humanize()
+  const who = (<b class="name">{users.nameOf(m.author)}</b>) as HTMLElement
+  const name = callText(messages.missed(m), Boolean(duration))
   return [
     ...textAround(name, { username: '', callDuration: duration }, ['usernameHook']).map((n) =>
       typeof n === 'string' ? document.createTextNode(n) : who,
@@ -40,13 +35,18 @@ function callLine(m: Message): Node[] {
   ]
 }
 
+function callText(missed: boolean, timed: boolean) {
+  if (missed) return timed ? 'SYSTEM_MESSAGE_CALL_MISSED_WITH_DURATION_HOOK' : 'SYSTEM_MESSAGE_CALL_MISSED_HOOK'
+  return timed ? 'SYSTEM_MESSAGE_CALL_STARTED_WITH_DURATION_HOOK' : 'SYSTEM_MESSAGE_CALL_STARTED_HOOK'
+}
+
 function build(m: Message, channelId: Id): Node[] {
   if (m.type === MessageType.Call) return callLine(m)
   if (!messages.isUser(m)) return [document.createTextNode(messages.systemText(m))]
   const nodes = [...renderAST(messages.contentAST(m, channelId), document.createDocumentFragment()).childNodes]
-  // as stock: emoji alone (up to 30) show large
-  const shown = nodes.filter((n) => n.nodeType !== 3 || n.textContent!.trim())
-  if (shown.length <= 30 && shown.every((n) => n.nodeName === 'IMG'))
+  // as stock: emoji alone (up to JUMBO_MAX) show large
+  const shown = nodes.filter((n) => n.nodeType !== Node.TEXT_NODE || n.textContent!.trim())
+  if (shown.length <= JUMBO_MAX && shown.every((n) => n.nodeName === 'IMG'))
     for (const n of shown) (n as Element).classList.add('jumbo')
   return nodes
 }

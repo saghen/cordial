@@ -92,6 +92,8 @@ const RAW_TIMEOUT_MS = 3000
 const SHOW_INTERVAL_MS = 30
 // how long a fallback capture's first frames are held back, so Chromium's encoder learns their rate (feed)
 const FALLBACK_WARMUP_MS = 1000
+// a pending pick ("Stream <game>") is taken by a getDisplayMedia within this
+const PENDING_PICK_MS = 60_000
 
 export class CastSession {
   /** Discord's track: its preview, its thumbnail, the stream's id */
@@ -181,7 +183,8 @@ export class CastSession {
 
   /** Starts capture; false if it doesn't come up (no capture, the cast failed). */
   start() {
-    return (this.up = this.run())
+    this.up = this.run()
+    return this.up
   }
 
   private async run(): Promise<boolean> {
@@ -197,12 +200,12 @@ export class CastSession {
       // (too late: the stream ended, or fell back, before capture's port came)
       if (this.state !== 'starting') this.closeCast()
     }
-    const ok = await host
-      .native!.start({
+    const ok = await host.native
+      ?.start({
         source: this.pick.source,
         size: [this.quality.width, this.quality.height],
         fps: this.quality.fps,
-        audio: !!this.audio,
+        audio: Boolean(this.audio),
       })
       .catch(() => false)
     if (!ok) this.started(false)
@@ -223,7 +226,6 @@ export class CastSession {
     const info = m.type === 'info' ? m.info : null
     if (info) this.onInfo?.(info)
     if (info?.type === 'stats') this.stats = info
-    else if (info && info.type !== 'stage') logger.info('capture:', info)
     // the window closed: the stream ends with it
     if (info?.type === 'ended') return this.end('the cast ended')
     if (m.type === 'closed' || info?.type === 'error') {
@@ -232,7 +234,7 @@ export class CastSession {
       // raw: capture failing now means the portal after all
       if (this.state === 'fallback') return this.rawFailed()
       this.started(false)
-      if (this.state === 'cast') this.fallback(m.type === 'closed' ? `capture ${m.why}` : `capture: ${info!.message}`)
+      if (this.state === 'cast') this.fallback(m.type === 'closed' ? `capture ${m.why}` : `capture: ${info?.message}`)
       return
     }
     if (this.state === 'fallback') return
@@ -282,7 +284,8 @@ export class CastSession {
   }
 
   private nextTs() {
-    return (this.lastTs = Math.max(this.lastTs + 1, Math.round(performance.now() * 1000)))
+    this.lastTs = Math.max(this.lastTs + 1, Math.round(performance.now() * 1000))
+    return this.lastTs
   }
 
   /**
@@ -379,7 +382,6 @@ export class CastSession {
       if (this.state === 'fallback') logger.warn("capture's frames didn't come: asking for a source")
       return false
     }
-    logger.info("Chromium encodes capture's frames")
     this.rawPort = port
     this.method = 'raw'
     const warmUntil = performance.now() + FALLBACK_WARMUP_MS
@@ -420,7 +422,6 @@ export class CastSession {
   /** Ends the stream: capture stops, the track ends (Discord ends the stream). */
   end(why: string) {
     if (this.state === 'ended') return
-    logger.info(`Capture ended: ${why}`)
     this.state = 'ended'
     this.endWhy = why
     this.started(false)
@@ -478,7 +479,10 @@ RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, 
 
 let available = false
 /** Whether getDisplayMedia goes through capture (a source, capture installed, the setting on); a no is asked again. */
-export const castAvailable = async () => (available ||= (await host.native?.available().catch(() => false)) ?? false)
+export async function castAvailable() {
+  available ||= (await host.native?.available().catch(() => false)) ?? false
+  return available
+}
 
 let codecs: string[] | null = null
 /** Whether capture encodes AV1 on this machine's GPU (true while unknown: capture's own error then falls back). */
@@ -486,7 +490,9 @@ export const captureAv1 = () => codecs?.includes('av1') ?? true
 /** Asks capture once, at startup (the codec order is read when a call connects). */
 export const probeCaptureCodecs = () =>
   host.native?.codecs().then(
-    (c) => (codecs = c),
+    (c) => {
+      codecs = c
+    },
     () => {},
   )
 
@@ -505,7 +511,7 @@ export async function castDisplayMedia(
   displayMedia: (opts: DisplayMediaStreamOptions) => Promise<MediaStream>,
   opts?: DisplayMediaStreamOptions,
 ): Promise<MediaStream> {
-  const p = pending && Date.now() - pending.at < 60_000 ? pending.pick : null
+  const p = pending && Date.now() - pending.at < PENDING_PICK_MS ? pending.pick : null
   pending = null
   // (cancelled: what Chromium's getDisplayMedia throws when its picker is cancelled)
   const pick =
@@ -516,17 +522,14 @@ export async function castDisplayMedia(
         throw new DOMException('Permission denied', 'NotAllowedError')
       }))
   const quality = streamQuality(captureAv1())
-  const session = (latest = new CastSession(pick, quality, displayMedia, !!opts?.audio))
+  const session = new CastSession(pick, quality, displayMedia, Boolean(opts?.audio))
+  latest = session
   startStreamLog(session)
   try {
     applyToStreamConnection(quality)
   } catch (e) {
     logger.error('Failed to update stream connection quality', e)
   }
-  logger.info(
-    `${pick.name} (${pick.source}, ${pick.width}x${pick.height}): ${quality.height}p${quality.fps}` +
-      (session.audio ? ', with sound' : ''),
-  )
   // the track goes to Discord at once: capture starts (~40 ms: spawn, the cast, PipeWire, VA) while Discord sets
   // the stream up on its servers (STREAM_START ... RTC_CONNECTED, hundreds of ms), and only then does the track
   // reach a sender (zeroCopy.ts waits for the session to be up). A capture that doesn't come up falls back to

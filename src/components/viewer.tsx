@@ -49,6 +49,8 @@ export function Viewer() {
     },
   })
   show = viewer.open
-  onCleanup(() => (show = undefined))
+  onCleanup(() => {
+    show = undefined
+  })
   return viewer.view
 }

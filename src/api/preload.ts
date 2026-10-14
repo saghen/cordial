@@ -10,16 +10,21 @@ import { Permission, type Channel } from './types'
 import { can } from './users'
 
 export const preload = (id?: Id | null) => {
-  const ms = id && S.Channel.getChannel(id) && S.Message.getMessages(id)
-  if (ms && (!ms.ready || ms.cached) && !ms.loadingMore)
-    A.messages.fetchMessages({ channelId: id!, limit: 2 * A.pages.size() })
+  if (!id || !S.Channel.getChannel(id)) return
+  const ms = S.Message.getMessages(id)
+  if ((!ms.ready || ms.cached) && !ms.loadingMore)
+    A.messages.fetchMessages({ channelId: id, limit: 2 * A.pages.size() })
 }
+
+const HOVER_MS = 100
 
 // pointer handlers for a row that opens a channel: preloaded when the pointer stays 100 ms
 export function onHover(channel: () => Id | null | undefined) {
   let t = 0
   return {
-    onPointerEnter: () => (t = setTimeout(() => preload(channel()), 100)),
+    onPointerEnter: () => {
+      t = setTimeout(() => preload(channel()), HOVER_MS)
+    },
     onPointerLeave: () => clearTimeout(t),
   }
 }
@@ -39,6 +44,10 @@ export function preloadChannels() {
   if (S.Gateway.isConnected()) start()
   else {
     let done = false
-    A.dispatcher.subscribe('CONNECTION_OPEN', () => done || ((done = true), setTimeout(start)))
+    A.dispatcher.subscribe('CONNECTION_OPEN', () => {
+      if (done) return
+      done = true
+      setTimeout(start)
+    })
   }
 }

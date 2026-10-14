@@ -5,6 +5,7 @@ const { spawn } = require('node:child_process')
 const { closeSync } = require('node:fs')
 
 const MAGIC = 0x315a5343 // "CSZ1"
+const HEADER_BYTES = 24
 const FRAME = 2
 const INFO = 3
 const PREVIEW = 4
@@ -92,13 +93,13 @@ function startCapture(bin, args, onMessage, env, fdsock) {
   child.stdout.on('data', (chunk) => {
     last = Date.now()
     buf = buf.length ? Buffer.concat([buf, chunk]) : chunk
-    while (buf.length >= 24) {
+    while (buf.length >= HEADER_BYTES) {
       if (buf.readUInt32LE(0) !== MAGIC) return close('bad message')
       const size = buf.readUInt32LE(8)
-      if (buf.length < 24 + size) break
+      if (buf.length < HEADER_BYTES + size) break
       const type = buf.readUInt32LE(4)
       const t = buf.readUInt32LE(16) + buf.readUInt32LE(20) * 2 ** 32
-      const p = buf.subarray(24, 24 + size)
+      const p = buf.subarray(HEADER_BYTES, HEADER_BYTES + size)
       try {
         if (type === INFO) onMessage({ type: 'info', t, info: JSON.parse(p.toString()) })
         else if (type === FRAME) {
@@ -107,7 +108,7 @@ function startCapture(bin, args, onMessage, env, fdsock) {
             type: 'frame',
             seq: buf.readUInt32LE(12),
             t,
-            key: !!(p.readUInt32LE(0) & 1),
+            key: Boolean(p.readUInt32LE(0) & 1),
             w: wh & 0xffff,
             h: wh >>> 16,
             data: copy(p.subarray(16)),
@@ -122,7 +123,7 @@ function startCapture(bin, args, onMessage, env, fdsock) {
       } catch (e) {
         console.error('[capture] bad message', e)
       }
-      buf = buf.subarray(24 + size)
+      buf = buf.subarray(HEADER_BYTES + size)
     }
   })
   child.on('error', (e) => close(String(e.message ?? e)))

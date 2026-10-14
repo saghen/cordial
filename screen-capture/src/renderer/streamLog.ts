@@ -15,24 +15,25 @@ const STALE_MS = 600
 
 type Fields = Record<string, string | number | boolean | null | undefined>
 
-const value = (v: string | number | boolean | null) =>
-  v === null
-    ? 'null'
-    : typeof v === 'boolean'
-      ? v
-        ? '1'
-        : '0'
-      : typeof v === 'number'
-        ? String(Math.round(v * 100) / 100)
-        : v === '' || /[\s"=]/.test(v)
-          ? JSON.stringify(v)
-          : v
+function value(v: string | number | boolean | null) {
+  if (v === null) return 'null'
+  if (typeof v === 'boolean') return v ? '1' : '0'
+  if (typeof v === 'number') return String(Math.round(v * 100) / 100)
+  if (v === '' || /[\s"=]/.test(v)) return JSON.stringify(v)
+  return v
+}
 const logfmt = (f: Fields) =>
   Object.entries(f)
     .filter((e): e is [string, string | number | boolean | null] => e[1] !== undefined)
     .map(([k, v]) => `${k}=${value(v)}`)
     .join(' ')
 const kbps = (bits: number, ms: number) => (ms > 0 ? Math.round(bits / ms) : undefined)
+
+function overCap(sent: number, bwe: number | undefined, max: number | undefined) {
+  if (max !== undefined && sent > max) return 'max'
+  if (bwe !== undefined && sent > bwe) return 'bwe'
+  return null
+}
 
 interface Sample {
   at: number
@@ -74,7 +75,7 @@ class StreamLog {
         size: `${q.width}x${q.height}`,
         fps: q.fps,
         max: q.maxBitrate / 1000,
-        sound: !!session.audio,
+        sound: Boolean(session.audio),
         capture_method: this.method,
       }),
     )
@@ -122,9 +123,15 @@ class StreamLog {
       this.method = s.method
     }
     const game = host.discord?.game?.() ?? null
-    if (game !== this.game) this.event('game', { game: (this.game = game) })
+    if (game !== this.game) {
+      this.game = game
+      this.event('game', { game })
+    }
     const viewers = host.discord?.viewers?.() ?? 0
-    if (viewers !== this.viewers) this.event('viewers', { n: (this.viewers = viewers) })
+    if (viewers !== this.viewers) {
+      this.viewers = viewers
+      this.event('viewers', { n: viewers })
+    }
 
     const sender = streamSender()
     const stats = sender && [...(await sender.getStats().catch(() => new Map())).values()]
@@ -150,11 +157,12 @@ class StreamLog {
     const bwe = pair?.availableOutgoingBitrate && kbps(pair.availableOutgoingBitrate, 1000)
     const max = sender?.getParameters().encodings?.[0]?.maxBitrate
     const c = performance.now() - this.statsAt < STALE_MS ? s.stats : null
+    const sentFps = p && cur && ms > 0 ? ((cur.frames - p.frames) * 1000) / ms : undefined
 
     this.line({
       k: 'tick',
       in: c?.in,
-      fps: c ? c.fps : p && cur && ms > 0 ? ((cur.frames - p.frames) * 1000) / ms : undefined,
+      fps: c ? c.fps : sentFps,
       kbps: c?.kbps,
       target: c?.target,
       size: c ? `${c.width}x${c.height}` : rtp?.frameWidth && `${rtp.frameWidth}x${rtp.frameHeight}`,
@@ -185,7 +193,7 @@ class StreamLog {
 
   /** going over the estimate or Discord's cap: once when it starts, once when it ends */
   private checkOver(sent: number, bwe: number | undefined, max: number | undefined) {
-    const cap = max !== undefined && sent > max ? 'max' : bwe !== undefined && sent > bwe ? 'bwe' : null
+    const cap = overCap(sent, bwe, max)
     const now = performance.now()
     if (cap && !this.over) {
       this.over = { cap, since: now, peak: sent }

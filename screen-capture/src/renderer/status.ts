@@ -63,7 +63,7 @@ export async function streamStatus(): Promise<StreamStatus | null> {
           ? ` (captured ${source.width}×${source.height} @ ${round(source.framesPerSecond)})`
           : '',
         target: rtp.targetBitrate,
-        qp: frames > 0 ? (last.qpSum - prev!.qpSum) / frames : undefined,
+        qp: prev && frames > 0 ? (last.qpSum - prev.qpSum) / frames : undefined,
         limitation: rtp.qualityLimitationReason,
       }
   const network = [`${mbps(bitrate)} / ${mbps(s.target)} Mbps`]
@@ -74,7 +74,7 @@ export async function streamStatus(): Promise<StreamStatus | null> {
       (codec ?? '?') + (s.encoder ? ` · ${s.encoder}` : ''),
       `${s.width ?? '?'}×${s.height ?? '?'} @ ${round(s.fps)} fps${s.captured}`,
       network.join(' · '),
-      ...(s.qp === undefined ? [] : [`QP ${round(s.qp)} /${QP_MAX[codec!] ?? '?'}`]),
+      ...(s.qp === undefined ? [] : [`QP ${round(s.qp)} /${QP_MAX[codec ?? ''] ?? '?'}`]),
       // capture's sample: a frame once a second against what its encoder made of it
       ...(cast?.ssim === undefined ? [] : [`SSIM ${cast.ssim.toFixed(3)}`]),
       `limited by: ${s.limitation ?? '?'}`,

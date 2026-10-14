@@ -19,7 +19,13 @@ export function LazyChunks<T>(p: {
   let seeing: IntersectionObserver | undefined
   const watch = (el: Element, show: () => void) => {
     seeing ??= new IntersectionObserver(
-      (es) => es.forEach((e) => e.isIntersecting && (near.get(e.target)?.(), seeing!.unobserve(e.target))),
+      (es, observer) => {
+        for (const e of es) {
+          if (!e.isIntersecting) continue
+          near.get(e.target)?.()
+          observer.unobserve(e.target)
+        }
+      },
       { root: p.root(), rootMargin: '200px 0px' },
     )
     near.set(el, show)

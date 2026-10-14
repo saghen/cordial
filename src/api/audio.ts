@@ -22,7 +22,7 @@ export interface Device {
   disabled: boolean
 }
 const list = (all: Record<string, Rec>) =>
-  Object.values(all).map((d) => ({ id: d.id, name: d.name, disabled: !!d.disabled }) as Device)
+  Object.values(all).map((d) => ({ id: d.id, name: d.name, disabled: Boolean(d.disabled) }) as Device)
 export const inputs = () => list(M().getInputDevices())
 export const outputs = () => list(M().getOutputDevices())
 export const input = () => M().getInputDeviceId() as string
@@ -39,7 +39,7 @@ export const setOutputVolume = (v: number) => A.audio.setOutputVolume(v)
 // VOICE_ACTIVITY or PUSH_TO_TALK; voice activity's sensitivity, automatic or a threshold in dB (-100 to 0)
 export const mode = () => M().getMode() as string
 const modeOptions = () => M().getModeOptions() as { autoThreshold?: boolean; threshold: number }
-export const autoThreshold = () => !!modeOptions().autoThreshold
+export const autoThreshold = () => Boolean(modeOptions().autoThreshold)
 export const threshold = () => modeOptions().threshold
 const setModeWith = (changes: Rec, next = mode()) => A.audio.setMode(next, { ...modeOptions(), ...changes })
 export const setMode = (next: string) => setModeWith({}, next)

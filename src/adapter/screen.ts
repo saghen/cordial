@@ -9,6 +9,9 @@ import { G } from './anchor'
 import { A, check, S } from './needs'
 import { patch } from './webpack'
 
+// an activity's type
+const PLAYING = 0
+
 const codecs = patch(screen.codecPatch.find, ...screen.codecPatch.replace)
 
 screen.host.discord = {
@@ -26,14 +29,13 @@ screen.host.discord = {
     const key = s.guildId ? `guild:${s.guildId}:${s.channelId}:${s.ownerId}` : `call:${s.channelId}:${s.ownerId}`
     return S.ApplicationStreaming.getViewerIds(key).length
   },
-  // (type 0: playing)
   game() {
     const a = S.LocalActivity.getPrimaryActivity()
-    return a?.type === 0 ? a.name : null
+    return a?.type === PLAYING ? a.name : null
   },
 }
 
-const native = (window as any).cordialNative?.cast
+const native: typeof screen.host.native | undefined = (window as any).cordialNative?.cast
 if (native)
   screen.host.native = {
     ...native,

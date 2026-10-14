@@ -18,7 +18,8 @@ function track(store: FluxStore) {
     // ownedWrite: a dispatch can fire synchronously while a component renders, which writes this signal there
     const [get, set] = createSignal(undefined, { equals: false, ownedWrite: true })
     store.addChangeListener(() => set())
-    reads.set(store, (read = get))
+    read = get
+    reads.set(store, read)
   }
   read()
   return store

@@ -11,6 +11,7 @@ import * as channels from './channels'
 import { useNow } from './hooks'
 import {
   ChannelType,
+  EmojiIntention,
   Permission,
   type Channel,
   type Emoji,
@@ -31,13 +32,16 @@ export interface Upload {
   item?: { file?: File }
 }
 
+// stock's cap on autocomplete's results of each kind
+const MAX_RESULTS = 10
+
 export function useComposer(channelId: () => Id | null) {
   const channel = createMemo(() => (channelId() ? channels.get(channelId()!) : undefined))
   const editing = createMemo(() => (channelId() ? $.EditMessage.getEditingMessageId(channelId()!) : undefined))
   // a timeout's end and slowmode's, as times, so the clock runs only until the later of them
   const timedOutUntil = createMemo(() => {
-    const c = channel(),
-      until = c?.guild_id && users.member(users.me()!, c.guild_id)?.communicationDisabledUntil
+    const c = channel()
+    const until = c?.guild_id && users.member(users.me()!, c.guild_id)?.communicationDisabledUntil
     return until ? Date.parse(until) : 0
   })
   // slowmode: none for those who manage messages or the channel
@@ -59,22 +63,23 @@ export function useComposer(channelId: () => Id | null) {
     if (timedOutUntil() > now()) return text('GUILD_COMMUNICATION_DISABLED_BOTTOM_SHEET_TITLE')
     return null
   })
-  const open = () => !!channel() && !closed()
+  const open = () => Boolean(channel()) && !closed()
   // seconds left before the next message
   const cooldown = () => Math.max(0, Math.ceil((slowUntil() - now()) / 1000))
   const reply = createMemo(() => (channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined))
   const uploads = createMemo(() => (channelId() ? $.UploadAttachment.getUploads(channelId()!, 0) : []) as Upload[])
-  const placeholder = () =>
-    editing()
-      ? text('EDITING')
-      : (closed() ??
-        (cooldown()
-          ? text('CHANNEL_SLOWMODE_COOLDOWN', { seconds: cooldown() })
-          : text('TEXTAREA_PLACEHOLDER', { channel: channel() ? channels.title(channel()!) : '' })))
+  function placeholder() {
+    if (editing()) return text('EDITING')
+    const reason = closed()
+    if (reason !== null) return reason
+    if (cooldown()) return text('CHANNEL_SLOWMODE_COOLDOWN', { seconds: cooldown() })
+    const c = channel()
+    return text('TEXTAREA_PLACEHOLDER', { channel: c ? channels.title(c) : '' })
+  }
 
   // as stock: the draft saves at most every 500 ms while it changes (first and last change included), and on a switch
-  let last = 0,
-    timer: ReturnType<typeof setTimeout> | undefined
+  let last = 0
+  let timer: ReturnType<typeof setTimeout> | undefined
   const save = (id: Id) => {
     clearTimeout(timer)
     timer = undefined
@@ -117,9 +122,9 @@ export function useComposer(channelId: () => Id | null) {
     // Enter: an edit saved (an unchanged or emptied one just leaves edit mode; stock asks to delete an emptied one), or
     // the text and files sent; true when the box empties
     send(id: Id, value: string) {
-      const c = channel()!,
-        edit = editing(),
-        content = value.trim()
+      const c = channel()!
+      const edit = editing()
+      const content = value.trim()
       if (edit) {
         const parsed = A.parser.parse(c, content).content
         if (content && parsed !== S.Message.getMessage(id, edit)?.content)
@@ -157,7 +162,7 @@ export function useComposer(channelId: () => Id | null) {
     editLast(id: Id) {
       const m = S.Message.getLastEditableMessage(id)
       if (m) A.messages.startEditMessageRecord(id, m)
-      return !!m
+      return Boolean(m)
     },
     removeReply: (id: Id) => A.replies.remove(id),
     mention: (id: Id, on: boolean) => A.replies.mention(id, on),
@@ -180,8 +185,8 @@ export const replyName = (m: Message, guildId: Id | null) => users.displayName(m
 
 // who else is typing in a channel, by the names the author line uses
 export function typingNames(channelId: Id) {
-  const me = users.me()?.id,
-    guildId = channels.get(channelId)?.guild_id
+  const me = users.me()?.id
+  const guildId = channels.get(channelId)?.guild_id
   return Object.keys($.Typing.getTypingUsers(channelId))
     .filter((id) => id !== me)
     .map((id) => users.displayName(users.get(id), guildId))
@@ -194,7 +199,7 @@ export function mentions(query: string, c: Channel) {
     c.type !== ChannelType.DM && c.type !== ChannelType.GroupDM && users.can(Permission.MENTION_EVERYONE, c)
   const r = A.autocomplete.queryMentionResults({ query, channel: c, canMentionEveryone: everyone, request: true })
   return {
-    users: r.users.slice(0, 10) as { user: User; nick?: string | null }[],
+    users: r.users.slice(0, MAX_RESULTS) as { user: User; nick?: string | null }[],
     globals: (r.globals as { text: string; description: string }[]).filter(
       (g) => g.text === '@everyone' || g.text === '@here',
     ),
@@ -202,15 +207,15 @@ export function mentions(query: string, c: Channel) {
   }
 }
 export const channelResults = (query: string, c: Channel) =>
-  A.autocomplete.queryChannelResults({ query, channel: c }).channels.slice(0, 10) as Channel[]
-export const emojiResults = (query: string, c: Channel) =>
-  query.length < 2
-    ? []
-    : A.autocomplete
-        .queryEmojiResults({ query, channel: c, intention: 3, maxCount: 10 })
-        .emojis.unlocked.map((e: Rec) => ({
-          emoji: { ...(e.emojiObject ?? e), name: e.name } as Emoji,
-          guild: e.guildId ? ($.Guild.getGuild(e.guildId)?.name as string | undefined) : undefined,
-        }))
+  A.autocomplete.queryChannelResults({ query, channel: c }).channels.slice(0, MAX_RESULTS) as Channel[]
+export function emojiResults(query: string, c: Channel) {
+  if (query.length < 2) return []
+  return A.autocomplete
+    .queryEmojiResults({ query, channel: c, intention: EmojiIntention.Chat, maxCount: MAX_RESULTS })
+    .emojis.unlocked.map((e: Rec) => ({
+      emoji: { ...(e.emojiObject ?? e), name: e.name } as Emoji,
+      guild: e.guildId ? ($.Guild.getGuild(e.guildId)?.name as string | undefined) : undefined,
+    }))
+}
 // a # result's hint: its category
 export const categoryName = (c: Channel) => channels.get(c.parent_id!)?.name

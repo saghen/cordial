@@ -18,7 +18,7 @@ setMount((host) =>
       <>
         <style>{CSS}</style>
         <Show when={loggedIn()} fallback={<Login />}>
-          <App root={host} />
+          <App />
         </Show>
       </>
     ),

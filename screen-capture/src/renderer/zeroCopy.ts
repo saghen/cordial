@@ -56,6 +56,13 @@ const MAX_LATE_MS = 300
 const STUFF_PAUSE_MS = 50
 // the poll judges the pacer delay only over at least this many packets
 const GUARD_MIN_PACKETS = 20
+// Discord's cap until the sender's encoding has one, bits/s
+const DEFAULT_CAP_BPS = 9e6
+// RTP's video clock: 90 kHz
+const RTP_TICKS_PER_MS = 90
+// the sender's negotiation is checked this often, for up to NEGOTIATE_TIMEOUT_MS (negotiated)
+const NEGOTIATE_POLL_MS = 10
+const NEGOTIATE_TIMEOUT_MS = 10_000
 
 class Swap implements CastConsumer {
   // idle: Chromium's frames pass; active: ours; warmup: capture is gone, Chromium's frames are dropped until its
@@ -66,7 +73,7 @@ class Swap implements CastConsumer {
   // capture's target (targetRate.ts) and what it's judged on
   rate: RateState = initialTarget(0)
   private bwe: number | undefined
-  private cap = 9e6
+  private cap = DEFAULT_CAP_BPS
   private recent = new RateWindow()
   private stuffing = false
   private stuffPaused = false
@@ -95,14 +102,15 @@ class Swap implements CastConsumer {
 
   constructor() {
     this.transform = new TransformStream({
-      start: (c) => void (this.out = c),
+      start: (c) => {
+        this.out = c
+      },
       transform: (f, c) => {
         if (this.state === 'idle') return c.enqueue(f)
         if (this.state === 'warmup') {
           // (a fallback's frames once it's warmed up; another track's at once)
           if (this.sender?.track === this.session?.encoder && (!this.session?.warmedUp || f.type !== 'key')) return
           this.state = 'idle'
-          logger.info("Chromium's frames go out again")
           return c.enqueue(f)
         }
         const md = f.getMetadata()
@@ -151,7 +159,7 @@ class Swap implements CastConsumer {
   }
 
   start(session: CastSession, sender: RTCRtpSender) {
-    this.cap = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
+    this.cap = sender.getParameters().encodings?.[0]?.maxBitrate ?? DEFAULT_CAP_BPS
     const kbps = startKbps(this.cap / 1000)
     Object.assign(this, {
       needKey: true,
@@ -307,7 +315,7 @@ class Swap implements CastConsumer {
     if (!s || packets < s.packets) return
     const wire = bytes >= s.bytes ? ((bytes - s.bytes) * 8) / ((at - s.at) / 1000) : undefined
     const sendDelay = packets > s.packets ? ((delay - s.delay) / (packets - s.packets)) * 1000 : undefined
-    this.cap = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
+    this.cap = sender.getParameters().encodings?.[0]?.maxBitrate ?? DEFAULT_CAP_BPS
     this.setRate(
       updateTarget(this.rate, { t: performance.now(), bwe, cap: this.cap, wire, sendDelay }),
       wire,
@@ -354,7 +362,7 @@ class Swap implements CastConsumer {
     this.stats.stuffed += pad
     const md = tpl.getMetadata()
     // (unwrapped: kept increasing past 2^32)
-    const rtp = this.rtpAt.rtp + Math.round((tUs / 1000 + this.minDelay - this.rtpAt.ms) * 90)
+    const rtp = this.rtpAt.rtp + Math.round((tUs / 1000 + this.minDelay - this.rtpAt.ms) * RTP_TICKS_PER_MS)
     this.lastRtp = Math.max(this.lastRtp + 1, rtp)
     this.frameId = Math.max(this.frameId, md.frameId ?? 0) + 1
     const frame = new EncodedFrame(tpl, {
@@ -376,13 +384,14 @@ const swaps = new WeakMap<RTCRtpSender, Swap>()
 const senderPcs = new WeakMap<RTCRtpSender, RTCPeerConnection>()
 const claims = new WeakMap<RTCRtpSender, () => { readable: ReadableStream; writable: WritableStream }>()
 
+const senderProto = RTCRtpSender.prototype as any
 const origCreate: (() => { readable: ReadableStream; writable: WritableStream }) | undefined =
-  navigator.userAgent.includes('Linux') ? (RTCRtpSender.prototype as any).createEncodedStreams : undefined
+  navigator.userAgent.includes('Linux') ? senderProto.createEncodedStreams : undefined
 
 if (origCreate) {
   // Discord's DAVE on the createEncodedStreams path (see the top of the file)
-  delete (RTCRtpSender.prototype as any).transform
-  ;(RTCRtpSender.prototype as any).createEncodedStreams = function (this: RTCRtpSender) {
+  delete senderProto.transform
+  senderProto.createEncodedStreams = function (this: RTCRtpSender) {
     const claim = claims.get(this)
     if (!claim) return origCreate.call(this) // audio (or a sender we never saw made): untouched
     claims.delete(this)
@@ -420,7 +429,11 @@ export function attachSwap(pc: RTCPeerConnection, sender: RTCRtpSender) {
     }
   })().catch((e) => logger.error('Encoded frame relay failed', e))
   claims.set(sender, () => ({
-    readable: new ReadableStream({ start: (c) => void (sink.discord = c) }),
+    readable: new ReadableStream({
+      start: (c) => {
+        sink.discord = c
+      },
+    }),
     writable: new WritableStream({ write: (f) => ours.write(f) }),
   }))
 }
@@ -440,9 +453,9 @@ async function negotiated(sender: RTCRtpSender) {
   const pc = senderPcs.get(sender)
   const sending = () => {
     const dir = pc?.getTransceivers().find((t) => t.sender === sender)?.currentDirection
-    return !!sendCodec(sender) && (!pc || dir === 'sendonly' || dir === 'sendrecv')
+    return Boolean(sendCodec(sender)) && (!pc || dir === 'sendonly' || dir === 'sendrecv')
   }
-  const until = performance.now() + 10_000
+  const until = performance.now() + NEGOTIATE_TIMEOUT_MS
   while (!sending() && performance.now() < until)
     await new Promise<void>((resolve) => {
       const done = () => {
@@ -450,7 +463,7 @@ async function negotiated(sender: RTCRtpSender) {
         pc?.removeEventListener('signalingstatechange', done)
         resolve()
       }
-      const timer = setTimeout(done, 10)
+      const timer = setTimeout(done, NEGOTIATE_POLL_MS)
       pc?.addEventListener('signalingstatechange', done)
     })
 }
@@ -478,5 +491,4 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
     )
   if (sender.track !== track || session.state !== 'cast') return
   swap.start(session, sender)
-  logger.info("Streaming capture's AV1 (zero-copy)")
 }

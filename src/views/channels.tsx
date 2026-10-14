@@ -98,8 +98,8 @@ function VoiceChannel(p: { channel: Channel }) {
 function VoiceUser(p: { state: VoiceState; channel: Channel }) {
   const v = () => p.state
   const user = () => users.get(v().userId)
-  const deaf = () => voice.deafened(v()),
-    mute = () => voice.muted(v()) || deaf()
+  const deaf = () => voice.deafened(v())
+  const mute = () => voice.muted(v()) || deaf()
   return (
     <Row
       name="voice-user"
@@ -131,25 +131,19 @@ function VoiceUser(p: { state: VoiceState; channel: Channel }) {
   )
 }
 
+function ChannelRow(p: { channel: Channel }) {
+  if (p.channel.type === ChannelType.Voice) return <VoiceChannel channel={p.channel} />
+  if (p.channel.type === ChannelType.Category) return <Category channel={p.channel} />
+  return <TextChannel channel={p.channel} />
+}
+
 export function Channels() {
   channels.useVoiceStatuses(selectedGuild)
   const menu = channelMenu()
   return (
     <nav onContextMenu={menu.open}>
       <Show when={selectedGuild()} keyed fallback={<For each={channels.dms()}>{(c) => <Dm channel={c} />}</For>}>
-        {(guildId) => (
-          <For each={channels.rows(guildId)}>
-            {(c) =>
-              c.type === ChannelType.Voice ? (
-                <VoiceChannel channel={c} />
-              ) : c.type === ChannelType.Category ? (
-                <Category channel={c} />
-              ) : (
-                <TextChannel channel={c} />
-              )
-            }
-          </For>
-        )}
+        {(guildId) => <For each={channels.rows(guildId)}>{(c) => <ChannelRow channel={c} />}</For>}
       </Show>
       {menu.view}
     </nav>
@@ -165,8 +159,8 @@ function channelMenu() {
       return row && channels.get(row.dataset.id!)
     },
     children: (c) => {
-      const cat = c().type === ChannelType.Category,
-        muted = () => channels.muted(c())
+      const cat = c().type === ChannelType.Category
+      const muted = () => channels.muted(c())
       return (
         <Items
           items={[
@@ -178,15 +172,7 @@ function channelMenu() {
             },
             {
               name: 'menu-mute',
-              label: text(
-                cat
-                  ? muted()
-                    ? 'UNMUTE_CATEGORY'
-                    : 'MUTE_CATEGORY'
-                  : muted()
-                    ? 'UNMUTE_CHANNEL_GENERIC'
-                    : 'MUTE_CHANNEL_GENERIC',
-              ),
+              label: text(muteLabel(cat, muted())),
               run: () => channels.setMuted(c(), !muted()),
             },
             {
@@ -200,4 +186,9 @@ function channelMenu() {
       )
     },
   })
+}
+
+function muteLabel(category: boolean, muted: boolean) {
+  if (category) return muted ? 'UNMUTE_CATEGORY' : 'MUTE_CATEGORY'
+  return muted ? 'UNMUTE_CHANNEL_GENERIC' : 'MUTE_CHANNEL_GENERIC'
 }

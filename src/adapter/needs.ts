@@ -57,8 +57,8 @@ function mangled<K extends keyof Actions>(key: K, anchor: string, members: Recor
   moduleNeed(key, `module ${JSON.stringify(anchor)} { ${Object.keys(members).join(', ')} }`, () => {
     const id = findModuleId(anchor)
     if (id == null) return null
-    const mod = wreq(id),
-      out: Record<string, any> = {}
+    const mod = wreq(id)
+    const out: Record<string, any> = {}
     for (const [name, code] of Object.entries(members)) {
       const member = Object.values(mod).find(hasCode(code as string))
       if (member === undefined) return null
@@ -265,11 +265,11 @@ moduleNeed(
   'stickers',
   'module "STICKER_PACKS_FETCH_START" { fetchPacks }, "SENDABLE_WITH_BOOSTED_GUILD" { sendability }',
   () => {
-    const packs = findModuleId('type:"STICKER_PACKS_FETCH_START"'),
-      rule = findModuleId('SENDABLE_WITH_BOOSTED_GUILD"')
+    const packs = findModuleId('type:"STICKER_PACKS_FETCH_START"')
+    const rule = findModuleId('SENDABLE_WITH_BOOSTED_GUILD"')
     if (packs == null || rule == null) return null
-    const fetchPacks = Object.values(wreq(packs)).find(hasCode('STICKER_PACKS_FETCH_START')),
-      sendability = Object.values(wreq(rule)).find((e) => typeof e === 'function')
+    const fetchPacks = Object.values(wreq(packs)).find(hasCode('STICKER_PACKS_FETCH_START'))
+    const sendability = Object.values(wreq(rule)).find((e) => typeof e === 'function')
     return fetchPacks && sendability ? { fetchPacks, sendability } : null
   },
 )
@@ -285,13 +285,13 @@ mangled('gifs', 'type:"GIF_PICKER_INITIALIZE"', {
 // the web engine's video: a stream id's MediaStream, and its count of views (the first asks for the video, the last
 // stops it), as its own Video component uses them
 moduleNeed('video', 'modules ("VideoStream") { stream }, (?.(e,!0),i[e]=t+1) { watch, unwatch }', () => {
-  const streams = findModuleId('("VideoStream")'),
-    views = findModuleId('?.(e,!0),i[e]=t+1')
+  const streams = findModuleId('("VideoStream")')
+  const views = findModuleId('?.(e,!0),i[e]=t+1')
   if (streams == null || views == null) return null
   const fns = (id: string) => Object.values(wreq(id)).filter((e) => typeof e === 'function') as Function[]
-  const stream = fns(streams).find((f) => !/VideoStream|delete/.test(String(f))),
-    watch = fns(views).find((f) => String(f).includes('+1')),
-    unwatch = fns(views).find((f) => String(f).includes('--'))
+  const stream = fns(streams).find((f) => !/VideoStream|delete/.test(String(f)))
+  const watch = fns(views).find((f) => String(f).includes('+1'))
+  const unwatch = fns(views).find((f) => String(f).includes('--'))
   return stream && watch && unwatch ? { stream, watch, unwatch } : null
 })
 // stock's soundboard: play (its request, then the sound here), its rules for which sounds you can use and whether you
@@ -307,8 +307,8 @@ mangled('soundboardSounds', 'type:"SOUNDBOARD_FETCH_DEFAULT_SOUNDS"', { fetch: '
 moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
   const id = findModuleId('name:"Search",render')
   if (id == null) return null
-  const src = String(wreq.m[id]),
-    end = src.indexOf('name:"Search",render')
+  const src = String(wreq.m[id])
+  const end = src.indexOf('name:"Search",render')
   const chunks = [...src.slice(src.lastIndexOf('Promise.all([', end), end).matchAll(/\.e\("(\w+)"\)/g)].map((m) => m[1])
   if (!chunks.length) return null
   let actions: any
@@ -317,13 +317,18 @@ moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
     const mod = wreq(findModuleId('type:"SEARCH_MESSAGES_START"')!)
     return Object.values(mod).find((e: any) => typeof e?.fetchMessages === 'function')
   }
-  return { load: () => (actions ??= load()) }
+  return {
+    load: () => {
+      actions ??= load()
+      return actions
+    },
+  }
 })
 // stock's text for a system message (joins, pins, boosts, calls...), as its notifications and reply previews use
 moduleNeed('systemMessages', 'the system message formatter { stringify }', () => {
   const id = findModuleId('"234395307759108106":"https://groovy.bot/commands"')
-  const m = id != null && Object.values(wreq(id)).find((e: any) => typeof e?.stringify === 'function')
-  return m || null
+  if (id == null) return null
+  return Object.values(wreq(id)).find((e: any) => typeof e?.stringify === 'function')
 })
 // Discord's REST client and its endpoint paths: pins and Mark Unread are stock requests from its menu's chunk, which
 // isn't loaded without its UI
@@ -450,5 +455,6 @@ export function check() {
     }
     return why ? [{ name: n.name, what: n.what, why }] : []
   })
-  return (report = { ok: !missing.length, took: Math.round(performance.now() - t), needs: needs.length, missing })
+  report = { ok: !missing.length, took: Math.round(performance.now() - t), needs: needs.length, missing }
+  return report
 }

@@ -33,8 +33,14 @@ Object.defineProperty(Function.prototype, 'm', {
       const id = Object.keys(modules).find((id) => toString.call(modules[id]).includes(p.find))
       if (id === undefined) continue
       let out = toString.call(modules[id])
-      p.applied = p.replace.every(([re, to]) => out !== (out = out.replace(re, to)))
-      if (p.applied) modules[id] = (0, eval)(`0,${out.replace(/^\d+/, 'function')}\n//# sourceURL=cordial-${id}`)
+      p.applied = p.replace.every(([re, to]) => {
+        const next = out.replace(re, to)
+        const changed = next !== out
+        out = next
+        return changed
+      })
+      // oxlint-disable-next-line no-eval -- the patched factory's source, evaluated in global scope as webpack's own
+      if (p.applied) modules[id] = globalThis.eval(`0,${out.replace(/^\d+/, 'function')}\n//# sourceURL=cordial-${id}`)
     }
   },
 })

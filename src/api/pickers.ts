@@ -5,7 +5,16 @@
 
 import { A, S } from '../adapter/needs'
 import * as guilds from './guilds'
-import type { Channel, Emoji, Gif, Guild, Id, Sticker } from './types'
+import {
+  EmojiIntention,
+  StickerFormat,
+  type Channel,
+  type Emoji,
+  type Gif,
+  type Guild,
+  type Id,
+  type Sticker,
+} from './types'
 import { $ } from './store'
 import { text } from './strings'
 
@@ -19,7 +28,8 @@ export const emojiSrc = (e: { id?: Emoji['id']; name?: string; animated?: boolea
 export const frequentReactions = () => $.Emoji.emojiReactionFrecencyWithoutFetchingLatest.frequently as Emoji[]
 // the emoji a reaction search finds in a channel (those usable there)
 export const searchReactions = (c: Channel, query: string, count: number) =>
-  S.Emoji.searchWithoutFetchingLatest({ channel: c, query, count, intention: 0 }).unlocked as Emoji[]
+  S.Emoji.searchWithoutFetchingLatest({ channel: c, query, count, intention: EmojiIntention.Reaction })
+    .unlocked as Emoji[]
 
 // a picker's section: its rail shows the server's icon, an icon (favorites, the most used) or its first item
 export interface Section<T> {
@@ -31,7 +41,10 @@ export interface Section<T> {
 }
 
 const COUNT = 48
-const premium = () => !!S.User.getCurrentUser()?.premiumType
+const FREQUENT_STICKERS = 16
+// stock's StickerSendability.SENDABLE
+const SENDABLE = 0
+const premium = () => Boolean(S.User.getCurrentUser()?.premiumType)
 const guildSection = <T>(id: Id, items: T[]): Section<T> => {
   const guild = guilds.get(id)
   return { id, name: guild?.name ?? '', guild, items }
@@ -82,12 +95,13 @@ export function emojiSections(c: Channel): Section<Emoji>[] {
   ].filter((s) => s.items.length)
 }
 export const searchEmoji = (c: Channel, query: string) =>
-  S.Emoji.searchWithoutFetchingLatest({ channel: c, query, count: COUNT, intention: 3 }).unlocked as Emoji[]
+  S.Emoji.searchWithoutFetchingLatest({ channel: c, query, count: COUNT, intention: EmojiIntention.Chat })
+    .unlocked as Emoji[]
 export const emojiFrom = (e: Emoji) => from(e.guildId)
 
 // stock's rule: this server's stickers, other servers' with Nitro and the permission, Discord's packs once fetched
 const sendable = (st: Sticker | undefined, c: Channel): st is Sticker =>
-  !!st && A.stickers.sendability(st, S.User.getCurrentUser(), c) === 0
+  st != null && A.stickers.sendability(st, S.User.getCurrentUser(), c) === SENDABLE
 export function stickerSections(c: Channel): Section<Sticker>[] {
   const ok = (st: Sticker | undefined) => sendable(st, c)
   const favorites = (S.UserSettingsProto.frecencyWithoutFetchingLatest.favoriteStickers?.stickerIds ?? []) as Id[]
@@ -110,7 +124,9 @@ export function stickerSections(c: Channel): Section<Sticker>[] {
       id: 'frequent',
       name: text('FREQUENTLY_USED'),
       icon: 'clock' as const,
-      items: (S.StickersPersisted.stickerFrecencyWithoutFetchingLatest.frequently as Sticker[]).filter(ok).slice(0, 16),
+      items: (S.StickersPersisted.stickerFrecencyWithoutFetchingLatest.frequently as Sticker[])
+        .filter(ok)
+        .slice(0, FREQUENT_STICKERS),
     },
     ...servers,
     ...packs,
@@ -125,10 +141,12 @@ export function searchStickers(c: Channel, query: string) {
   return [...found]
 }
 // a sticker's image at stock's 160 px (an APNG's animated); none for a Lottie sticker, shown by its name
-export const stickerSrc = (st: Pick<Sticker, 'id' | 'format_type'>) =>
-  st.format_type === 3
-    ? undefined
-    : `https://media.discordapp.net/stickers/${st.id}.${st.format_type === 4 ? 'gif' : 'png'}?size=160${st.format_type === 2 ? '&passthrough=true' : ''}`
+export function stickerSrc(st: Pick<Sticker, 'id' | 'format_type'>) {
+  if (st.format_type === StickerFormat.Lottie) return undefined
+  const ext = st.format_type === StickerFormat.GIF ? 'gif' : 'png'
+  const animated = st.format_type === StickerFormat.APNG ? '&passthrough=true' : ''
+  return `https://media.discordapp.net/stickers/${st.id}.${ext}?size=160${animated}`
+}
 export const stickerFrom = (st: Sticker) =>
   from(st.guild_id, st.guild_id || !st.pack_id ? undefined : S.Stickers.getStickerPack(st.pack_id)?.name)
 export const fetchStickerPacks = () => A.stickers.fetchPacks()

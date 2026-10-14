@@ -28,6 +28,8 @@ import { Icon } from '../primitives/icon'
 const IDLE = 5000
 // the tiles' gap (call.css)
 const GAP = 8
+const TILE_ASPECT = 16 / 9
+const HEALTH_POLL_MS = 1000
 
 export function CallView() {
   const [expanded, setExpanded] = createSignal(false)
@@ -44,7 +46,7 @@ export function CallView() {
   // the UI shows while the pointer moves over the call or the top bar on it, and while it rests on the buttons or the
   // top bar; it hides as the pointer leaves both
   const over = (t: EventTarget | null) =>
-    t instanceof Element && !!t.closest('#cordial-root > :is(header, section.call)')
+    t instanceof Element && Boolean(t.closest('#cordial-root > :is(header, section.call)'))
   const sleep = () => {
     clearTimeout(timer)
     if (!section?.parentElement?.querySelector(':scope > header:hover, :scope > section.call > .call-bar:hover'))
@@ -91,18 +93,18 @@ export function CallView() {
           !states().length || (!guildId() && !states().some((v) => v.selfStream || streams.videoOf(v.userId, null)))
         const watched = () => others().filter((v) => v.selfStream && streams.watching(v.userId, guildId()))
         const focus = () => {
-          const f = focused(),
-            id = f?.replace('stream:', '')
+          const f = focused()
+          const id = f?.replace('stream:', '')
           return states().some((v) => v.userId === id && (v.selfStream || f === id)) ? f : null
         }
         // the column count giving the largest equal 16:9 tiles in the room left for them
         const grid = createMemo(() => {
-          const n = states().length + states().filter((v) => v.selfStream).length,
-            { w, h } = size()
+          const n = states().length + states().filter((v) => v.selfStream).length
+          const { w, h } = size()
           let best = { cols: 1, width: 0 }
           for (let cols = 1; cols <= n; cols++) {
-            const rows = Math.ceil(n / cols),
-              width = Math.min((w - GAP * (cols - 1)) / cols, ((h - GAP * (rows - 1)) / rows) * (16 / 9))
+            const rows = Math.ceil(n / cols)
+            const width = Math.min((w - GAP * (cols - 1)) / cols, ((h - GAP * (rows - 1)) / rows) * TILE_ASPECT)
             if (width > best.width) best = { cols, width }
           }
           return best
@@ -119,7 +121,7 @@ export function CallView() {
               })
               wake()
             }}
-            class={['call', { compact: compact(), idle: !awake(), expanded: expanded(), focused: !!focus() }]}
+            class={['call', { compact: compact(), idle: !awake(), expanded: expanded(), focused: Boolean(focus()) }]}
             style={{ '--cols': grid().cols, '--tile-width': `${Math.floor(grid().width)}px` }}
             onClick={(e) => {
               const tile = (e.target as Element).closest('figure.tile')
@@ -278,13 +280,13 @@ function StreamTile(p: {
 }) {
   const owner = () => p.state.userId
   const guildId = () => p.channel.guild_id
-  const watching = () => !!streams.watching(owner(), guildId())
+  const watching = () => Boolean(streams.watching(owner(), guildId()))
   const [health, setHealth] = createSignal<screen.ReceiveHealth | null>(null)
   createEffect(
     () => watching() && owner() !== users.me()?.id,
     (on) => {
       if (!on) return
-      const timer = setInterval(() => screen.receiveHealth(owner()).then(setHealth), 1000)
+      const timer = setInterval(() => screen.receiveHealth(owner()).then(setHealth), HEALTH_POLL_MS)
       return () => {
         clearInterval(timer)
         setHealth(null)

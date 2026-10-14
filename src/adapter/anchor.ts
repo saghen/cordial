@@ -13,7 +13,8 @@ type Mount = (host: HTMLElement) => () => void
 type App = { handleHistoryChange(location: Location, ...rest: unknown[]): void; forceUpdate(): void }
 
 // the one global: the patched App calls into it, scripts read it over CDP
-export const G: Record<string, any> = ((window as any).cordial = {})
+export const G: Record<string, any> = {}
+;(window as any).cordial = G
 
 let mount: Mount | null = null
 let unmount: (() => void) | null = null
@@ -66,6 +67,17 @@ function hostRef(host: HTMLElement | null) {
   unmount = host && mount ? mount(host) : null
 }
 
+function mode() {
+  if (stock()) return 'stock'
+  if (!anchor.applied) return 'not applied'
+  // before the App's first render the check would run too early
+  if (!checked) return 'starting'
+  if (!check().ok) return 'fallback'
+  if (active()) return 'cordial'
+  if (own()) return 'login'
+  return 'logged out'
+}
+
 export function setMount(fn: Mount) {
   mount = fn
 }
@@ -108,7 +120,8 @@ Object.assign(G, {
       if (!was) return a.forceUpdate()
       // logged in. Through Discord's screen, it navigates away from /login and the route listener runs on its own;
       // through our form, nothing navigates: to /app (where stock's login lands), redirected to the default route
-      discords ? (discords = false) : A.nav.replaceWith('/app')
+      if (discords) discords = false
+      else A.nav.replaceWith('/app')
       a.forceUpdate()
     })
   },
@@ -116,22 +129,9 @@ Object.assign(G, {
   status: () => ({
     applied: anchor.applied,
     login: login.applied,
-    // before the App's first render the check would run too early
-    mode: stock()
-      ? 'stock'
-      : !anchor.applied
-        ? 'not applied'
-        : !checked
-          ? 'starting'
-          : !check().ok
-            ? 'fallback'
-            : active()
-              ? 'cordial'
-              : own()
-                ? 'login'
-                : 'logged out',
+    mode: mode(),
     adapter: checked ? check() : null,
-    mounted: !!unmount,
+    mounted: Boolean(unmount),
     native: G.nativeApplied?.() ?? null,
     screen: G.screenApplied?.() ?? null,
   }),

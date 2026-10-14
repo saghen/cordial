@@ -32,7 +32,7 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
   const [armed, setArmed] = createSignal<string>()
   const key = (i: Item) => `${i.name} ${i.id ?? ''}`
   return (
-    <For each={p.items.filter((i) => !!i)}>
+    <For each={p.items.filter((i): i is Item | '-' => Boolean(i))}>
       {(i) =>
         i === '-' ? (
           <hr />
@@ -43,7 +43,7 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
               style={i.submenu && { 'anchor-name': `--${i.name}` }}
               data-id={i.id}
               role={i.checked == null ? undefined : 'menuitemradio'}
-              aria-checked={i.checked == null ? undefined : i.checked ? 'true' : 'false'}
+              aria-checked={i.checked == null ? undefined : (String(i.checked) as 'true' | 'false')}
               disabled={i.disabled}
               title={i.title}
               onClick={(e) => {

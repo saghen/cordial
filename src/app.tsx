@@ -22,7 +22,10 @@ const rules = Object.keys(files)
   .sort((a, b) => layer(a) - layer(b) || a.localeCompare(b))
   .map((f) => files[f])
   .join('\n')
-  .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, (k) => (frames.push(k), ''))
+  .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, (k) => {
+    frames.push(k)
+    return ''
+  })
 export const CSS = `#cordial-root {\n${ICONS}\n${rules}}\n${frames.join('\n')}`
 
 // the gateway's state while it's not connected
@@ -31,7 +34,7 @@ function ConnectionWarning() {
   return <Show when={notice()}>{(n) => <p class="notice">{n()}</p>}</Show>
 }
 
-export function App(p: { root: HTMLElement }) {
+export function App() {
   // window title
   createEffect(createMemo(session.badge), (b) => {
     document.title = `${b}Discord`

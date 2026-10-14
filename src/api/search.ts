@@ -30,9 +30,9 @@ export async function run(c: Channel, query: string, offset: number) {
 }
 export const clear = (c: Channel) => A.search.load().then((s) => s.clearSearchMessages(searchId(c)))
 
-export const fetching = (c: Channel) => !!$.Search.getIsFetching(searchId(c))
+export const fetching = (c: Channel) => Boolean($.Search.getIsFetching(searchId(c)))
 export const total = (c: Channel) => ($.Search.getTotalCount(searchId(c)) ?? 0) as number
-export const failed = (c: Channel) => !!$.Search.getError(searchId(c))
+export const failed = (c: Channel) => Boolean($.Search.getError(searchId(c)))
 export const results = (c: Channel) => ($.Search.getMessages(searchId(c)) ?? []) as Message[]
 
 // the field's placeholder: "Search {server}" in a server

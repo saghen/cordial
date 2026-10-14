@@ -4,7 +4,7 @@
 import type { Id, Rec } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
 import * as cdn from './cdn'
-import type { Channel, Member, User } from './types'
+import { ActivityType, type Channel, type Member, type User } from './types'
 import { $ } from './store'
 import { text } from './strings'
 
@@ -45,9 +45,15 @@ export function setStatus(next: string) {
   if (next !== prevStatus) A.setStatus({ nextStatus: next, prevStatus })
 }
 // ActivityTypes: playing, streaming, listening, watching, custom (shown as the status, not here), competing
-const VERBS = ['PLAYING_GAME', 'STREAMING', 'LISTENING_TO', 'WATCHING', undefined, 'COMPETING'] as const
+const VERBS = {
+  [ActivityType.Playing]: 'PLAYING_GAME',
+  [ActivityType.Streaming]: 'STREAMING',
+  [ActivityType.Listening]: 'LISTENING_TO',
+  [ActivityType.Watching]: 'WATCHING',
+  [ActivityType.Competing]: 'COMPETING',
+} as const
 export function activity() {
-  const a = $.LocalActivity.getPrimaryActivity(),
-    verb = a && VERBS[a.type]
+  const a = $.LocalActivity.getPrimaryActivity()
+  const verb = a && VERBS[a.type as keyof typeof VERBS]
   return verb && text(verb, { game: a.name, name: a.name })
 }

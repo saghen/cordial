@@ -65,7 +65,10 @@ function stages() {
       try {
         if (isAv1(f)) {
           const d = unsizeLastObu(new Uint8Array(f.data))
-          if (d) ((f.data = d.buffer), av1ReceiveStats.unsized++)
+          if (d) {
+            f.data = d.buffer
+            av1ReceiveStats.unsized++
+          }
         }
         own.set(f.getMetadata().rtpTimestamp, f)
         // (frames the worker drops)

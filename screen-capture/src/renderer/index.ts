@@ -25,6 +25,7 @@ export { zeroCopyStats } from './zeroCopy'
 if (navigator.userAgent.includes('Linux')) {
   const original = navigator.mediaDevices.getDisplayMedia
   navigator.mediaDevices.getDisplayMedia = async function (this: MediaDevices, opts) {
-    return (await castAvailable()) ? castDisplayMedia((o) => original.call(this, o), opts) : original.call(this, opts)
+    if (await castAvailable()) return castDisplayMedia((o) => original.call(this, o), opts)
+    return original.call(this, opts)
   }
 }

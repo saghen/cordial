@@ -7,7 +7,7 @@ import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
 import * as cdn from './cdn'
 import * as notifications from './notifications'
-import { ChannelType, Permission, type Channel, type PrivateChannel } from './types'
+import { ActivityType, ChannelType, Permission, type Channel, type PrivateChannel } from './types'
 import { $, selected } from './store'
 import { text } from './strings'
 import * as users from './users'
@@ -76,7 +76,7 @@ export const dms = () =>
   $.PrivateChannelSort.getSortedChannels()
     .flat()
     .map((c) => get(c.channelId))
-    .filter((c): c is PrivateChannel => !!c?.isPrivate())
+    .filter((c): c is PrivateChannel => Boolean(c?.isPrivate()))
     .slice(0, 100)
 // the DMs with unreads, for the server bar
 export const unreadDms = () => $.PrivateChannelReadState.getUnreadPrivateChannelIds().map(get) as PrivateChannel[]
@@ -95,16 +95,15 @@ export const groupIcon = (c: PrivateChannel, px: number) =>
 export function dmSub(c: PrivateChannel) {
   const user = dmUser(c)
   if (!user) return text('GROUP_DM_MEMBER_COUNT', { members: c.recipients.length + 1 })
-  return $.Presence.getActivities(user.id).find((a) => a.type === 4)?.state
+  return $.Presence.getActivities(user.id).find((a) => a.type === ActivityType.Custom)?.state
 }
 
 // a channel's name as the composer and incoming calls name it: #general, @user, a group's names
-export const title = (c: Channel) =>
-  c.guild_id
-    ? `#${c.name}`
-    : c.type === ChannelType.DM
-      ? `@${dmName(c as PrivateChannel)}`
-      : dmName(c as PrivateChannel)
+export function title(c: Channel) {
+  if (c.guild_id) return `#${c.name}`
+  const name = dmName(c as PrivateChannel)
+  return c.type === ChannelType.DM ? `@${name}` : name
+}
 
 // Voice channels: since when the call in them has gone on, and their status (who's in them: api/voice.ts)
 
@@ -115,10 +114,10 @@ export const voiceStatus = (c: Channel) => $.ChannelStatus.getChannelStatus(c)
 
 // how long a call has gone on, as stock: 2:57:00, 05:12
 export function elapsed(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000)),
-    pad = (n: number) => String(n).padStart(2, '0')
-  const h = Math.floor(s / 3600),
-    rest = `${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const h = Math.floor(s / 3600)
+  const rest = `${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`
   return h ? `${h}:${rest}` : rest
 }
 

@@ -13,6 +13,7 @@ const path = require('node:path')
 
 const KEEP = 10
 const MAX_BYTES = 10 << 20
+const MINUTE_MS = 60e3
 
 const dir = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local/state'), 'cordial/streams')
 
@@ -32,7 +33,7 @@ function open(first) {
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.log')) compress(path.join(dir, f))
   // (local time, e.g. 2026-10-14T02-12-03)
   const d = new Date()
-  const name = new Date(d.getTime() - d.getTimezoneOffset() * 60e3).toISOString().slice(0, 19).replaceAll(':', '-')
+  const name = new Date(d.getTime() - d.getTimezoneOffset() * MINUTE_MS).toISOString().slice(0, 19).replaceAll(':', '-')
   const p = path.join(dir, `${name}.log`)
   file = { path: p, fd: fs.openSync(p, 'a'), bytes: 0, ticks: 0 }
   const v = process.versions

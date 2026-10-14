@@ -121,10 +121,11 @@ function VoicePanel() {
 }
 
 // the stream's numbers, asked each second; a click shows one line
+const STATS_POLL_MS = 1000
 function StreamStats() {
   const [status, setStatus] = createSignal<screen.StreamStatus | null>(null)
   const [short, setShort] = createSignal(false)
-  const timer = setInterval(() => screen.streamStatus().then(setStatus), 1000)
+  const timer = setInterval(() => screen.streamStatus().then(setStatus), STATS_POLL_MS)
   onCleanup(() => clearInterval(timer))
   return (
     <Show when={status()}>
@@ -326,7 +327,9 @@ function ScreenPicker() {
     ),
   })
   screen.host.pick = (sources) => new Promise((resolve, reject) => picker.open({ sources, resolve, reject }))
-  onCleanup(() => (screen.host.pick = null))
+  onCleanup(() => {
+    screen.host.pick = null
+  })
   const pick = (a: Ask, s: screen.CastSource) => {
     a.resolve({
       source: s.id,

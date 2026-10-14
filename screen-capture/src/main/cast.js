@@ -41,6 +41,11 @@ app.commandLine.appendSwitch(
   'WebRTC-Video-Pacing/factor:2.5/WebRTC-ProbingScreenshareBwe/2.5,2875,80,40,-60,3/',
 )
 
+const NIRI_TIMEOUT_MS = 2000
+const PROBE_TIMEOUT_MS = 5000
+// a stopped capture's time to exit before it's killed
+const KILL_MS = 2000
+
 /**
  * @typedef {{ id: number, title: string | null, app_id: string | null, pid: number | null,
  *   workspace_id: number | null, is_focused: boolean, layout?: { window_size?: [number, number] } }} NiriWindow
@@ -57,7 +62,8 @@ let found
 function captureBin() {
   if (found !== undefined) return found
   const onPath = (process.env.PATH ?? '').split(path.delimiter).map((dir) => dir && path.join(dir, 'cordial-capture'))
-  return (found = [process.env.CORDIAL_CAPTURE, ...onPath].find((f) => f && fs.existsSync(f)) ?? null)
+  found = [process.env.CORDIAL_CAPTURE, ...onPath].find((f) => f && fs.existsSync(f)) ?? null
+  return found
 }
 
 function config() {
@@ -81,7 +87,7 @@ function niri(request) {
       socket.destroy()
       reject(e)
     }
-    socket.setTimeout(2000, () => fail(new Error('niri IPC timed out')))
+    socket.setTimeout(NIRI_TIMEOUT_MS, () => fail(new Error('niri IPC timed out')))
     socket.on('connect', () => socket.write(JSON.stringify(request) + '\n'))
     socket.on('data', (chunk) => {
       reply += chunk
@@ -115,7 +121,8 @@ function via() {
 }
 
 /** Whether Go Live captures through capture: a source kind, capture installed, not off in config.json. */
-const castAvailable = () => process.platform === 'linux' && !!via() && config().capture !== false && !!captureBin()
+const castAvailable = () =>
+  process.platform === 'linux' && Boolean(via()) && config().capture !== false && Boolean(captureBin())
 
 let codecs
 /**
@@ -125,15 +132,16 @@ let codecs
  */
 function castCodecs() {
   if (!castAvailable()) return Promise.resolve([])
-  return (codecs ??= new Promise((resolve) =>
-    execFile(captureBin(), ['--probe'], { timeout: 5000 }, (_, out) => {
+  codecs ??= new Promise((resolve) =>
+    execFile(captureBin(), ['--probe'], { timeout: PROBE_TIMEOUT_MS }, (_, out) => {
       try {
         resolve(JSON.parse(out).codecs ?? [])
       } catch {
         resolve([])
       }
     }),
-  ))
+  )
+  return codecs
 }
 
 /**
@@ -215,7 +223,9 @@ async function audioTarget(w) {
   const exe = await fs.promises.readlink(`/proc/${w.pid}/exe`).catch(() => '')
   if (!path.basename(exe).startsWith('xwayland')) return `pid=${w.pid}`
   const steam = /^steam_app_(\d+)$/.exec(w.app_id ?? '')
-  return steam ? `steam=${steam[1]}` : w.app_id ? `name=${w.app_id.toLowerCase()}` : 'off'
+  if (steam) return `steam=${steam[1]}`
+  if (w.app_id) return `name=${w.app_id.toLowerCase()}`
+  return 'off'
 }
 
 // niri's events that can change an output's focused window
@@ -242,7 +252,10 @@ function followOutput(output, set) {
   let busy = false
   let again = false
   const update = async () => {
-    if (busy) return void (again = true)
+    if (busy) {
+      again = true
+      return
+    }
     busy = true
     try {
       const [{ Workspaces: workspaces }, { Windows: windows }] = await Promise.all([
@@ -252,7 +265,10 @@ function followOutput(output, set) {
       const ws = /** @type {NiriWorkspace[]} */ (workspaces).find((w) => w.output === output && w.is_active)
       const win = /** @type {NiriWindow[]} */ (windows).find((w) => w.id === ws?.active_window_id)
       const target = win?.pid === process.pid ? last : await audioTarget(win)
-      if (!stopped && target != null && target !== last) set((last = target))
+      if (!stopped && target != null && target !== last) {
+        last = target
+        set(target)
+      }
     } catch (e) {
       console.error('[cast] sound target:', e)
     } finally {
@@ -304,7 +320,8 @@ function startCast(e, opts) {
   const last = kind === 'portal' && id === 'last' ? portalLast() : null
   const args = [
     ...(kind === 'clip' ? ['--clip', clip[1], '--clip-size', `${clip[2]}x${clip[3]}`] : []),
-    ...(kind === 'window' ? ['--window', id] : kind === 'output' ? ['--output', id] : []),
+    ...(kind === 'window' ? ['--window', id] : []),
+    ...(kind === 'output' ? ['--output', id] : []),
     ...(kind === 'portal' ? ['--portal', ...(last ? ['--restore-token', last.token] : [])] : []),
     '--size',
     `${opts.size[0] | 0}x${opts.size[1] | 0}`,
@@ -338,7 +355,8 @@ function startCast(e, opts) {
         token = null
       }
       if (m.type === 'closed') {
-        console.log(`[cast] capture ${cap.pid} ${m.why}`)
+        // (open: not stopped by us, it died)
+        if (open) console.warn(`[cast] capture ${cap.pid} ${m.why}`)
         if (sessionId != null) stopCast(sessionId)
         raw?.close()
       }
@@ -351,10 +369,7 @@ function startCast(e, opts) {
     fdsock,
   )
   if (opts.audio) {
-    const send = (target) => {
-      console.log(`[cast] capture ${cap.pid} sound: ${target}`)
-      cap.send({ type: 'audio', target })
-    }
+    const send = (target) => cap.send({ type: 'audio', target })
     if (testAudio) send(testAudio)
     else if (kind === 'window')
       niri('Windows')
@@ -368,17 +383,19 @@ function startCast(e, opts) {
       open = false
       stopAudio()
       cap.send({ type: 'stop' })
-      setTimeout(() => cap.kill(), 2000).unref()
+      setTimeout(() => cap.kill(), KILL_MS).unref()
       port1.close()
       if (current === cast) current = null
     },
   }
   current = cast
-  port1.on('message', ({ data }) => (data?.type === 'stop' ? cast.close() : cap.send(data)))
+  port1.on('message', ({ data }) => {
+    if (data?.type === 'stop') cast.close()
+    else cap.send(data)
+  })
   port1.on('close', () => cast.close())
   port1.start()
   e.sender.postMessage('cordial:cast-port', null, [port2])
-  console.log(`[cast] capture ${cap.pid}: ${args.join(' ')}`)
   return true
 }
 
@@ -387,7 +404,10 @@ app.whenReady().then(() =>
     if (clip) return callback({ video: request.frame })
     const sources = await desktopCapturer
       .getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } })
-      .catch((e) => (console.error('[cordial:cast] portal:', e), []))
+      .catch((e) => {
+        console.error('[cordial:cast] portal:', e)
+        return []
+      })
     callback(sources[0] ? { video: sources[0] } : {})
   }),
 )

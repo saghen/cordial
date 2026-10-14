@@ -41,8 +41,12 @@ export interface Activity {
   icon: 'screen' | 'video' | 'voice'
   connected: boolean
 }
-const activity = (screen: boolean, video: boolean, voice: boolean, connected: boolean): Activity | undefined =>
-  screen || video || voice ? { icon: screen ? 'screen' : video ? 'video' : 'voice', connected } : undefined
+function activity(screen: boolean, video: boolean, voice: boolean, connected: boolean): Activity | undefined {
+  if (screen) return { icon: 'screen', connected }
+  if (video) return { icon: 'video', connected }
+  if (voice) return { icon: 'voice', connected }
+  return undefined
+}
 export function guildActivity(id: Id) {
   const m = $.GuildMediaState.getGuildMediaState(id)
   return activity(m.screenshare, m.video, m.audio, m.isCurrentUserConnected)

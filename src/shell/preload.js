@@ -34,13 +34,19 @@ const rpc = {
         sockets.set(id, s)
         cb(id, 'connect')
         s.on('data', (d) => cb(id, 'data', new Uint8Array(d)))
-        s.on('close', () => (sockets.delete(id), cb(id, 'close')))
+        s.on('close', () => {
+          sockets.delete(id)
+          cb(id, 'close')
+        })
         s.on('error', () => {})
       })
       const ok = await new Promise((r) => server.once('error', () => r(false)).listen(p, () => r(true)))
       if (!ok) continue
       // a reload starts Discord's RPC server over
-      window.addEventListener('pagehide', () => (server.close(), sockets.forEach((s) => s.destroy())))
+      window.addEventListener('pagehide', () => {
+        server.close()
+        sockets.forEach((s) => s.destroy())
+      })
       return p
     }
     return null
@@ -50,7 +56,10 @@ const rpc = {
 }
 const answers = (p) =>
   new Promise((r) => {
-    const s = net.connect(p, () => (s.destroy(), r(true)))
+    const s = net.connect(p, () => {
+      s.destroy()
+      r(true)
+    })
     s.on('error', () => r(false))
   })
 
@@ -82,6 +91,10 @@ contextBridge.exposeInMainWorld('cordialNative', {
   ...(process.env.CORDIAL_PRESENCE !== '0' ? { observeGames, rpc } : {}),
 })
 contextBridge.executeInMainWorld({
-  func: (src, config) => ((0, eval)(src), (window.cordial.config = config)),
+  func: (src, config) => {
+    // oxlint-disable-next-line no-eval -- our bundle, run in the page's world before Discord's scripts
+    globalThis.eval(src)
+    window.cordial.config = config
+  },
   args: [src, ipcRenderer.sendSync('cordial:config')],
 })

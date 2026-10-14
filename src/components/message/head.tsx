@@ -6,6 +6,7 @@ import type { JSX } from '@solidjs/web'
 
 import * as messages from '../../api/messages'
 import type { Id, Message, User } from '../../api/types'
+import { ReferencedMessageState } from '../../api/types'
 import { text, textAround } from '../../api/strings'
 import * as users from '../../api/users'
 import { Avatar } from '../avatar'
@@ -30,12 +31,17 @@ export const flash = (row: Element) => row.animate([{ background: 'var(--mention
 
 // a click on a reply: the replied-to message flashed where it is when it's in view, else jumped to
 function jump(e: MouseEvent, m: Message) {
-  const list = (e.currentTarget as Element).closest('.messages'),
-    row = list?.querySelector(`article[data-id="${m.messageReference!.message_id}"]`)
-  const r = row?.getBoundingClientRect(),
-    v = list?.getBoundingClientRect()
-  if (row && r!.top >= v!.top && r!.bottom <= v!.bottom) flash(row)
-  else messages.jumpToReplied(m)
+  const list = (e.currentTarget as Element).closest('.messages')
+  const row = list?.querySelector(`article[data-id="${m.messageReference!.message_id}"]`)
+  if (list && row) {
+    const r = row.getBoundingClientRect()
+    const v = list.getBoundingClientRect()
+    if (r.top >= v.top && r.bottom <= v.bottom) {
+      flash(row)
+      return
+    }
+  }
+  messages.jumpToReplied(m)
 }
 
 // as stock: the replied-to message's author (with @ if the reply pings them) and its text on one line, the spine from
@@ -49,7 +55,11 @@ export function ReplyPreview(p: { m: Message; guildId?: Id | null }) {
           <span onClick={(e) => jump(e, p.m)}>
             <Show
               when={r().message}
-              fallback={text(r().state === 2 ? 'REPLY_QUOTE_MESSAGE_DELETED' : 'REPLY_QUOTE_MESSAGE_NOT_LOADED')}
+              fallback={text(
+                r().state === ReferencedMessageState.Deleted
+                  ? 'REPLY_QUOTE_MESSAGE_DELETED'
+                  : 'REPLY_QUOTE_MESSAGE_NOT_LOADED',
+              )}
             >
               {(rm) => {
                 const author = rm().author as User
@@ -82,18 +92,13 @@ export function CommandLine(p: { m: Message; guildId?: Id | null }) {
   const command = p.m.interaction ?? p.m.interactionMetadata
   if (!command) return null
   const user = (command.user && users.get(command.user.id)) ?? command.user
+  const slots = [<Name user={user} />, <span class="command-name">/{command.displayName ?? command.name}</span>]
   return (
     <q class="command">
       <span>
         <Show when={users.get(command.user?.id)}>{(u) => <Avatar user={u()} guildId={p.guildId} size={16} />}</Show>
         {textAround('APPLICATION_COMMAND_USED_SHORT', {}, ['userHook', 'commandHook']).map((part) =>
-          part === 0 ? (
-            <Name user={user} />
-          ) : part === 1 ? (
-            <span class="command-name">/{command.displayName ?? command.name}</span>
-          ) : (
-            part
-          ),
+          typeof part === 'number' ? slots[part] : part,
         )}
       </span>
     </q>

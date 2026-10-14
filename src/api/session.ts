@@ -23,10 +23,11 @@ export function useConnection() {
   on('CONNECTION_RESUMED', true)
   on('CONNECTION_INTERRUPTED', false)
   on('CONNECTION_CLOSED', false)
-  return () =>
-    connected()
-      ? undefined
-      : text(!S.Gateway.isTryingToConnect() ? 'CONNECTION_STATUS_DISCONNECTED' : once ? 'RECONNECTING' : 'CONNECTING')
+  return () => {
+    if (connected()) return undefined
+    if (!S.Gateway.isTryingToConnect()) return text('CONNECTION_STATUS_DISCONNECTED')
+    return text(once ? 'RECONNECTING' : 'CONNECTING')
+  }
 }
 
 // stock's badge, in the window title as on the web: mentions and friend requests as "(N)", a dot for any other unread
@@ -69,9 +70,23 @@ export const loginCode = (code: string, kind: CodeKind) =>
     source: null,
   })
 
+// a failed request's error: its fields' messages, and its own
+interface RequestError {
+  fields?: Record<string, string[]>
+  message?: string
+}
+
 // a failed request's text: the fields' messages (a wrong password, a new login location), else the error's
-export const errorText = (e: any): string =>
-  [...Object.values(e?.fields ?? {})].flat().join(' ') || e?.message || text('ERROR_OCCURRED_TRY_AGAIN')
+export function errorText(e: unknown): string {
+  const error = e as RequestError | null | undefined
+  return (
+    Object.values(error?.fields ?? {})
+      .flat()
+      .join(' ') ||
+    error?.message ||
+    text('ERROR_OCCURRED_TRY_AGAIN')
+  )
+}
 
 // stock's own login screen, for everything ours leaves to it
 export const discordLogin = () => G.discordLogin()

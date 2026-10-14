@@ -6,11 +6,13 @@
 
 const { ipcRenderer, sharedTexture } = require('electron')
 
+const RELEASE_MS = 2000
+
 /** @param {(port: MessagePort) => void} post hands the page its port */
 function receiveRaw(post) {
   let imports = new Map()
   let port = null
-  const release = (list) => setTimeout(() => list.forEach((i) => i.release()), 2000)
+  const release = (list) => setTimeout(() => list.forEach((i) => i.release()), RELEASE_MS)
   sharedTexture.setSharedTextureReceiver(async ({ importedSharedTexture }, key) => {
     if (!port) {
       const ch = new MessageChannel()

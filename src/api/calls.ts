@@ -9,7 +9,7 @@ import * as users from './users'
 import * as voice from './voice'
 
 // a DM's call with someone in it (a call record can outlive its last participant)
-const going = (channelId: Id) => !!$.Call.getCall(channelId) && voice.states(channelId).length > 0
+const going = (channelId: Id) => Boolean($.Call.getCall(channelId)) && voice.states(channelId).length > 0
 
 // what the call view shows: voice and stage channels, and DMs with a call going
 export const callIn = (c: Channel | undefined) =>

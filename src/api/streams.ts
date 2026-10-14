@@ -47,6 +47,6 @@ export function view(streamId: string) {
 }
 
 // your own Go Live: on or off
-export const live = () => !!$.ApplicationStreaming.getCurrentUserActiveStream()
+export const live = () => Boolean($.ApplicationStreaming.getCurrentUserActiveStream())
 export const toggleLive = (c: Channel) =>
   S.ApplicationStreaming.getCurrentUserActiveStream() ? A.streams.stopOwn(false) : A.goLive.start(c.guild_id, c.id, [])

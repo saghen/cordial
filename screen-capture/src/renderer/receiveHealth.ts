@@ -77,8 +77,10 @@ export async function pcHealth(pc: RTCPeerConnection): Promise<ReceiveHealth | n
   let w = watched.get(pc)
   const last = w?.samples.at(-1)
   // a new stream (the counters start over) or size: judged again after SETTLE_S
-  if (!w || !last || s.received < last.received || s.size !== last.size)
-    watched.set(pc, (w = { samples: [], since: s.t, lagUntil: w?.lagUntil ?? 0 }))
+  if (!w || !last || s.received < last.received || s.size !== last.size) {
+    w = { samples: [], since: s.t, lagUntil: w?.lagUntil ?? 0 }
+    watched.set(pc, w)
+  }
   w.samples.push(s)
   while (s.t - w.samples[0].t > WINDOW_S) w.samples.shift()
   const a = w.samples[0]

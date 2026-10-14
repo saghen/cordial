@@ -21,16 +21,21 @@ export function useRingtone() {
   })
 }
 
+// stock's volume for its voice sounds
+const VOLUME = 0.4
+// past this many in the call or watching a stream, no sound for others joining and leaving
+const SMALL = 25
+
 // Stock's voice sounds, which its UI plays (its sound hooks in the app module): each watches some stores, and a change
 // from the last state names a sound, played unless its sound is off. Not ported: stage channels' request to speak, and
 // Activities
 function sound<T>(stores: FluxStore[], state: () => T, pick: (prev: T, next: T) => string | void) {
   let prev = state()
   const check = () => {
-    const next = state(),
-      name = pick(prev, next)
+    const next = state()
+    const name = pick(prev, next)
     prev = next
-    if (name && !S.NotificationSettings.isSoundDisabled(name)) A.sounds.play(name, 0.4)
+    if (name && !S.NotificationSettings.isSoundDisabled(name)) A.sounds.play(name, VOLUME)
   }
   for (const s of stores) s.addChangeListener(check)
 }
@@ -116,16 +121,16 @@ export function useVoiceSounds() {
   sound(
     [sel, streaming, S.Auth, vs, S.Channel],
     () => {
-      const id = sel.getVoiceChannelId(),
-        me = S.Auth.getId(),
-        c = id ? S.Channel.getChannel(id) : undefined,
-        all = streaming.getAllActiveStreams()
+      const id = sel.getVoiceChannelId()
+      const me = S.Auth.getId()
+      const c = id ? S.Channel.getChannel(id) : undefined
+      const all = streaming.getAllActiveStreams()
       let stream = all.length === 1 ? all[0] : streaming.getCurrentUserActiveStream()
       if (stream?.state === 'CONNECTING') stream = null
       const key = stream ? streams.key(stream) : null
       return {
         c,
-        count: c ? S.SortedVoiceState.countVoiceStatesForChannel(c.id) - +vs.isInChannel(c.id) : undefined,
+        count: c ? S.SortedVoiceState.countVoiceStatesForChannel(c.id) - Number(vs.isInChannel(c.id)) : undefined,
         streaming: c ? streaming.getAllApplicationStreamsForChannel(c.id).map((s) => s.ownerId as Id) : [],
         key,
         viewers: key ? streaming.getViewerIds(key).filter((u) => u !== me).length : 0,
@@ -142,15 +147,15 @@ export function useVoiceSounds() {
         (c.guild_id && S.Guild.getGuild(c.guild_id)?.afkChannelId === c.id)
       )
         return
-      const sameStream = n.key != null && p.key === n.key,
-        small = p.count != null && n.count != null && p.count <= 25
+      const sameStream = n.key != null && p.key === n.key
+      const small = p.count != null && n.count != null && p.count <= SMALL
       if (n.streaming.some((u) => !p.streaming.includes(u))) return 'stream_started'
       if (p.streaming.some((u) => !n.streaming.includes(u) && (u === n.me || p.owners.includes(u))))
         return 'stream_ended'
-      if (p.viewers <= 25 && sameStream && n.viewers > p.viewers) return 'stream_user_joined'
+      if (p.viewers <= SMALL && sameStream && n.viewers > p.viewers) return 'stream_user_joined'
       if (small && n.count! > p.count!) return 'user_join'
       if (small && n.count! < p.count!) return 'user_leave'
-      if (p.viewers <= 25 && sameStream && n.viewers < p.viewers) return 'stream_user_left'
+      if (p.viewers <= SMALL && sameStream && n.viewers < p.viewers) return 'stream_user_left'
     },
   )
 }

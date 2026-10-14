@@ -3,8 +3,10 @@
 
 import { image } from '../adapter/native'
 
-const png = (src: string) =>
-  src.startsWith('https://media.discordapp.net/') ? `${src}${src.includes('?') ? '&' : '?'}format=png` : src
+function png(src: string) {
+  if (!src.startsWith('https://media.discordapp.net/')) return src
+  return `${src}${src.includes('?') ? '&' : '?'}format=png`
+}
 export const copyImage = (src: string) => image?.copy(png(src))
 export const saveImage = (url: string) => image?.save(url)
 export const copyLink = (url: string) => navigator.clipboard.writeText(url)

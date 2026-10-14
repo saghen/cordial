@@ -36,7 +36,7 @@ function Tile(p: {
 }) {
   return (
     <a
-      class={[p.name, { sel: !!p.sel, unread: !!p.unread }]}
+      class={[p.name, { sel: Boolean(p.sel), unread: Boolean(p.unread) }]}
       data-id={p.id}
       title={p.title}
       onClick={p.go}
@@ -99,9 +99,12 @@ function Dm(p: { channel: PrivateChannel }) {
 
 // a folder: closed, a tile of its first four servers; open, the folder icon in its colour above its servers, on one
 // background
+const FOLDER_TILES = 4
+// stock's, for a folder without one
+const DEFAULT_FOLDER_COLOR = 0x5865f2
 function Folder(p: { folder: guilds.Folder }) {
-  const id = p.folder.folderId!,
-    ids = () => p.folder.guildIds
+  const id = p.folder.folderId!
+  const ids = () => p.folder.guildIds
   const open = () => guilds.folderOpen(id)
   const folder = (children: JSX.Element) => (
     <Tile
@@ -133,7 +136,7 @@ function Folder(p: { folder: guilds.Folder }) {
       when={open()}
       fallback={folder(
         <span class="folder-tiles">
-          <For each={ids().slice(0, 4)}>
+          <For each={ids().slice(0, FOLDER_TILES)}>
             {(g) => <Show when={guilds.get(g)}>{(g) => <GuildIcon guild={g()} size={19} />}</Show>}
           </For>
         </span>,
@@ -142,7 +145,7 @@ function Folder(p: { folder: guilds.Folder }) {
       <div
         class="folder-open"
         style={{
-          '--folder': `#${(p.folder.folderColor ?? 0x5865f2).toString(16).padStart(6, '0')}`,
+          '--folder': `#${(p.folder.folderColor ?? DEFAULT_FOLDER_COLOR).toString(16).padStart(6, '0')}`,
           '--n': ids().length + 1,
         }}
       >

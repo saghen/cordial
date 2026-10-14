@@ -58,10 +58,10 @@ export function Message(p: {
   gone: boolean
   onReact(e: MouseEvent): void
 }) {
-  const m = p.m,
-    guildId = () => p.channel?.guild_id,
-    channelId = m.channel_id,
-    hasText = !messages.linkOnly(m) && (!!m.content || !messages.isUser(m))
+  const m = p.m
+  const guildId = () => p.channel?.guild_id
+  const channelId = m.channel_id
+  const hasText = !messages.linkOnly(m) && (Boolean(m.content) || !messages.isUser(m))
   return (
     <article
       data-id={m.id}

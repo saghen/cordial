@@ -16,6 +16,7 @@ export const enum ChannelType {
   Directory = 14,
   Forum = 15,
   Media = 16,
+  ThreadsOnly = 21,
 }
 
 export const enum MessageType {
@@ -23,6 +24,34 @@ export const enum MessageType {
   Call = 3,
   Reply = 19,
   ChatInputCommand = 20,
+  ContextMenuCommand = 23,
+  InteractionPremiumUpsell = 26,
+  CustomGift = 41,
+  VoiceHangoutInvite = 45,
+  Changelog = 47,
+  MediaMentionMessage = 68,
+}
+
+export const enum ActivityType {
+  Playing = 0,
+  Streaming = 1,
+  Listening = 2,
+  Watching = 3,
+  Custom = 4,
+  Competing = 5,
+}
+
+// stock's ReferencedMessageState: whether a reply's message is loaded
+export const enum ReferencedMessageState {
+  Loaded = 0,
+  NotLoaded = 1,
+  Deleted = 2,
+}
+
+// what an emoji is picked for: stock's search ranks and filters by it
+export const enum EmojiIntention {
+  Reaction = 0,
+  Chat = 3,
 }
 
 // BigInt permission bit flags
@@ -105,7 +134,14 @@ export interface Emoji {
   guildId?: Id
 }
 
-// a sticker: format 1 PNG, 2 APNG, 3 Lottie, 4 GIF; a server's (guild_id) or one of Discord's packs (pack_id)
+export const enum StickerFormat {
+  PNG = 1,
+  APNG = 2,
+  Lottie = 3,
+  GIF = 4,
+}
+
+// a sticker: a server's (guild_id) or one of Discord's packs (pack_id)
 export interface Sticker {
   id: Id
   name: string
@@ -168,11 +204,42 @@ export interface Message {
   stickerItems?: { id: Id; name: string; format_type: number }[]
   messageReference?: { channel_id: Id; message_id: Id; guild_id?: Id } | null
   messageSnapshots?: { message: Message }[]
-  interaction?: Record<string, any> | null
-  interactionMetadata?: Record<string, any> | null
+  interaction?: Interaction | null
+  interactionMetadata?: Interaction | null
   // a DM call's: who was in it, and its length as a moment duration
   call?: { participants: Id[]; duration?: { humanize(): string } | null }
   isCommandType(): boolean
+}
+
+// the command an app's message answers: its name and who used it
+export interface Interaction {
+  name?: string
+  displayName?: string
+  user: User
+}
+
+// a node of Discord's markdown AST: the fields the renderer reads, each set on the node types that carry it
+export type MarkdownNode = {
+  type: string
+  content?: string | MarkdownNode[]
+  level?: number
+  ordered?: boolean
+  start?: number
+  items?: MarkdownNode[][]
+  name?: string
+  surrogate?: string
+  src?: string
+  emojiId?: Id
+  animated?: boolean
+  inContent?: MarkdownNode[]
+  guildId?: Id
+  channelId?: Id
+  messageId?: Id
+  roleColor?: number
+  formatted?: string
+  target?: string
+  icon?: string
+  iconType?: string
 }
 
 // an embed's media as the record keeps it

@@ -25,9 +25,13 @@ import { CallButtons } from './call'
 import { MembersToggle } from './members'
 
 export function Header() {
+  const title = () => {
+    const guildId = selectedGuild()
+    return guildId ? guilds.get(guildId)?.name : text('DIRECT_MESSAGES')
+  }
   return (
     <header>
-      <h1>{selectedGuild() ? guilds.get(selectedGuild()!)?.name : text('DIRECT_MESSAGES')}</h1>
+      <h1>{title()}</h1>
       <Show when={selectedChannel()}>
         {(c) => (
           <div class="channel">
@@ -144,6 +148,10 @@ function Pins(p: { channel: Channel }) {
   const id = () => p.channel.id
   const pins = () => messages.pins(id())
   const items = () => pins()?.items ?? []
+  const none = () => {
+    const pinned = pins()
+    return pinned && pinned.state !== 'LOADING' && !pinned.items.length
+  }
   let pop!: HTMLDivElement
   return (
     <>
@@ -164,7 +172,7 @@ function Pins(p: { channel: Channel }) {
         }}
       >
         <h2>{text('PINNED_MESSAGES')}</h2>
-        <Show when={pins() && pins()!.state !== 'LOADING' && !items().length}>
+        <Show when={none()}>
           <p>{text(p.channel.guild_id ? 'NO_PINS_IN_CHANNEL' : 'NO_PINS_IN_DM')}</p>
         </Show>
         <For each={items()}>
@@ -185,8 +193,8 @@ function Pins(p: { channel: Channel }) {
 function Search(p: { channel: Channel }) {
   const c = () => p.channel
   const [offset, setOffset] = createSignal(0)
-  let pop!: HTMLDivElement,
-    query = ''
+  let pop!: HTMLDivElement
+  let query = ''
   const run = (at: number) => {
     setOffset(at)
     search.run(c(), query, at)

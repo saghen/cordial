@@ -3,10 +3,9 @@
 
 import { openLink } from '../api/channels'
 import { emojiSrc } from '../api/pickers'
+import type { MarkdownNode } from '../api/types'
 import { Icon } from '../primitives/icon'
 import type { IconName } from '../primitives/icons'
-
-type Node = Record<string, any> & { type: string }
 
 const TAGS: Record<string, string> = {
   strong: 'strong',
@@ -22,31 +21,33 @@ const TAGS: Record<string, string> = {
   autolink: 'a',
 }
 
-const text = (n: Node): string =>
-  typeof n.content === 'string' ? n.content : Array.isArray(n.content) ? n.content.map(text).join('') : ''
+const text = (n: MarkdownNode): string =>
+  typeof n.content === 'string' ? n.content : (n.content?.map(text).join('') ?? '')
 
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, content: unknown): HTMLElementTagNameMap[K]
+function el(tag: string, content: unknown): HTMLElement
 function el(tag: string, content: unknown) {
-  const e = document.createElement(tag) as HTMLElement & Record<string, any>
+  const e = document.createElement(tag)
   if (typeof content === 'string') e.append(content)
   else if (Array.isArray(content)) renderAST(content, e)
   return e
 }
 
-function node(n: Node): globalThis.Node | string {
+function node(n: MarkdownNode): Node | string {
   switch (n.type) {
     case 'text':
-      return n.content
+      return text(n)
     case 'br':
     case 'newline':
       return '\n'
     case 'heading':
-      return el(`h${Math.min(3, n.level)}`, n.content)
+      return el(`h${Math.min(3, n.level ?? 1)}`, n.content)
     case 'codeBlock':
       return el('pre', n.content)
     case 'list': {
       const l = el(n.ordered ? 'ol' : 'ul', null)
-      if (n.ordered && n.start != null) l.start = n.start
-      for (const item of n.items) l.append(el('li', item))
+      if (l instanceof HTMLOListElement && n.start != null) l.start = n.start
+      for (const item of n.items ?? []) l.append(el('li', item))
       return l
     }
     case 'emoji':
@@ -62,8 +63,9 @@ function node(n: Node): globalThis.Node | string {
       const m = el('mark', null)
       m.className = 'channel-link'
       if (n.inContent) m.append(...n.inContent.map(part), ' › ')
-      m.append(...n.content.map(part))
-      if (n.channelId) m.onclick = () => openLink(n.guildId, n.channelId, n.messageId)
+      if (Array.isArray(n.content)) m.append(...n.content.map(part))
+      const channelId = n.channelId
+      if (channelId) m.onclick = () => openLink(n.guildId, channelId, n.messageId)
       return m
     }
     case 'mention':
@@ -86,7 +88,7 @@ function node(n: Node): globalThis.Node | string {
 
 // a channel link's part: a channel (its icon by kind, its name; a message's icon alone) or a server (its icon, its name)
 const CHANNEL_ICONS: Record<string, IconName> = { voice: 'voice', message: 'chat', announcement: 'announce' }
-function part(n: Node): globalThis.Node | string {
+function part(n: MarkdownNode): Node | string {
   if (n.type === 'guild') {
     const s = el('span', n.content)
     if (n.icon) s.prepend(Object.assign(el('img', null), { src: n.icon, alt: '' }))
@@ -94,15 +96,15 @@ function part(n: Node): globalThis.Node | string {
   }
   if (n.type !== 'channel') return node(n)
   const s = el('span', n.content)
-  s.prepend((<Icon name={CHANNEL_ICONS[n.iconType] ?? 'hash'} />) as HTMLElement)
+  s.prepend((<Icon name={CHANNEL_ICONS[n.iconType ?? ''] ?? 'hash'} />) as HTMLElement)
   return s
 }
 
-export function renderAST(nodes: Node[], parent: HTMLElement | DocumentFragment) {
+export function renderAST(nodes: MarkdownNode[], parent: HTMLElement | DocumentFragment) {
   for (const n of nodes) parent.append(node(n))
   return parent
 }
 
-export const Markdown = (p: { ast: any[]; inline?: boolean }) => (
-  <span class={['markdown', { inline: !!p.inline }]} ref={(s) => renderAST(p.ast, s)} />
+export const Markdown = (p: { ast: MarkdownNode[]; inline?: boolean }) => (
+  <span class={['markdown', { inline: Boolean(p.inline) }]} ref={(s) => renderAST(p.ast, s)} />
 )

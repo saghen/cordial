@@ -24,7 +24,7 @@ export function Tile(p: {
     <figure
       class={[
         'tile',
-        { speaking: p.speaking, mute: p.muted, deaf: p.deafened, compact: !!p.compact, focus: !!p.focus },
+        { speaking: p.speaking, mute: p.muted, deaf: p.deafened, compact: Boolean(p.compact), focus: Boolean(p.focus) },
       ]}
       data-id={p.user.id}
       title={users.displayName(p.user, p.guildId)}
@@ -58,7 +58,8 @@ function averageColor(url: string) {
       set(`rgb(${r} ${g} ${b})`)
     }
     img.src = url
-    colors.set(url, (color = get))
+    color = get
+    colors.set(url, color)
   }
   return color()
 }

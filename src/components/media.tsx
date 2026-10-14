@@ -19,14 +19,14 @@ const fit = (m: Source, w: number, h: number) => {
 }
 
 export function Media(p: { media: Source; box: Box; href?: string }) {
-  const isGif = !!p.media.proxyURL && /\.gif(\?|$)/i.test(p.media.url)
-  const [w, h] = BOX[isGif && p.box === 'sent' ? 'media' : p.box],
-    { width, height } = fit(p.media, w, h)
+  const isGif = Boolean(p.media.proxyURL) && /\.gif(\?|$)/i.test(p.media.url)
+  const [w, h] = BOX[isGif && p.box === 'sent' ? 'media' : p.box]
+  const { width, height } = fit(p.media, w, h)
   const src = p.media.proxyURL
     ? `${p.media.proxyURL}${p.media.proxyURL.includes('?') ? '&' : '?'}width=${width}&height=${height}`
     : p.media.url
-  const href = p.href,
-    full = p.media.proxyURL ?? p.media.url
+  const href = p.href
+  const full = p.media.proxyURL ?? p.media.url
   return (
     <img
       class={['media', { thumb: p.box === 'thumb', zoom: !href }]}
@@ -35,7 +35,9 @@ export function Media(p: { media: Source; box: Box; href?: string }) {
       height={height}
       loading="lazy"
       src={isGif && !windowFocused() ? `${src}&format=webp` : src}
-      onPointerEnter={() => href || (new Image().src = full)}
+      onPointerEnter={() => {
+        if (!href) new Image().src = full
+      }}
       onClick={() => (href ? window.open(href) : viewer.open(full, p.media.url))}
     />
   )

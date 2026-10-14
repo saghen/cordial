@@ -48,8 +48,13 @@ export const enum Level {
 }
 // with new notifications, a level also sets the channel's unread flags: Mentions with all unreads is
 // "@Mentions + Unreads"
-const UNREADS_ALL = 1024,
-  UNREADS_MENTIONS = 512
+const UNREADS_ALL = 1024
+const UNREADS_MENTIONS = 512
+// stock's UnreadSetting: which unreads a channel or server shows
+const enum UnreadSetting {
+  Unset = 0,
+  AllMessages = 1,
+}
 
 export interface Choice {
   level: Level
@@ -64,7 +69,7 @@ const fresh = (c: Channel) =>
     ChannelType.Category,
     ChannelType.Announcement,
     ChannelType.Forum,
-    21 /* GUILD_THREADS_ONLY */,
+    ChannelType.ThreadsOnly,
   ].includes(c.type)
 
 const LABELS = ['FORM_LABEL_ALL_MESSAGES', 'FORM_LABEL_ONLY_MENTIONS_PLAIN', 'FORM_LABEL_NOTHING'] as const
@@ -89,7 +94,7 @@ const level = (c: Channel): Level =>
   $.UserGuildSettings.getChannelOverrides(c.guild_id!)[c.id]?.message_notifications ?? Level.Default
 
 export function chosen(c: Channel, choice: Choice) {
-  const unreadAll = $.UserGuildSettings.resolveUnreadSetting(c) === 1
+  const unreadAll = $.UserGuildSettings.resolveUnreadSetting(c) === UnreadSetting.AllMessages
   if (choice.unreads) return level(c) === Level.Mentions && unreadAll
   if (fresh(c) && choice.level === Level.Mentions) return level(c) === Level.Mentions && !unreadAll
   return choice.level === level(c)
@@ -99,18 +104,25 @@ export function choose(c: Channel, choice: Choice) {
   const what = `notifications set to ${['all messages', 'mentions', 'nothing', 'the default'][choice.level]}`
   if (!fresh(c)) return update(c, { message_notifications: choice.level }, what)
   const flags = S.UserGuildSettings.getChannelIdFlags(c.guild_id!, c.id) & ~(UNREADS_ALL | UNREADS_MENTIONS)
-  const unread =
-    choice.level === Level.Default ? 0 : choice.unreads || choice.level === Level.All ? UNREADS_ALL : UNREADS_MENTIONS
-  update(c, { message_notifications: choice.level, flags: flags | unread }, what)
+  update(c, { message_notifications: choice.level, flags: flags | unreadFlag(choice) }, what)
+}
+
+// the unread flag a choice sets: none for the default
+function unreadFlag(choice: Choice) {
+  if (choice.level === Level.Default) return 0
+  return choice.unreads || choice.level === Level.All ? UNREADS_ALL : UNREADS_MENTIONS
 }
 
 // what the default is: the category's level, else the server's
 export function fallback(c: Channel) {
-  const U = $.UserGuildSettings,
-    g = c.guild_id!
+  const U = $.UserGuildSettings
+  const g = c.guild_id!
   const parent = c.parent_id ? U.getChannelMessageNotifications(g, c.parent_id) : Level.Default
-  const unread = c.parent_id ? U.getChannelUnreadSetting(g, c.parent_id) : 0
+  const unread = c.parent_id ? U.getChannelUnreadSetting(g, c.parent_id) : UnreadSetting.Unset
   // a server's level is never the default
   const level = (parent !== Level.Default ? parent : U.getMessageNotifications(g)) as Exclude<Level, Level.Default>
-  return label(level, fresh(c) && level === Level.Mentions && (unread || U.getGuildUnreadSetting(g)) === 1)
+  return label(
+    level,
+    fresh(c) && level === Level.Mentions && (unread || U.getGuildUnreadSetting(g)) === UnreadSetting.AllMessages,
+  )
 }

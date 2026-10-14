@@ -4,7 +4,7 @@
 // (stock's range helper) when it opens and as it scrolls.
 
 import { A } from '../adapter/needs'
-import { ChannelType, type PrivateChannel, type User } from './types'
+import { ChannelType, type Id, type PrivateChannel, type User } from './types'
 import { $, selected, selectedChannel, selectedGuild } from './store'
 import { text } from './strings'
 import * as users from './users'
@@ -13,7 +13,7 @@ import * as users from './users'
 const ROW = 44
 
 // a server's channels and group DMs have a list; whether it's open is stock's (toggled from the header)
-export const listed = () => !!selectedGuild() || selectedChannel()?.type === ChannelType.GroupDM
+export const listed = () => Boolean(selectedGuild()) || selectedChannel()?.type === ChannelType.GroupDM
 export const open = () => listed() && $.ChannelSection.getSection(selected()!, false) === 'MEMBERS'
 export const toggle = () => A.channelSections.toggleMembersSection()
 
@@ -28,15 +28,20 @@ export interface Member {
   user: User
   status: string
 }
+// ChannelMemberStore's props: its rows (a server's not loaded yet are undefined) and its groups' counts
+interface Props {
+  rows: ({ type: 'GROUP'; id: Id; title: string } | { type: 'MEMBER'; user: User; status: string } | undefined)[]
+  groups: { id: Id; count: number }[]
+}
 // the rows in order; a server's not loaded yet are undefined, kept for their place
 export function rows(): (Group | Member | undefined)[] {
   const guildId = selectedGuild()
   if (!guildId) return groupRows()
-  const props = $.ChannelMember.getProps(guildId, selected()!)
+  const props = $.ChannelMember.getProps(guildId, selected()!) as Props
   // a group row carries no count: it's in groups
-  return props.rows.map((r: any) =>
+  return props.rows.map((r): Group | Member | undefined =>
     r?.type === 'GROUP'
-      ? { type: 'GROUP', id: r.id, label: `${r.title} — ${props.groups.find((g: any) => g.id === r.id)?.count ?? 0}` }
+      ? { type: 'GROUP', id: r.id, label: `${r.title} — ${props.groups.find((g) => g.id === r.id)?.count ?? 0}` }
       : r && { type: 'MEMBER', user: r.user, status: r.status },
   )
 }
@@ -45,7 +50,7 @@ function groupRows(): (Group | Member)[] {
   if (!c || c.type !== ChannelType.GroupDM) return []
   const all = [...(c as PrivateChannel).recipients, users.me()?.id]
     .map((id) => id && users.get(id))
-    .filter((u): u is User => !!u)
+    .filter((u): u is User => Boolean(u))
     .sort((a, b) => users.nameOf(a).localeCompare(users.nameOf(b)))
   return [
     { type: 'GROUP', id: 'members', label: `${text('MEMBERS')}—${all.length}` },

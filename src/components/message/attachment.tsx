@@ -8,13 +8,20 @@ import * as pickers from '../../api/pickers'
 import type { Attachment as File, Message } from '../../api/types'
 import { Clip, Media } from '../media'
 
-const size = (n: number) =>
-  n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`
+const KB = 1024
+// stock's sticker size, in px
+const STICKER_SIZE = 160
+
+function size(n: number) {
+  if (n < KB) return `${n} B`
+  if (n < KB ** 2) return `${(n / KB).toFixed(1)} KB`
+  return `${(n / KB ** 2).toFixed(1)} MB`
+}
 
 export function Attachment(p: { file: File }) {
-  const f = p.file,
-    type = f.content_type?.split('/')[0],
-    media = { url: f.url, proxyURL: f.proxy_url, width: f.width!, height: f.height! }
+  const f = p.file
+  const type = f.content_type?.split('/')[0]
+  const media = { url: f.url, proxyURL: f.proxy_url, width: f.width!, height: f.height! }
   if (type === 'image' && f.width) return <Media media={media} box="sent" />
   if (type === 'video') return <Clip src={f.url} media={media} />
   return (
@@ -29,6 +36,15 @@ type StickerItem = NonNullable<Message['stickerItems']>[number]
 
 export const Sticker = (p: { sticker: StickerItem }) => (
   <Show when={pickers.stickerSrc(p.sticker)} fallback={<i class="sticker">{p.sticker.name}</i>}>
-    {(src) => <img class="sticker" alt={p.sticker.name} title={p.sticker.name} width={160} height={160} src={src()} />}
+    {(src) => (
+      <img
+        class="sticker"
+        alt={p.sticker.name}
+        title={p.sticker.name}
+        width={STICKER_SIZE}
+        height={STICKER_SIZE}
+        src={src()}
+      />
+    )}
   </Show>
 )

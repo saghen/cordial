@@ -25,7 +25,7 @@ export function automaticAck(channelId: Id, on: boolean) {
   A.dispatcher.dispatch({
     type: on ? 'ENABLE_AUTOMATIC_ACK' : 'DISABLE_AUTOMATIC_ACK',
     channelId,
-    windowId: (window as any).__DISCORD_WINDOW_ID,
+    windowId: (window as Window & { __DISCORD_WINDOW_ID?: string }).__DISCORD_WINDOW_ID,
   })
 }
 

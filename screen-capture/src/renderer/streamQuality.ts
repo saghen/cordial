@@ -86,7 +86,7 @@ const soundTracks = new WeakSet<MediaStreamTrack>()
 
 /** Marks a track as the stream's sound (cast.ts). */
 export const markStreamSound = (track: MediaStreamTrack) => void soundTracks.add(track)
-export const isStreamSound = (track: MediaStreamTrack | null | undefined) => !!track && soundTracks.has(track)
+export const isStreamSound = (track: MediaStreamTrack | null | undefined) => Boolean(track && soundTracks.has(track))
 
 function withSoundRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
   if (isStreamSound(sender.track)) for (const e of params.encodings ?? []) e.maxBitrate = SOUND_BPS
@@ -207,10 +207,7 @@ RTCPeerConnection.prototype.setRemoteDescription = function (
         .map((s) => castSessionFor(s.track)?.quality)
         .find((q) => q)
       let sdp = desc.sdp
-      if (q) {
-        sdp = withMaxBitrate(sdp, Math.round(q.maxBitrate / 1000))
-        logger.info('Go Live connection: max bitrate', q.maxBitrate)
-      }
+      if (q) sdp = withMaxBitrate(sdp, Math.round(q.maxBitrate / 1000))
       desc = { type: desc.type, sdp: withStartBitrate(sdp) }
     }
   } catch (e) {

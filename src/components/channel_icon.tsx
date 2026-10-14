@@ -4,11 +4,14 @@ import * as channels from '../api/channels'
 import { ChannelType, type Channel } from '../api/types'
 import { Icon } from '../primitives/icon'
 
+// a text channel's icon by its kind
+const TEXT_ICONS = { news: 'announce', nsfw: 'hash-nsfw', lock: 'hash-lock' } as const
+
 export function ChannelIcon(p: { channel: Channel }) {
   const name = () => {
     const kind = channels.kindOf(p.channel)
     if (p.channel.type === ChannelType.Voice) return kind === 'lock' ? 'voice-lock' : 'voice'
-    return kind === 'news' ? 'announce' : kind === 'nsfw' ? 'hash-nsfw' : kind === 'lock' ? 'hash-lock' : 'hash'
+    return kind ? TEXT_ICONS[kind] : 'hash'
   }
   return <Icon name={name()} />
 }

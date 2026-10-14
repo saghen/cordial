@@ -19,8 +19,8 @@ export function Embed(p: { embed: Record }) {
     const m = e.image ?? e.thumbnail
     return m ? <Media media={m} box="media" /> : null
   }
-  const big = e.image ?? (e.video && e.thumbnail),
-    small = !e.video && e.thumbnail
+  const big = e.image ?? (e.video && e.thumbnail)
+  const small = !e.video && e.thumbnail
   // as stock: no description for YouTube (youtu.be, shorts, music. and m. included)
   const text =
     e.provider?.name !== 'YouTube' && !/\b(youtube(-nocookie)?\.com|youtu\.be)\//.test(e.url ?? '') && e.rawDescription

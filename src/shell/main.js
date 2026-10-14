@@ -11,20 +11,15 @@ app.userAgentFallback = app.userAgentFallback.replace(/ (cordial|Electron)\/\S+/
 // cause switch spikes at the same memory
 app.commandLine.appendSwitch(
   'disable-features',
-  'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication' +
-    (process.env.CORDIAL_EXP_DISABLE ? ',' + process.env.CORDIAL_EXP_DISABLE : ''),
+  'AudioServiceOutOfProcess,SpareRendererForSitePerProcess,Translate,MediaRouter,OptimizationHints,AutofillServerCommunication',
 )
-app.commandLine.appendSwitch(
-  'js-flags',
-  '--heap-growing-percent=50' + (process.env.CORDIAL_EXP_JS ? ' ' + process.env.CORDIAL_EXP_JS : ''),
-)
-// EXPERIMENT (memory): extra switches by env
-if (process.env.CORDIAL_EXP_ENABLE) app.commandLine.appendSwitch('enable-features', process.env.CORDIAL_EXP_ENABLE)
-for (const sw of (process.env.CORDIAL_EXP_SWITCHES ?? '').split(' ').filter(Boolean))
-  app.commandLine.appendSwitch(...sw.split('='))
+app.commandLine.appendSwitch('js-flags', '--heap-growing-percent=50')
 
 // Chrome's zoom steps between 0.5 and 3
 const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3]
+const MIN_ZOOM = 0.5
+const MAX_ZOOM = 3
+const DEFAULT_ZOOM = 1.5
 
 // <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none);
 // { "keybinds": { "Ctrl+Shift+M": "TOGGLE_MUTE", ... } } are global shortcuts (read at start): TOGGLE_MUTE,
@@ -36,7 +31,9 @@ const config = () => {
     return {}
   }
 }
-ipcMain.on('cordial:config', (e) => (e.returnValue = config()))
+ipcMain.on('cordial:config', (e) => {
+  e.returnValue = config()
+})
 
 // an image's actions (the viewer's menu, Ctrl+C there): copied to the clipboard (PNG or JPEG: nativeImage reads no
 // other), saved through Electron's save dialog. Fetched here: the page's fetch is cross-origin to Discord's media
@@ -69,7 +66,8 @@ function bindKeys(binds) {
   if (!known.length) return
   const bin =
     process.env.CORDIAL_GLOBAL_KEYBINDS ?? path.join(__dirname, '../../global-keybinds/target/release/global-keybinds')
-  const p = (keybinds = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] }))
+  const p = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] })
+  keybinds = p
   p.on('error', (err) => console.error('[cordial] no global keybinds:', err.message))
   p.stdin.on('error', () => {})
   p.stdin.end(known.map(([keys, action]) => `${keys}\tcordial: ${action}\n`).join(''))
@@ -81,8 +79,7 @@ function bindKeys(binds) {
       const [, what, keys] = l.match(/^(\w+) ([^\t]*)/) ?? []
       const run = KEYBINDS[binds[keys]]?.[what]
       if (run) win?.webContents.executeJavaScript(run).catch(() => {})
-      else if (what === 'bound') console.log(`[cordial] global keybind ${l.slice(6)}`)
-      else if (what !== 'down' && what !== 'up') console.error(`[cordial] global keybinds: ${l}`)
+      else if (what !== 'bound' && what !== 'down' && what !== 'up') console.error(`[cordial] global keybinds: ${l}`)
     }
   })
 }
@@ -94,12 +91,13 @@ ipcMain.on('cordial:games', (e, list) => {
   observer?.kill()
   const bin =
     process.env.CORDIAL_GAME_DETECTION ?? path.join(__dirname, '../../game-detection/target/release/game-detection')
-  const p = (observer = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] }))
+  const p = spawn(bin, { stdio: ['pipe', 'pipe', 'inherit'] })
+  observer = p
   p.on('error', (err) => console.error('[cordial] no game detection:', err.message))
   p.stdin.on('error', () => {})
   p.stdin.end(list)
-  let rest = '',
-    games = []
+  let rest = ''
+  let games = []
   p.stdout.on('data', (d) => {
     const lines = (rest + d).split('\n')
     rest = lines.pop()
@@ -132,9 +130,9 @@ require('../../screen-capture/src/main/cast.js')
 
 app.whenReady().then(() => {
   const zoomFile = path.join(app.getPath('userData'), 'zoom')
-  let zoom = 1.5
+  let zoom = DEFAULT_ZOOM
   try {
-    zoom = Math.min(3, Math.max(0.5, Number(fs.readFileSync(zoomFile, 'utf8')) || 1.5))
+    zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(fs.readFileSync(zoomFile, 'utf8')) || DEFAULT_ZOOM))
   } catch {}
 
   win = new BrowserWindow({
@@ -145,11 +143,8 @@ app.whenReady().then(() => {
       preload: path.join(__dirname, 'preload.js'),
       sandbox: false,
       zoomFactor: zoom,
-      ...(process.env.CORDIAL_EXP_NOSPELL ? { spellcheck: false } : {}),
     },
   })
-  // EXPERIMENT (memory): hide the window after N s, as in the tray
-  if (process.env.CORDIAL_EXP_HIDE) setTimeout(() => win.hide(), Number(process.env.CORDIAL_EXP_HIDE) * 1000)
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -157,9 +152,9 @@ app.whenReady().then(() => {
   win.webContents.on('dom-ready', () => win.webContents.setZoomFactor(zoom))
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown' || !input[process.platform === 'darwin' ? 'meta' : 'control']) return
-    if (input.key === '=' || input.key === '+') zoom = steps.find((s) => s > zoom + 0.01) ?? 3
-    else if (input.key === '-') zoom = steps.findLast((s) => s < zoom - 0.01) ?? 0.5
-    else if (input.key === '0') zoom = 1.5
+    if (input.key === '=' || input.key === '+') zoom = steps.find((s) => s > zoom + 0.01) ?? MAX_ZOOM
+    else if (input.key === '-') zoom = steps.findLast((s) => s < zoom - 0.01) ?? MIN_ZOOM
+    else if (input.key === '0') zoom = DEFAULT_ZOOM
     else return
     event.preventDefault()
     win.webContents.setZoomFactor(zoom)
@@ -187,7 +182,7 @@ app.whenReady().then(() => {
   win.on('page-title-updated', (_, title) => app.setBadgeCount(+(title.match(/^\((\d+)\) /)?.[1] ?? 0)))
   // hidden rather than auto-hidden: Alt doesn't show it, its shortcuts (DevTools, reload) still work
   win.setMenuBarVisibility(false)
-  win.loadURL(process.env.CORDIAL_EXP_BLANK ? 'about:blank' : `https://discord.com${linkPath(process.argv) ?? '/app'}`)
+  win.loadURL(`https://discord.com${linkPath(process.argv) ?? '/app'}`)
   bindKeys(config().keybinds ?? {})
 })
 

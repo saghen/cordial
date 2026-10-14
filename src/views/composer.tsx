@@ -31,9 +31,9 @@ export function Composer() {
   // a switch saves the text left behind; the box then shows the new channel's draft, or the message being edited, and
   // takes the focus
   createEffect(
-    () => [selected(), c.editing()] as const,
-    ([channelId], prev) => {
-      if (prev?.[0] && prev[0] !== channelId) c.leave(prev[0])
+    () => ({ channelId: selected(), editing: c.editing() }),
+    ({ channelId }, prev) => {
+      if (prev?.channelId && prev.channelId !== channelId) c.leave(prev.channelId)
       box!.value = channelId ? c.textOf(channelId) : ''
       if (channelId) box!.focus()
     },
@@ -86,7 +86,7 @@ export function Composer() {
           </div>
         )}
       </Show>
-      <div class={['box', { editing: !!c.editing() }]}>
+      <div class={['box', { editing: Boolean(c.editing()) }]}>
         <Show when={c.uploads().length}>
           <ul class="uploads">
             <For each={c.uploads()}>
@@ -168,6 +168,7 @@ interface Item {
 }
 
 const TOKEN = /(?:^|\s)([@#:])([^\s@#:]*)$/
+const MENTION_LIMIT = 15
 type Token = { kind: string; query: string; at: number }
 // stock's headings: "Members" alone, "Members matching **@pie**" with a query
 const heading = (
@@ -200,7 +201,7 @@ function items(t: Token, c: Channel): Item[] {
         hint: text('MENTION_USERS_WITH_ROLE'),
         color: role.colorString ?? undefined,
       })),
-    ).slice(0, 15)
+    ).slice(0, MENTION_LIMIT)
   }
   if (t.kind === '#')
     return composer.channelResults(t.query, c).map((ch, i) => ({
@@ -223,12 +224,16 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
   const [token, setToken] = createSignal<Token | null>(null)
   const [sel, setSel] = createSignal(0)
   let menu!: HTMLMenuElement
-  const list = createMemo(() => (token() && channel() ? items(token()!, channel()!) : []))
+  const list = createMemo(() => {
+    const typed = token()
+    const current = channel()
+    return typed && current ? items(typed, current) : []
+  })
 
   // after each input: the token the caret ends
   const update = () => {
-    const b = box(),
-      m = TOKEN.exec(b.value.slice(0, b.selectionStart))
+    const b = box()
+    const m = TOKEN.exec(b.value.slice(0, b.selectionStart))
     setToken(m ? { kind: m[1], query: m[2], at: b.selectionStart - m[2].length - 1 } : null)
     setSel(0)
   }
@@ -265,7 +270,7 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
       <For each={list()}>
         {(item, i) => (
           <>
-            {item.head ? <h3>{item.head}</h3> : item.div ? <hr /> : null}
+            {item.head ? <h3>{item.head}</h3> : item.div && <hr />}
             <Row
               name="suggestion"
               class={{ sel: i() === sel() }}

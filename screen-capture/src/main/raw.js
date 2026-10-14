@@ -9,16 +9,21 @@
 const { sharedTexture } = require('electron')
 const { closeSync } = require('node:fs')
 
+const RELEASE_MS = 2000
+
 let fdsock
 /** The fd socket addon (addon/fdsock.c, $CORDIAL_FDSOCK: the flake's fdsock), or null: no raw fallback. */
 function loadFdsock() {
   if (fdsock !== undefined) return fdsock
   const file = process.env.CORDIAL_FDSOCK
-  if (!file) return (fdsock = null)
+  if (!file) {
+    fdsock = null
+    return fdsock
+  }
   try {
     fdsock = require(file)
   } catch (e) {
-    console.log(`[cast] no raw fallback: ${file}: ${e.message}`)
+    console.warn(`[cast] no raw fallback: ${file}: ${e.message}`)
     fdsock = null
   }
   return fdsock
@@ -64,7 +69,7 @@ function rawRelay(contents) {
       const old = imports.get(m.id)
       if (old) {
         if (!contents.isDestroyed()) contents.send('cordial:cast-raw-drop', old.key)
-        setTimeout(() => old.imported.release(), 2000)
+        setTimeout(() => old.imported.release(), RELEASE_MS)
       }
       const key = ++keys
       imports.set(m.id, { imported, key })
@@ -77,7 +82,7 @@ function rawRelay(contents) {
       imports.clear()
       if (!contents.isDestroyed()) contents.send('cordial:cast-raw-end')
       // (released as a new size's are: once no frame from them is in the encoder or compositor)
-      setTimeout(() => old.forEach((b) => b.imported.release()), 2000)
+      setTimeout(() => old.forEach((b) => b.imported.release()), RELEASE_MS)
     },
   }
 }

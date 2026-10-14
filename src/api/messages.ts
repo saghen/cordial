@@ -4,7 +4,7 @@
 
 import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
-import type { Channel, Emoji, Message, Reaction } from './types'
+import type { Channel, Emoji, MarkdownNode, Message, Reaction, ReferencedMessageState } from './types'
 import { MessageType, Permission } from './types'
 import { $ } from './store'
 import { day, text } from './strings'
@@ -20,16 +20,30 @@ export const get = (channelId: Id, id: Id) => S.Message.getMessage(channelId, id
 // name) within 7 minutes on the same day, both user messages, matching flags
 
 const GROUP_MS = 7 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
 // user messages (content as markdown); any other type is a system message (stock's text for it)
-const USER = new Set([0, 19, 20, 23, 26, 41, 45, 47, 68])
+const USER = new Set([
+  MessageType.Default,
+  MessageType.Reply,
+  MessageType.ChatInputCommand,
+  MessageType.ContextMenuCommand,
+  MessageType.InteractionPremiumUpsell,
+  MessageType.CustomGift,
+  MessageType.VoiceHangoutInvite,
+  MessageType.Changelog,
+  MessageType.MediaMentionMessage,
+])
 export const isUser = (m: Message) => USER.has(m.type)
 // a blocked or ignored author's message (MessageStore keeps the flags current), which stock collapses in runs
-export const hiddenAs = (m?: Message): 'blocked' | 'ignored' | undefined =>
-  m?.blocked ? 'blocked' : m?.ignored ? 'ignored' : undefined
-const HAS_THREAD = 1 << 5,
-  EPHEMERAL = 1 << 6,
-  SUPPRESS_NOTIFICATIONS = 1 << 12,
-  IS_SCHEDULED = 1 << 20
+export function hiddenAs(m?: Message): 'blocked' | 'ignored' | undefined {
+  if (m?.blocked) return 'blocked'
+  if (m?.ignored) return 'ignored'
+  return undefined
+}
+const HAS_THREAD = 1 << 5
+const EPHEMERAL = 1 << 6
+const SUPPRESS_NOTIFICATIONS = 1 << 12
+const IS_SCHEDULED = 1 << 20
 
 const flag = (m: Message, f: number) => (m.flags & f) !== 0
 const orNull = (s: unknown) => (s == null || s === '' ? null : s)
@@ -39,10 +53,10 @@ export function startsGroup(channel: Channel | undefined, prev: Message | undefi
   if (flag(m, HAS_THREAD) || m.isCommandType?.() || prev.blocked !== m.blocked || prev.ignored !== m.ignored)
     return true
   if (m.applicationId !== prev.applicationId || orNull(m.additionalName) !== orNull(prev.additionalName)) return true
-  if (m.type > 0) return isUser(prev) || m.type === MessageType.Reply
-  const a = prev.timestamp,
-    b = m.timestamp,
-    apart = Math.abs(a.getTime() - b.getTime())
+  if (m.type !== MessageType.Default) return isUser(prev) || m.type === MessageType.Reply
+  const a = prev.timestamp
+  const b = m.timestamp
+  const apart = Math.abs(a.getTime() - b.getTime())
   return (
     !isUser(prev) ||
     prev.author.id !== m.author.id ||
@@ -50,8 +64,9 @@ export function startsGroup(channel: Channel | undefined, prev: Message | undefi
     flag(prev, IS_SCHEDULED) !== flag(m, IS_SCHEDULED) ||
     (m.webhookId != null && prev.author.username !== m.author.username) ||
     (channel?.isForumPost?.() && prev.id === channel.id) ||
-    !(apart <= 864e5 && a.getDate() === b.getDate()) ||
-    !(apart < GROUP_MS) ||
+    apart > DAY_MS ||
+    a.getDate() !== b.getDate() ||
+    apart >= GROUP_MS ||
     (flag(m, SUPPRESS_NOTIFICATIONS) && !flag(prev, SUPPRESS_NOTIFICATIONS)) ||
     (flag(prev, SUPPRESS_NOTIFICATIONS) &&
       !flag(m, SUPPRESS_NOTIFICATIONS) &&
@@ -67,7 +82,7 @@ export const dayOf = (prev: Message | undefined, m: Message) =>
 export const authorGuild = (m: Message, guildId: Id | null | undefined) => (m.webhookId ? null : guildId)
 
 // message content as Discord's markdown AST (what its React output is built from), with message-content options
-export function contentAST(m: Pick<Message, 'id' | 'content'>, channelId: Id): any[] {
+export function contentAST(m: Pick<Message, 'id' | 'content'>, channelId: Id) {
   return A.markdown.parseToAST(m.content, true, {
     channelId,
     messageId: m.id,
@@ -75,20 +90,23 @@ export function contentAST(m: Pick<Message, 'id' | 'content'>, channelId: Id): a
     allowHeading: true,
     allowList: true,
     allowEmojiLinks: true,
-  })
+  }) as MarkdownNode[]
 }
 // an embed's text: links and lists
-export const embedAST = (text: string): any[] =>
-  A.markdown.parseToAST(text, true, { allowLinks: true, allowList: true })
+export const embedAST = (text: string) =>
+  A.markdown.parseToAST(text, true, { allowLinks: true, allowList: true }) as MarkdownNode[]
 // a system message: stock's text for it (its formatter, as in notifications)
 export const systemText = (m: Message) => A.systemMessages.stringify(m) ?? (m.content || `(message type ${m.type})`)
 
 // a DM call you weren't in
 export const missed = (m: Message) => !(m.call?.participants ?? []).includes(S.Auth.getId())
-// the replied-to message, and its state (stock's ReferencedMessageState: 0 loaded, 1 not loaded, 2 deleted)
+// the replied-to message, and its state
 export const replied = (m: Message) =>
   m.type === MessageType.Reply && m.messageReference
-    ? ($.ReferencedMessage.getMessageByReference(m.messageReference) as { state: 0 | 1 | 2; message?: Message | null })
+    ? ($.ReferencedMessage.getMessageByReference(m.messageReference) as {
+        state: ReferencedMessageState
+        message?: Message | null
+      })
     : null
 // as stock: a message that's only the link of its image or GIF shows just the media
 export const linkOnly = (m: Message) =>
@@ -98,6 +116,9 @@ export const linkOnly = (m: Message) =>
 
 // stock's cap on a fetch's limit
 const MAX_FETCH = 30
+// how near an end of the list loads more, and near the top with unreads
+const LOAD_PX = 500
+const LOAD_UNREAD_PX = 2
 
 // As stock's: older within 500 px of the top, newer (truncated by a fetch of older) within 500 px of the bottom, two
 // pages at a time, truncating the other end. Only toward where the reader is heading: a short window can be near both
@@ -107,8 +128,10 @@ export function loadMore(channelId: Id, fromTop: number, fromBottom: number, dow
   const ms = S.Message.getMessages(channelId)
   if (!ms.ready || ms.loadingMore || !ms.length) return
   const top =
-    !down && ms.hasMoreBefore && fromTop <= (S.ReadState.getOldestUnreadMessageId(channelId) != null ? 2 : 500)
-  if (top || (down && ms.hasMoreAfter && fromBottom <= 500))
+    !down &&
+    ms.hasMoreBefore &&
+    fromTop <= (S.ReadState.getOldestUnreadMessageId(channelId) != null ? LOAD_UNREAD_PX : LOAD_PX)
+  if (top || (down && ms.hasMoreAfter && fromBottom <= LOAD_PX))
     A.messages.fetchMessages({
       channelId,
       before: top ? ms.first().id : undefined,
@@ -135,8 +158,8 @@ export function jumpTarget(channelId: Id, seen: number | undefined) {
   return {
     sequence: ms.jumpSequenceId,
     id: ms.jumpTargetId as Id,
-    flash: !!ms.jumpFlash,
-    top: !!ms.jumpTargetOffset,
+    flash: Boolean(ms.jumpFlash),
+    top: Boolean(ms.jumpTargetOffset),
   }
 }
 // the newest messages, loaded around the present when they aren't
@@ -155,11 +178,11 @@ export const jumpToReplied = (m: Message) =>
 export const oldestUnread = (channelId: Id) => $.ReadState.getOldestUnreadMessageId(channelId)
 // stock's new messages bar: "N new messages since 10:59 PM", while the channel has unreads
 export function newMessages(channelId: Id) {
-  const n = $.ReadState.getUnreadCount(channelId),
-    since = $.ReadState.getOldestUnreadTimestamp(channelId)
+  const n = $.ReadState.getUnreadCount(channelId)
+  const since = $.ReadState.getOldestUnreadTimestamp(channelId)
   if (!n || !since) return null
-  const timestamp = new Date(since),
-    today = timestamp.toDateString() === new Date().toDateString()
+  const timestamp = new Date(since)
+  const today = timestamp.toDateString() === new Date().toDateString()
   return $.ReadState.isEstimated(channelId)
     ? text(today ? 'NEW_MESSAGES_ESTIMATED' : 'NEW_MESSAGES_ESTIMATED_WITH_DATE', { count: n, timestamp })
     : text(today ? 'NEW_MESSAGES' : 'NEW_MESSAGES_WITH_DATE', { count: n, timestamp })
@@ -189,8 +212,8 @@ export function readByKey(channelId: Id) {
 // stock's Mark Unread: a manual ack of the message before this one (or of the millisecond before it), with the
 // mentions after it as the count
 export function markUnread(m: Message) {
-  const me = S.User.getCurrentUser()!,
-    all = S.Message.getMessages(m.channel_id).toArray() as Message[]
+  const me = S.User.getCurrentUser()!
+  const all = S.Message.getMessages(m.channel_id).toArray() as Message[]
   const before =
     all.filter((x) => BigInt(x.id) < BigInt(m.id)).at(-1)?.id ?? String(((BigInt(m.id) >> 22n) - 1n) << 22n)
   const mentions = all.filter((x) => BigInt(x.id) > BigInt(before) && A.readStates.countsAsMention(x, me)).length
@@ -279,6 +302,8 @@ export function ackPins(channelId: Id) {
   if (S.ReadState.hasUnreadPins(channelId)) A.dispatcher.dispatch({ type: 'CHANNEL_PINS_ACK', channelId })
 }
 
+const PINS_PAGE = 25
+
 // stock's fetchPins (its pins chunk, not loaded without it): a page of 25, unless the store has them or is loading
 export function fetchPins(channelId: Id, before?: Date) {
   const pins = S.ChannelPins.getPins(channelId)
@@ -291,7 +316,7 @@ export function fetchPins(channelId: Id, before?: Date) {
   A.rest
     .get({
       url: A.endpoints.PINS(channelId),
-      query: { limit: 25, before: before?.toISOString() },
+      query: { limit: PINS_PAGE, before: before?.toISOString() },
       retries: 2,
       oldFormErrors: true,
       rejectWithError: true,

@@ -25,20 +25,32 @@ import { createScroller } from './scroller'
 export function Chat() {
   const channelId = selected
   const channel = createMemo(selectedChannel)
-  const loaded = createMemo(() => (channelId() ? messages.list(channelId()!) : null))
+  const loaded = createMemo(() => {
+    const id = channelId()
+    return id ? messages.list(id) : null
+  })
   const list = createMemo(() => (loaded()?.toArray() ?? []) as Record[])
   // the NEW line: where ReadStateStore puts it when the channel is opened (or first, while it's shown), then kept there
   // until Escape, Mark As Read or Mark Unread. The store's own goes when you send, and moves to the first message
   // that arrives after the window was left
   const [unread, setUnread] = createSignal<Id | null>(null)
   createEffect(
-    () => [channelId(), channelId() && messages.oldestUnread(channelId()!)] as const,
-    ([id, oldest], prev) => {
-      if (id !== prev?.[0] || (oldest && !unread())) setUnread(oldest || null)
+    () => {
+      const id = channelId()
+      return { id, oldest: id && messages.oldestUnread(id) }
+    },
+    ({ id, oldest }, prev) => {
+      if (id !== prev?.id || (oldest && !unread())) setUnread(oldest || null)
     },
   )
-  const replying = createMemo(() => channelId() && messages.pendingReply(channelId()!))
-  const editing = createMemo(() => channelId() && messages.editing(channelId()!))
+  const replying = createMemo(() => {
+    const id = channelId()
+    return id && messages.pendingReply(id)
+  })
+  const editing = createMemo(() => {
+    const id = channelId()
+    return id && messages.editing(id)
+  })
   const menu = messageMenu(() => setUnread(null))
 
   // the runs of blocked or ignored messages shown, by their first message
@@ -58,7 +70,7 @@ export function Chat() {
       if (run() === m.id) while (messages.hiddenAs(list()[i() + n]) === hid) n++
       return n
     })
-    const collapsed = () => !!hid && !shown()[run()!]
+    const collapsed = () => Boolean(hid) && !shown()[run()!]
     return (
       <Message
         m={m}
@@ -111,8 +123,8 @@ export function Chat() {
   // Escape, as stock's, anywhere but another field or an open menu: the edit or the reply dropped, else the channel
   // read and back at its newest message; then the box has the focus
   const escape = (e: KeyboardEvent) => {
-    const id = channelId(),
-      t = e.target as Element
+    const id = channelId()
+    const t = e.target as Element
     if (e.key !== 'Escape' || e.defaultPrevented || !id || document.fullscreenElement) return
     if (document.querySelector(':popover-open:not([popover=manual]), dialog[open]')) return
     if (t.closest('input, textarea, [contenteditable=true]') && t.id !== 'mc-composer') return
@@ -145,9 +157,9 @@ export function Chat() {
   // after the rows are in the DOM: the scroller, and the list's `data-id` (the channel whose messages it shows)
   const rendered = createScroller(view, channelId)
   createEffect(
-    () => [channelId(), list(), loaded()?.ready] as const,
-    ([id, , ready], prev) => {
-      rendered(id !== prev?.[0])
+    () => ({ id: channelId(), list: list(), ready: loaded()?.ready }),
+    ({ id, ready }, prev) => {
+      rendered(id !== prev?.id)
       if (id && ready) jumped(id)
       if (jumping && !loaded()?.hasMoreAfter) {
         jumping = false
@@ -175,7 +187,10 @@ export function Chat() {
 // stock's new messages bar, while the channel has unreads: "N new messages since 10:59 PM", a click jumps to the oldest
 // unread, Mark As Read acks the channel
 function NewMessages(p: { channelId: () => Id | null; onRead(): void }) {
-  const bar = () => p.channelId() && messages.newMessages(p.channelId()!)
+  const bar = () => {
+    const id = p.channelId()
+    return id && messages.newMessages(id)
+  }
   return (
     <Show when={bar()}>
       {(line) => (
@@ -203,11 +218,14 @@ function NewMessages(p: { channelId: () => Id | null; onRead(): void }) {
 // people are..."
 const TYPING = ['ONE_USER_TYPING', 'TWO_USERS_TYPING', 'THREE_USERS_TYPING'] as const
 function Typing(p: { channelId: () => Id | null }) {
-  const names = createMemo(() => (p.channelId() ? typingNames(p.channelId()!) : []))
+  const names = createMemo(() => {
+    const id = p.channelId()
+    return id ? typingNames(id) : []
+  })
   return (
     <Show when={names().length}>
       <output class="typing">
-        {names().length > 3
+        {names().length > TYPING.length
           ? text('SEVERAL_USERS_TYPING')
           : textAround(TYPING[names().length - 1], {}, ['a', 'b', 'c'].slice(0, names().length)).map((part) =>
               typeof part === 'number' ? <b>{names()[part]}</b> : part,
@@ -222,8 +240,8 @@ const messageMenu = (onMarkUnread: () => void) =>
   contextMenu<{ m: Record; react: boolean }>({
     class: 'message-menu',
     find(e) {
-      const id = (e.target as Element).closest('article')?.dataset.id,
-        channelId = selected()
+      const id = (e.target as Element).closest('article')?.dataset.id
+      const channelId = selected()
       const m = id && channelId ? messages.get(channelId, id) : undefined
       return m && { m, react: false }
     },
@@ -232,13 +250,20 @@ const messageMenu = (onMarkUnread: () => void) =>
 
 // the four most used reactions on top, as stock; React swaps the items for an emoji search: the most used, then what
 // the query matches
+const TOP_REACTIONS = 4
+const REACTION_RESULTS = 24
 function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void }) {
   const [query, setQuery] = createSignal<string | null>(p.react ? '' : null)
   const m = () => p.message
   const channel = () => channels.get(m().channel_id)!
   const can = (permission: bigint) => users.can(permission, channel())
-  const emojis = () =>
-    (query() ? pickers.searchReactions(channel(), query()!, 24) : pickers.frequentReactions()).slice(0, 24)
+  const emojis = () => {
+    const search = query()
+    return (search ? pickers.searchReactions(channel(), search, REACTION_RESULTS) : pickers.frequentReactions()).slice(
+      0,
+      REACTION_RESULTS,
+    )
+  }
   const Emojis = (p: { each: EmojiRecord[] }) => (
     <p>
       <Items
@@ -273,7 +298,7 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
       }
     >
       <Show when={can(Permission.ADD_REACTIONS)}>
-        <Emojis each={pickers.frequentReactions().slice(0, 4)} />
+        <Emojis each={pickers.frequentReactions().slice(0, TOP_REACTIONS)} />
       </Show>
       <Items
         items={[
@@ -289,13 +314,19 @@ function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void
             name: 'menu-edit',
             icon: 'pencil',
             label: text('EDIT_MESSAGE'),
-            run: () => (messages.startEdit(m()), focus()),
+            run: () => {
+              messages.startEdit(m())
+              focus()
+            },
           },
           can(Permission.SEND_MESSAGES) && {
             name: 'menu-reply',
             icon: 'reply',
             label: text('MESSAGE_ACTION_REPLY'),
-            run: () => (messages.reply(m(), channel()), focus()),
+            run: () => {
+              messages.reply(m(), channel())
+              focus()
+            },
           },
           '-',
           {

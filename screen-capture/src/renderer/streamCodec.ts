@@ -28,7 +28,9 @@ export const codecPatch = {
 let connection: { context?: string; streamUserId?: string | null } | null = null
 export function codecConnection(c: typeof connection) {
   connection = c
-  queueMicrotask(() => (connection = null))
+  queueMicrotask(() => {
+    connection = null
+  })
 }
 
 /**
@@ -53,10 +55,10 @@ export function orderCodecs(list: string[]): string[] {
 
 let encodable: Set<string> | undefined
 /** Whether this client encodes video in `codec` (AV1, VP9, ...). */
-const canEncode = (codec: string) =>
-  (encodable ??= new Set(RTCRtpSender.getCapabilities?.('video')?.codecs.map((c) => c.mimeType.toLowerCase()))).has(
-    `video/${codec.toLowerCase()}`,
-  )
+function canEncode(codec: string) {
+  encodable ??= new Set(RTCRtpSender.getCapabilities?.('video')?.codecs.map((c) => c.mimeType.toLowerCase()))
+  return encodable.has(`video/${codec.toLowerCase()}`)
+}
 
 function order(list: string[]): string[] {
   if (settings.codec !== 'AV1') {
@@ -65,7 +67,7 @@ function order(list: string[]): string[] {
   }
   if (!canEncode('AV1')) return list
   const self = host.discord?.currentUser()?.id
-  const goLive = connection?.context === 'stream' && !!self && connection.streamUserId === self
+  const goLive = connection?.context === 'stream' && Boolean(self) && connection.streamUserId === self
   const next = ['VP9', 'H264'].filter((c) => list.includes(c) && canEncode(c))
   const rest = list.filter((c) => !next.includes(c))
   return goLive && !captureAv1() ? [...next, ...rest, 'AV1'] : ['AV1', ...next, ...rest]

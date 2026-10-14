@@ -13,7 +13,7 @@ export const Avatar = (p: {
   status?: string
   speaking?: boolean
 }) => (
-  <span class={['avatar', { speaking: !!p.speaking }]} style={{ '--size': `${p.size}px` }}>
+  <span class={['avatar', { speaking: Boolean(p.speaking) }]} style={{ '--size': `${p.size}px` }}>
     <img src={p.src ?? users.avatar(p.user!, p.guildId, p.size)} alt="" />
     {p.status && <Status kind={p.status} />}
   </span>

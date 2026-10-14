@@ -17,12 +17,12 @@ interface Native {
     write(id: number, data: Uint8Array): void
     end(id: number, data?: Uint8Array): void
   }
+  // the shell's image actions (src/shell/main.js): one copied to the clipboard (false when it isn't PNG or JPEG), one
+  // saved
+  image: { copy(url: string): Promise<boolean>; save(url: string): void }
 }
 const native = (window as any).cordialNative as Native | undefined
-// the shell's image actions (src/shell/main.js): one copied to the clipboard (false when it isn't PNG or JPEG), one
-// saved
-export const image = (window as any).cordialNative?.image as
-  { copy(url: string): Promise<boolean>; save(url: string): void } | undefined
+export const image = native?.image
 
 const requireModule = patch('getDiscordUtils(){', [
   /requireModule\(([\w$]+)\)\{(?=if\([\w$]+\.hasOwnProperty\(\1\))/,
@@ -90,11 +90,14 @@ const discord_utils = {
 class Emitter {
   private handlers: Record<string, Function[]> = {}
   on(type: string, f: Function) {
-    ;(this.handlers[type] ??= []).push(f)
+    this.handlers[type] = [...(this.handlers[type] ?? []), f]
     return this
   }
   once(type: string, f: Function) {
-    const g = (...a: unknown[]) => (this.removeListener(type, g), f(...a))
+    const g = (...a: unknown[]) => {
+      this.removeListener(type, g)
+      return f(...a)
+    }
     return this.on(type, g)
   }
   removeListener(type: string, f: Function) {
@@ -102,7 +105,7 @@ class Emitter {
     return this
   }
   emit(type: string, ...args: unknown[]) {
-    for (const f of [...(this.handlers[type] ?? [])]) f(...args)
+    for (const f of this.handlers[type] ?? []) f(...args)
     return true
   }
 }
@@ -114,7 +117,7 @@ class Socket extends Emitter {
     super()
   }
   write(d: Bytes) {
-    native!.rpc.write(this.id, bytes(d)!)
+    native!.rpc.write(this.id, new Uint8Array(d))
     return true
   }
   end(d?: Bytes) {
@@ -129,7 +132,7 @@ class Socket extends Emitter {
   }
 }
 
-let accept = (_: Socket) => {}
+let accept: (socket: Socket) => void = () => {}
 const sockets = new Map<number, Socket>()
 const server = Object.assign(new Emitter(), {
   path: null as string | null,

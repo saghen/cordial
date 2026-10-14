@@ -14,11 +14,12 @@ import { Row } from '../primitives/row'
 export function MembersList() {
   let list!: HTMLElement
   let frame = 0
-  const subscribe = () =>
-    (frame ||= requestAnimationFrame(() => {
+  const subscribe = () => {
+    frame ||= requestAnimationFrame(() => {
       frame = 0
       members.subscribe(list.scrollTop, list.clientHeight)
-    }))
+    })
+  }
   // a memo: the effect alone runs again on every store change, even with the same value
   const shown = createMemo(() => members.open() && `${selectedGuild()},${selected()}`)
   createEffect(shown, (on) => {
@@ -27,26 +28,25 @@ export function MembersList() {
   return (
     <Show when={members.open()}>
       <section ref={list} class="members" onScroll={subscribe}>
-        <For each={members.rows()}>
-          {(r) =>
-            !r ? (
-              <div class="placeholder" />
-            ) : r.type === 'GROUP' ? (
-              <h3>{r.label}</h3>
-            ) : (
-              <Row
-                name="member"
-                class={{ offline: r.status === 'offline' }}
-                data-id={r.user.id}
-                icon={<Avatar user={r.user} guildId={selectedGuild()} size={32} status={r.status} />}
-              >
-                <Name user={r.user} guildId={selectedGuild()} />
-              </Row>
-            )
-          }
-        </For>
+        <For each={members.rows()}>{(r) => <MemberRow row={r} />}</For>
       </section>
     </Show>
+  )
+}
+
+function MemberRow(p: { row: members.Group | members.Member | undefined }) {
+  const row = p.row
+  if (!row) return <div class="placeholder" />
+  if (row.type === 'GROUP') return <h3>{row.label}</h3>
+  return (
+    <Row
+      name="member"
+      class={{ offline: row.status === 'offline' }}
+      data-id={row.user.id}
+      icon={<Avatar user={row.user} guildId={selectedGuild()} size={32} status={row.status} />}
+    >
+      <Name user={row.user} guildId={selectedGuild()} />
+    </Row>
   )
 }
 

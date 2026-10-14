@@ -237,19 +237,28 @@ const keys = new Map<string, string>()
 export function text(name: (typeof STOCK)[number] | keyof typeof OURS, values?: Record<string, unknown>) {
   if (name in OURS) return OURS[name as keyof typeof OURS].replace(/\{(\w+)\}/g, (_, k) => String(values?.[k]))
   let key = keys.get(name)
-  if (!key) keys.set(name, (key = A.messageKey.runtimeHashMessageKey(name)))
+  if (!key) {
+    key = A.messageKey.runtimeHashMessageKey(name)
+    keys.set(name, key)
+  }
   const message = A.intl.t[key]
   return values ? A.intl.intl.formatToPlainString(message, values) : A.intl.intl.string(message)
 }
+
+// a slot's index between \u0001 marks, which stock's text never has
+// oxlint-disable-next-line no-control-regex -- the marks are control characters on purpose
+const SLOT = /\u0001(\d+)\u0001/
 
 // stock's message around elements: each value or hook named in `slots` comes back as its index, between the text
 // ('APPLICATION_COMMAND_USED_SHORT', {}, ['userHook', 'commandHook'] gives [0, ' used ', 1]), for the caller to put
 // its element there. A hook's own text (`$[{username}](usernameHook)`) gives way to the element
 export function textAround(name: (typeof STOCK)[number], values: Record<string, unknown>, slots: string[]) {
   const all = { ...values }
-  slots.forEach((slot, i) => (all[slot] = slot.endsWith('Hook') ? () => `\u0001${i}\u0001` : `\u0001${i}\u0001`))
+  slots.forEach((slot, i) => {
+    all[slot] = slot.endsWith('Hook') ? () => `\u0001${i}\u0001` : `\u0001${i}\u0001`
+  })
   return text(name, all)
-    .split(/\u0001(\d+)\u0001/)
+    .split(SLOT)
     .map((part, i) => (i % 2 ? Number(part) : part))
     .filter((part) => part !== '')
 }
