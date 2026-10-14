@@ -4,3 +4,6 @@ artifacts/
 .env
 __pycache__/
 dist/
+ai/
+screen-capture/ai/
+screen-capture/lab/
