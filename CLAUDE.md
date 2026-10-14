@@ -26,7 +26,8 @@ nix build            # the package: the build and nixpkgs' Electron; update npmD
    history, scroll position reports) in `src/api/`.
 2. **Renderer**: the component, styled from the tokens in `src/app.css`.
 3. **Verify against stock**: the same scripted scenario against stock Discord, diffing what each sends (gateway frames,
-   REST requests and bodies, Flux dispatches). Every difference is either fixed or deliberate and written down. What
+   REST requests and bodies, Flux dispatches). Every difference is either fixed or deliberate and written down
+   (`ai/lab/expected.json` with its reason; the commit body when it changes what we send). What
    our renderer sends must stay what the official client sends.
 4. **Budgets** (main-thread work, measured): a warm channel, server or DM switch ≤ 20 ms (input to paint ≤ 35 ms), a
    popout or menu ≤ 8 ms, a key press in the composer ≤ 8 ms, idle ≤ 2 ms/s, JS heap after GC ≤ 95 MB, DOM nodes in a
@@ -133,9 +134,10 @@ nix build            # the package: the build and nixpkgs' Electron; update npmD
   `ui(chat): fix the jump button covering the last message`, `capture: default the AV1 quantizer floor to 50`,
   ``core(adapter): find `fetchMessages` by its code``.
 - **The body** only for what the diff and the subject can't tell: a performance change (the numbers, and how they
-  were measured) or reasoning a reader wouldn't guess. Most commits have none. Never test or check results, nor a
-  restatement of what the diff or the subject already says. No references to git-ignored files, plans or their
-  numbering (phases, slices, questions), and no personal names.
+  were measured), a deliberate difference from stock, an outside constraint the code works around, or for a fix the
+  trigger when the subject can't carry it. Most commits have none. Never pass/fail results (self-check, scenarios,
+  lint) or a restatement of the diff or the subject. No references to git-ignored files, plans or their numbering
+  (phases, slices, questions), and no personal names.
 
 ## Rules
 
