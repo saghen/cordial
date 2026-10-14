@@ -29,6 +29,7 @@ import {
   effectiveCodec,
   isStreamAudio,
   markStreamAudio,
+  otherEncoderPair,
   setCurrentStreamQuality,
   StreamCodec,
   StreamPriority,
@@ -445,7 +446,7 @@ export class CastSession {
     this.closeCast()
     this.rawPort?.close()
     this.rawPort = null
-    const fps = Number(this.quality.frameRate)
+    const { height, fps } = this.chromiumPair()
     let track: MediaStreamTrack | undefined
     try {
       fallbackPick = { priority: this.pick.priority }
@@ -464,8 +465,8 @@ export class CastSession {
     await track
       .applyConstraints({
         frameRate: { ideal: fps, max: fps },
-        width: { max: Math.round((this.quality.width * this.chromiumHeight()) / this.quality.height) },
-        height: { max: this.chromiumHeight() },
+        width: { max: Math.round((this.quality.width * height) / this.quality.height) },
+        height: { max: height },
       })
       .catch((e) => logger.error('Fallback constraints failed', e))
     this.fallbackTrack = track
@@ -513,8 +514,9 @@ export class CastSession {
       rawWaiter = resolve
       this.rawFailed = () => resolve(null)
       setTimeout(() => resolve(null), RAW_TIMEOUT_MS)
-      const height = this.chromiumHeight()
+      const { height, fps } = this.chromiumPair()
       if (height < this.quality.height) this.send({ type: 'height', height })
+      this.send({ type: 'fps', fps })
       this.send({ type: 'raw' })
     })
     rawWaiter = null
@@ -536,7 +538,7 @@ export class CastSession {
     port.onmessage = ({ data }) => {
       const frame: VideoFrame = data.frame
       if (this.state !== 'fallback' || this.rawPort !== port || pending > 2) return frame.close()
-      // the track's settings say the size Chromium encodes (1080p under a 1440p30 quality; streamQuality.ts' motion
+      // the track's settings say the size Chromium encodes (1080p for VP9 under a 1440p quality; streamQuality.ts' motion
       // scaler reads it)
       this.width = frame.displayWidth
       this.height = frame.displayHeight
@@ -564,14 +566,16 @@ export class CastSession {
   }
 
   /**
-   * The height Chromium's encoders get: 1080p for GPU_AV1's 1440p30 (streamQuality.ts: 1440p30 is for capture's AV1),
-   * and for a codec other than AV1 above 1080p, which the motion scaler sends at 1080p anyway (so capture scales,
-   * not WebRTC on the CPU; "clarity" keeps the full size)
+   * The size and rate Chromium's encoders get: a GPU-only pair's fallback (streamQuality.ts otherEncoderPair: GPU_AV1
+   * is for capture's AV1), and 1080p for a codec other than AV1 above 1080p, which the motion scaler sends at 1080p
+   * anyway (so capture scales, not WebRTC on the CPU; "clarity" keeps the full size)
    */
-  private chromiumHeight() {
+  private chromiumPair() {
     const q = this.quality
+    if (settings.chromiumFullSize) return { height: q.height, fps: Number(q.frameRate) }
+    const p = otherEncoderPair(q)
     const notAv1 = !!this.sentCodec && this.sentCodec.toLowerCase() !== 'video/av1' && this.pick.priority !== 'clarity'
-    return q.height > 1080 && (q.gpuOnly || notAv1) && !settings.chromiumFullSize ? 1080 : q.height
+    return { height: p.height > 1080 && notAv1 ? 1080 : p.height, fps: p.fps }
   }
 
   /** Ends the stream: capture stops, the track ends (Discord ends the stream). */

@@ -10,7 +10,7 @@
 //                   [--codec av1|h264] [--av1-refs 1|2] [--av1-min-q 50] [--av1-align WxH] [--h264-min-qp 0]
 //                   [--drop-ms 300] [--repeat-ms 1000] [--preview WxH] [--preview-fps 1] [--seconds N] [--start]
 //                   [--encode-out F.ivf|F.h264] [--socket-fd N] [--audio SPEC]
-//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | audio SPEC | stop
+//   stdin: start [kbps=N] [height=N] [codec=av1|h264] | raw | bitrate N | key | height N | fps N | audio SPEC | stop
 //   (audio: the stream's sound, from the apps SPEC names: audio.rs)
 //
 // raw (mincord's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
@@ -472,6 +472,7 @@ struct State {
     req_kbps: u32,         // target (0: --kbps)
     req_h: u32,            // maximum height (0: --size's)
     h264: bool,            // the codec: --codec, then "start codec=" (the call's codec is known only once negotiated)
+    fps: u32,              // the frame rate: --fps, then "fps N" (a pair only AV1 gets falls back for another codec)
     raw: bool,             // "raw": frames to mincord over the socket, not encoded
     av1_align: (u32, u32), // AV1's encode size alignment (av1enc::align)
     want_key: bool,
@@ -633,6 +634,9 @@ impl State {
             stage("raw");
         } else if let Some(n) = line.strip_prefix("bitrate ") {
             self.req_kbps = arg(n).clamp(100, 100000) as u32;
+        } else if let Some(n) = line.strip_prefix("fps ") {
+            self.fps = (arg(n) as u32).clamp(1, 240);
+            eprintln!("cmd: fps {}", self.fps);
         } else if line == "key" {
             self.want_key = true;
         } else if let Some(n) = line.strip_prefix("height ") {
@@ -819,7 +823,7 @@ enum Enc {
 }
 
 impl Enc {
-    fn open(va: &Va, o: &Opts, h264: bool, (width, height): (u32, u32), kbps: u32) -> Result<Enc> {
+    fn open(va: &Va, o: &Opts, h264: bool, (width, height): (u32, u32), fps: u32, kbps: u32) -> Result<Enc> {
         Ok(if h264 {
             let min_qp = o.min_qp;
             Enc::H264(h264enc::H264Enc::open(
@@ -827,7 +831,7 @@ impl Enc {
                 h264enc::Cfg {
                     width,
                     height,
-                    fps: o.fps,
+                    fps,
                     kbps,
                     min_qp,
                 },
@@ -839,7 +843,7 @@ impl Enc {
                 av1enc::Cfg {
                     width,
                     height,
-                    fps: o.fps,
+                    fps,
                     kbps,
                     min_qindex,
                     refs,
@@ -875,6 +879,7 @@ struct Worker<'a> {
     va: &'a Va,
     vpp_cfg: &'a va::Config,
     enc: Option<Enc>, // with the ring
+    enc_fps: u32,     // the frame rate it was opened for
     last_enc_t: f64,  // frame dropper: bits sent over the target
     debt: f64,
     ivf: Option<File>,
@@ -942,7 +947,7 @@ impl<'a> Worker<'a> {
     fn reconcile(&mut self, g: &mut State) {
         let want = (g.active || g.raw) && g.want.0 > 0 && !g.failed;
         if let Some(r) = &g.ring {
-            let recodec = r.raw != g.raw || self.enc.as_ref().is_some_and(|e| e.h264() != g.h264);
+            let recodec = r.raw != g.raw || self.enc.as_ref().is_some_and(|e| e.h264() != g.h264 || self.enc_fps != g.fps);
             if !want || (r.w, r.h) != g.want || recodec {
                 let why = if !want {
                     ""
@@ -976,7 +981,7 @@ impl<'a> Worker<'a> {
         if want && g.ring.is_none() {
             let kbps = g.kbps(self.o);
             let created = Ring::create(self.va, self.vpp_cfg, g.want, false)
-                .and_then(|r| Ok((r, Enc::open(self.va, self.o, g.h264, g.want, kbps)?)));
+                .and_then(|r| Ok((r, Enc::open(self.va, self.o, g.h264, g.want, g.fps, kbps)?)));
             match created {
                 Ok((r, enc)) => {
                     g.want_key = true;
@@ -989,6 +994,7 @@ impl<'a> Worker<'a> {
                     ));
                     g.ring = Some(r);
                     self.enc = Some(enc);
+                    self.enc_fps = g.fps;
                 }
                 Err(e) => {
                     eprintln!("encoder setup: {e:#}");
@@ -1317,6 +1323,13 @@ impl<'a> Worker<'a> {
             g.st.n_in += 1;
             let t = now();
             let uploaded = img.put(src.ids[0]).is_ok();
+            // the clip plays in real time at --fps; the stream takes frames at its rate ("fps N"), as from a cast
+            g.credit = (g.credit + (t - g.last_in) * g.fps as f64).min(2.0);
+            g.last_in = t;
+            let due = g.credit >= 1.0;
+            if due {
+                g.credit -= 1.0;
+            }
             let State {
                 prev,
                 prev_next,
@@ -1332,7 +1345,7 @@ impl<'a> Worker<'a> {
             }
             let slot = ring
                 .as_mut()
-                .filter(|r| uploaded && (self.enc.is_some() || r.raw))
+                .filter(|r| uploaded && due && (self.enc.is_some() || r.raw))
                 .and_then(|r| {
                     let i = r.free_slot()?;
                     let s = r.surfs.ids[i];
@@ -1520,6 +1533,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         active,
         want_key: active,
         h264: o.h264,
+        fps: o.fps,
         av1_align: align,
         input: (o.clip_w, o.clip_h),
         prev_box: o.prev_box,
@@ -1604,6 +1618,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         va: &va,
         vpp_cfg: &vpp_cfg,
         enc: None,
+        enc_fps: 0,
         last_enc_t: 0.0,
         debt: 0.0,
         ivf,

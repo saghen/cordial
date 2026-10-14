@@ -22,7 +22,7 @@ const STALL_MS = 3000
  *   planes: { offset: number, stride: number, size: number }[] } | { type: 'frame', id: number, seq: number, t: number }}
  *   RawMessage  on raw's socket (capture's main.rs): fds, ours to close, come with a buffer
  * @typedef {{ type: 'start', kbps: number, height?: number, codec?: 'av1' | 'h264' } | { type: 'raw' }
- *   | { type: 'bitrate', kbps: number } | { type: 'key' } | { type: 'height', height: number }
+ *   | { type: 'bitrate', kbps: number } | { type: 'key' } | { type: 'height', height: number } | { type: 'fps', fps: number }
  *   | { type: 'audio', target: string } | { type: 'stop' }} CaptureCommand  audio: off | pid=N | steam=N | name=S
  * @typedef {{ pid: number | undefined, send(c: CaptureCommand): void, kill(): void }} Capture
  */
@@ -35,6 +35,8 @@ const commandLine = (c) =>
       ? `bitrate ${c.kbps | 0}`
       : c.type === 'height'
         ? `height ${c.height | 0}`
+        : c.type === 'fps'
+          ? `fps ${c.fps | 0}`
         : c.type === 'audio'
           ? `audio ${c.target.replace(/\s/g, '')}`
           : c.type

@@ -73,14 +73,20 @@ export interface QualityChoice {
 // an account without Nitro (720p30), at Discord's bitrate for that account (3.5 Mbps). At 3.5 Mbps, 1080p30 beat
 // 720p30 for AV1 on every lab clip and for VP9 on still content, even on games (LOG Key finds, "What 3.5 Mbps buys").
 const ALWAYS: QualityChoice = { resolution: '1080', frameRate: '30' }
-// And 1440p30 when capture encodes AV1 on the GPU (Liam, 2026-10-13: "Use 1440p30 for AV1, since we're only encoding
-// on the GPU"): at 3.5 Mbps text is the source itself (SSIM 0.9994, 0.943 at 1080p30) and games are no worse
-// (Deadlock 0.938 / 0.937, Witcher 0.809 / 0.798), below AV1_MIN_BPP, which is libaom's. When Chromium encodes
-// instead (raw, cast.ts) capture's frames go back to 1080p.
-const GPU_AV1: QualityChoice = { resolution: '1440', frameRate: '30' }
+// And 1080p60 when capture encodes AV1 on the GPU (Liam, 2026-10-13: "Use 1080p60 for AV1 free"; before, 1440p30),
+// below AV1_MIN_BPP at the free 3.5 Mbps (0.028), which is libaom's. Every other encoder (Chromium's: raw, the portal;
+// capture's H.264, a stock viewer's call) gets ALWAYS instead (otherEncoderPair).
+const GPU_AV1: QualityChoice = { resolution: '1080', frameRate: '60' }
 const isPair = (q: QualityChoice, r: StreamResolution, f: StreamFps) => r === q.resolution && f === q.frameRate
 
-/** Every allowed pair, by resolution: Discord's, 1080p30, and 1440p30 when capture encodes AV1 (`gpuAv1`). */
+/** What a quality gives any encoder but capture's AV1: a GPU-only pair (GPU_AV1) falls back to ALWAYS. */
+export function otherEncoderPair(q: AutoQuality): { height: number; fps: number } {
+  return q.gpuOnly
+    ? { height: Math.min(q.height, Number(ALWAYS.resolution)), fps: Number(ALWAYS.frameRate) }
+    : { height: q.height, fps: Number(q.frameRate) }
+}
+
+/** Every allowed pair, by resolution: Discord's, 1080p30, and GPU_AV1 (1080p60) when capture encodes AV1 (`gpuAv1`). */
 export function allowedQualities(gpuAv1 = false): Map<StreamResolution, StreamFps[]> {
   const extra = gpuAv1 ? [ALWAYS, GPU_AV1] : [ALWAYS]
   const out = new Map<StreamResolution, StreamFps[]>()
@@ -168,7 +174,7 @@ export interface AutoQuality extends QualityChoice {
   maxBitrate: number
   /** the pair is past Discord's rules for the account (1080p30 without Nitro): its maxBitrate is a ceiling too */
   pastDiscord: boolean
-  /** 1440p30 past AV1's floor, for capture's AV1 only: Chromium's own encoder gets 1080p (cast.ts) */
+  /** GPU_AV1 past AV1's floor, for capture's AV1 only: other encoders get ALWAYS (otherEncoderPair) */
   gpuOnly: boolean
   /** Bits per encoded pixel per frame at that cap. */
   bitsPerPixel: number
@@ -295,7 +301,7 @@ export function tuneStreamTrack(track: MediaStreamTrack, p: StreamPriority) {
 
 function withPreference(sender: RTCRtpSender, params: RTCRtpSendParameters) {
   if (isStreamTrack(sender.track)) {
-    params.degradationPreference = DegradationPreference[priority]
+    params.degradationPreference = settings.degradationPreference ?? DegradationPreference[priority]
     // As soon as someone watches, Discord's quality manager sets the stream to about 600 kbps per
     // megapixel at 30 fps (2.2 Mbps for 1440p), far under the 9 Mbps and 60 fps the plan allows; on a
     // live call (2026-10-11) the same stream ran at 7-9.6 Mbps with no loss once this was lifted.
@@ -454,9 +460,9 @@ export function withMinBitrate(sdp: string): string {
   })
 }
 
-// Setting "goLiveMaxBitrate" (experimental, off): Discord's browser engine writes x-google-max-bitrate=2500 into
-// every connection's SDP (videoBitRate), and Chromium's own encoders (the fallback, raw) hold their target at it
-// whatever the estimate allows (live: VP9 sent 2.5 Mbps at a 4.2 Mbps estimate). libwebrtc seeds the send stream's
+// The stream's bitrate in the Go Live connection's SDP (Liam, 2026-10-13: "Make the goLiveMaxBitrate permanent").
+// Discord's browser engine writes x-google-max-bitrate=2500 into every connection's SDP (videoBitRate), and
+// Chromium's own encoders (the fallback, raw) hold their target at it whatever the estimate allows (live: VP9 sent 2.5 Mbps at a 4.2 Mbps estimate). libwebrtc seeds the send stream's
 // max from the codec's x-google-max-bitrate when the stream is made, before the stream's track is on the sender
 // (WebRtcVideoSendChannel::AddSendStream); a later x-google-max-bitrate only moves the estimate's ceiling, and only
 // b=AS reaches the stream again (max_bandwidth_bps). So on the connection that sends the stream both become the
@@ -532,8 +538,7 @@ RTCPeerConnection.prototype.setRemoteDescription = function (
 ) {
   try {
     const q = currentStreamQuality()
-    if (desc?.sdp?.includes('x-google-max-bitrate') && settings.goLiveMaxBitrate && q &&
-        this.getSenders().some((s) => isStreamTrack(s.track))) {
+    if (desc?.sdp?.includes('x-google-max-bitrate') && q && this.getSenders().some((s) => isStreamTrack(s.track))) {
       desc = { type: desc.type, sdp: withMaxBitrate(desc.sdp, Math.round(q.maxBitrate / 1000)) }
       logger.info('Go Live connection: max bitrate', q.maxBitrate)
     }

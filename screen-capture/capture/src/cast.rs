@@ -435,10 +435,10 @@ impl Input {
     /// pacing, a free slot, import and VPP of buffer b into the slot (and into the preview when one is due); never
     /// waits for the GPU. False if b doesn't import (b requeued, renegotiating).
     fn submit_frame(&mut self, g: &mut State, stream: &Stream, b: *mut pw::sys::pw_buffer) -> bool {
-        // pacing: at most --fps on average, but tolerate jitter (niri on a 240 Hz output delivers a 60 fps cast at
+        // pacing: at most the frame rate (--fps, "fps N") on average, but tolerate jitter (niri on a 240 Hz output delivers a 60 fps cast at
         // 12.5/16.7/20.8 ms intervals). Frames over budget go back untouched.
         let t0 = now();
-        g.credit = (g.credit + (t0 - g.last_in) * self.o.fps as f64).min(2.0);
+        g.credit = (g.credit + (t0 - g.last_in) * g.fps as f64).min(2.0);
         g.last_in = t0;
         let mut want_enc = g.ring.as_ref().is_some_and(|r| (r.w, r.h) == g.want);
         let want_prev = g.prev.as_ref().is_some_and(|p| !p.submitted) && t0 >= g.prev_next;

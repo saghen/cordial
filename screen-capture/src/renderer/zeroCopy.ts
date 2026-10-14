@@ -29,6 +29,7 @@
 // H.264, Chromium's own frames go out again, from a keyframe of its re-initialised encoder (see Swap.stop).
 
 import { CastConsumer, CastMessage, CastSession, captureEncodes, castSessionFor } from './cast'
+import { otherEncoderPair } from './streamQuality'
 import { logger as makeLogger } from './log'
 import { settings } from './settings'
 import { fill, FillState, initialFill, stuff } from './stuffing'
@@ -574,10 +575,13 @@ export type SwapCodec = 'av1' | 'h264'
 const SWAP_CODECS: Record<string, SwapCodec> = { 'video/av1': 'av1', 'video/h264': 'h264' }
 const CODEC_NAMES: Record<SwapCodec, string> = { av1: 'AV1', h264: 'H.264' }
 const swapCodec = (sender: RTCRtpSender): SwapCodec | undefined => SWAP_CODECS[sendCodec(sender) ?? '']
-// capture's height limit for a codec (0: the stream's size): 1440p30 is for capture's AV1 only (streamQuality.ts
-// GPU_AV1), H.264 (a stock viewer's call) gets 1080p
-const heightFor = (session: CastSession, codec: SwapCodec) =>
-  session.quality.gpuOnly && codec !== 'av1' ? Math.min(1080, session.height) : 0
+// capture's size limit (0: the stream's size) and rate for a codec: the quality's for AV1, a GPU-only pair's
+// fallback (streamQuality.ts otherEncoderPair: GPU_AV1 is for capture's AV1) for H.264 (a stock viewer's call)
+const pairFor = (session: CastSession, codec: SwapCodec) => {
+  const q = session.quality
+  const p = codec === 'av1' ? { height: q.height, fps: Number(q.frameRate) } : otherEncoderPair(q)
+  return { height: p.height < q.height ? Math.min(p.height, session.height) : 0, fps: p.fps }
+}
 
 /**
  * Until the sender is negotiated to send (Discord puts the track on a recvonly transceiver, sets it sendrecv and
@@ -632,9 +636,12 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   }
   if (sender.track !== track || session.state !== 'cast') return active.delete(sender)
   const max = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
-  // (before start: capture keeps the last height it was given)
-  let lastHeight = heightFor(session, codec) // then a scale Discord set before the session is sent at once
+  // (before start: capture keeps the last height and rate it was given; raw may have left another rate)
+  const pair = pairFor(session, codec)
+  let lastHeight = pair.height // then a scale Discord set before the session is sent at once
+  let lastFps = pair.fps
   if (lastHeight) session.send({ type: 'height', height: lastHeight })
+  session.send({ type: 'fps', fps: lastFps })
   swap.start(session, sender, kbps ?? Math.min(6000, (max * 0.7) / 1000), codec)
   logger.info(`Streaming capture's ${CODEC_NAMES[codec]} (zero-copy)`)
   // capture was started again (cast.ts' recast): the same sender, the rate it had
@@ -683,7 +690,8 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
       swap.updateRate(bwe, enc?.maxBitrate ?? 9e6, wire, sendDelay)
       // the encoding's scale is only ever ours (streamQuality.ts drops Discord's, the viewers'): capture's size limit
       const scale = enc?.scaleResolutionDownBy ?? 1
-      const cap = heightFor(session, now)
+      const { height: cap, fps } = pairFor(session, now)
+      if (fps !== lastFps) session.send({ type: 'fps', fps: (lastFps = fps) })
       const height = scale > 1 ? Math.round((cap || session.height) / scale) : cap
       if (height !== lastHeight) {
         swap.setHeight(height)
