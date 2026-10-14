@@ -115,7 +115,6 @@ impl Worker<'_> {
             // the clip plays in real time at --fps; the stream takes frames at its rate ("fps N"), as from a cast. Counted
             // in clip frames, not wall time: at an equal rate every frame is taken, whatever the sleep's jitter
             g.credit = (g.credit + g.fps as f64 / o.fps as f64).min(2.0);
-            g.last_in = t;
             let due = g.credit >= 1.0;
             if due {
                 g.credit -= 1.0;
@@ -133,21 +132,18 @@ impl Worker<'_> {
                     *prev_next = t + PREVIEW_INTERVAL_S;
                 }
             }
-            let slot = ring
-                .as_mut()
-                .filter(|r| uploaded && due && (self.enc.is_some() || r.raw))
-                .and_then(|r| {
-                    let i = r.free_slot()?;
-                    let s = r.surfs.ids[i];
-                    let submitted = if (r.w, r.h) == (w, h) {
-                        img.put(s)
-                    } else {
-                        vpp_submit(&r.ctx, r.w, r.h, src.ids[0], s, true, true)
-                    };
-                    submitted.ok()?;
-                    r.slots[i] = Slot::submitted(t, idx);
-                    Some(i)
-                });
+            let slot = ring.as_mut().filter(|_| uploaded && due).and_then(|r| {
+                let i = r.free_slot()?;
+                let s = r.surfs.ids[i];
+                let submitted = if (r.w, r.h) == (w, h) {
+                    img.put(s)
+                } else {
+                    vpp_submit(&r.ctx, r.w, r.h, src.ids[0], s, true, true)
+                };
+                submitted.ok()?;
+                r.slots[i] = Slot::submitted(t, idx);
+                Some(i)
+            });
             if let Some(i) = slot {
                 st.total_sub += 1;
                 g = self.deliver(g, i, false);

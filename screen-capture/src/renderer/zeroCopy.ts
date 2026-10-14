@@ -6,7 +6,7 @@
 // Chromium 150 lets a sender's encoded writable take any RTCEncodedVideoFrame, but a frame can only be made by
 // cloning one (`new RTCEncodedVideoFrame(frame, { metadata })`), and the clone keeps the original's type (key/delta,
 // which sets the AV1 aggregation header's N bit), payload type, SSRC and codec. So:
-// - the sender encodes the Go Live track (cast.ts: capture's 1 fps preview, at the stream's size) and its newest
+// - the sender encodes the Go Live track (cast.ts: capture's 1 fps preview, 2 px narrower than the stream) and its newest
 //   key and delta frame are the templates for ours; Chromium's own frames are dropped;
 // - each capture frame is a clone of the template of its type with its own rtpTimestamp, frameId and
 //   dependencies, and capture's payload, written as it comes. The RTP timestamp is capture's capture time on
@@ -76,7 +76,6 @@ class Swap implements CastConsumer {
 
   private session: CastSession | null = null
   private sender: RTCRtpSender | null = null
-  private track: MediaStreamTrack | null = null
   private out: TransformStreamDefaultController | null = null
   private tpl: { key?: any; delta?: any } = {}
   private frameId = 0
@@ -91,7 +90,6 @@ class Swap implements CastConsumer {
   private keyAskedAt = 0
   private alt = false
   private pokeTimer: ReturnType<typeof setTimeout> | undefined
-  private wantTemplates = false
   private timer: ReturnType<typeof setInterval> | undefined
 
   constructor() {
@@ -100,7 +98,8 @@ class Swap implements CastConsumer {
       transform: (f, c) => {
         if (this.state === 'idle') return c.enqueue(f)
         if (this.state === 'warmup') {
-          if (!this.session?.warmedUp || f.type !== 'key') return
+          // (a fallback's frames once it's warmed up; another track's at once)
+          if (this.sender?.track === this.session?.encoder && (!this.session?.warmedUp || f.type !== 'key')) return
           this.state = 'idle'
           logger.info("Chromium's frames go out again")
           return c.enqueue(f)
@@ -115,10 +114,6 @@ class Swap implements CastConsumer {
         } else {
           this.tpl.delta = f
         }
-        if (this.wantTemplates && this.tpl.key && this.tpl.delta) {
-          this.wantTemplates = false
-          clearTimeout(this.pokeTimer)
-        }
         // a key frame is what the next capture frame has to be (the stream's first one came before its template)
         if (this.needKey && this.tpl.key) this.requestKey()
       },
@@ -132,7 +127,7 @@ class Swap implements CastConsumer {
    */
   private poke = () => {
     clearTimeout(this.pokeTimer)
-    if (this.state !== 'active' || !this.session || !this.wantTemplates) return
+    if (this.state !== 'active' || !this.session || (this.tpl.key && this.tpl.delta)) return
     const now = performance.now()
     if (now - this.lastPoke >= POKE_MS) {
       if (!this.tpl.key && this.keyAskedAt && now - this.keyAskedAt > KEY_TEMPLATE_WAIT_MS) {
@@ -151,11 +146,12 @@ class Swap implements CastConsumer {
   private needTemplates() {
     this.tpl = {}
     this.keyAskedAt = 0
-    this.wantTemplates = true
     this.poke()
   }
 
-  start(session: CastSession, sender: RTCRtpSender, kbps: number) {
+  start(session: CastSession, sender: RTCRtpSender) {
+    this.cap = sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6
+    const kbps = startKbps(this.cap / 1000)
     Object.assign(this, {
       needKey: true,
       keyRequested: false,
@@ -163,7 +159,7 @@ class Swap implements CastConsumer {
       lastRtp: 0,
       minDelay: Infinity,
       lastPli: -1,
-      lastKbps: Math.round(kbps),
+      lastKbps: kbps,
       rate: initialTarget(kbps * 1000),
       bwe: undefined,
       recent: new RateWindow(),
@@ -176,20 +172,27 @@ class Swap implements CastConsumer {
     })
     this.session = session
     this.sender = sender
-    this.track = sender.track
     this.state = 'active'
     session.consumer = this
-    session.send({ type: 'start', kbps: Math.round(kbps) })
+    session.send({ type: 'start', kbps })
     // capture starts on a key frame, which is dropped until Chromium's key template is out (see send)
     this.needTemplates()
     this.timer = setInterval(() => this.poll(), POLL_MS)
   }
 
-  /** capture is gone (cast.ts' fallback, or the stream ended). */
+  /** capture is gone (cast.ts' fallback, or the stream ended), or the sender has another track. */
   stop() {
     clearInterval(this.timer)
     clearTimeout(this.pokeTimer)
-    if (this.state === 'active') this.state = 'warmup'
+    if (this.state !== 'active') return
+    // (the session lets go of the swap: ending later, it mustn't stop the swap for another cast)
+    if (this.session?.consumer === this) this.session.consumer = null
+    this.state = this.session?.state === 'fallback' ? 'warmup' : 'idle'
+  }
+
+  /** A source switch: the swap stops sending the cast that was on the sender before. */
+  trackChanged() {
+    if (this.state === 'active' && this.sender?.track !== this.session?.encoder) this.stop()
   }
 
   private codecChanged(mime: string) {
@@ -232,8 +235,7 @@ class Swap implements CastConsumer {
       sendDelay,
       sentRate: this.recent.rate(performance.now()),
     })
-    if (next === this.rate) return
-    this.setRate(next, undefined, sendDelay)
+    if (next !== this.rate) this.setRate(next, undefined, sendDelay)
   }
 
   message(m: CastMessage) {
@@ -255,7 +257,7 @@ class Swap implements CastConsumer {
   private async poll() {
     const { sender } = this
     if (this.state !== 'active' || !sender) return
-    if (sender.track !== this.track) return this.stop()
+    if (sender.track !== this.session?.encoder) return this.trackChanged()
     // renegotiated: to another codec, or to another payload type (the templates carry theirs)
     const codec = sender.getParameters().codecs?.[0]
     if (codec && codec.mimeType.toLowerCase() !== 'video/av1') return this.codecChanged(codec.mimeType)
@@ -337,11 +339,9 @@ class Swap implements CastConsumer {
       const target = Math.min(this.rate.target, RATE.HEADROOM * (this.bwe ?? this.cap))
       const f = fill(this.filled, data.byteLength, tUs / 1000, this.stuffPaused ? 0 : target)
       this.filled = f.state
-      if (f.pad) {
-        const stuffed = stuff(new Uint8Array(data), f.pad)
-        pad = stuffed.byteLength - data.byteLength
-        if (pad) data = stuffed.buffer as ArrayBuffer
-      }
+      const stuffed = stuff(new Uint8Array(data), f.pad)
+      pad = stuffed.byteLength - data.byteLength
+      data = stuffed.buffer as ArrayBuffer
     }
     this.stats.bytes += data.byteLength
     this.stats.stuffed += pad
@@ -459,12 +459,10 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   // (Discord can have the track before capture is up: it's handed over at once, cast.ts)
   if (session?.state === 'starting') await session.up
   if (!session || session.state !== 'cast' || session.consumer || sender.track !== track) return
-  if (negotiating.has(sender) || isZeroCopy(sender)) return
   const swap = swaps.get(sender)
-  if (!swap) {
-    logger.info("Not sending capture's video: no encoded-frame stage on this sender")
-    return session.fallback('no encoded-frame stage')
-  }
+  swap?.trackChanged()
+  if (negotiating.has(sender) || isZeroCopy(sender)) return
+  if (!swap) return session.fallback('no encoded-frame stage')
   // only what capture encodes can be sent: wait for the negotiation
   negotiating.add(sender)
   await negotiated(sender)
@@ -475,6 +473,6 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
       codec === 'video/av1' ? "capture can't encode AV1 on this GPU" : `the stream is ${codec ?? 'not negotiated'}`,
     )
   if (sender.track !== track || session.state !== 'cast') return
-  swap.start(session, sender, startKbps((sender.getParameters().encodings?.[0]?.maxBitrate ?? 9e6) / 1000))
+  swap.start(session, sender)
   logger.info("Streaming capture's AV1 (zero-copy)")
 }

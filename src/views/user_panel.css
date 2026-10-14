@@ -5,9 +5,11 @@ section.side {
   grid: "nav nav nav" minmax(0, 1fr) "voice voice voice" auto "me mute deafen" 60px / minmax(0, 1fr) auto auto;
   &::after { content: ""; grid-row: me; grid-column: 1 / -1; border-top: 1px solid var(--bg-raised); pointer-events: none; }
 }
-/* the voice panel: the voice settings when open, then the status and the channel, the buttons beside them */
+/* the voice panel: the voice settings when open, then the status and the channel, the buttons beside them, then the
+   stream's numbers while live */
 section.side > footer {
-  grid-area: voice; display: grid; grid: "settings settings" auto "status buttons" auto "channel buttons" auto / minmax(0, 1fr) auto;
+  grid-area: voice; display: grid;
+  grid: "settings settings" auto "status buttons" auto "channel buttons" auto "stats stats" auto / minmax(0, 1fr) auto;
   padding: 8px; border-top: 1px solid var(--bg-raised); background: var(--bg); font-size: 14px;
   > b { grid-area: status; font-weight: 600; color: var(--warning); }
   &[data-state=RTC_CONNECTED] > b { color: var(--positive); }
@@ -17,6 +19,8 @@ section.side > footer {
   > .voice-buttons > button:hover { background: var(--bg-raised); color: var(--text-strong); }
   > .voice-buttons > button:is(.voice-camera, .voice-screen).on { color: var(--positive); }
   > .voice-buttons > button.voice-disconnect:hover { color: var(--danger); }
+  > .stream-stats { grid-area: stats; margin: 6px 0 0; font: 11px/1.45 ui-monospace, monospace; color: var(--text-muted); cursor: pointer; overflow-x: auto; }
+  > .stream-stats.limited { color: var(--warning); }
 }
 /* the voice settings: a column of labelled controls, a section of the voice panel above its line */
 form.voice-settings {

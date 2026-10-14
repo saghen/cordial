@@ -75,6 +75,9 @@ function VoicePanel() {
           <small>
             {c().guild_id ? `${c().name} / ${guilds.get(c().guild_id!)?.name}` : channels.dmName(c() as PrivateChannel)}
           </small>
+          <Show when={streams.live()}>
+            <StreamStats />
+          </Show>
           <div class="voice-buttons">
             <Toggle
               class="voice-camera"
@@ -112,6 +115,23 @@ function VoicePanel() {
           <Soundboard channel={c()} />
           <ScreenPicker />
         </footer>
+      )}
+    </Show>
+  )
+}
+
+// the stream's numbers once a second, as the screen share patch's overlay had them; a click shows one line
+function StreamStats() {
+  const [status, setStatus] = createSignal<screen.StreamStatus | null>(null)
+  const [short, setShort] = createSignal(false)
+  const timer = setInterval(() => screen.streamStatus().then(setStatus), 1000)
+  onCleanup(() => clearInterval(timer))
+  return (
+    <Show when={status()}>
+      {(s) => (
+        <pre class={['stream-stats', { limited: s().limited }]} onClick={() => setShort((on) => !on)}>
+          {short() ? s().summary : s().lines.join('\n')}
+        </pre>
       )}
     </Show>
   )
@@ -296,7 +316,7 @@ function ScreenPicker() {
             <Button class={['source', s.kind]} data-id={s.id} onClick={() => pick(a(), s)}>
               {s.name}
               <small>
-                {s.detail} · {s.width}×{s.height}
+                {s.width ? `${s.detail} · ${s.width}×${s.height}` : s.detail}
               </small>
             </Button>
           )}

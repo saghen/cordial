@@ -94,7 +94,7 @@ fn pick_level(w: u32, h: u32, fps: u32) -> u8 {
 }
 
 pub struct Av1Enc {
-    cfg: Cfg,
+    pub cfg: Cfg,
     level: u8,
     tx_mode: u32,
     kbps: u32,
@@ -280,7 +280,7 @@ impl Av1Enc {
             b.put(0, 1); // render_and_frame_size_different
         }
         b.put(0, 1); // disable_frame_end_update_cdf
-        b.flag(true); // uniform_tile_spacing_flag (radeonsi lays out the tiles itself)
+        b.put(1, 1); // uniform_tile_spacing_flag (radeonsi lays out the tiles itself)
         obu(b, OBU_FRAME_HEADER)
     }
 

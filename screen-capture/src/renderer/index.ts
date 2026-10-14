@@ -11,6 +11,8 @@ export { castSessionFor, currentCast, probeCaptureCodecs, setPendingCast } from 
 export type { CastPick, CastSource, CastStart } from './cast'
 export { host } from './host'
 export { settings } from './settings'
+export { streamStatus } from './status'
+export type { StreamStatus } from './status'
 export { codecConnection, codecPatch, orderCodecs } from './streamCodec'
 export { currentStreamQuality } from './streamQuality'
 export { zeroCopyStats } from './zeroCopy'

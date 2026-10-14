@@ -1,15 +1,7 @@
 // capture: a niri cast of a window or an output (--window, --output; the Mutter ScreenCast D-Bus API, mutter.rs), the
 // desktop's ScreenCast portal (--portal, portal.rs), a PipeWire node (--node) or the clip (--clip, clip.rs), with its
 // protocol (stdin commands, stdout frames, previews, info and stats), the VPP, the AV1 encoder (av1enc.rs), the frame
-// dropper and the repeats.
-//
-//   mincord-capture (--window ID | --output NAME | --portal [--restore-token T] | --node ID
-//                    | --clip F.i420 --clip-size WxH) [--size WxH]
-//                   [--fps 60] [--cursor embedded|hidden] [--device auto|/dev/dri/renderDN] [--kbps 6000]
-//                   [--av1-refs 1|2] [--av1-min-q 50] [--drop-ms 300] [--seconds N] [--start] [--encode-out F.ivf]
-//                   [--socket-fd N] [--audio SPEC]
-//   stdin: start [kbps=N] [height=N] [codec=av1] | raw | bitrate N | key | height N | fps N | audio SPEC | stop
-//   (audio: the stream's sound, from the apps SPEC names: audio.rs)
+// dropper and the repeats. The options: usage(); the commands: State::command.
 //
 // raw (mincord's fallback when the call's codec isn't one capture encodes): no encoder; the VPP writes a ring of
 // LINEAR NV12 surfaces that mincord imports (Electron's sharedTexture) and Chromium encodes. On the socket of
@@ -35,6 +27,7 @@ mod out;
 mod portal;
 mod va;
 
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::os::fd::{AsRawFd, OwnedFd};
@@ -45,7 +38,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Context as _, Result};
 
-use out::{info, now, stage};
+use out::{error, info, now, stage};
 use av1enc::Av1Enc;
 use va::{fence_wait, surface_attr, sys, vpp_submit, Context, Image, Surfaces, Va};
 
@@ -59,6 +52,8 @@ const REPEAT_S: f64 = 1.0;
 // the 1 fps preview: Discord's stream thumbnail and mincord's templates
 const PREVIEW_BOX: (u32, u32) = (640, 360);
 const PREVIEW_INTERVAL_S: f64 = 1.0;
+// --size's default: no box (the source's own size)
+const NO_BOX: u32 = 16384;
 
 struct Opts {
     window: Option<u64>,
@@ -117,8 +112,8 @@ fn opts() -> Opts {
         clip: String::new(),
         clip_w: 0,
         clip_h: 0,
-        max_w: 16384, // no box: the source's own size
-        max_h: 16384,
+        max_w: NO_BOX, // no box: the source's own size
+        max_h: NO_BOX,
         fps: 60,
         device: "auto".into(),
         kbps: 6000,
@@ -426,6 +421,17 @@ struct Stats {
     ms_enc_total: f64,
 }
 
+impl Stats {
+    /// a frame out, encoded or (raw) handed out; lat: since its VPP submit, in ms
+    fn frame_out(&mut self, repeat: bool, lat: f64) {
+        self.n_enc += 1;
+        self.total_enc += 1;
+        self.n_repeat += repeat as u32;
+        self.ms_lat += lat;
+        self.max_lat = self.max_lat.max(lat);
+    }
+}
+
 #[derive(Default)]
 struct State {
     // control: the commands (stdin thread), the input's size (loop thread)
@@ -524,7 +530,10 @@ impl State {
         }
         let (mut bw, mut bh) = (o.max_w, o.max_h);
         if self.req_h > 0 && self.req_h < bh {
-            bw = (bw as u64 * self.req_h as u64 / bh as u64) as u32;
+            // (a box keeps its shape; without one, the height alone)
+            if (bw, bh) != (NO_BOX, NO_BOX) {
+                bw = (bw as u64 * self.req_h as u64 / bh as u64) as u32;
+            }
             bh = self.req_h;
         }
         let align = if self.raw { (2, 2) } else { self.av1_align };
@@ -566,10 +575,7 @@ impl State {
         let arg = |s: &str| s.trim().parse::<u64>().unwrap_or(0);
         if line.starts_with("start") {
             if !self.encodes || line.contains("codec=") && !line.contains("codec=av1") {
-                info(&format!(
-                    "{{\"type\":\"error\",\"message\":\"no such encoder on {}\"}}",
-                    o.device
-                ));
+                error(&format!("no such encoder on {}", o.device));
                 return;
             }
             self.active = true;
@@ -583,7 +589,7 @@ impl State {
             stage("start");
         } else if line == "raw" {
             if o.socket.is_none() {
-                info("{\"type\":\"error\",\"message\":\"raw: no --socket-fd\"}");
+                error("raw: no --socket-fd");
                 return;
             }
             self.raw = true;
@@ -675,7 +681,7 @@ fn cpu_s() -> f64 {
 /// GPU (drm-pdev), in ms per frame over `frames`
 fn gpu_ms(frames: u64) -> String {
     let mut ids = std::collections::HashSet::new();
-    let mut devs: Vec<(String, Vec<(String, f64)>)> = Vec::new();
+    let mut devs: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
     for e in std::fs::read_dir("/proc/self/fdinfo").into_iter().flatten().flatten() {
         let Ok(text) = std::fs::read_to_string(e.path()) else {
             continue;
@@ -685,11 +691,9 @@ fn gpu_ms(frames: u64) -> String {
             continue;
         }
         let pdev = field("drm-pdev:").unwrap_or("?");
-        let pdev = pdev.strip_prefix("0000:").unwrap_or(pdev).to_string();
-        let i = devs.iter().position(|(d, _)| *d == pdev).unwrap_or_else(|| {
-            devs.push((pdev, Vec::new()));
-            devs.len() - 1
-        });
+        let engines = devs
+            .entry(pdev.strip_prefix("0000:").unwrap_or(pdev).to_string())
+            .or_default();
         for l in text.lines() {
             let Some(rest) = l.strip_prefix("drm-engine-") else {
                 continue;
@@ -698,10 +702,7 @@ fn gpu_ms(frames: u64) -> String {
                 continue;
             };
             let ms = v.trim().trim_end_matches(" ns").parse::<f64>().unwrap_or(0.0) / 1e6;
-            match devs[i].1.iter_mut().find(|(n, _)| n == name) {
-                Some((_, t)) => *t += ms,
-                None => devs[i].1.push((name.to_string(), ms)),
-            }
+            *engines.entry(name.to_string()).or_default() += ms;
         }
     }
     let per = |sum: f64| if frames > 0 { sum / frames as f64 } else { 0.0 };
@@ -710,14 +711,10 @@ fn gpu_ms(frames: u64) -> String {
         .map(|(d, e)| {
             let used: Vec<String> = e
                 .iter()
-                .filter(|(_, ms)| *ms > 0.0)
+                .filter(|(_, &ms)| ms > 0.0)
                 .map(|(n, ms)| format!(" {n} {ms:.1}"))
                 .collect();
-            format!(
-                " [{d}]{} = {:.2} ms/frame",
-                used.concat(),
-                per(e.iter().map(|(_, ms)| ms).sum())
-            )
+            format!(" [{d}]{} = {:.2} ms/frame", used.concat(), per(e.values().sum()))
         })
         .collect();
     if parts.is_empty() {
@@ -752,11 +749,11 @@ struct Worker<'a> {
     va: &'a Va,
     vpp_cfg: &'a va::Config,
     enc: Option<Av1Enc>, // with the ring
-    enc_fps: u32,        // the frame rate it was opened for
     last_enc_t: f64,     // frame dropper: bits sent over the target
     debt: f64,
     ivf: Option<File>,
     ivf_frames: u32,
+    ivf_size: (u32, u32, u32), // the last frame's encoder: width, height, fps (the header, at the end)
 }
 
 impl<'a> Worker<'a> {
@@ -820,7 +817,7 @@ impl<'a> Worker<'a> {
     fn reconcile(&mut self, g: &mut State) {
         let want = (g.active || g.raw) && g.want.0 > 0 && !g.failed;
         if let Some(r) = &g.ring {
-            let reopen = r.raw != g.raw || (self.enc.is_some() && self.enc_fps != g.fps);
+            let reopen = r.raw != g.raw || self.enc.as_ref().is_some_and(|e| e.cfg.fps != g.fps);
             if !want || (r.w, r.h) != g.want || reopen {
                 let why = if !want {
                     ""
@@ -834,24 +831,7 @@ impl<'a> Worker<'a> {
                 self.enc = None;
             }
         }
-        if want && g.raw && g.ring.is_none() {
-            match Ring::create(self.va, self.vpp_cfg, g.want, true).and_then(|r| self.announce(&r).map(|_| r)) {
-                Ok(r) => {
-                    g.want_key = true; // the last frame at once (repeat), however static the cast
-                    info(&format!(
-                        "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"raw\"}}",
-                        r.w, r.h
-                    ));
-                    g.ring = Some(r);
-                }
-                Err(e) => {
-                    eprintln!("raw setup: {e:#}");
-                    g.failed = true;
-                    info("{\"type\":\"error\",\"message\":\"raw setup failed\"}");
-                }
-            }
-        }
-        if want && !g.raw && g.ring.is_none() {
+        if want && g.ring.is_none() {
             let ((width, height), o) = (g.want, self.o);
             let cfg = av1enc::Cfg {
                 width,
@@ -861,24 +841,32 @@ impl<'a> Worker<'a> {
                 min_qindex: o.min_qindex,
                 refs: o.refs,
             };
-            let created = Ring::create(self.va, self.vpp_cfg, g.want, false)
-                .and_then(|r| Ok((r, Av1Enc::open(self.va, cfg)?)));
+            let created = Ring::create(self.va, self.vpp_cfg, g.want, g.raw).and_then(|r| {
+                let enc = if g.raw {
+                    self.announce(&r).map(|_| None)
+                } else {
+                    Av1Enc::open(self.va, cfg).map(Some)
+                };
+                Ok((r, enc?))
+            });
+            let (what, codec) = if g.raw { ("raw", "raw") } else { ("encoder", "AV1") };
             match created {
                 Ok((r, enc)) => {
-                    g.want_key = true;
-                    stage("encoder");
+                    g.want_key = true; // the last frame at once (repeat), however static the cast
+                    if enc.is_some() {
+                        stage("encoder");
+                    }
                     info(&format!(
-                        "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"AV1\"}}",
+                        "{{\"type\":\"started\",\"width\":{},\"height\":{},\"codec\":\"{codec}\"}}",
                         r.w, r.h
                     ));
                     g.ring = Some(r);
-                    self.enc = Some(enc);
-                    self.enc_fps = g.fps;
+                    self.enc = enc;
                 }
                 Err(e) => {
-                    eprintln!("encoder setup: {e:#}");
+                    eprintln!("{what} setup: {e:#}");
                     g.failed = true;
-                    info("{\"type\":\"error\",\"message\":\"encoder setup failed\"}");
+                    error(&format!("{what} setup failed"));
                 }
             }
         }
@@ -929,6 +917,7 @@ impl<'a> Worker<'a> {
         if !dropped {
             let enc = self.enc.as_mut().unwrap();
             enc.set_kbps(kbps);
+            let size = (enc.cfg.width, enc.cfg.height, enc.cfg.fps);
             match enc.encode(surf, key) {
                 Ok((data, fi)) => {
                     self.debt += data.len() as f64 * 8.0;
@@ -937,6 +926,7 @@ impl<'a> Worker<'a> {
                         let _ = f.write_all(&(self.ivf_frames as u64).to_le_bytes());
                         let _ = f.write_all(data);
                         self.ivf_frames += 1;
+                        self.ivf_size = size;
                     }
                     let pre: Vec<u8> = [fi.key as u32, wh, fi.qp, ((now() - slot.t_submit) * 1e6) as u32]
                         .iter()
@@ -960,15 +950,11 @@ impl<'a> Worker<'a> {
         let st = &mut g.st;
         match &done {
             Some((len, fi, _)) => {
-                st.n_enc += 1;
-                st.total_enc += 1;
+                st.frame_out(repeat, lat);
                 st.n_key += fi.key as u32;
-                st.n_repeat += repeat as u32;
                 st.ms_enc += fi.ms_encode;
                 st.ms_enc_total += fi.ms_encode;
                 st.max_enc = st.max_enc.max(fi.ms_encode);
-                st.ms_lat += lat;
-                st.max_lat = st.max_lat.max(lat);
                 st.bytes += *len as u64;
             }
             None if dropped => st.n_dropper += 1,
@@ -976,7 +962,7 @@ impl<'a> Worker<'a> {
         }
         if failed {
             g.failed = true; // the encoder broke: mincord falls back
-            info("{\"type\":\"error\",\"message\":\"encode failed\"}");
+            error("encode failed");
         }
         if done.is_some_and(|(_, _, sent)| sent == out::Sent::Dropped) {
             g.st.n_outdrop += 1;
@@ -1051,11 +1037,7 @@ impl<'a> Worker<'a> {
         let st = &mut g.st;
         if sent {
             stage("first-frame");
-            st.n_enc += 1;
-            st.total_enc += 1;
-            st.n_repeat += repeat as u32;
-            st.ms_lat += lat;
-            st.max_lat = st.max_lat.max(lat);
+            st.frame_out(repeat, lat);
         } else {
             st.n_outdrop += 1;
         }
@@ -1121,8 +1103,7 @@ impl<'a> Worker<'a> {
                 g = self.preview_send(g);
             } else {
                 let mut repeated = false;
-                let raw = g.ring.as_ref().is_some_and(|r| r.raw);
-                if (self.enc.is_some() || raw) && (g.want_key || idle_ms >= REPEAT_S * 1e3) {
+                if g.want_key || idle_ms >= REPEAT_S * 1e3 {
                     (g, repeated) = self.repeat(g);
                 }
                 if !repeated {
@@ -1139,8 +1120,9 @@ fn sock_send(sock: i32, text: &str, fds: &[i32]) -> bool {
         iov_base: text.as_ptr() as *mut _,
         iov_len: text.len(),
     };
-    let mut cbuf = [0u64; 8]; // CMSG_SPACE for a few ints, aligned
-                              // SAFETY: msg points at iov and cbuf, which outlive the call; the cmsg header is written inside cbuf
+    // CMSG_SPACE for a few ints, aligned
+    let mut cbuf = [0u64; 8];
+    // SAFETY: msg points at iov and cbuf, which outlive the call; the cmsg header is written inside cbuf
     unsafe {
         let mut msg: libc::msghdr = std::mem::zeroed();
         msg.msg_iov = &mut iov;
@@ -1217,31 +1199,19 @@ fn run(o: Arc<Opts>) -> Result<()> {
     if let Some(t) = o.audio.clone() {
         audio::set_target(t);
     }
-    let no_va = || {
-        info(&format!(
-            "{{\"type\":\"error\",\"message\":\"no VA-API on {}\"}}",
-            o.device
-        ))
-    };
     // the GPU side first: EGL's modifiers for the device (what the cast is offered; not for --clip), then VA-API
+    let no_va = |_: &anyhow::Error| error(&format!("no VA-API on {}", o.device));
     let clip = !o.clip.is_empty();
-    let mods = match (!clip).then(|| cast::modifiers(&o.device)).transpose() {
-        Ok(m) => m,
-        Err(e) => {
-            no_va();
-            return Err(e);
-        }
-    };
+    let mods = (!clip)
+        .then(|| cast::modifiers(&o.device))
+        .transpose()
+        .inspect_err(no_va)?;
     if mods.is_some() {
         stage("modifiers");
     }
-    let va = match Va::open(&o.device) {
-        Ok(va) => va,
-        Err(e) => {
-            no_va();
-            return Err(e).context(format!("open {}", o.device));
-        }
-    };
+    let va = Va::open(&o.device)
+        .inspect_err(no_va)
+        .with_context(|| format!("open {}", o.device))?;
     let vpp_cfg = va.config(
         sys::VAProfile::VAProfileNone,
         sys::VAEntrypoint::VAEntrypointVideoProc,
@@ -1305,25 +1275,17 @@ fn run(o: Arc<Opts>) -> Result<()> {
         (_, Some(name)) => Some(mutter::Source::Output(name)),
         _ => None,
     };
-    let session = match source.map(|s| mutter::start(sh.clone(), s, o.cursor)).transpose() {
-        Ok(s) => s,
-        Err(e) => {
-            info("{\"type\":\"error\",\"message\":\"could not start the cast\"}");
-            return Err(e);
-        }
-    };
+    let no_cast = |_: &anyhow::Error| error("could not start the cast");
+    let session = source
+        .map(|s| mutter::start(sh.clone(), s, o.cursor))
+        .transpose()
+        .inspect_err(no_cast)?;
     // or the portal's (closed when dropped)
-    let mut portal = match o
+    let mut portal = o
         .portal
         .then(|| portal::start(sh.clone(), o.cursor, o.restore.as_deref()))
         .transpose()
-    {
-        Ok(p) => p,
-        Err(e) => {
-            info("{\"type\":\"error\",\"message\":\"could not start the cast\"}");
-            return Err(e);
-        }
-    };
+        .inspect_err(no_cast)?;
     if let Some(s) = &session {
         // the session's number is niri's cast session id: mincord stops the cast through niri's IPC should we die
         info(&format!(
@@ -1365,11 +1327,11 @@ fn run(o: Arc<Opts>) -> Result<()> {
         va: &va,
         vpp_cfg: &vpp_cfg,
         enc: None,
-        enc_fps: 0,
         last_enc_t: 0.0,
         debt: 0.0,
         ivf,
         ivf_frames: 0,
+        ivf_size: (0, 0, o.fps),
     };
     let ran = if !clip {
         w.run_cast();
@@ -1388,8 +1350,10 @@ fn run(o: Arc<Opts>) -> Result<()> {
     match why {
         Quit::CastClosed => info("{\"type\":\"ended\",\"reason\":\"cast closed\"}"),
         Quit::Stopped | Quit::StdinClosed | Quit::Seconds => {}
-        Quit::Signal => info("{\"type\":\"error\",\"message\":\"terminated\"}"),
-        Quit::Failed(msg) => info(&format!("{{\"type\":\"error\",\"message\":\"{msg}\"}}")),
+        // (a clip that fails returns its error, with no quit)
+        Quit::Signal if g.quit.is_none() && ran.is_err() => error(&format!("{:#}", ran.as_ref().unwrap_err())),
+        Quit::Signal => error("terminated"),
+        Quit::Failed(msg) => error(msg),
     }
     let el = now() - g.st.t_start;
     let cpu = cpu_s();
@@ -1412,8 +1376,9 @@ fn run(o: Arc<Opts>) -> Result<()> {
         }
     );
     eprintln!("gpu: busy ms:{}", gpu_ms(st.total_sub));
-    if let (Some(f), Some(r)) = (w.ivf.as_mut(), g.ring.as_ref()) {
-        ivf_header(f, r.w, r.h, o.fps, w.ivf_frames)?;
+    if let Some(f) = w.ivf.as_mut() {
+        let (iw, ih, fps) = w.ivf_size;
+        ivf_header(f, iw, ih, fps, w.ivf_frames)?;
     }
     // VA objects before the VPP config they were made with
     g.ring = None;

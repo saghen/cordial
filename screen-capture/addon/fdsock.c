@@ -1,8 +1,8 @@
 // fdsock: a SOCK_SEQPACKET socketpair whose messages can carry file descriptors (SCM_RIGHTS), for Node. Node's own
 // sockets drop passed fds; capture hands its raw frames' DMA-BUFs over one of these.
 //
-//   const { open, listen, close } = require("./fdsock.node")
-//   const [fd, childFd] = open()                    // give childFd to the child (spawn's stdio), then close(childFd)
+//   const { open, listen } = require("./fdsock.node")     (fds are closed with fs.closeSync)
+//   const [fd, childFd] = open()                    // give childFd to the child (spawn's stdio), then closeSync(childFd)
 //   listen(fd, (data, fds) => {})                   // data: Buffer, fds: number[] (ours to close); (null) at EOF
 #define _GNU_SOURCE
 #include <errno.h>
@@ -141,23 +141,11 @@ static napi_value js_listen(napi_env env, napi_callback_info info)
 	return NULL;
 }
 
-static napi_value js_close(napi_env env, napi_callback_info info)
-{
-	size_t argc = 1;
-	napi_value argv[1];
-	int32_t fd;
-	CHECK(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-	CHECK(env, napi_get_value_int32(env, argv[0], &fd));
-	close(fd);
-	return NULL;
-}
-
 NAPI_MODULE_INIT()
 {
 	napi_property_descriptor props[] = {
 		{"open", NULL, js_open, NULL, NULL, NULL, napi_default, NULL},
 		{"listen", NULL, js_listen, NULL, NULL, NULL, napi_default, NULL},
-		{"close", NULL, js_close, NULL, NULL, NULL, napi_default, NULL},
 	};
 	napi_define_properties(env, exports, sizeof(props) / sizeof(props[0]), props);
 	return exports;

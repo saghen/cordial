@@ -95,7 +95,7 @@ pub fn modifiers(device: &str) -> Result<Vec<u64>> {
 
 // ---------------------------------------------------------------- pods
 
-fn serialize(v: &Value) -> Vec<u8> {
+pub fn serialize(v: &Value) -> Vec<u8> {
     PodSerializer::serialize(std::io::Cursor::new(Vec::new()), v)
         .expect("pod")
         .0

@@ -129,10 +129,7 @@ export function guardTarget(s: RateState, x: GuardSample): RateState {
 export class RateWindow {
   private items: { t: number; bytes: number }[] = []
   private total = 0
-  private readonly ms: number
-  constructor(ms = RATE.BURST_MS) {
-    this.ms = ms
-  }
+  private readonly ms = RATE.BURST_MS
 
   add(t: number, bytes: number) {
     this.items.push({ t, bytes })

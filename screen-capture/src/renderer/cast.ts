@@ -23,10 +23,8 @@ import {
   applyToStreamConnection,
   isStreamSound,
   markStreamSound,
-  setCurrentStreamQuality,
   StreamQuality,
   streamQuality,
-  tuneStreamTrack,
 } from './streamQuality'
 
 const logger = makeLogger('mincord:cast')
@@ -95,7 +93,7 @@ window.addEventListener('message', (e) => {
 const START_TIMEOUT_MS = 6000
 // capture's first raw buffer (its ring set up and imported) within this, or the fallback asks the portal
 const RAW_TIMEOUT_MS = 3000
-// Discord's track gets a frame at most this often (30 fps: its preview tile needs no more)
+// Discord's track gets a frame at most this often (about 30 fps: its preview tile needs no more)
 const SHOW_INTERVAL_MS = 30
 // how long a fallback capture's first frames are held back, so Chromium's encoder learns their rate (feed)
 const FALLBACK_WARMUP_MS = 1000
@@ -148,8 +146,10 @@ export class CastSession {
     for (const t of [this.track, this.encoder]) this.dress(t)
   }
 
-  // both tracks look the same to Discord and to streamQuality.ts: label, settings, constraints, stop
+  // both tracks look the same to Discord and to streamQuality.ts: label, settings, constraints, stop; "motion" keeps
+  // WebRTC out of screen-content mode (QP floor, frame dropping)
   private dress(t: MediaStreamTrackGenerator) {
+    t.contentHint = 'motion'
     const [kind, id] = this.pick.source.split(/:(.*)/s)
     Object.defineProperty(t, 'label', { value: kind === 'output' ? `screen:${id}:0` : `window:niri-${id}:0` })
     t.getSettings = () =>
@@ -183,11 +183,18 @@ export class CastSession {
   }
 
   private async run(): Promise<boolean> {
-    const deadline = performance.now() + START_TIMEOUT_MS
-    const port = new Promise<MessagePort | null>((resolve) => {
-      portWaiter = resolve
-      setTimeout(() => resolve(null), START_TIMEOUT_MS)
+    // up once capture has the cast's format (it reports the encode size)
+    const up = new Promise<boolean>((resolve) => {
+      this.started = resolve
+      setTimeout(() => resolve(false), START_TIMEOUT_MS)
     })
+    portWaiter = (port) => {
+      portWaiter = null
+      this.port = port
+      port.onmessage = ({ data }) => this.message(data)
+      // (too late: the stream ended, or fell back, before capture's port came)
+      if (this.state !== 'starting') this.closeCast()
+    }
     const ok = await host
       .native!.start({
         source: this.pick.source,
@@ -196,18 +203,12 @@ export class CastSession {
         audio: !!this.audio,
       })
       .catch(() => false)
-    this.port = ok ? await port : null
-    portWaiter = null
-    if (!this.port) return false
-    this.port.onmessage = ({ data }) => this.message(data)
-    // up once capture has the cast's format (it reports the encode size)
-    const up = await new Promise<boolean>((resolve) => {
-      this.started = resolve
-      setTimeout(() => resolve(false), deadline - performance.now())
-    })
+    if (!ok) this.started(false)
+    const result = await up
     this.started = () => {}
-    if (up && this.state === 'starting') this.state = 'cast'
-    return up && this.state !== 'ended'
+    if (!result) this.closeCast()
+    if (result && this.state === 'starting') this.state = 'cast'
+    return result && this.state !== 'ended'
   }
 
   send(command: object) {
@@ -216,36 +217,27 @@ export class CastSession {
 
   private message(m: CastMessage) {
     if (m.type === 'audio') return this.writeAudio(m)
-    if (this.state === 'fallback' && this.port) {
+    if (this.state === 'ended') return
+    const info = m.type === 'info' ? m.info : null
+    if (info?.type === 'stats') this.stats = info
+    else if (info && info.type !== 'stage') logger.info('capture:', info)
+    // the window closed: the stream ends with it
+    if (info?.type === 'ended') return this.end('the cast ended')
+    if (m.type === 'closed' || info?.type === 'error') {
+      // (closed: no raw fallback, the portal's)
+      if (m.type === 'closed') this.port = null
       // raw: capture failing now means the portal after all
-      if (m.type === 'closed' || (m.type === 'info' && m.info.type === 'error')) this.rawFailed()
-      else if (m.type === 'info' && m.info.type === 'stats') this.stats = m.info
-      else if (m.type === 'info' && m.info.type === 'ended') this.end('the cast ended')
-      return
-    }
-    if (this.state === 'ended' || this.state === 'fallback') return
-    if (m.type === 'info') {
-      const { info } = m
-      if (info.type === 'stats') this.stats = info
-      else if (info.type !== 'stage') logger.info('capture:', info)
-      if (info.type === 'input') {
-        this.width = info.encodeWidth || this.width
-        this.height = info.encodeHeight || this.height
-        this.started(true)
-      } else if (info.type === 'ended') {
-        // the window closed: the stream ends with it
-        this.end('the cast ended')
-      } else if (info.type === 'error') {
-        this.started(false)
-        if (this.state === 'cast') this.fallback(`capture: ${info.message}`)
-      }
-    } else if (m.type === 'preview') {
-      this.setPreview(m)
-    } else if (m.type === 'closed') {
+      if (this.state === 'fallback') return this.rawFailed()
       this.started(false)
-      if (this.state === 'cast') this.fallback(`capture ${m.why}`, 'portal')
+      if (this.state === 'cast') this.fallback(m.type === 'closed' ? `capture ${m.why}` : `capture: ${info!.message}`)
       return
     }
+    if (this.state === 'fallback') return
+    if (info?.type === 'input') {
+      this.width = info.encodeWidth || this.width
+      this.height = info.encodeHeight || this.height
+      this.started(true)
+    } else if (m.type === 'preview') this.setPreview(m)
     this.consumer?.message(m)
   }
 
@@ -273,16 +265,9 @@ export class CastSession {
     this.writePreview()
   }
 
-  // the track's frames are the stream's size less 2 px (alt: 4 px), so that the fallback's frames (the full size)
-  // make Chromium reconfigure its encoder: its first frame sent is then a key frame. zeroCopy.ts writes alt frames
-  // to get a key frame for its templates.
-  private frameSize(alt: boolean) {
-    return { w: Math.max(16, this.width - (alt ? 4 : 2)), h: this.height }
-  }
-
   private write(frame: VideoFrame) {
     this.show(frame.clone())
-    this.writer.write(frame).catch(() => frame.close())
+    return this.writer.write(frame).catch(() => frame.close())
   }
 
   /** A frame for Discord's track (at most every SHOW_INTERVAL_MS; others are dropped). */
@@ -303,7 +288,10 @@ export class CastSession {
    */
   writePreview(alt = false): boolean {
     if (!this.preview || this.state === 'fallback' || this.state === 'ended') return false
-    const { w, h } = this.frameSize(alt)
+    // the stream's size less 2 px (alt: 4 px), so that the fallback's frames (the full size) make Chromium reconfigure
+    // its encoder: its first frame sent is then a key frame. zeroCopy.ts writes alt frames to get a key frame for its
+    // templates.
+    const [w, h] = [Math.max(16, this.width - (alt ? 4 : 2)), this.height]
     if (!this.canvas || this.canvas.width !== w || this.canvas.height !== h) this.canvas = new OffscreenCanvas(w, h)
     const ctx = this.canvas.getContext('2d', { alpha: false })!
     ctx.drawImage(this.preview, 0, 0, w, h)
@@ -315,21 +303,19 @@ export class CastSession {
    * Chromium encodes from now on: capture's own frames (raw) while it runs, else a normal getDisplayMedia capture
    * (the portal's dialog). Resolves once one of them feeds the track (or the session has ended: no capture).
    */
-  async fallback(why: string, how: 'raw' | 'portal' = 'raw') {
+  async fallback(why: string) {
     if (this.state === 'fallback' || this.state === 'ended') return
     logger.warn(`Falling back to Chromium's encoder: ${why}`)
     this.state = 'fallback'
     this.consumer?.stop()
     this.consumer = null
-    if (how === 'raw' && (await this.raw())) return
+    if (await this.raw()) return
     if (this.state === 'fallback') await this.portal()
   }
 
   /** capture stops; a getDisplayMedia capture (the portal's dialog) feeds the track */
   private async portal() {
     this.closeCast()
-    this.rawPort?.close()
-    this.rawPort = null
     const { height, fps } = this.quality.chromium
     let track: MediaStreamTrack | undefined
     try {
@@ -394,13 +380,12 @@ export class CastSession {
     // (writes still pending past 2: Chromium's encoder is behind, the frame is dropped)
     let pending = 0
     this.rawFailed = () => {
-      if (this.state !== 'fallback' || this.rawPort !== port) return
       logger.warn('capture stopped during raw')
       this.portal()
     }
     port.onmessage = ({ data }) => {
       const frame: VideoFrame = data.frame
-      if (this.state !== 'fallback' || this.rawPort !== port || pending > 2) return frame.close()
+      if (this.state !== 'fallback' || pending > 2) return frame.close()
       // the track's settings say the size Chromium encodes (1080p under a 1440p quality)
       this.width = frame.displayWidth
       this.height = frame.displayHeight
@@ -423,8 +408,7 @@ export class CastSession {
       frame = new VideoFrame(value, { visibleRect: { x: r.x, y: r.y, width: r.width - 2, height: r.height } })
       value.close()
     } else this.warmedUp = true
-    this.show(frame.clone())
-    return this.writer.write(frame).catch(() => frame.close())
+    return this.write(frame)
   }
 
   /** Ends the stream: capture stops, the track ends (Discord ends the stream). */
@@ -434,8 +418,6 @@ export class CastSession {
     this.state = 'ended'
     this.started(false)
     this.closeCast()
-    this.rawPort?.close()
-    this.rawPort = null
     this.fallbackTrack?.stop()
     this.writer.close().catch(() => {})
     this.display.close().catch(() => {})
@@ -450,6 +432,8 @@ export class CastSession {
       this.port?.close()
     } catch {}
     this.port = null
+    this.rawPort?.close()
+    this.rawPort = null
     this.preview?.close()
     this.preview = null
   }
@@ -485,9 +469,9 @@ RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, 
   return origAddTransceiver.call(this, typeof trackOrKind === 'string' ? trackOrKind : forSender(trackOrKind), init)
 }
 
-let available: Promise<boolean> | null = null
-/** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on). */
-export const castAvailable = () => (available ??= host.native?.available().catch(() => false) ?? Promise.resolve(false))
+let available = false
+/** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on); a no is asked again. */
+export const castAvailable = async () => (available ||= (await host.native?.available().catch(() => false)) ?? false)
 
 let codecs: string[] | null = null
 /** Whether capture encodes AV1 on this machine's GPU (true while unknown: capture's own error then falls back). */
@@ -526,9 +510,6 @@ export async function castDisplayMedia(
       }))
   const quality = streamQuality(captureAv1())
   const session = (latest = new CastSession(pick, quality, displayMedia, !!opts?.audio))
-  tuneStreamTrack(session.track)
-  tuneStreamTrack(session.encoder)
-  setCurrentStreamQuality(session.track, quality)
   try {
     applyToStreamConnection(quality)
   } catch (e) {
@@ -543,7 +524,7 @@ export async function castDisplayMedia(
   // reach a sender (zeroCopy.ts waits for the session to be up). A capture that doesn't come up falls back to
   // Chromium's capture into the same track, as one that fails later does.
   session.start().then((ok) => {
-    if (!ok) session.fallback("capture didn't start", 'portal')
+    if (!ok) session.fallback("capture didn't start")
   })
   return new MediaStream(session.audio ? [session.track, session.audio] : [session.track])
 }

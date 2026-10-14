@@ -7,6 +7,7 @@
 // reference then drops off the main thread).
 
 const { sharedTexture } = require('electron')
+const { closeSync } = require('node:fs')
 
 let fdsock
 /** The fd socket addon (addon/fdsock.c, $MINCORD_FDSOCK: the flake's fdsock), or null: no raw fallback. */
@@ -58,7 +59,7 @@ function rawRelay(contents) {
       } catch (e) {
         return console.error('[cast] raw import:', e)
       } finally {
-        for (const fd of fds) fdsock.close(fd) // Electron dup'd them
+        for (const fd of fds) closeSync(fd) // Electron dup'd them
       }
       const old = imports.get(m.id)
       if (old) {
@@ -72,9 +73,11 @@ function rawRelay(contents) {
         .catch((e) => console.error('[cast] raw send:', e))
     },
     close() {
-      for (const b of imports.values()) b.imported.release()
+      const old = [...imports.values()]
       imports.clear()
       if (!contents.isDestroyed()) contents.send('mincord:cast-raw-end')
+      // (released as a new size's are: once no frame from them is in the encoder or compositor)
+      setTimeout(() => old.forEach((b) => b.imported.release()), 2000)
     },
   }
 }

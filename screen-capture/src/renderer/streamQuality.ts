@@ -1,6 +1,7 @@
 // Go Live quality: the stream's size, frame rate and bitrate for the account, held on the Go Live sender whoever
 // watches, and the Go Live connection's SDP (its start and max bitrate).
 
+import { castSessionFor, currentCast } from './cast'
 import { host } from './host'
 import { logger as makeLogger } from './log'
 import { attachSwap, startZeroCopy } from './zeroCopy'
@@ -20,24 +21,6 @@ function canStream(height: number, fps: number): boolean {
     logger.error('canStreamWithSettings unavailable', e)
     return true
   }
-}
-
-export const StreamCodecs = ['AV1', 'H264', 'VP9', 'VP8'] as const
-export type StreamCodec = (typeof StreamCodecs)[number]
-
-let encodable: StreamCodec[] | undefined
-
-/** Codecs this client can encode video in, in StreamCodecs order. */
-export function encodableCodecs(): StreamCodec[] {
-  if (encodable) return encodable
-  try {
-    const mimes = new Set(RTCRtpSender.getCapabilities?.('video')?.codecs.map((c) => c.mimeType.toLowerCase()))
-    encodable = StreamCodecs.filter((c) => mimes.has(`video/${c.toLowerCase()}`))
-  } catch (e) {
-    logger.error('Failed to read video encoder capabilities', e)
-    encodable = []
-  }
-  return encodable
 }
 
 // ---- The stream's quality ----
@@ -69,45 +52,31 @@ export function streamQuality(captureAv1: boolean): StreamQuality {
   return { width: Math.round((height * 16) / 9), height, fps, chromium, maxBitrate: sixty ? 9_000_000 : 3_500_000 }
 }
 
-let current: StreamQuality | null = null
-
 /** The quality of the stream that's live now. */
-export const currentStreamQuality = () => current
-
-/** Records the live stream's quality until its track ends. */
-export function setCurrentStreamQuality(track: MediaStreamTrack, q: StreamQuality) {
-  current = q
-  track.addEventListener('ended', () => {
-    if (current === q) current = null
-  })
+export function currentStreamQuality() {
+  const cast = currentCast()
+  return cast && cast.state !== 'ended' ? cast.quality : null
 }
 
 /** Writes the max resolution and frame rate onto our Go Live connection, which Discord's encoder setup reads. */
-export function applyToStreamConnection(q: StreamQuality): boolean {
+export function applyToStreamConnection(q: StreamQuality) {
   const d = host.discord
   const user = d?.currentUser()
   const conn = d && user && [...d.connections()].find((connection) => connection.streamUserId === user.id)
-  if (!conn) return false
+  if (!conn) return
   const params = conn.videoStreamParameters[0]
   params.maxFrameRate = q.fps
   params.maxResolution ??= { width: 0, height: 0 }
   params.maxResolution.width = q.width
   params.maxResolution.height = q.height
-  return true
 }
 
 // ---- The Go Live sender ----
 
-const streamTracks = new WeakSet<MediaStreamTrack>()
+let liveSender: RTCRtpSender | null = null
 
-/** Whether a track is a Go Live track we set up (for stats, overlays). */
-export const isStreamTrack = (track: MediaStreamTrack | null | undefined) => !!track && streamTracks.has(track)
-
-/** Marks a Go Live track as ours: "motion" keeps WebRTC out of screen-content mode (QP floor, frame dropping). */
-export function tuneStreamTrack(track: MediaStreamTrack) {
-  streamTracks.add(track)
-  track.contentHint = 'motion'
-}
+/** The sender our newest Go Live track went on (status.ts). */
+export const streamSender = () => liveSender
 
 // The stream's sound goes out at up to 96 kbps, over the 64 kbps Discord gives every sound sender (its voice rate).
 // Measured, not understood: at 64 kbps WebRTC's estimate fell to about 0.9 Mbps at its first backoff, a third of a
@@ -132,8 +101,8 @@ function withSoundRate(sender: RTCRtpSender, params: RTCRtpSendParameters) {
 // the stream to the account's rate (its feedback keeps the bandwidth estimate at it).
 function withQuality(sender: RTCRtpSender, params: RTCRtpSendParameters) {
   const enc = params.encodings?.[0]
-  const q = current
-  if (!enc || !q || !isStreamTrack(sender.track)) return params
+  const q = castSessionFor(sender.track)?.quality
+  if (!enc || !q) return params
   params.degradationPreference = 'balanced'
   enc.maxBitrate = q.maxBitrate
   enc.maxFramerate = q.fps
@@ -156,15 +125,14 @@ RTCRtpSender.prototype.setParameters = function (this: RTCRtpSender, params, ...
 // Discord only calls setParameters when its own numbers change, so also apply ours when our track is attached to a
 // sender, and send capture's video from it (zeroCopy.ts).
 function applyToSender(sender: RTCRtpSender) {
-  if (isStreamSound(sender.track))
-    origSetParameters
-      .call(sender, withSoundRate(sender, sender.getParameters()))
-      .catch((e) => logger.error("Failed to set the sound's bitrate", e))
-  if (!sender.track || !streamTracks.has(sender.track)) return
+  const cast = castSessionFor(sender.track)
+  if (!cast && !isStreamSound(sender.track)) return
   origSetParameters
-    .call(sender, withQuality(sender, sender.getParameters()))
+    .call(sender, withSoundRate(sender, withQuality(sender, sender.getParameters())))
     .catch((e) => logger.error('Failed to set the stream quality', e))
-  startZeroCopy(sender, sender.track).catch((e) => logger.error('Zero-copy failed to start', e))
+  if (!cast) return
+  liveSender = sender
+  startZeroCopy(sender, sender.track!).catch((e) => logger.error('Zero-copy failed to start', e))
 }
 
 const origReplaceTrack = RTCRtpSender.prototype.replaceTrack
@@ -203,7 +171,7 @@ const START_MAX_KBPS = 6000
 /** The rate a stream starts at under a max of `maxKbps` (the SDP's, and capture's first target). */
 export const startKbps = (maxKbps: number) => Math.min(START_MAX_KBPS, Math.round(maxKbps * START_FRACTION))
 
-export function withStartBitrate(sdp: string): string {
+function withStartBitrate(sdp: string): string {
   return sdp.replace(
     /x-google-max-bitrate=(\d+)(?![^\r\n]*x-google-start-bitrate)/g,
     (match, max: string) => `${match};x-google-start-bitrate=${startKbps(Number(max))}`,
@@ -218,11 +186,9 @@ export function withStartBitrate(sdp: string): string {
 // ceiling, and only b=AS reaches the stream again (max_bandwidth_bps). So on the connection that sends the stream
 // both become the stream's bitrate; Discord's server still caps the estimate (its REMB), capture's encoder never
 // reads either.
-export function withMaxBitrate(sdp: string, kbps: number): string {
-  const raised = sdp.replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) =>
-    Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match,
-  )
-  return raised
+function withMaxBitrate(sdp: string, kbps: number): string {
+  return sdp
+    .replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) => (Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match))
     .split(/(?=\r\nm=)/)
     .map((m) => (m.startsWith('\r\nm=video') && !m.includes('\r\nb=AS:') ? m.replace(/\r\nc=[^\r\n]*/, `$&\r\nb=AS:${kbps}`) : m))
     .join('')
@@ -235,12 +201,17 @@ RTCPeerConnection.prototype.setRemoteDescription = function (
   ...rest: unknown[]
 ) {
   try {
-    const q = current
-    if (desc?.sdp?.includes('x-google-max-bitrate') && q && this.getSenders().some((s) => isStreamTrack(s.track))) {
-      desc = { type: desc.type, sdp: withMaxBitrate(desc.sdp, Math.round(q.maxBitrate / 1000)) }
-      logger.info('Go Live connection: max bitrate', q.maxBitrate)
+    if (desc?.sdp?.includes('x-google-max-bitrate')) {
+      const q = this.getSenders()
+        .map((s) => castSessionFor(s.track)?.quality)
+        .find((q) => q)
+      let sdp = desc.sdp
+      if (q) {
+        sdp = withMaxBitrate(sdp, Math.round(q.maxBitrate / 1000))
+        logger.info('Go Live connection: max bitrate', q.maxBitrate)
+      }
+      desc = { type: desc.type, sdp: withStartBitrate(sdp) }
     }
-    if (desc?.sdp?.includes('x-google-max-bitrate')) desc = { type: desc.type, sdp: withStartBitrate(desc.sdp) }
   } catch (e) {
     logger.error('Failed to set the start bitrate', e)
   }

@@ -2,6 +2,7 @@
 // Electron in here: the lab bench runs the same code.
 
 const { spawn } = require('node:child_process')
+const { closeSync } = require('node:fs')
 
 const MAGIC = 0x315a5343 // "CSZ1"
 const FRAME = 2
@@ -64,14 +65,14 @@ function startCapture(bin, args, onMessage, env, fdsock) {
     env,
   })
   if (fdsock) {
-    fdsock.close(childSock)
+    closeSync(childSock)
     fdsock.listen(sock, (data, fds) => {
-      if (!data) return fdsock.close(sock)
-      if (closed) return fds.forEach(fdsock.close)
+      if (!data) return closeSync(sock)
+      if (closed) return fds.forEach((fd) => closeSync(fd))
       try {
         onMessage({ type: 'raw', raw: JSON.parse(data.toString()), fds })
       } catch (e) {
-        fds.forEach(fdsock.close)
+        fds.forEach((fd) => closeSync(fd))
         console.error('[capture] bad raw message', e)
       }
     })
@@ -139,10 +140,6 @@ function startCapture(bin, args, onMessage, env, fdsock) {
 }
 
 // an ArrayBuffer of its own (a Buffer's may be a pooled slab), to be transferred / copied over a MessagePort
-function copy(b) {
-  const out = new ArrayBuffer(b.length)
-  new Uint8Array(out).set(b)
-  return out
-}
+const copy = (b) => new Uint8Array(b).buffer
 
 module.exports = { startCapture }

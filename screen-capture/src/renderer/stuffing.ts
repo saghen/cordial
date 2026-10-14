@@ -17,11 +17,11 @@ const OBU_METADATA = 5
 const OBU_FRAME_HEADER = 3
 const OBU_FRAME = 6
 /** metadata_type: 6-31 are "unregistered user private" */
-export const STUFF_METADATA_TYPE = 31
+const STUFF_METADATA_TYPE = 31
 /** no stuffing below this many bytes (an OBU's header, size and type are 3-5 bytes) */
-export const MIN_STUFF = 64
+const MIN_STUFF = 64
 
-export const STUFF = {
+const STUFF = {
   /** a frame is topped up by at most this many bytes (~1 frame budget at 9 Mbps 60 fps x 2) */
   MAX_PER_FRAME: 40_000,
   /** time between frames counted at most (a stall doesn't make one huge stuffing) */
@@ -42,7 +42,7 @@ function leb128(n: number): number[] {
 }
 
 /** A metadata OBU (with obu_size) of `total` bytes (>= MIN_STUFF; one less where obu_size would need another byte). */
-export function stuffingObu(total: number): Uint8Array {
+function stuffingObu(total: number): Uint8Array {
   // header (1) + leb128(payload) + payload; payload = metadata_type (1) + zeros + trailing bits (0x80)
   let payload = total - 2
   while (1 + leb128(payload).length + payload > total) payload--
@@ -59,7 +59,7 @@ export function stuffingObu(total: number): Uint8Array {
  * Where the stuffing goes in a temporal unit: the offset of its first frame or frame-header OBU (its end if it has
  * none, or -1 if it doesn't parse: then it gets no stuffing).
  */
-export function stuffingOffset(tu: Uint8Array): number {
+function stuffingOffset(tu: Uint8Array): number {
   let i = 0
   while (i < tu.length) {
     const h = tu[i]
