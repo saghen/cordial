@@ -1,7 +1,7 @@
 // A server's icon at a size, else its initials on a tile (an invite's server too, which isn't one of ours)
 
 import * as guilds from '../api/guilds'
-import type { Guild } from '../api/records'
+import type { Guild } from '../api/types'
 
 export const GuildIcon = (p: { guild: Pick<Guild, 'id' | 'name' | 'icon'>; size: number }) => {
   const src = () => guilds.icon(p.guild, p.size)

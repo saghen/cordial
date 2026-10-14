@@ -4,7 +4,7 @@
 
 import { A } from '../adapter/needs'
 import * as guilds from './guilds'
-import type { Channel, Message } from './records'
+import type { Channel, Message } from './types'
 import { $ } from './store'
 import { text } from './strings'
 

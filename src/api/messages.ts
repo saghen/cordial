@@ -4,8 +4,8 @@
 
 import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
-import type { Channel, Emoji, Message, Reaction } from './records'
-import { MessageType, Permission } from './records'
+import type { Channel, Emoji, Message, Reaction } from './types'
+import { MessageType, Permission } from './types'
 import { $ } from './store'
 import { day, text } from './strings'
 import { automaticAck, channelDimensions, localAck } from './triggers'

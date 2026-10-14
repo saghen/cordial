@@ -5,7 +5,7 @@
 import { Show } from 'solid-js'
 
 import * as pickers from '../../api/pickers'
-import type { Attachment as File, Message } from '../../api/records'
+import type { Attachment as File, Message } from '../../api/types'
 import { Clip, Media } from '../media'
 
 const size = (n: number) =>

@@ -18,7 +18,7 @@ import {
   type Message,
   type PrivateChannel,
   type User,
-} from './records'
+} from './types'
 import { $ } from './store'
 import { text } from './strings'
 import { startTyping, stopTyping } from './triggers'

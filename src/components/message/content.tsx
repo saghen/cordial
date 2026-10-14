@@ -5,7 +5,7 @@
 import { For, Show } from 'solid-js'
 
 import * as messages from '../../api/messages'
-import { MessageType, type Id, type Message } from '../../api/records'
+import { MessageType, type Id, type Message } from '../../api/types'
 import { text, textAround } from '../../api/strings'
 import * as users from '../../api/users'
 import { renderAST } from '../markdown'

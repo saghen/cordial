@@ -7,7 +7,7 @@ import type { JSX } from '@solidjs/web'
 
 import * as guilds from '../api/guilds'
 import * as pickers from '../api/pickers'
-import type { Channel, Emoji as EmojiRecord, Gif, Sticker } from '../api/records'
+import type { Channel, Emoji as EmojiRecord, Gif, Sticker } from '../api/types'
 import { text } from '../api/strings'
 import { IconButton } from '../primitives/button'
 import { Icon } from '../primitives/icon'

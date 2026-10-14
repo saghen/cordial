@@ -3,7 +3,7 @@
 import { Show } from 'solid-js'
 
 import * as channels from '../api/channels'
-import type { PrivateChannel } from '../api/records'
+import type { PrivateChannel } from '../api/types'
 import * as users from '../api/users'
 import { Avatar } from './avatar'
 

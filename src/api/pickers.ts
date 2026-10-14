@@ -5,7 +5,7 @@
 
 import { A, S } from '../adapter/needs'
 import * as guilds from './guilds'
-import type { Channel, Emoji, Gif, Guild, Id, Sticker } from './records'
+import type { Channel, Emoji, Gif, Guild, Id, Sticker } from './types'
 import { $ } from './store'
 import { text } from './strings'
 

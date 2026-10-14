@@ -3,7 +3,7 @@
 
 import { A } from '../adapter/needs'
 import * as channels from './channels'
-import { ChannelType, type Channel, type Id, type PrivateChannel } from './records'
+import { ChannelType, type Channel, type Id, type PrivateChannel } from './types'
 import { $ } from './store'
 import * as users from './users'
 import * as voice from './voice'

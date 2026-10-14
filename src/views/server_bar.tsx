@@ -4,7 +4,7 @@ import { createSignal, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
 import * as channels from '../api/channels'
-import type { Id, Invite, PrivateChannel } from '../api/records'
+import type { Id, Invite, PrivateChannel } from '../api/types'
 import * as guilds from '../api/guilds'
 import { onHover } from '../api/preload'
 import { selected, selectedGuild } from '../api/store'

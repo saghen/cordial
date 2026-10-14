@@ -7,7 +7,7 @@ import { For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
 import * as messages from '../../api/messages'
-import { MessageType, type Channel, type Message as Record } from '../../api/records'
+import { MessageType, type Channel, type Message as Record } from '../../api/types'
 import { clock, text } from '../../api/strings'
 import { Badge } from '../../primitives/badge'
 import { Button } from '../../primitives/button'

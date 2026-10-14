@@ -7,7 +7,7 @@ import type { JSX } from '@solidjs/web'
 
 import * as composer from '../api/composer'
 import { useFileDrop } from '../api/hooks'
-import type { Channel, Message } from '../api/records'
+import type { Channel, Message } from '../api/types'
 import { selected } from '../api/store'
 import { text, textAround } from '../api/strings'
 import * as users from '../api/users'

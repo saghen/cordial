@@ -6,7 +6,7 @@
 import { createEffect } from 'solid-js'
 
 import { windowFocused } from '../api/hooks'
-import type { EmbedMedia as Source } from '../api/records'
+import type { EmbedMedia as Source } from '../api/types'
 import * as viewer from './viewer'
 
 // the box media fits: embeds' media, a thumbnail, a sent image (larger, but GIFs stay at embeds' size)

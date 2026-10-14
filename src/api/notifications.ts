@@ -3,7 +3,7 @@
 
 import { A, S } from '../adapter/needs'
 import type { Rec } from '../adapter/discord'
-import { ChannelType, type Channel } from './records'
+import { ChannelType, type Channel } from './types'
 import { $ } from './store'
 import { text } from './strings'
 

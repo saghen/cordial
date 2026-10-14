@@ -5,7 +5,7 @@ import { Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
 import * as messages from '../../api/messages'
-import type { Id, Message, User } from '../../api/records'
+import type { Id, Message, User } from '../../api/types'
 import { text, textAround } from '../../api/strings'
 import * as users from '../../api/users'
 import { Avatar } from '../avatar'

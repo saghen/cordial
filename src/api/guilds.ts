@@ -4,7 +4,7 @@
 import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
 import * as cdn from './cdn'
-import type { Guild, Invite } from './records'
+import type { Guild, Invite } from './types'
 import { $ } from './store'
 
 export const get = (id: Id) => $.Guild.getGuild(id) as Guild | undefined

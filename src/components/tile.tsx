@@ -4,7 +4,7 @@
 
 import { type Accessor, createSignal, Show } from 'solid-js'
 
-import type { Id, User } from '../api/records'
+import type { Id, User } from '../api/types'
 import * as users from '../api/users'
 import { Icon } from '../primitives/icon'
 import { Avatar } from './avatar'

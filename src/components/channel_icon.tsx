@@ -1,7 +1,7 @@
 // A channel's icon by its type and kind: text, announcements, age-restricted, private; voice, private voice
 
 import * as channels from '../api/channels'
-import { ChannelType, type Channel } from '../api/records'
+import { ChannelType, type Channel } from '../api/types'
 import { Icon } from '../primitives/icon'
 
 export function ChannelIcon(p: { channel: Channel }) {

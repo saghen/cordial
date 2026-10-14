@@ -4,7 +4,7 @@
 import { createSignal, For } from 'solid-js'
 
 import * as messages from '../../api/messages'
-import type { Message, Reaction } from '../../api/records'
+import type { Message, Reaction } from '../../api/types'
 import { IconButton } from '../../primitives/button'
 import { Emoji } from '../emoji'
 

@@ -6,7 +6,7 @@ import { createSignal } from 'solid-js'
 
 import { S } from '../adapter/needs'
 import type { FluxStore } from '../adapter/discord'
-import type { Channel } from './records'
+import type { Channel } from './types'
 
 const reads = new Map<FluxStore, () => void>()
 

@@ -5,7 +5,7 @@ import { createEffect, createMemo } from 'solid-js'
 
 import type { FluxStore, Id } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
-import { ChannelType } from './records'
+import { ChannelType } from './types'
 import { $ } from './store'
 import * as streams from './streams'
 

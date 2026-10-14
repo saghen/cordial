@@ -2,7 +2,7 @@
 // stock's words), joining and leaving. Discord's own voice engine makes the call (stock's selectVoiceChannel).
 
 import { A } from '../adapter/needs'
-import type { Channel, Id, VoiceState } from './records'
+import type { Channel, Id, VoiceState } from './types'
 import { $ } from './store'
 import { text } from './strings'
 import * as users from './users'

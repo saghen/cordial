@@ -6,7 +6,7 @@
 import { G } from '../adapter/anchor'
 import { A, S } from '../adapter/needs'
 import type { Id, Rec } from '../adapter/discord'
-import { Permission, type Channel } from './records'
+import { Permission, type Channel } from './types'
 import { can } from './users'
 
 export const preload = (id?: Id | null) => {

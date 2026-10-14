@@ -3,7 +3,7 @@
 // video is its thumbnail, opening the page.
 
 import * as messages from '../../api/messages'
-import type { Embed as Record } from '../../api/records'
+import type { Embed as Record } from '../../api/types'
 import { Markdown } from '../markdown'
 import { Clip, Media } from '../media'
 

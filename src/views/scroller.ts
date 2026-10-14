@@ -5,7 +5,7 @@
 // arrive, rows settle to their heights) would move everything above them.
 
 import * as messages from '../api/messages'
-import type { Id } from '../api/records'
+import type { Id } from '../api/types'
 
 export function createScroller(scroller: HTMLElement, channel: () => Id | null) {
   // only toward where the reader is heading (api/messages.ts loadMore)

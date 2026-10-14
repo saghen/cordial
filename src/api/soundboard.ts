@@ -6,7 +6,7 @@ import type { Rec } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
 import * as guilds from './guilds'
 import type { Section } from './pickers'
-import type { Channel, Id } from './records'
+import type { Channel, Id } from './types'
 import { $ } from './store'
 import { text } from './strings'
 

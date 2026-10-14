@@ -4,7 +4,7 @@
 import type { Id, Rec } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
 import * as cdn from './cdn'
-import type { Channel, Member, User } from './records'
+import type { Channel, Member, User } from './types'
 import { $ } from './store'
 import { text } from './strings'
 

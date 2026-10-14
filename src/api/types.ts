@@ -1,12 +1,7 @@
-// Discord's records as the UI reads them: its record classes (ChannelRecord, MessageRecord, UserRecord...), typed
-// only as far as we use them. A field or method added here must exist on Discord's record; the stores hand these out
-// (adapter/discord.ts types the stores themselves).
-
 import type { Id } from '../adapter/discord'
 
 export type { Id }
 
-// ChannelTypes
 export const enum ChannelType {
   Text = 0,
   DM = 1,
@@ -23,7 +18,6 @@ export const enum ChannelType {
   Media = 16,
 }
 
-// MessageTypes (the ones the UI names; USER_MESSAGE in model.ts lists those shown as user messages)
 export const enum MessageType {
   Default = 0,
   Call = 3,
@@ -31,7 +25,7 @@ export const enum MessageType {
   ChatInputCommand = 20,
 }
 
-// permission bits, as BigInt flags
+/// BigInt permission bit flags
 export const Permission = {
   VIEW_CHANNEL: 1n << 10n,
   MANAGE_CHANNELS: 1n << 4n,
@@ -52,7 +46,7 @@ export interface Channel {
   parent_id: Id | null
   topic?: string
   nsfw?: boolean
-  // slowmode, in seconds
+  /// slowmode, in seconds
   rateLimitPerUser?: number
   permissionOverwrites?: Record<Id, { id: Id; allow: bigint | string; deny: bigint | string }>
   isPrivate(): boolean
@@ -61,13 +55,11 @@ export interface Channel {
   getApplicationId(): Id | undefined
 }
 
-// DMs and group DMs (PrivateChannelRecord): guild channels have none of these
+/// DMs and group DMs
 export interface PrivateChannel extends Channel {
-  // the other users' ids
+  /// everyone except the user
   recipients: Id[]
   icon: string | null
-  // a DM's other user
-  getRecipientId(): Id | undefined
 }
 
 export interface User {

@@ -4,7 +4,7 @@
 // (stock's range helper) when it opens and as it scrolls.
 
 import { A } from '../adapter/needs'
-import { ChannelType, type PrivateChannel, type User } from './records'
+import { ChannelType, type PrivateChannel, type User } from './types'
 import { $, selected, selectedChannel, selectedGuild } from './store'
 import { text } from './strings'
 import * as users from './users'

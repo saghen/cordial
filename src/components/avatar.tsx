@@ -1,7 +1,7 @@
 // A user's avatar (or an image in its place: a group DM's icon), round, at a size in px; with a status, stock's shape
 // at its bottom right in a ring cut out of it; speaking, ringed in green
 
-import type { Id, User } from '../api/records'
+import type { Id, User } from '../api/types'
 import * as users from '../api/users'
 import { Status } from '../primitives/status'
 

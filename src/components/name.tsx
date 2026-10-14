@@ -1,7 +1,7 @@
 // A user's name as stock shows it: the server nickname in its role colour, @ before it when a reply pings them, APP
 // after a bot's
 
-import type { Id, User } from '../api/records'
+import type { Id, User } from '../api/types'
 import * as users from '../api/users'
 import { Badge } from '../primitives/badge'
 
