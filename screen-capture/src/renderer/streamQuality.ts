@@ -394,7 +394,7 @@ function startMotionScaler(sender: RTCRtpSender) {
     } catch {
       return // a renegotiation in progress; the next tick tries again
     }
-    if (!out || !currentStreamQuality() || (track.getSettings().height ?? 0) <= MOTION_HEIGHT || priority === 'clarity')
+    if (!out || !currentStreamQuality() || (track.getSettings().height ?? 0) <= MOTION_HEIGHT || priority === 'clarity' || settings.chromiumFullSize)
       return reset('not above 1080p')
     // The QP thresholds are AV1's; another codec (a viewer without AV1) can't hold 1440p60 at 9 Mbps anyway.
     if (codec && codec !== 'video/AV1') return setFast(true, `${codec} negotiated`)
@@ -452,6 +452,23 @@ export function withMinBitrate(sdp: string): string {
   return sdp.replace(/x-google-max-bitrate=(\d+)(?![^\r\n]*x-google-min-bitrate)/g, (match, max: string) => {
     return `${match};x-google-min-bitrate=${Math.round(Number(max) * MIN_FRACTION)}`
   })
+}
+
+// Setting "goLiveMaxBitrate" (experimental, off): Discord's browser engine writes x-google-max-bitrate=2500 into
+// every connection's SDP (videoBitRate), and Chromium's own encoders (the fallback, raw) hold their target at it
+// whatever the estimate allows (live: VP9 sent 2.5 Mbps at a 4.2 Mbps estimate). libwebrtc seeds the send stream's
+// max from the codec's x-google-max-bitrate when the stream is made, before the stream's track is on the sender
+// (WebRtcVideoSendChannel::AddSendStream); a later x-google-max-bitrate only moves the estimate's ceiling, and only
+// b=AS reaches the stream again (max_bandwidth_bps). So on the connection that sends the stream both become the
+// stream's bitrate; Discord's server still caps the estimate (its REMB), capture's encoders never read either.
+export function withMaxBitrate(sdp: string, kbps: number): string {
+  const raised = sdp.replace(/x-google-max-bitrate=(\d+)/g, (match, max: string) =>
+    Number(max) < kbps ? `x-google-max-bitrate=${kbps}` : match,
+  )
+  return raised
+    .split(/(?=\r\nm=)/)
+    .map((m) => (m.startsWith('\r\nm=video') && !m.includes('\r\nb=AS:') ? m.replace(/\r\nc=[^\r\n]*/, `$&\r\nb=AS:${kbps}`) : m))
+    .join('')
 }
 
 // ---- The stream's sound in stereo ----
@@ -514,6 +531,12 @@ RTCPeerConnection.prototype.setRemoteDescription = function (
   ...rest: unknown[]
 ) {
   try {
+    const q = currentStreamQuality()
+    if (desc?.sdp?.includes('x-google-max-bitrate') && settings.goLiveMaxBitrate && q &&
+        this.getSenders().some((s) => isStreamTrack(s.track))) {
+      desc = { type: desc.type, sdp: withMaxBitrate(desc.sdp, Math.round(q.maxBitrate / 1000)) }
+      logger.info('Go Live connection: max bitrate', q.maxBitrate)
+    }
     if (desc?.sdp?.includes('x-google-max-bitrate')) desc = { type: desc.type, sdp: withStartBitrate(desc.sdp) }
     if (
       desc?.sdp?.includes('x-google-max-bitrate') &&

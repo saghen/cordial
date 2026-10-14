@@ -571,7 +571,7 @@ export class CastSession {
   private chromiumHeight() {
     const q = this.quality
     const notAv1 = !!this.sentCodec && this.sentCodec.toLowerCase() !== 'video/av1' && this.pick.priority !== 'clarity'
-    return q.height > 1080 && (q.gpuOnly || notAv1) ? 1080 : q.height
+    return q.height > 1080 && (q.gpuOnly || notAv1) && !settings.chromiumFullSize ? 1080 : q.height
   }
 
   /** Ends the stream: capture stops, the track ends (Discord ends the stream). */
