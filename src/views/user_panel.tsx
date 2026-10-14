@@ -316,7 +316,7 @@ function ScreenPicker() {
             <Button class={['source', s.kind]} data-id={s.id} onClick={() => pick(a(), s)}>
               {s.name}
               <small>
-                {s.detail} · {s.width}×{s.height}
+                {s.width ? `${s.detail} · ${s.width}×${s.height}` : s.detail}
               </small>
             </Button>
           )}

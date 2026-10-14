@@ -151,9 +151,8 @@ impl Va {
         Ok(Image { va: self.clone(), img })
     }
 
-    /// the surface exported as DMA-BUF (read only, separate layers): its first object's fd, for poll()ing the work
-    /// writing it
-    pub fn export_fd(&self, surf: VASurfaceID) -> Result<OwnedFd> {
+    /// the surface exported as DMA-BUF, read only (`flags`: its layers): the descriptor and its objects' fds
+    fn export(&self, surf: VASurfaceID, flags: u32) -> Result<(sys::VADRMPRIMESurfaceDescriptor, Vec<OwnedFd>)> {
         let mut d = sys::VADRMPRIMESurfaceDescriptor::default();
         // SAFETY: d is written on success; the fds it holds are ours to close
         check(
@@ -162,17 +161,24 @@ impl Va {
                     self.dpy(),
                     surf,
                     sys::VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
-                    sys::VA_EXPORT_SURFACE_READ_ONLY | sys::VA_EXPORT_SURFACE_SEPARATE_LAYERS,
+                    sys::VA_EXPORT_SURFACE_READ_ONLY | flags,
                     &mut d as *mut _ as *mut _,
                 )
             },
             "vaExportSurfaceHandle",
         )?;
-        // SAFETY: as above; the other objects' fds (if any) are closed as they drop
-        let mut fds = d.objects[..d.num_objects as usize]
+        // SAFETY: as above
+        let fds = d.objects[..d.num_objects as usize]
             .iter()
-            .map(|o| unsafe { OwnedFd::from_raw_fd(o.fd) });
-        fds.next().context("vaExportSurfaceHandle: no objects")
+            .map(|o| unsafe { OwnedFd::from_raw_fd(o.fd) })
+            .collect();
+        Ok((d, fds))
+    }
+
+    /// the surface's first object's fd (separate layers), for poll()ing the work writing it; the others are closed
+    pub fn export_fd(&self, surf: VASurfaceID) -> Result<OwnedFd> {
+        let (_, fds) = self.export(surf, sys::VA_EXPORT_SURFACE_SEPARATE_LAYERS)?;
+        fds.into_iter().next().context("vaExportSurfaceHandle: no objects")
     }
 
     /// n NV12 surfaces in LINEAR layout (what Chromium imports for sure), VPP targets that are exported
@@ -197,25 +203,7 @@ impl Va {
     /// an NV12 surface exported as one DMA-BUF with both planes (composed layers)
     pub fn export_nv12(&self, surf: VASurfaceID) -> Result<Export> {
         const DRM_FORMAT_NV12: u32 = 0x3231564e; // "NV12"
-        let mut d = sys::VADRMPRIMESurfaceDescriptor::default();
-        // SAFETY: d is written on success; the fds it holds are ours to close
-        check(
-            unsafe {
-                sys::vaExportSurfaceHandle(
-                    self.dpy(),
-                    surf,
-                    sys::VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
-                    sys::VA_EXPORT_SURFACE_READ_ONLY | sys::VA_EXPORT_SURFACE_COMPOSED_LAYERS,
-                    &mut d as *mut _ as *mut _,
-                )
-            },
-            "vaExportSurfaceHandle",
-        )?;
-        // SAFETY: as above
-        let fds: Vec<OwnedFd> = d.objects[..d.num_objects as usize]
-            .iter()
-            .map(|o| unsafe { OwnedFd::from_raw_fd(o.fd) })
-            .collect();
+        let (d, fds) = self.export(surf, sys::VA_EXPORT_SURFACE_COMPOSED_LAYERS)?;
         let l = &d.layers[0];
         if d.num_layers != 1 || l.drm_format != DRM_FORMAT_NV12 || l.num_planes != 2 || fds.len() != 1 {
             bail!(
@@ -448,15 +436,16 @@ pub struct Image {
 }
 
 impl Image {
-    /// the image's planes mapped for writing; `f` gets the bytes, offsets and pitches
-    pub fn write(&self, f: impl FnOnce(&mut [u8], &[u32; 3], &[u32; 3])) -> Result<()> {
+    /// the image's buffer mapped with vaMapBuffer2's `flags` (vaMapBuffer is DEFAULT); `f` gets the bytes, offsets
+    /// and pitches
+    fn map(&self, flags: u32, f: impl FnOnce(&mut [u8], &[u32; 3], &[u32; 3])) -> Result<()> {
         let dpy = self.va.dpy();
         let mut p: *mut u8 = std::ptr::null_mut();
         // SAFETY: the mapped buffer is data_size bytes until vaUnmapBuffer
         unsafe {
             check(
-                sys::vaMapBuffer(dpy, self.img.buf, &mut p as *mut _ as *mut _),
-                "vaMapBuffer",
+                sys::vaMapBuffer2(dpy, self.img.buf, &mut p as *mut _ as *mut _, flags),
+                "vaMapBuffer2",
             )?;
             f(
                 std::slice::from_raw_parts_mut(p, self.img.data_size as usize),
@@ -468,30 +457,15 @@ impl Image {
         Ok(())
     }
 
-    /// the image's buffer mapped for reading (vaMapBuffer2's READ: a derived image of a VRAM surface is blitted to a
-    /// staging buffer and waited for)
+    /// the image's planes mapped for writing
+    pub fn write(&self, f: impl FnOnce(&mut [u8], &[u32; 3], &[u32; 3])) -> Result<()> {
+        self.map(sys::VA_MAPBUFFER_FLAG_DEFAULT, f)
+    }
+
+    /// the image's buffer mapped for reading (READ: a derived image of a VRAM surface is blitted to a staging buffer
+    /// and waited for)
     pub fn read(&self, f: impl FnOnce(&[u8], &[u32; 3], &[u32; 3])) -> Result<()> {
-        let dpy = self.va.dpy();
-        let mut p: *mut u8 = std::ptr::null_mut();
-        // SAFETY: the mapped buffer is data_size bytes until vaUnmapBuffer
-        unsafe {
-            check(
-                sys::vaMapBuffer2(
-                    dpy,
-                    self.img.buf,
-                    &mut p as *mut _ as *mut _,
-                    sys::VA_MAPBUFFER_FLAG_READ,
-                ),
-                "vaMapBuffer2",
-            )?;
-            f(
-                std::slice::from_raw_parts(p, self.img.data_size as usize),
-                &self.img.offsets,
-                &self.img.pitches,
-            );
-            sys::vaUnmapBuffer(dpy, self.img.buf);
-        }
-        Ok(())
+        self.map(sys::VA_MAPBUFFER_FLAG_READ, |p, off, pitch| f(p, off, pitch))
     }
 
     /// the image into the whole of `surf` (same size)

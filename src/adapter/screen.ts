@@ -2,8 +2,7 @@
 // evaluated, before Discord's scripts; here they get Discord's pieces (host.discord, from the adapter's needs), the
 // shell's cast IPC (host.native, shell/preload.js) and the codec order patch. capture is offered only when the
 // adapter's check passed and the patch applied; otherwise getDisplayMedia is Chromium's own capture, as in stock. The
-// picker (host.pick) is mincord's UI, not built yet: until then only a pending pick (mincord.screen.setPendingCast,
-// the lab) streams through capture.
+// picker (host.pick) is the voice panel's (views/user_panel.tsx).
 
 import * as screen from '../../screen-capture/src/renderer'
 import { G } from './anchor'

@@ -3,7 +3,7 @@
 // the frames capture's replace.
 
 import { castSessionFor } from './cast'
-import { isStreamTrack, streamSender } from './streamQuality'
+import { streamSender } from './streamQuality'
 import { isZeroCopy } from './zeroCopy'
 
 const QP_MAX: Record<string, number> = { AV1: 255, VP9: 255, VP8: 127, H264: 51 }
@@ -24,7 +24,8 @@ const round = (n: number | undefined) => (n === undefined || isNaN(n) ? '?' : St
 /** The numbers since the last call (call it once a second); null while nothing streams. */
 export async function streamStatus(): Promise<StreamStatus | null> {
   const sender = streamSender()
-  if (!sender || !isStreamTrack(sender.track) || sender.track!.readyState !== 'live') return null
+  const session = castSessionFor(sender?.track)
+  if (!sender || !session || session.state === 'ended') return null
   const stats = [...(await sender.getStats()).values()]
   const byId = (id: string | undefined) => stats.find((s) => s.id === id)
   const rtp = stats.find((s) => s.type === 'outbound-rtp')
@@ -40,7 +41,7 @@ export async function streamStatus(): Promise<StreamStatus | null> {
   const bitrate = (per(last.bytes, prev?.bytes) ?? NaN) * 8
   const frames = prev ? last.frames - prev.frames : 0
 
-  const cast = isZeroCopy(sender) ? castSessionFor(sender.track)?.stats : null
+  const cast = isZeroCopy(sender) ? session.stats : null
   const s = cast
     ? {
         encoder: 'capture (VA-API)',

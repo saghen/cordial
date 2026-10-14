@@ -19,10 +19,6 @@ impl Bits {
         }
     }
 
-    pub fn flag(&mut self, b: bool) {
-        self.put(b as u32, 1)
-    }
-
     pub fn trailing(&mut self) {
         self.put(1, 1);
         while !self.bits.is_multiple_of(8) {

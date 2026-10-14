@@ -20,7 +20,7 @@
 // on Wayland desktopCapturer asks the ScreenCast portal, which shows its own dialog. The lab answers with the asking
 // frame itself, no portal (the lab sway's portal is backed by Liam's niri).
 //
-// IPC (shell/preload.js): invoke mincord:cast-available () -> boolean, mincord:cast-codecs () -> ('av1' | 'h264')[],
+// IPC (shell/preload.js): invoke mincord:cast-available () -> boolean, mincord:cast-codecs () -> 'av1'[],
 // mincord:cast-sources () -> CastSource[],
 // mincord:cast-start (CastStart) -> boolean; on true the port follows as mincord:cast-port.
 
@@ -56,11 +56,8 @@ app.commandLine.appendSwitch(
 let found
 function captureBin() {
   if (found !== undefined) return found
-  const env = process.env.MINCORD_CAPTURE
-  found = env && fs.existsSync(env) ? env : null
-  for (const dir of (process.env.PATH ?? '').split(path.delimiter))
-    if (!found && dir && fs.existsSync(path.join(dir, 'mincord-capture'))) found = path.join(dir, 'mincord-capture')
-  return found
+  const onPath = (process.env.PATH ?? '').split(path.delimiter).map((dir) => dir && path.join(dir, 'mincord-capture'))
+  return (found = [process.env.MINCORD_CAPTURE, ...onPath].find((f) => f && fs.existsSync(f)) ?? null)
 }
 
 function config() {
@@ -158,21 +155,9 @@ function portalLast() {
 function portalSources() {
   const last = portalLast()
   const detail = "through the desktop's screen sharing"
-  return [
-    ...(last
-      ? [
-          {
-            id: 'portal:last',
-            kind: 'output',
-            name: 'Same as last time',
-            detail,
-            width: last.width,
-            height: last.height,
-          },
-        ]
-      : []),
-    { id: 'portal:choose', kind: 'output', name: 'Choose a screen or window', detail, width: 0, height: 0 },
-  ]
+  const choose = { id: 'portal:choose', kind: 'output', name: 'Choose a screen or window', detail, width: 0, height: 0 }
+  if (!last) return [choose]
+  return [{ id: 'portal:last', kind: 'output', name: 'Same as last time', detail, width: last.width, height: last.height }, choose]
 }
 
 /**
@@ -336,9 +321,11 @@ function startCast(e, opts) {
     args,
     (m) => {
       if (m.type === 'raw') return raw?.message(m.raw, m.fds)
-      if (m.type === 'info' && m.info.type === 'cast') sessionId = m.info.sessionId
       // the portal's token for next time, kept with the source's size once the format is known
-      if (m.type === 'info' && m.info.type === 'cast' && m.info.restoreToken) token = m.info.restoreToken
+      if (m.type === 'info' && m.info.type === 'cast') {
+        sessionId = m.info.sessionId
+        token = m.info.restoreToken ?? null
+      }
       if (m.type === 'info' && m.info.type === 'input' && token) {
         const keep = { token, width: m.info.width, height: m.info.height }
         fs.promises.writeFile(portalFile(), JSON.stringify(keep)).catch((e) => console.error('[cast] portal token:', e))
@@ -346,7 +333,6 @@ function startCast(e, opts) {
       }
       if (m.type === 'closed') {
         console.log(`[cast] capture ${cap.pid} ${m.why}`)
-        stopAudio()
         if (sessionId != null) stopCast(sessionId)
         raw?.close()
       }
@@ -405,5 +391,3 @@ ipcMain.handle('mincord:cast-codecs', castCodecs)
 ipcMain.handle('mincord:cast-sources', castSources)
 ipcMain.handle('mincord:cast-start', startCast)
 app.on('will-quit', () => current?.close())
-
-module.exports = { castAvailable, castCodecs, castSources }

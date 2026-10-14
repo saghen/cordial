@@ -55,34 +55,22 @@ pub fn send(kind: u32, seq: u32, t: f64, a: &[u8], b: &[u8], droppable: bool) ->
     .iter()
     .flat_map(|v| v.to_le_bytes())
     .collect();
-    let parts = [&hdr[..], a, b];
-    let total: usize = parts.iter().map(|p| p.len()).sum();
+    let mut parts = [IoSlice::new(&hdr), IoSlice::new(a), IoSlice::new(b)];
+    let mut iov = &mut parts[..]; // what's left to write
     let deadline = now() + 2.0;
     // SAFETY: fd 1 is open for the process's life
     let fd = unsafe { BorrowedFd::borrow_raw(1) };
     let _lock = OUT.lock().unwrap();
     let mut sent = 0;
     let ret = loop {
-        if sent == total {
+        if iov.is_empty() {
             break Sent::Ok;
         }
-        let mut skip = sent;
-        let iov: Vec<IoSlice> = parts
-            .iter()
-            .filter_map(|p| {
-                if skip >= p.len() {
-                    skip -= p.len();
-                    return None;
-                }
-                let s = IoSlice::new(&p[skip..]);
-                skip = 0;
-                Some(s)
-            })
-            .collect();
         // SAFETY: IoSlice is ABI-compatible with iovec
         let w = unsafe { libc::writev(fd.as_raw_fd(), iov.as_ptr() as *const libc::iovec, iov.len() as i32) };
         if w > 0 {
             sent += w as usize;
+            IoSlice::advance_slices(&mut iov, w as usize);
             continue;
         }
         let err = std::io::Error::last_os_error().raw_os_error();
@@ -116,6 +104,11 @@ pub fn send(kind: u32, seq: u32, t: f64, a: &[u8], b: &[u8], droppable: bool) ->
 pub fn info(json: &str) {
     eprintln!("info: {json}");
     send(MSG_INFO, 0, now(), json.as_bytes(), &[], false);
+}
+
+/// an error info message, the message quoted by Debug (as JSON quotes it, for plain text like ours)
+pub fn error(msg: &str) {
+    info(&format!("{{\"type\":\"error\",\"message\":{msg:?}}}"));
 }
 
 /// a startup stage reached, as an info message (its time is when) and into the log; each name once

@@ -5,7 +5,6 @@
 import { captureAv1 } from './cast'
 import { host } from './host'
 import { settings } from './settings'
-import { encodableCodecs, StreamCodec } from './streamQuality'
 
 export const codecPatch = {
   // WebRTC (browser) connection module: parses the local SDP into the codec list sent in select_protocol (once, when
@@ -53,16 +52,22 @@ export function orderCodecs(list: string[]): string[] {
   }
 }
 
+let encodable: Set<string> | undefined
+/** Whether this client encodes video in `codec` (AV1, VP9, ...). */
+const canEncode = (codec: string) =>
+  (encodable ??= new Set(RTCRtpSender.getCapabilities?.('video')?.codecs.map((c) => c.mimeType.toLowerCase()))).has(
+    `video/${codec.toLowerCase()}`,
+  )
+
 function order(list: string[]): string[] {
-  const encodable = encodableCodecs()
   if (settings.codec !== 'AV1') {
-    if (!encodable.includes(settings.codec) || !list.includes(settings.codec)) return list
+    if (!canEncode(settings.codec) || !list.includes(settings.codec)) return list
     return [settings.codec, ...list.filter((c) => c !== settings.codec)]
   }
-  if (!encodable.includes('AV1')) return list
+  if (!canEncode('AV1')) return list
   const self = host.discord?.currentUser()?.id
   const goLive = connection?.context === 'stream' && !!self && connection.streamUserId === self
-  const next = ['VP9', 'H264'].filter((c) => list.includes(c) && encodable.includes(c as StreamCodec))
+  const next = ['VP9', 'H264'].filter((c) => list.includes(c) && canEncode(c))
   const rest = list.filter((c) => !next.includes(c))
   return goLive && !captureAv1() ? [...next, ...rest, 'AV1'] : ['AV1', ...next, ...rest]
 }

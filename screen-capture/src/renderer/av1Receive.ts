@@ -29,7 +29,7 @@ const failed = (e: unknown) => {
 
 /** The frame with its last OBU's size field taken out, if it is a DAVE-encrypted AV1 frame (ends 0xFAFA) whose OBUs
  * all have one; else null. */
-export function unsizeLastObu(d: Uint8Array): Uint8Array | null {
+function unsizeLastObu(d: Uint8Array): Uint8Array | null {
   if (d.length < 4 || d[d.length - 1] !== 0xfa || d[d.length - 2] !== 0xfa) return null
   for (let i = 0; i < d.length;) {
     const header = d[i]

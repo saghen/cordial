@@ -20,7 +20,6 @@ use anyhow::{anyhow, Result};
 use pipewire as pw;
 use pw::properties::properties;
 use pw::spa::param::audio::{AudioFormat, AudioInfoRaw};
-use pw::spa::pod::serialize::PodSerializer;
 use pw::spa::pod::{Object, Pod, Value};
 use pw::spa::sys as spa;
 use pw::stream::{StreamFlags, StreamState};
@@ -226,10 +225,7 @@ fn format() -> Vec<u8> {
         id: spa::SPA_PARAM_EnumFormat,
         properties: fmt.into(),
     };
-    PodSerializer::serialize(std::io::Cursor::new(Vec::new()), &Value::Object(obj))
-        .expect("pod")
-        .0
-        .into_inner()
+    crate::cast::serialize(&Value::Object(obj))
 }
 
 fn run(targets: pw::channel::Receiver<Target>) -> Result<()> {
