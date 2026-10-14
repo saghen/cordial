@@ -15,27 +15,31 @@
   padding: 56px 16px 80px; background: #000;
   &.expanded { grid-row: top-start / compose-end; grid-column: call-start / members-end; height: auto; }
   &.compact { display: flex; justify-content: center; align-items: center; gap: 16px; height: 240px; }
-  > figure.tile:not(.compact) { aspect-ratio: 16 / 9; }
+  /* a tile is a button: a click fills the area with it */
+  > figure.tile:not(.compact) { aspect-ratio: 16 / 9; cursor: pointer; }
   &.focused > figure.tile:not(.focus) { display: none; }
-  &.focused > figure.focus { position: absolute; inset: 0; aspect-ratio: auto; border-radius: 0; }
+  &.focused > figure.focus { position: absolute; inset: 56px 16px 80px; aspect-ratio: auto; }
+  /* full screen: the focused tile the whole screen, the UI over it */
+  &:fullscreen > figure.focus { inset: 0; border-radius: 0; }
   /* the UI fades while the pointer is elsewhere or still, and the cursor with it over the call */
-  &.idle:not(:has(:focus-visible)) { --ui: 0; cursor: none; }
+  &.idle:not(:has(:focus-visible)) { --ui: 0; &, > figure { cursor: none; } }
   :is(.name, .badges, .stream-full), > :is(.call-bar, .call-expand) { opacity: var(--ui); transition: opacity .3s; }
   &.idle:not(:has(:focus-visible)) :is(button, .name) { pointer-events: none; }
 }
-/* the call's buttons in the middle below the tiles: round, red while muted, deafened or to disconnect; Stop Watching
-   and Join as text; Expand at the bottom right */
+/* the call's buttons in the middle below the tiles: round, red while muted, deafened, to stop watching or to
+   disconnect; Join as text */
 section.call > .call-bar {
   position: absolute; inset: auto 0 16px; display: flex; justify-content: center; gap: 8px; font-size: 14px;
   > .icon-button { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-floating); color: var(--text-strong); }
   > .icon-button:hover { filter: brightness(1.2); }
-  > :is(.call-mute, .call-deafen).on, > .call-disconnect { background: var(--danger); color: var(--on-color); }
+  > :is(.call-mute, .call-deafen).on, > :is(.call-stop-watching, .call-disconnect) { background: var(--danger); color: var(--on-color); }
   > :is(.call-camera, .call-screen).on { background: var(--text-strong); color: #000; }
-  > .button { border-radius: 24px; }
   > :is(.call-join, .call-join-video) { width: 56px; height: 40px; border-radius: 4px; background: var(--positive); color: var(--on-color); }
   > .button.call-join { width: auto; }
 }
-section.call > .call-expand { position: absolute; inset: auto 24px 28px auto; color: #fff; }
+/* the call over the layout and back: stock's chevron at the bottom left, up while expanded */
+section.call > .call-expand { position: absolute; inset: auto auto 28px 24px; color: #fff; }
+section.call.expanded > .call-expand > .icon { rotate: 180deg; }
 /* someone's Go Live: Watch Stream until watched, then the stream letterboxed, its quality, LAG and LIVE at the top right,
    Full Screen at the bottom right */
 section.call > figure.stream {

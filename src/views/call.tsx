@@ -41,10 +41,13 @@ export function CallView() {
   const [size, setSize] = createSignal({ w: 0, h: 0 })
   let timer: ReturnType<typeof setTimeout> | undefined
   let section: HTMLElement | undefined
-  // the UI shows while the pointer moves over the call, and while it rests on the buttons
+  // the UI shows while the pointer moves over the call or the top bar on it, and while it rests on the buttons or the
+  // top bar; it hides as the pointer leaves both
+  const over = (t: EventTarget | null) => t instanceof Element && !!t.closest('#mincord-root > :is(header, section.call)')
   const sleep = () => {
     clearTimeout(timer)
-    if (!section?.querySelector('.call-bar:hover')) setAwake(false)
+    if (!section?.parentElement?.querySelector(':scope > header:hover, :scope > section.call > .call-bar:hover'))
+      setAwake(false)
     else timer = setTimeout(sleep, IDLE)
   }
   const wake = () => {
@@ -52,6 +55,14 @@ export function CallView() {
     clearTimeout(timer)
     timer = setTimeout(sleep, IDLE)
   }
+  const move = (e: PointerEvent) => over(e.target) && wake()
+  const out = (e: PointerEvent) => {
+    if (!over(e.target) || over(e.relatedTarget)) return
+    clearTimeout(timer)
+    setAwake(false)
+  }
+  document.addEventListener('pointermove', move)
+  document.addEventListener('pointerout', out)
   // the room for the tiles: inside the section's padding, which leaves the top bar's and the buttons'
   // Electron leaves full screen on Escape only when the page asks
   const escape = (e: KeyboardEvent) => {
@@ -62,6 +73,8 @@ export function CallView() {
   document.addEventListener('keydown', escape)
   const observer = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
   onCleanup(() => {
+    document.removeEventListener('pointermove', move)
+    document.removeEventListener('pointerout', out)
     document.removeEventListener('keydown', escape)
     clearTimeout(timer)
     observer.disconnect()
@@ -107,41 +120,42 @@ export function CallView() {
             }}
             class={['call', { compact: compact(), idle: !awake(), expanded: expanded(), focused: !!focus() }]}
             style={{ '--cols': grid().cols, '--tile-width': `${Math.floor(grid().width)}px` }}
-            onPointerMove={wake}
-            onPointerLeave={sleep}
             onClick={(e) => {
               const tile = (e.target as Element).closest('figure.tile')
               if (!tile || compact() || (e.target as Element).closest('button')) return
               const id = (tile.classList.contains('stream') ? 'stream:' : '') + (tile as HTMLElement).dataset.id
+              // full screen keeps its tile filling the screen
+              if (full() && focus() === id) return
               setFocused(focus() === id ? null : id)
             }}
           >
-            <For each={states()}>
+            {/* by user: a voice state's update (mute, deafen) keeps the tiles, and their videos playing */}
+            <For each={states()} keyed={(v) => v.userId}>
               {(v) => (
-                <Show when={users.get(v.userId)}>
+                <Show when={users.get(v().userId)}>
                   {(user) => (
                     <>
                       <Tile
                         user={user()}
                         guildId={guildId()}
-                        speaking={voice.speaking(v.userId)}
-                        muted={voice.muted(v)}
-                        deafened={voice.deafened(v)}
-                        video={streams.videoOf(v.userId, guildId())}
+                        speaking={voice.speaking(v().userId)}
+                        muted={voice.muted(v())}
+                        deafened={voice.deafened(v())}
+                        video={streams.videoOf(v().userId, guildId())}
                         compact={compact()}
-                        focus={focus() === v.userId}
+                        focus={focus() === v().userId}
                       />
-                      <Show when={v.selfStream}>
+                      <Show when={v().selfStream}>
                         <StreamTile
-                          state={v}
+                          state={v()}
                           channel={c()}
                           name={users.displayName(user(), guildId())}
-                          focus={focus() === `stream:${v.userId}`}
+                          focus={focus() === `stream:${v().userId}`}
                           full={full()}
                           onFull={() => {
                             if (full()) return document.exitFullscreen()
                             before = focused()
-                            setFocused(`stream:${v.userId}`)
+                            setFocused(`stream:${v().userId}`)
                             section!.requestFullscreen()
                           }}
                         />
@@ -191,12 +205,12 @@ export function CallView() {
                   onClick={() => streams.toggleLive(c())}
                 />
                 <Show when={watched().length}>
-                  <Button
+                  <IconButton
                     class="call-stop-watching"
+                    icon="screen-x"
+                    title={text('STOP_WATCHING')}
                     onClick={() => watched().forEach((v) => streams.toggleWatch(v.userId, guildId()))}
-                  >
-                    {text('STOP_WATCHING')}
-                  </Button>
+                  />
                 </Show>
                 <IconButton class="call-disconnect" icon="hangup" title={text('DISCONNECT_SELF')} onClick={voice.leave} />
               </Show>
@@ -204,7 +218,7 @@ export function CallView() {
             <Show when={!compact() && !full()}>
               <IconButton
                 class="call-expand"
-                icon={expanded() ? 'fullscreen-exit' : 'fullscreen'}
+                icon="chevron"
                 title={text(expanded() ? 'COLLAPSE' : 'EXPAND')}
                 onClick={() => setExpanded((on) => !on)}
               />
