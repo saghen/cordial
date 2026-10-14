@@ -22,7 +22,7 @@ import { SearchInput } from '../primitives/search'
 import { focus } from './composer'
 import { createScroller } from './scroller'
 
-export function Chat(p: { root: HTMLElement }) {
+export function Chat() {
   const channelId = selected
   const channel = createMemo(selectedChannel)
   const loaded = createMemo(() => (channelId() ? messages.list(channelId()!) : null))
@@ -142,7 +142,7 @@ export function Chat(p: { root: HTMLElement }) {
     })
   }
 
-  // after the rows are in the DOM: the scroller, and `data-view` on the root, which scripts wait on for a shown channel
+  // after the rows are in the DOM: the scroller, and the list's `data-id` (the channel whose messages it shows)
   const rendered = createScroller(view, channelId)
   createEffect(
     () => [channelId(), list(), loaded()?.ready] as const,
@@ -153,8 +153,8 @@ export function Chat(p: { root: HTMLElement }) {
         jumping = false
         view.scrollTop = 0
       }
-      if (id && ready) p.root.dataset.view = `channel:${id}`
-      else delete p.root.dataset.view
+      if (id && ready) view.dataset.id = id
+      else delete view.dataset.id
     },
   )
   view.addEventListener('contextmenu', menu.open)

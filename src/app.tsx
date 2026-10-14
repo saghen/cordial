@@ -48,7 +48,7 @@ export function App(p: { root: HTMLElement }) {
       </section>
       <Header />
       <CallView />
-      <Chat root={p.root} />
+      <Chat />
       <IncomingCalls />
       <Composer />
       <MembersList />

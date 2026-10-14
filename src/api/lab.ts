@@ -1,7 +1,7 @@
 // window.cordial for scripts over CDP: Discord's pieces (`adapter`) and ours (`messages`, and whatever the entry adds).
 // As for the stylesheet, scripts find elements by class (what an element is), data-id (which one: a channel, a user, a
-// message) and id (the few looked up by it: popovers, the composer); #cordial-root[data-view="channel:ID"] is set in
-// the task that puts that channel's messages in the DOM.
+// message) and id (the few looked up by it: popovers, the composer). .messages[data-id=CHANNEL] is set in the task
+// that puts that channel's messages in the DOM.
 
 import { G } from '../adapter/anchor'
 import { A, check, S } from '../adapter/needs'
