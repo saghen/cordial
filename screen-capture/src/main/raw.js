@@ -73,9 +73,11 @@ function rawRelay(contents) {
         .catch((e) => console.error('[cast] raw send:', e))
     },
     close() {
-      for (const b of imports.values()) b.imported.release()
+      const old = [...imports.values()]
       imports.clear()
       if (!contents.isDestroyed()) contents.send('mincord:cast-raw-end')
+      // (released as a new size's are: once no frame from them is in the encoder or compositor)
+      setTimeout(() => old.forEach((b) => b.imported.release()), 2000)
     },
   }
 }

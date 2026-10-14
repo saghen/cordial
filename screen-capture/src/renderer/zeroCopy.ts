@@ -98,7 +98,8 @@ class Swap implements CastConsumer {
       transform: (f, c) => {
         if (this.state === 'idle') return c.enqueue(f)
         if (this.state === 'warmup') {
-          if (!this.session?.warmedUp || f.type !== 'key') return
+          // (a fallback's frames once it's warmed up; another track's at once)
+          if (this.sender?.track === this.session?.encoder && (!this.session?.warmedUp || f.type !== 'key')) return
           this.state = 'idle'
           logger.info("Chromium's frames go out again")
           return c.enqueue(f)
@@ -179,11 +180,19 @@ class Swap implements CastConsumer {
     this.timer = setInterval(() => this.poll(), POLL_MS)
   }
 
-  /** capture is gone (cast.ts' fallback, or the stream ended). */
+  /** capture is gone (cast.ts' fallback, or the stream ended), or the sender has another track. */
   stop() {
     clearInterval(this.timer)
     clearTimeout(this.pokeTimer)
-    if (this.state === 'active') this.state = 'warmup'
+    if (this.state !== 'active') return
+    // (the session lets go of the swap: ending later, it mustn't stop the swap for another cast)
+    if (this.session?.consumer === this) this.session.consumer = null
+    this.state = this.session?.state === 'fallback' ? 'warmup' : 'idle'
+  }
+
+  /** A source switch: the swap stops sending the cast that was on the sender before. */
+  trackChanged() {
+    if (this.state === 'active' && this.sender?.track !== this.session?.encoder) this.stop()
   }
 
   private codecChanged(mime: string) {
@@ -248,7 +257,7 @@ class Swap implements CastConsumer {
   private async poll() {
     const { sender } = this
     if (this.state !== 'active' || !sender) return
-    if (sender.track !== this.session?.encoder) return this.stop()
+    if (sender.track !== this.session?.encoder) return this.trackChanged()
     // renegotiated: to another codec, or to another payload type (the templates carry theirs)
     const codec = sender.getParameters().codecs?.[0]
     if (codec && codec.mimeType.toLowerCase() !== 'video/av1') return this.codecChanged(codec.mimeType)
@@ -450,8 +459,9 @@ export async function startZeroCopy(sender: RTCRtpSender, track: MediaStreamTrac
   // (Discord can have the track before capture is up: it's handed over at once, cast.ts)
   if (session?.state === 'starting') await session.up
   if (!session || session.state !== 'cast' || session.consumer || sender.track !== track) return
-  if (negotiating.has(sender) || isZeroCopy(sender)) return
   const swap = swaps.get(sender)
+  swap?.trackChanged()
+  if (negotiating.has(sender) || isZeroCopy(sender)) return
   if (!swap) return session.fallback('no encoded-frame stage')
   // only what capture encodes can be sent: wait for the negotiation
   negotiating.add(sender)

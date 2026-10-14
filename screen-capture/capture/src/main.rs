@@ -52,6 +52,8 @@ const REPEAT_S: f64 = 1.0;
 // the 1 fps preview: Discord's stream thumbnail and mincord's templates
 const PREVIEW_BOX: (u32, u32) = (640, 360);
 const PREVIEW_INTERVAL_S: f64 = 1.0;
+// --size's default: no box (the source's own size)
+const NO_BOX: u32 = 16384;
 
 struct Opts {
     window: Option<u64>,
@@ -110,8 +112,8 @@ fn opts() -> Opts {
         clip: String::new(),
         clip_w: 0,
         clip_h: 0,
-        max_w: 16384, // no box: the source's own size
-        max_h: 16384,
+        max_w: NO_BOX, // no box: the source's own size
+        max_h: NO_BOX,
         fps: 60,
         device: "auto".into(),
         kbps: 6000,
@@ -528,7 +530,10 @@ impl State {
         }
         let (mut bw, mut bh) = (o.max_w, o.max_h);
         if self.req_h > 0 && self.req_h < bh {
-            bw = (bw as u64 * self.req_h as u64 / bh as u64) as u32;
+            // (a box keeps its shape; without one, the height alone)
+            if (bw, bh) != (NO_BOX, NO_BOX) {
+                bw = (bw as u64 * self.req_h as u64 / bh as u64) as u32;
+            }
             bh = self.req_h;
         }
         let align = if self.raw { (2, 2) } else { self.av1_align };
@@ -748,6 +753,7 @@ struct Worker<'a> {
     debt: f64,
     ivf: Option<File>,
     ivf_frames: u32,
+    ivf_size: (u32, u32, u32), // the last frame's encoder: width, height, fps (the header, at the end)
 }
 
 impl<'a> Worker<'a> {
@@ -911,6 +917,7 @@ impl<'a> Worker<'a> {
         if !dropped {
             let enc = self.enc.as_mut().unwrap();
             enc.set_kbps(kbps);
+            let size = (enc.cfg.width, enc.cfg.height, enc.cfg.fps);
             match enc.encode(surf, key) {
                 Ok((data, fi)) => {
                     self.debt += data.len() as f64 * 8.0;
@@ -919,6 +926,7 @@ impl<'a> Worker<'a> {
                         let _ = f.write_all(&(self.ivf_frames as u64).to_le_bytes());
                         let _ = f.write_all(data);
                         self.ivf_frames += 1;
+                        self.ivf_size = size;
                     }
                     let pre: Vec<u8> = [fi.key as u32, wh, fi.qp, ((now() - slot.t_submit) * 1e6) as u32]
                         .iter()
@@ -1323,6 +1331,7 @@ fn run(o: Arc<Opts>) -> Result<()> {
         debt: 0.0,
         ivf,
         ivf_frames: 0,
+        ivf_size: (0, 0, o.fps),
     };
     let ran = if !clip {
         w.run_cast();
@@ -1341,6 +1350,8 @@ fn run(o: Arc<Opts>) -> Result<()> {
     match why {
         Quit::CastClosed => info("{\"type\":\"ended\",\"reason\":\"cast closed\"}"),
         Quit::Stopped | Quit::StdinClosed | Quit::Seconds => {}
+        // (a clip that fails returns its error, with no quit)
+        Quit::Signal if g.quit.is_none() && ran.is_err() => error(&format!("{:#}", ran.as_ref().unwrap_err())),
         Quit::Signal => error("terminated"),
         Quit::Failed(msg) => error(msg),
     }
@@ -1365,8 +1376,9 @@ fn run(o: Arc<Opts>) -> Result<()> {
         }
     );
     eprintln!("gpu: busy ms:{}", gpu_ms(st.total_sub));
-    if let (Some(f), Some(r)) = (w.ivf.as_mut(), g.ring.as_ref()) {
-        ivf_header(f, r.w, r.h, o.fps, w.ivf_frames)?;
+    if let Some(f) = w.ivf.as_mut() {
+        let (iw, ih, fps) = w.ivf_size;
+        ivf_header(f, iw, ih, fps, w.ivf_frames)?;
     }
     // VA objects before the VPP config they were made with
     g.ring = None;

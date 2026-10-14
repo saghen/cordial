@@ -469,9 +469,9 @@ RTCPeerConnection.prototype.addTransceiver = function (this: RTCPeerConnection, 
   return origAddTransceiver.call(this, typeof trackOrKind === 'string' ? trackOrKind : forSender(trackOrKind), init)
 }
 
-let available: Promise<boolean> | null = null
-/** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on). */
-export const castAvailable = () => (available ??= host.native?.available().catch(() => false) ?? Promise.resolve(false))
+let available = false
+/** Whether getDisplayMedia goes through capture (niri, capture installed, the setting on); a no is asked again. */
+export const castAvailable = async () => (available ||= (await host.native?.available().catch(() => false)) ?? false)
 
 let codecs: string[] | null = null
 /** Whether capture encodes AV1 on this machine's GPU (true while unknown: capture's own error then falls back). */
