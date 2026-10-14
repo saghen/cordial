@@ -80,6 +80,46 @@ nix build            # the package: the build and nixpkgs' Electron; update npmD
   ported, or its requests replayed through the REST client.
 - `window.cordial` (`src/api/lab.ts`) exposes the adapter and ours to scripts over CDP.
 
+## Commits
+
+`scope: description`, one scope per commit:
+
+| Scope | Covers |
+|---|---|
+| `ui(guilds)` | the server bar: servers, folders, the server menu, Add a Server, invites |
+| `ui(channels)` | channel and DM lists, categories, the channel menu, voice channel rows |
+| `ui(header)` | the top bar: name, topic, the bell, pins, search |
+| `ui(chat)` | the message list and messages: history, scrolling, acks, jumps, the NEW line, the message menu, markdown, embeds, attachments, reactions, the media viewer |
+| `ui(composer)` | the message box: send, edit, drafts, typing, uploads, autocomplete, the reply bar, the pickers |
+| `ui(members)` | the member list |
+| `ui(voice)` | the voice connection and panel: mute, deafen, devices, voice settings, sounds, the soundboard |
+| `ui(call)` | the call view: tiles, DM calls, camera, watching streams |
+| `ui(account)` | the user panel, status, login |
+| `ui(components)` | shared primitives and components |
+| `ui` | across regions: the root grid, tokens, base CSS |
+| `core(adapter)` | webpack, the needs list, the self-check, patches |
+| `core(api)` | api changes with no UI change: the store bridge, triggers, strings, dates, `window.cordial` |
+| `core(shell)` | the Electron main process and preload |
+| `capture(src)` | the capture binary's sources: the PipeWire and niri casts, the portal, the clip, app audio |
+| `capture(enc)` | the capture binary's encoding: VA-API, AV1, sizes, quality, SSIM |
+| `capture(live)` | `screen-capture/src/` and `addon/`: Go Live in the app (the cast session, the zero-copy swap, receive hooks, rate and quality, the picker and status panel, the stream log) |
+| `capture` | `screen-capture/` across those, and the binary's startup and protocol (`main.rs`, `out.rs`) |
+| `keybinds` | `global-keybinds/` |
+| `presence` | `game-detection/`: game detection, Rich Presence, the Wine bridge |
+| `build` | `flake.nix`, Vite, tsconfig, package.json, prettier, ty |
+| `refactor` | a refactor across scopes (a restructure, a simplification pass); one inside a scope takes that scope |
+| `docs` | README, CLAUDE.md |
+
+- **Scope by what the user sees**: a change to the UI takes its `ui(...)` scope even when most of the diff is in
+  `src/api/`. Two scopes that really move together: `ui(chat|composer)`; more, split the commit.
+- **The description**: short (around 40 characters, 72 at most), lowercase, starting with a verb that says what kind
+  of change it is (add, fix, drop, move, rework, swap, speed up), never a bare topic; identifiers in backticks.
+  `ui(chat): fix the jump button covering the last message`, `capture: default the AV1 quantizer floor to 50`,
+  ``core(adapter): find `fetchMessages` by its code``.
+- **The body** whenever there are numbers (budgets, memory, conformance), and otherwise when the why isn't obvious:
+  what changed, how it was checked, the numbers with how they were measured. No references to git-ignored files,
+  plans or their numbering (phases, slices, questions), and no personal names.
+
 ## Rules
 
 - Never print, log or commit `.env` or a login token; gateway frames carry the token.
