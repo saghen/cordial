@@ -159,19 +159,20 @@ export function useComposer(channelId: () => Id | null) {
       if (m) A.messages.startEditMessageRecord(id, m)
       return !!m
     },
-    // Escape: out of edit mode, else the reply dropped; false when neither
-    cancel(id: Id) {
-      if (editing()) A.messages.endEditMessage(id)
-      else if (reply()) A.replies.remove(id)
-      else return false
-      return true
-    },
     removeReply: (id: Id) => A.replies.remove(id),
     mention: (id: Id, on: boolean) => A.replies.mention(id, on),
     // files picked, pasted or dropped, through stock's prompt
     upload: (files: File[]) => A.promptToUpload.prompt(files, channel()!, 0),
     removeUpload: (id: Id, upload: Upload) => A.uploads.remove(id, upload.id, 0),
   }
+}
+
+// Escape: out of edit mode, else the reply dropped; false when neither
+export function cancel(id: Id) {
+  if (S.EditMessage.getEditingMessageId(id)) A.messages.endEditMessage(id)
+  else if (S.PendingReply.getPendingReply(id)) A.replies.remove(id)
+  else return false
+  return true
 }
 
 // the replied-to message's author, as the author line names them (a webhook by its own name)

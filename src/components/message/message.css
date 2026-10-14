@@ -9,7 +9,6 @@ article {
   &[data-t]:hover::before {
     content: attr(data-t); grid-area: 1 / 1; padding-right: 8px; text-align: right; font-size: 11px; line-height: 22px; color: var(--text-muted);
   }
-  &:has(> .divider)::before { grid-row: 2; }
   /* the author line: the avatar in the gutter beside the name (only it underlines on hover) and the time */
   &.head { margin-top: 16px; min-height: 48px; contain-intrinsic-size: auto 48px; }
   > .avatar { grid-column: 1; grid-row: span 2; justify-self: center; margin-top: 2px; }
@@ -28,6 +27,8 @@ article {
     background: var(--positive); mask: var(--i-call-joined) center / contain no-repeat;
   }
   &.call.missed::before { background: var(--text-muted); mask-image: var(--i-call-missed); }
+  /* the gutter's time or icon beside the message, below a divider (the hover rules above outrank :has alone) */
+  &:has(> .divider)::before, &:has(> .divider):hover::before { grid-row: 2; }
   /* a collapsed run of blocked or ignored messages: one line on its first row, stock's "N blocked messages" */
   &.gone { display: none; }
   > button:is(.blocked-show, .ignored-show) { justify-self: start; padding: 0; color: var(--text-muted); font: inherit; font-size: 14px; }

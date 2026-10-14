@@ -29,3 +29,8 @@ export function automaticAck(channelId: Id, on: boolean) {
     windowId: (window as any).__DISCORD_WINDOW_ID,
   })
 }
+
+// stock's local ack (Escape's): ReadStateStore's ack without a request, which also clears the NEW line
+export function localAck(channelId: Id) {
+  A.dispatcher.dispatch({ type: 'CHANNEL_LOCAL_ACK', channelId })
+}

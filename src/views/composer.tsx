@@ -1,6 +1,6 @@
 // The composer (api/composer.ts): the reply bar, then the box: the files waiting to go, the text (the draft, or the
 // message being edited) and the buttons around it. Enter sends, Shift+Enter is a new line, Up in an empty box edits the
-// last own message (Enter saves, Escape leaves). Autocomplete offers what @, # and : start.
+// last own message (Enter saves, Escape leaves: the chat's). Autocomplete offers what @, # and : start.
 
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
@@ -44,8 +44,7 @@ export function Composer() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (c.send(id(), box!.value)) box!.value = ''
-    } else if (e.key === 'Escape') c.cancel(id())
-    else if (e.key === 'ArrowUp' && !box!.value && !c.editing() && c.editLast(id())) e.preventDefault()
+    } else if (e.key === 'ArrowUp' && !box!.value && !c.editing() && c.editLast(id())) e.preventDefault()
   }
   // pasted files (a screenshot, a copied image) join the uploads, as + does
   const paste = (e: ClipboardEvent) => {

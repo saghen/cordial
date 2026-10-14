@@ -8,7 +8,7 @@ import type { Channel, Emoji, Message, Reaction } from './records'
 import { MessageType, Permission } from './records'
 import { $ } from './store'
 import { day, text } from './strings'
-import { automaticAck, channelDimensions } from './triggers'
+import { automaticAck, channelDimensions, localAck } from './triggers'
 import * as users from './users'
 
 // a channel's loaded messages: a new ChannelMessages object on every change
@@ -179,6 +179,12 @@ export const markRead = (channelId: Id) =>
     object: 'Mark Channel as Read Button',
     objectType: 'ack_manual',
   })
+// stock's Escape once there's no edit or reply to drop: the channel acked if it has unreads, and its NEW line gone
+export function readByKey(channelId: Id) {
+  if (S.ReadState.hasUnread(channelId))
+    A.acks.ack(channelId, { object: 'Mark Channel as Read Keybind', objectType: 'ack_manual' })
+  localAck(channelId)
+}
 
 // stock's Mark Unread: a manual ack of the message before this one (or of the millisecond before it), with the
 // mentions after it as the count

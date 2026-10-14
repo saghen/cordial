@@ -1,10 +1,10 @@
 // The selected channel's messages: the list (scrolling, jumps, loading more), the new messages bar, the viewer and the
 // message menu. Each message is a Message row; the list works out which start groups, carry dividers, or are collapsed.
 
-import { createEffect, createMemo, createSignal, For, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 
 import * as channels from '../api/channels'
-import { typingNames } from '../api/composer'
+import { cancel, typingNames } from '../api/composer'
 import * as messages from '../api/messages'
 import * as pickers from '../api/pickers'
 import type { Emoji as EmojiRecord, Id, Message as Record } from '../api/records'
@@ -27,10 +27,19 @@ export function Chat(p: { root: HTMLElement }) {
   const channel = createMemo(selectedChannel)
   const loaded = createMemo(() => (channelId() ? messages.list(channelId()!) : null))
   const list = createMemo(() => (loaded()?.toArray() ?? []) as Record[])
-  const unread = createMemo(() => channelId() && messages.oldestUnread(channelId()!))
+  // the NEW line: where ReadStateStore puts it when the channel is opened (or first, while it's shown), then kept there
+  // until Escape, Mark As Read or Mark Unread (Liam). The store's own goes when you send, and moves to the first message
+  // that arrives after the window was left
+  const [unread, setUnread] = createSignal<Id | null>(null)
+  createEffect(
+    () => [channelId(), channelId() && messages.oldestUnread(channelId()!)] as const,
+    ([id, oldest], prev) => {
+      if (id !== prev?.[0] || (oldest && !unread())) setUnread(oldest || null)
+    },
+  )
   const replying = createMemo(() => channelId() && messages.pendingReply(channelId()!))
   const editing = createMemo(() => channelId() && messages.editing(channelId()!))
-  const menu = messageMenu()
+  const menu = messageMenu(() => setUnread(null))
 
   // the runs of blocked or ignored messages shown, by their first message
   const [shown, setShown] = createSignal<{ [id: Id]: boolean }>({})
@@ -99,6 +108,24 @@ export function Chat(p: { root: HTMLElement }) {
     } else view.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Escape, as stock's, anywhere but another field or an open menu: the edit or the reply dropped, else the channel
+  // read and back at its newest message; then the box has the focus
+  const escape = (e: KeyboardEvent) => {
+    const id = channelId(),
+      t = e.target as Element
+    if (e.key !== 'Escape' || e.defaultPrevented || !id || document.fullscreenElement) return
+    if (document.querySelector(':popover-open:not([popover=manual]), dialog[open]')) return
+    if (t.closest('input, textarea, [contenteditable=true]') && t.id !== 'mc-composer') return
+    if (!cancel(id)) {
+      messages.readByKey(id)
+      setUnread(null)
+      present()
+    }
+    focus()
+  }
+  document.addEventListener('keydown', escape)
+  onCleanup(() => document.removeEventListener('keydown', escape))
+
   // a jump (a reply, the new messages bar, a link to a message): its target in view once rendered, flashed. Each
   // channel's last jump seen is kept, so coming back to a channel doesn't jump again
   const jumps = new Map<Id, number>()
@@ -134,7 +161,7 @@ export function Chat(p: { root: HTMLElement }) {
   return (
     <>
       {view}
-      <NewMessages channelId={channelId} />
+      <NewMessages channelId={channelId} onRead={() => setUnread(null)} />
       <Typing channelId={channelId} />
       <Show when={up() || loaded()?.hasMoreAfter}>
         <IconButton class="jump" icon="chevron" title={text('JUMP_TO_PRESENT')} onClick={present} />
@@ -147,7 +174,7 @@ export function Chat(p: { root: HTMLElement }) {
 
 // stock's new messages bar, while the channel has unreads: "N new messages since 10:59 PM", a click jumps to the oldest
 // unread, Mark As Read acks the channel
-function NewMessages(p: { channelId: () => Id | null }) {
+function NewMessages(p: { channelId: () => Id | null; onRead(): void }) {
   const bar = () => p.channelId() && messages.newMessages(p.channelId()!)
   return (
     <Show when={bar()}>
@@ -156,7 +183,14 @@ function NewMessages(p: { channelId: () => Id | null }) {
           <Button variant="link" class="new-messages-jump" onClick={() => messages.jumpToUnread(p.channelId()!)}>
             {line()}
           </Button>
-          <Button variant="link" class="new-messages-read" onClick={() => messages.markRead(p.channelId()!)}>
+          <Button
+            variant="link"
+            class="new-messages-read"
+            onClick={() => {
+              messages.markRead(p.channelId()!)
+              p.onRead()
+            }}
+          >
             {text('MARK_AS_READ')}
           </Button>
         </div>
@@ -184,7 +218,7 @@ function Typing(p: { channelId: () => Id | null }) {
 }
 
 // the message menu (right click on a message); from the add-reaction chip, straight to the emoji search
-const messageMenu = () =>
+const messageMenu = (onMarkUnread: () => void) =>
   contextMenu<{ m: Record; react: boolean }>({
     class: 'message-menu',
     find(e) {
@@ -193,12 +227,12 @@ const messageMenu = () =>
       const m = id && channelId ? messages.get(channelId, id) : undefined
       return m && { m, react: false }
     },
-    children: (t) => <MessageItems message={t().m} react={t().react} />,
+    children: (t) => <MessageItems message={t().m} react={t().react} onMarkUnread={onMarkUnread} />,
   })
 
 // the four most used reactions on top, as stock; React swaps the items for an emoji search: the most used, then what
 // the query matches
-function MessageItems(p: { message: Record; react: boolean }) {
+function MessageItems(p: { message: Record; react: boolean; onMarkUnread(): void }) {
   const [query, setQuery] = createSignal<string | null>(p.react ? '' : null)
   const m = () => p.message
   const channel = () => channels.get(m().channel_id)!
@@ -280,7 +314,10 @@ function MessageItems(p: { message: Record; react: boolean }) {
             name: 'menu-unread',
             icon: 'unread',
             label: text('MARK_UNREAD'),
-            run: () => messages.markUnread(m()),
+            run: () => {
+              messages.markUnread(m())
+              p.onMarkUnread()
+            },
           },
           {
             name: 'menu-link',

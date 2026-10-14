@@ -402,6 +402,7 @@ moduleNeed(
 
 dispatched('TYPING_START_LOCAL', 'typing: TypingStore throttles and POSTs /typing')
 dispatched('TYPING_STOP_LOCAL', 'typing stops when the composer empties')
+dispatched('CHANNEL_LOCAL_ACK', "Escape's read: ReadStateStore acks locally and clears the NEW line")
 dispatched('ENABLE_AUTOMATIC_ACK', "acks: ReadStateStore acks the shown channel while it's at the bottom")
 dispatched('DISABLE_AUTOMATIC_ACK', 'acks stop when the list leaves a channel')
 dispatched(
