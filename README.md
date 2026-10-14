@@ -9,7 +9,19 @@ A fast, minimal Discord client for Linux, with a new UI built on Discord's core.
 - **Minimal:** -70% cpu usage, -20% RAM usage (still high, ideas welcome!)
 - **Fast:** <20ms click latency for all actions
 
-Run with `nix run`
+## Install
+
+```sh
+nix run github:saghen/cordial
+```
+
+Or add it to your system from your flake:
+
+```nix
+inputs.cordial.url = "github:saghen/cordial";
+# ...
+environment.systemPackages = [ inputs.cordial.packages.x86_64-linux.default ];
+```
 
 ## How it works
 
@@ -32,4 +44,6 @@ Going native would mean rewriting the entire core of Discord. Much of Discord's 
 
 ## AI Usage
 
-The original idea came after exploring the Equicord and Vencord projects, seeing how they hooked into the core's stores and actions. Afterwards, I wrote the core adapters, screen sharing scaffold, file structure, feature list/behavior, and so on myself. The core along with a style guide and hand-written plan was passed off to an AI to iterate on. The first draft of this project was written by AI, with extensive human guidance. This project was meant to be a learning experiment for myself, I never intended to release the results. Since then, I've taken over the project slowly working through all of the UI code, but this work is on-going. The screen capture, global keybinds and game detection crates will remain AI-only for the time being, as I don't have the time to deep dive into them yet.
+The original idea came after exploring the Equicord and Vencord projects, seeing how they hooked into the core's stores and actions. Afterwards, I wrote the core adapters, screen sharing scaffold, file structure, feature list/behavior, and so on myself. The core along with a style guide and hand-written plan was passed off to an AI to iterate on.
+
+The first draft of this project was written by AI, with extensive human guidance. This project was meant to be a learning experiment for myself, I never intended to release the results. Since then, I've taken over the project slowly working through all of the UI code, but this work is on-going. The screen capture, global keybinds and game detection crates will remain AI-only for the time being, as I don't have the time to deep dive into them yet.
