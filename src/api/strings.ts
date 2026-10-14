@@ -212,8 +212,10 @@ const OURS = {
   BLOCKED_DM: 'You cannot send messages to a user you have blocked.',
   CANCEL_REPLY: 'Cancel reply',
   KRISP: 'Krisp',
-  // stock's (Search {guildName}), under a name we haven't found
+  // stock's, under names we haven't found: Search {guildName}, the member list's toggle
   SEARCH_IN: 'Search {name}',
+  SHOW_MEMBER_LIST: 'Show Member List',
+  HIDE_MEMBER_LIST: 'Hide Member List',
 }
 
 const keys = new Map<string, string>()

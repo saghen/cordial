@@ -11,10 +11,7 @@ const FORBIDDEN = {
   primitives: ['adapter', 'api', 'components', 'views'],
 }
 
-const ALLOWED = new Set([
-  'views/members.tsx -> adapter/discord',
-  'views/members.tsx -> adapter/needs',
-])
+const ALLOWED = new Set([])
 
 const src = join(import.meta.dirname, 'src')
 const found = new Set()
