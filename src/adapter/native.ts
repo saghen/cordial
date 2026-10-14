@@ -4,7 +4,8 @@
 // sets the app's activity. requireModule() answers for these two when DiscordNative is missing (off desktop it throws
 // for every module), and two gates that are desktop-only open for them.
 //
-// window.cordialNative (src/shell/preload.js) is absent with CORDIAL_PRESENCE=0, and then none of this runs.
+// With CORDIAL_PRESENCE=0, window.cordialNative (src/shell/preload.js) has no `rpc` or `observeGames`, and then none of
+// this runs.
 
 import { G } from './anchor'
 import { patch } from './webpack'
@@ -32,7 +33,7 @@ const requireModule = patch('getDiscordUtils(){', [
 ])
 const games = patch('static displayName="RunningGameStore"', [
   /(!__OVERLAY__&&\(\(0,[\w$]+\.isDesktop\)\(\)\|\|[\w$]+\.[\w$]+)\)/,
-  '$1||null!=window.cordialNative)',
+  '$1||null!=window.cordialNative?.rpc)',
 ])
 // the RPC server registers its socket transports on desktop only, after loading discord_rpc; here only the IPC one, not
 // the WebSocket one for websites
@@ -40,7 +41,7 @@ const rpc = patch(
   'registerTransportsForEmbeddedPlatform:function(){',
   [
     /([\w$]+\.isPlatformEmbedded)(&&this\.registerTransportsForEmbeddedPlatform\(\))/,
-    '($1||null!=window.cordialNative)$2',
+    '($1||null!=window.cordialNative?.rpc)$2',
   ],
   [
     /[\w$]+\.[\w$]+\.ensureModule\("discord_rpc"\)\.then\(\(\)=>\{for\(let ([\w$]+) of\[[\w$]+\(\d+\)\.default,/,
@@ -174,4 +175,4 @@ const discordRpc = {
   },
 }
 
-if (native) G.nativeModules = { discord_utils: discordUtils, discord_rpc: discordRpc }
+if (native?.rpc) G.nativeModules = { discord_utils: discordUtils, discord_rpc: discordRpc }
