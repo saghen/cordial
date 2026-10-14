@@ -5,7 +5,7 @@
 /* the new messages bar, across the messages' top */
 & > div.new-messages {
   grid-area: chat; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
-  color: #fff; font-size: 14px; font-weight: 500; line-height: 24px;
+  color: var(--on-color); font-size: 14px; font-weight: 500; line-height: 24px;
   > button { padding: 0 12px; color: inherit; }
   > button:first-child { flex: 1; text-align: left; }
 }
@@ -26,7 +26,7 @@
   }
   > b { font-weight: 700; color: var(--text-strong); }
 }
-&:has(> .messages.up) > output.typing { background: var(--bg); box-shadow: 0 -8px 8px var(--bg); }
+&:has(> .messages.up) > output.typing { background: var(--surface); box-shadow: 0 -8px 8px var(--surface); }
 
 @keyframes mc-typing { to { mask-position: 0; } }
 /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */

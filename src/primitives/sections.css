@@ -11,7 +11,7 @@
 :where(.sections > .rail > button:hover) { background: var(--bg-raised); color: var(--text-strong); }
 :where(.sections > .rail > button > img) { width: 24px; height: 24px; object-fit: contain; }
 :where(.sections > .list) { grid-area: list; overflow-y: auto; padding: 0 8px 8px 4px; }
-:where(.sections > .list > h3) { position: sticky; top: 0; z-index: 1; padding: 8px 4px; background: var(--bg-floating); font-size: 13px; font-weight: 600; color: var(--text-muted); }
+:where(.sections > .list > h3) { position: sticky; top: 0; z-index: 1; padding: 8px 4px; background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-muted); }
 /* a chunk: its items in --cols columns; not built yet, as tall as its rows (--n items) */
 :where(.sections .chunk) { display: grid; grid-template-columns: repeat(var(--cols), 1fr); }
 :where(.sections .chunk:empty) { height: calc(round(up, var(--n) / var(--cols), 1) * var(--row)); }

@@ -30,7 +30,7 @@ menu.gif-picker {
   > :is(.gif-categories, .gif-results) { height: 400px; overflow-y: auto; padding: 0 12px 12px; }
   > .gif-categories { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 110px; gap: 8px; align-content: start; }
   .gif-category {
-    display: grid; place-content: center; padding: 0; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 700;
+    display: grid; place-content: center; padding: 0; border-radius: 8px; color: var(--on-color); font-size: 16px; font-weight: 700;
     background: linear-gradient(#0000008c 0 0), var(--img, linear-gradient(var(--accent) 0 0)) center / cover;
   }
   .gif-category:hover { background: linear-gradient(#00000059 0 0), var(--img, linear-gradient(var(--accent) 0 0)) center / cover; }

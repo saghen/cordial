@@ -26,7 +26,7 @@ section.side > nav {
   > .dm { min-height: 42px; }
   /* a voice channel with someone in it: the icon green, how long the call has gone on at the end */
   > .live > .icon { color: var(--positive); }
-  > .voice time { font: 12px "gg mono", ui-monospace, monospace; color: var(--positive); }
+  > .voice time { font: 12px var(--mono); color: var(--positive); }
   /* who's in it, under the channel's name: their avatar, LIVE while streaming; muted, the mic off; deafened, the mic
      and headphones off; by the server, in red */
   > .voice-user {

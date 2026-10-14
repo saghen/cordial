@@ -6,18 +6,25 @@
 & {
   --bg: #1e1e2e; --bg-raised: #2c2c3f; --bg-selected: #363645; --bg-floating: #313244; --bg-deep: #11111b; --accent: #5f8cfb; --link: #89b4fa;
   --text: #efeff1; --text-strong: #fbfbfb; --text-muted: #96979e; --text-faint: #4f505a;
-  --mention-bg: #5f8cfb3d; --mention-fg: #a9bbff; --danger: #da3e44; --positive: #3d9e60; --warning: #fdb833;
+  --mention-bg: color-mix(in srgb, var(--accent) 24%, transparent); --mention-fg: #a9bbff; --danger: #da3e44; --positive: #3d9e60; --warning: #fdb833;
+  /* text on a coloured fill (buttons, badges, the new messages bar) */
+  --on-color: #fff;
+  --font: "gg sans", "Noto Sans", sans-serif; --mono: "gg mono", ui-monospace, monospace;
+  --shadow: 0 8px 16px #0006; --backdrop: #000a;
+  /* what's behind: each surface sets it to its background, and what has to match it (rings cut out of an icon, the date
+     label over its line, the typing line's fade, sticky headings) reads it */
+  --surface: var(--bg);
   --i: var(--i-hash);
   position: fixed; inset: 0; z-index: 1; display: grid;
   grid: "notice notice notice notice" auto "servers top top top" 48px "servers panels call members" auto "servers panels chat members" 1fr
     "servers panels compose members" auto / 72px 300px minmax(0, 1fr) auto;
-  background: var(--bg); color: var(--text); font: 16px/1.375 "gg sans", "Noto Sans", sans-serif;
+  background: var(--surface); color: var(--text); font: 16px/1.375 var(--font);
 }
 & * { margin: 0; box-sizing: border-box; }
 /* the base (no specificity of its own): buttons are bare, fields sunk, floating panels raised */
 :where(button) { border: 0; background: none; cursor: pointer; }
 :where(input:not([type=range], [type=checkbox], [type=radio], [type=file]), select) { border: 0; border-radius: 4px; background: var(--bg-deep); color: var(--text); font: inherit; }
-:where(menu, [popover]:not(.search-results), dialog.incoming) { border: 0; border-radius: 8px; background: var(--bg-floating); color: var(--text); box-shadow: 0 8px 16px #0006; }
+:where(menu, [popover]:not(.search-results), dialog.incoming) { --surface: var(--bg-floating); border: 0; border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 a { cursor: pointer; color: inherit; text-decoration: none; }
 small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
 /* scrollbars: a thumb, no arrows (the standard scrollbar-* properties would turn these off), shown while the scroller

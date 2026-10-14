@@ -27,9 +27,9 @@ form.voice-settings {
 /* Go Live's picker: a list of the sources, modal */
 dialog.screen-picker {
   width: min(480px, 100% - 32px); max-height: 80vh; padding: 16px; border: 0; border-radius: 8px; background: var(--bg-floating);
-  color: var(--text); font-size: 14px; box-shadow: 0 8px 16px #0006;
+  color: var(--text); font-size: 14px; box-shadow: var(--shadow);
   &[open] { display: grid; gap: 8px; }
-  &::backdrop { background: #000a; }
+  &::backdrop { background: var(--backdrop); }
   > h2 { font-size: 20px; color: var(--text-strong); }
   > .source { display: grid; justify-items: start; padding: 8px 12px; font-weight: 600; }
   > .screen-cancel { justify-self: end; color: var(--text-muted); }

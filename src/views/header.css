@@ -12,9 +12,9 @@
   display: flex; align-items: center; gap: 16px; margin-left: auto;
   > button { color: var(--text-muted); }
   > button:hover, > button.on { color: var(--text-strong); }
-  /* pins: a dot while there are new ones, cut out of the icon by a ring of the header's background */
+  /* pins: a dot while there are new ones, cut out of the icon by a ring of what's behind */
   > button.pins { position: relative; }
-  > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
+  > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
   /* search: a box at the end, wider while in use */
   > input.search {
     width: 160px; height: 28px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
@@ -44,7 +44,7 @@ div.pins-list {
   > button { display: block; margin: 0 auto; }
 }
 div.search-results {
-  position-anchor: --header; inset: anchor(bottom) 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); background: var(--bg-deep);
+  position-anchor: --header; inset: anchor(bottom) 0 0 auto; width: 420px; height: auto; margin: 0; border: 0; border-left: 1px solid var(--bg-raised); --surface: var(--bg-deep); background: var(--surface);
   color: var(--text);
   > h2 { display: flex; }
   > h2 > button { margin-left: auto; }
