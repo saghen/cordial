@@ -75,6 +75,6 @@ article > q {
   &.reply-to > span { cursor: pointer; }
   &.reply-to > span:hover { color: var(--text-strong); }
   .avatar { margin-right: 4px; vertical-align: text-bottom; }
-  .name { margin-right: 4px; }
+  .name { margin-right: 4px; white-space: inherit; }
   .command-name { color: var(--link); }
 }

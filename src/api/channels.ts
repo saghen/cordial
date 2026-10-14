@@ -20,6 +20,9 @@ export const lastDm = () => S.SelectedChannel.getChannelId('@me')
 // the DMs, at a DM or the friends page
 export const openDms = (id?: Id | null) => A.nav.transitionTo(`/channels/@me${id ? `/${id}` : ''}`)
 export const open = (c: Channel) => A.nav.transitionTo(`/channels/${c.guild_id ?? '@me'}/${c.id}`)
+// a channel link's click (a mention, a link to a channel or to a message: then the message jumped to)
+export const openLink = (guildId: Id | null | undefined, channelId: Id, messageId?: Id) =>
+  A.nav.transitionTo(`/channels/${guildId ?? '@me'}/${channelId}${messageId ? `/${messageId}` : ''}`)
 
 // what sets a channel's icon apart: announcements, age-restricted and private ones. Private as stock: hidden from
 // @everyone, or for voice also closed to it

@@ -15,8 +15,15 @@
   img { width: 22px; height: 22px; vertical-align: bottom; object-fit: contain; }
   img.jumbo { width: 48px; height: 48px; }
   mark { background: var(--mention-bg); color: var(--mention-fg); border-radius: 3px; padding: 0 2px; }
+  /* a channel link: each part an icon and a name; a server's icon round */
+  mark.channel-link { cursor: pointer; }
+  mark.channel-link > span > :is(.icon, img) { display: inline-block; --icon-size: 16px; width: 16px; height: 16px; margin-right: 2px; vertical-align: -3px; }
+  mark.channel-link > span > img { border-radius: 50%; }
   del { text-decoration: none; background: var(--bg-deep); color: transparent; border-radius: 4px; cursor: pointer; }
   del[open] { background: var(--bg-raised); color: inherit; }
   time:not(.ts) { background: var(--bg-raised); border-radius: 3px; padding: 0 2px; }
 }
 .markdown.inline * { display: inline; margin: 0; padding: 0; border: 0; }
+/* a code block as inline code on the line (pre's own white-space would break it onto several), headings at its size */
+.markdown.inline pre { padding: 0 3px; white-space: inherit; }
+.markdown.inline :is(h1, h2, h3) { font-size: inherit; line-height: inherit; }
