@@ -1,6 +1,8 @@
 // The message list's scroll container (chat.tsx). column-reverse keeps the view at the bottom (scrollTop 0 is the
 // bottom). Like stock's list, it reports its position, turns automatic acks on for its channel and loads more history
-// near either end: without a UI nothing else does.
+// near either end: without a UI nothing else does. Scrolled up, it keeps the reader's place by the row at the view's
+// top: in column-reverse, rows coming and going below it (a fetch of older messages truncates the newest, new ones
+// arrive, rows settle to their heights) would move everything above them.
 
 import * as messages from '../api/messages'
 import type { Id } from '../api/records'
@@ -25,6 +27,35 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       height,
       view,
     )
+  }
+
+  // the row at the view's top (by message: a row is built again when its record is replaced) and where it was, while
+  // scrolled up
+  let anchor: { id: string; top: number } | null = null
+  const rowOf = (id: string) => scroller.querySelector(`article[data-id="${id}"]`)
+  function pin() {
+    anchor = null
+    if (scroller.scrollTop > -1) return
+    const top = scroller.getBoundingClientRect().top,
+      rows = scroller.firstElementChild!.children
+    // the first row reaching below the view's top
+    let lo = 0,
+      hi = rows.length - 1
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (rows[mid].getBoundingClientRect().bottom > top) hi = mid
+      else lo = mid + 1
+    }
+    const row = rows[lo] as HTMLElement | undefined
+    if (row?.dataset.id) anchor = { id: row.dataset.id, top: row.getBoundingClientRect().top }
+  }
+  function keepPlace() {
+    const row = anchor && rowOf(anchor.id)
+    if (row) {
+      const moved = row.getBoundingClientRect().top - anchor!.top
+      if (Math.abs(moved) >= 1) scroller.scrollTop += moved
+    }
+    pin()
   }
 
   // once per frame, never inside a dispatch (lists render from store listeners). The position is reported after a
@@ -81,6 +112,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   scroller.addEventListener(
     'scroll',
     () => {
+      pin()
       if (dragging) down = scroller.scrollTop > last
       last = scroller.scrollTop
       clearTimeout(timer)
@@ -95,6 +127,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
 
   // rows settle to their real heights after rendering (content-visibility), and the window resizes: neither scrolls
   const resized = new ResizeObserver(() => {
+    keepPlace()
     dims = true
     update()
   })
@@ -104,7 +137,10 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   // after each render; a switch to another channel starts at the bottom
   return (switched: boolean) => {
     toBottom ||= switched
-    if (switched) down = false
+    if (switched) {
+      down = false
+      anchor = null
+    } else keepPlace()
     dims = true
     update()
   }
