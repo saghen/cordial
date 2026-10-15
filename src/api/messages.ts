@@ -125,29 +125,55 @@ export const linkOnly = (message: Message) =>
 
 // stock's cap on a fetch's limit
 const MAX_FETCH = 30
-// how near an end of the list loads more, and near the top with unreads
+// how near an end of the list loads more: stock's 500 px, or sooner (ours: at 500 px a reader scrolling on waits at the
+// end for the fetch) up to two views ahead, as far as truncation allows; near the top with unreads stock's 2 px
 const LOAD_PX = 500
+const LOAD_VIEWS = 2
 const LOAD_UNREAD_PX = 2
+// a fetch past ~120 rows truncates the far end to 60: the 30 fetched and the 30 rows nearest them, which the reader's
+// view has to stay within, or the rows under it go. Until it is, a fetch leaves the far end (ours: stock always
+// truncates), up to MAX_ROWS
+export const KEPT_ROWS = 30
+const MAX_ROWS = 240
 
-// As stock's: older within 500 px of the top, newer (truncated by a fetch of older) within 500 px of the bottom, two
-// pages at a time, truncating the other end. Only toward where the reader is heading: a short window can be near both
-// ends, and loading one truncates the other. With unreads, stock waits for the very top (2 px: scrollTop stops 1 px
-// short here), so reading down from the unread line doesn't pull in history
-export function loadMore(channelId: Id, fromTop: number, fromBottom: number, down: boolean) {
+// where the list is: its distance from each end, the view's height, and the height of the KEPT_ROWS rows at each end
+export interface Position {
+  fromTop: number
+  fromBottom: number
+  view: number
+  keptTop: number
+  keptBottom: number
+}
+const ahead = (view: number, kept: number) => Math.max(LOAD_PX, Math.min(LOAD_VIEWS * view, kept - view))
+
+// As stock's but sooner: older near the top, newer (truncated by a fetch of older) near the bottom, two pages at a
+// time, truncating the other end. Only toward where the reader is heading: a short window can be near both ends, and
+// loading one truncates the other. With unreads, stock waits for the very top (2 px: scrollTop stops 1 px short here),
+// so reading down from the unread line doesn't pull in history
+export function loadMore(channelId: Id, position: Position, down: boolean) {
   const loaded = S.Message.getMessages(channelId)
   if (!loaded.ready || loaded.loadingMore || !loaded.length) return
   const top =
     !down &&
     loaded.hasMoreBefore &&
-    fromTop <= (S.ReadState.getOldestUnreadMessageId(channelId) != null ? LOAD_UNREAD_PX : LOAD_PX)
-  if (top || (down && loaded.hasMoreAfter && fromBottom <= LOAD_PX))
-    A.messages.fetchMessages({
-      channelId,
-      before: top ? loaded.first().id : undefined,
-      after: top ? undefined : loaded.last().id,
-      limit: Math.min(MAX_FETCH, 2 * A.pages.size('scrollManager.loadMore')),
-      truncate: true,
-    })
+    position.fromTop <=
+      (S.ReadState.getOldestUnreadMessageId(channelId) != null
+        ? LOAD_UNREAD_PX
+        : ahead(position.view, position.keptTop))
+  const bottom = down && loaded.hasMoreAfter && position.fromBottom <= ahead(position.view, position.keptBottom)
+  if (!top && !bottom) return
+  const inKept = top
+    ? position.fromTop + position.view <= position.keptTop
+    : position.fromBottom + position.view <= position.keptBottom
+  const truncate = inKept || loaded.length >= MAX_ROWS
+  A.messages.fetchMessages({
+    channelId,
+    before: top ? loaded.first().id : undefined,
+    after: top ? undefined : loaded.last().id,
+    limit: Math.min(MAX_FETCH, 2 * A.pages.size('scrollManager.loadMore')),
+    // the store truncates when the flag is there at all, false too
+    truncate: truncate ? true : undefined,
+  })
 }
 
 // the list's position, from the top. While the newest messages aren't loaded the bottom isn't the present: stock counts

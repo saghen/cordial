@@ -11,13 +11,23 @@ const REPORT_DEBOUNCE_MS = 200
 
 export function createScroller(scroller: HTMLElement, channel: () => Id | null) {
   // only toward where the reader is heading (api/messages.ts loadMore)
-  const more = (channelId: Id) =>
+  function more(channelId: Id) {
+    const list = scroller.firstElementChild!
+    const rows = list.children
+    const box = list.getBoundingClientRect()
+    const kept = Math.min(messages.KEPT_ROWS, rows.length)
     messages.loadMore(
       channelId,
-      scroller.scrollHeight - scroller.clientHeight + scroller.scrollTop,
-      -scroller.scrollTop,
+      {
+        fromTop: scroller.scrollHeight - scroller.clientHeight + scroller.scrollTop,
+        fromBottom: -scroller.scrollTop,
+        view: scroller.clientHeight,
+        keptTop: kept ? rows[kept - 1].getBoundingClientRect().bottom - box.top : 0,
+        keptBottom: kept ? box.bottom - rows[rows.length - kept].getBoundingClientRect().top : 0,
+      },
       down,
     )
+  }
 
   // column-reverse: scrollTop runs from 0 at the bottom to -(height - view) at the top
   function report(channelId: Id) {
