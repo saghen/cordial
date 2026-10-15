@@ -12,7 +12,7 @@ import * as users from '../../api/users'
 import { Avatar } from '../avatar'
 import { Markdown } from '../markdown'
 import { Name } from '../name'
-import { avatarDoubleClick, open as openProfile } from '../profile'
+import { open as openProfile } from '../profile'
 import { Time } from '../time'
 
 // the avatar in the gutter, the name and the time beside it (and what a card adds: a search result's channel)
@@ -22,14 +22,7 @@ export function Head(p: { message: Message; guildId?: Id | null; children?: JSX.
     openProfile(e.currentTarget as Element, p.message.author, messages.authorGuild(p.message, p.guildId))
   return (
     <>
-      <Avatar
-        user={p.message.author}
-        guildId={p.guildId}
-        size={40}
-        decorated
-        onDblClick={() => avatarDoubleClick(p.message.author, p.message.webhookId == null)}
-        onClick={profile}
-      />
+      <Avatar user={p.message.author} guildId={p.guildId} size={40} decorated onClick={profile} />
       <header>
         <Name user={p.message.author} guildId={messages.authorGuild(p.message, p.guildId)} onClick={profile} />
         <Time at={p.message.timestamp} />

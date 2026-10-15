@@ -4,7 +4,7 @@
 // `submenu` shows it beside itself while hovered or focused. '-' is a divider; false or null leaves an item out. A
 // context menu's target is what the right click was on, the menu shown at the pointer.
 
-import { createSignal, flush, For, Show } from 'solid-js'
+import { createSignal, flush, For, onCleanup, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
 import { Icon } from './icon'
@@ -70,6 +70,9 @@ export function Items(p: { items: (Item | '-' | false | null | undefined)[] }) {
   )
 }
 
+// a second right click this soon after the first is a double one
+const DOUBLE_MS = 500
+
 // a context menu at the pointer, above it or to its left where it wouldn't fit
 function popAt(menu: HTMLElement, e: MouseEvent) {
   e.preventDefault()
@@ -108,6 +111,26 @@ export function contextMenu<T>(p: {
     },
     show,
     hide: () => menu.hidePopover(),
+    // ours: a double right click, the second on what the first found (by id) or on the menu the first opened; it runs
+    // in place of the menu, given what the first found. Each call finds its own things, apart from the others'
+    onDoubleRight(find: (target: Element) => string | undefined, run: (id: string) => void) {
+      let first: { id: string; at: number } | null = null
+      function right(e: MouseEvent) {
+        const target = e.target as Element
+        const prev = first
+        const id = find(target)
+        first = id === undefined ? null : { id, at: e.timeStamp }
+        if (!prev || e.timeStamp - prev.at > DOUBLE_MS) return
+        if (id !== prev.id && !menu.contains(target)) return
+        first = null
+        e.preventDefault()
+        e.stopPropagation()
+        menu.hidePopover()
+        run(prev.id)
+      }
+      document.addEventListener('contextmenu', right, true)
+      onCleanup(() => document.removeEventListener('contextmenu', right, true))
+    },
     view: (
       <menu
         ref={menu}

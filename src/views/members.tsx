@@ -1,6 +1,6 @@
 // The member list (api/members.ts): each group's name and count, then its members, offline ones dimmed; a server's
 // rows not loaded yet keep their place. The header's toggle opens and closes it. A right click on a member: stock's
-// Profile, Mention, Message and Copy User ID.
+// Profile, Mention, Message and Copy User ID; a double right click on their avatar, their DM (ours).
 
 import { createEffect, createMemo, For, Show, untrack } from 'solid-js'
 
@@ -9,9 +9,9 @@ import * as members from '../api/members'
 import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
 import * as users from '../api/users'
-import { Avatar } from '../components/avatar'
+import { Avatar, avatarDoubleRight } from '../components/avatar'
 import { Name } from '../components/name'
-import { avatarDoubleClick, open as openProfile } from '../components/profile'
+import { open as openProfile } from '../components/profile'
 import { useStatusLine } from '../components/status_line'
 import { Toggle } from '../primitives/button'
 import { Icon } from '../primitives/icon'
@@ -31,6 +31,13 @@ export function MembersList() {
   // a memo: the effect alone runs again on every store change, even with the same value
   const shown = createMemo(() => members.open() && `${selectedGuild()},${selected()}`)
   const menu = memberMenu()
+  menu.onDoubleRight(
+    (target) => target.closest('.member > .avatar')?.closest<HTMLElement>('.member')?.dataset.id,
+    (id) => {
+      const user = users.get(id)
+      if (user) avatarDoubleRight(user)
+    },
+  )
   createEffect(shown, (on) => {
     if (on) subscribe()
   })
@@ -63,16 +70,7 @@ function MemberRow(p: { member: members.Member }) {
       style={plate()}
       data-id={member().user.id}
       onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, member().user, selectedGuild())}
-      icon={
-        <Avatar
-          user={member().user}
-          guildId={selectedGuild()}
-          size={32}
-          status={member().status}
-          decorated
-          onDblClick={() => avatarDoubleClick(member().user)}
-        />
-      }
+      icon={<Avatar user={member().user} guildId={selectedGuild()} size={32} status={member().status} decorated />}
       subtitle={status()}
       end={
         members.isOwner(member().user.id) && (

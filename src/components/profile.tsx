@@ -1,15 +1,14 @@
 // A user's profile card, opened from their avatar or name (the author line, the member list): the banner, the avatar
 // with their status, their names and pronouns, the custom status (its emoji beside the name), the bio, what they're
 // doing and their roles, and their profile effect over it all. One card, mounted once (app.tsx), placed beside whatever
-// opened it; a click outside or Escape closes it. A double click on an avatar closes it and opens their DM (ours).
+// opened it; a click outside or Escape closes it.
 
 import { createEffect, createMemo, createSignal, flush, For, onCleanup, Show } from 'solid-js'
 
 import * as channels from '../api/channels'
 import { useNow } from '../api/hooks'
 import * as profiles from '../api/profiles'
-import { selectedChannel } from '../api/store'
-import { ChannelType, type Id, type User } from '../api/types'
+import type { Id, User } from '../api/types'
 import * as users from '../api/users'
 import { Avatar } from './avatar'
 import { Emoji } from './emoji'
@@ -18,22 +17,12 @@ import { Name } from './name'
 
 type Shown = { user: User; guildId?: Id | null }
 let show: ((source: Element, shown: Shown) => void) | undefined
-let hide: (() => void) | undefined
 
 export const open = (source: Element, user: User, guildId?: Id | null) => show?.(source, { user, guildId })
-
-// a double click on their avatar: the card its clicks toggled closed, and their DM opened unless a DM is open already,
-// it's you, or they can't have one (a webhook)
-export function avatarDoubleClick(user: User, canDm = true) {
-  hide?.()
-  if (!canDm || selectedChannel()?.type === ChannelType.DM || user.id === users.me()?.id) return
-  void channels.openDm(user.id)
-}
 
 export function ProfileCard() {
   const [shown, setShown] = createSignal<Shown | null>(null)
   let card!: HTMLDivElement
-  hide = () => card.hidePopover()
   // a click on their avatar or name again closes it: its press closes the card already (light dismiss), so the click
   // mustn't open it again
   let pressedOn: Id | undefined

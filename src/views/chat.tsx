@@ -12,6 +12,7 @@ import { Permission } from '../api/types'
 import { selectedChannel, selectedChat } from '../api/store'
 import { text, textAround } from '../api/strings'
 import * as users from '../api/users'
+import { avatarDoubleRight } from '../components/avatar'
 import { Emoji } from '../components/emoji'
 import { flash } from '../components/message/head'
 import { Message } from '../components/message/message'
@@ -43,6 +44,8 @@ function onText(left: number, top: number) {
 // the message an event happened on, by its row
 const messageId = (target: EventTarget | null) =>
   (target as Element).closest<HTMLElement>('article[data-id]')?.dataset.id
+// the avatar in a message's gutter an event happened on
+const authorAvatar = (target: Element) => target.closest('article[data-id] > .avatar')
 
 export function Chat() {
   const channelId = selectedChat
@@ -224,6 +227,15 @@ export function Chat() {
     getSelection()?.removeAllRanges()
     focus()
   })
+  // ours: a double right click on its author's avatar opens their DM
+  menu.onDoubleRight(
+    (target) => (authorAvatar(target) ? messageId(target) : undefined),
+    (id) => {
+      const chatId = channelId()
+      const message = chatId && messages.get(chatId, id)
+      if (message) avatarDoubleRight(message.author, message.webhookId == null)
+    },
+  )
   return (
     <>
       {view}
