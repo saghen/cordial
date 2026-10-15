@@ -17,7 +17,7 @@ const ACTIVITY_IMAGE_PX = 120
 
 // stock's popout's fetch, ported from its chunk: not while one runs; a profile not loaded yet, or one fetched over a
 // minute ago (not after a 404 or a 429 until then), or without the servers you share; then as the popout asks
-export function fetch(user: User, guildId: Id | null | undefined) {
+export function load(user: User, guildId: Id | null | undefined) {
   if (S.UserProfile.isFetchingProfile(user.id, guildId)) return
   const shown =
     guildId == null ? S.UserProfile.getUserProfile(user.id) : S.UserProfile.getGuildMemberProfile(user.id, guildId)
@@ -93,18 +93,21 @@ export function fetchEffect(skuId: Id) {
     })
     .then((response) => {
       const item = response.body.items?.[0]
-      const layers = (item?.effects ?? []) as Layer[]
+      const still: string | undefined = item?.staticFrameSrc ?? item?.reducedMotionSrc
+      if (!still) return
+      const layers = (item.effects ?? []) as Layer[]
       const end = Math.max(0, ...layers.map((layer) => layer.start + layer.duration))
       const effect = {
         layers: layers
           .toSorted((left, right) => (left.zIndex ?? 0) - (right.zIndex ?? 0))
           .map((layer) => ({ src: layer.src, from: layer.start, to: layer.loop ? end : layer.start + layer.duration })),
         end,
-        still: (item?.staticFrameSrc ?? item?.reducedMotionSrc) as string,
+        still,
       }
       setEffects((shown) => ({ ...shown, [skuId]: effect }))
     })
-    .catch(() => undefined)
+    // asked again at the next card
+    .catch(() => asked.delete(skuId))
 }
 export const effect = (skuId: Id) => effects()[skuId] as Effect | undefined
 export const effectPlays = () => windowFocused() && !$.Accessibility.useReducedMotion

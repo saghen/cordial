@@ -3,7 +3,7 @@
 // doing and their roles, and their profile effect over it all. One card, mounted once (app.tsx), placed beside whatever
 // opened it; a click outside or Escape closes it. A double click on an avatar closes it and opens their DM (ours).
 
-import { createEffect, createSignal, flush, For, onCleanup, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, flush, For, onCleanup, Show } from 'solid-js'
 
 import * as channels from '../api/channels'
 import { useNow } from '../api/hooks'
@@ -49,7 +49,7 @@ export function ProfileCard() {
     if (again) return
     setShown(next)
     flush()
-    profiles.fetch(next.user, next.guildId)
+    profiles.load(next.user, next.guildId)
     // the source anchors it (position-area) and counts as its invoker
     card.showPopover({ source } as ShowPopoverOptions)
   }
@@ -69,26 +69,29 @@ export function ProfileCard() {
 }
 
 function Card(p: Shown) {
-  const profile = () => profiles.get(p.user.id, p.guildId)
+  // memos: the profile is read throughout, and presence updates (anyone's) would rebuild the activities each time
+  const profile = createMemo(() => profiles.get(p.user.id, p.guildId))
   const custom = () => profiles.customStatus(p.user.id)
-  const activities = () => profiles.activities(p.user.id)
+  const activities = createMemo(() => profiles.activities(p.user.id))
+  const ticking = createMemo(() => activities().some((activity) => Boolean(activity.start)))
   const roles = () => profiles.roles(p.user, p.guildId)
+  const effectId = createMemo(() => profile().effect)
   function effect() {
-    const id = profile().effect
+    const id = effectId()
     return id ? profiles.effect(id) : undefined
   }
   createEffect(
-    () => profile().effect,
+    effectId,
     (effect) => {
       if (effect) profiles.fetchEffect(effect)
     },
   )
   // the activities' clocks tick while one has a start
-  const now = useNow(() => (activities().some((activity) => activity.start) ? Infinity : 0))
+  const now = useNow(() => (ticking() ? Infinity : 0))
   return (
     <section
       class={['profile', { themed: Boolean(profile().theme) }]}
-      style={{ '--primary': profile().theme?.[0], '--accent': profile().theme?.[1] }}
+      style={{ '--theme-from': profile().theme?.[0], '--theme-to': profile().theme?.[1] }}
     >
       <div
         class="banner"
@@ -116,7 +119,9 @@ function Card(p: Shown) {
       <Show when={profile().bio} keyed>
         {(bio) => <Markdown ast={profiles.bioAST(bio)} />}
       </Show>
-      <For each={activities()}>{(activity) => <Activity activity={activity} now={now()} />}</For>
+      <For each={activities()} keyed={(activity) => activity.id}>
+        {(activity) => <Activity activity={activity()} now={now()} />}
+      </For>
       <Show when={roles().length}>
         <ul class="roles">
           <For each={roles()}>

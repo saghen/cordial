@@ -11,8 +11,8 @@ section.profile {
   /* themed (Nitro), as stock's: its two colours from the banner's foot down, bare in the border and under 60 % black
      inside; the effect clipped to the card */
   &.themed {
-    --surface: color-mix(in srgb, var(--primary) 40%, #000); overflow: hidden; border: 2px solid transparent; border-radius: inherit;
-    background: linear-gradient(#0009 0 0) padding-box, linear-gradient(var(--primary) 105px, var(--accent)) border-box;
+    --surface: color-mix(in srgb, var(--theme-from) 40%, #000); overflow: hidden; border: 2px solid transparent; border-radius: inherit;
+    background: linear-gradient(#0009 0 0) padding-box, linear-gradient(var(--theme-from) 105px, var(--theme-to)) border-box;
   }
   > .banner { height: 105px; margin: 0 -16px; background: var(--bg-raised) center / cover; }
   > .avatar { --status-size: 16px; --status-ring: 5px; margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
