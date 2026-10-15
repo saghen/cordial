@@ -1,4 +1,5 @@
-// A message's files: images and videos inline (images in the larger box), anything else a link with its size; and its
+// A message's files: images and videos inline (images in the larger box), sounds with a player, anything else a link
+// with its size; and its
 // stickers, as their images from Discord's CDN at stock's 160 px (an APNG animates with passthrough), a Lottie one (an
 // animated vector) as its name.
 
@@ -24,12 +25,21 @@ export function Attachment(p: { file: AttachmentRecord }) {
   const media = { url: file.url, proxyURL: file.proxy_url, width: file.width!, height: file.height! }
   if (type === 'image' && file.width) return <Media media={media} box="sent" />
   if (type === 'video') return <Clip src={file.url} media={media} />
-  return (
+  const link = (
     <a class="file" href={file.url} target="_blank" rel="noreferrer noopener">
       {file.filename}
       <small>{size(file.size)}</small>
     </a>
   )
+  // as stock, a sound plays in its card
+  if (type === 'audio')
+    return (
+      <div class="audio">
+        {link}
+        <audio controls preload="metadata" src={file.url} />
+      </div>
+    )
+  return link
 }
 
 type StickerItem = NonNullable<Message['stickerItems']>[number]
