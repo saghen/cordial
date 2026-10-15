@@ -162,8 +162,17 @@ export function Chat() {
   const rendered = createScroller(view, channelId)
   createEffect(
     () => ({ id: channelId(), list: list(), ready: loaded()?.ready }),
-    ({ id, ready }, prev) => {
-      rendered(id !== prev?.id)
+    ({ id, list, ready }, prev) => {
+      // your own new message brings the list down to it, unless you're reading more than a view above (stock always
+      // jumps)
+      const last = list.at(-1)
+      const sent =
+        prev !== undefined &&
+        id === prev.id &&
+        last?.id !== prev.list.at(-1)?.id &&
+        Boolean(last && messages.own(last)) &&
+        view.scrollTop >= -view.clientHeight
+      rendered(id !== prev?.id, sent)
       if (id && ready) jumped(id)
       if (jumping && !loaded()?.hasMoreAfter) {
         jumping = false

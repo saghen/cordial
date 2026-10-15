@@ -72,7 +72,11 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     queued = true
     requestAnimationFrame(() => {
       queued = false
-      if (toBottom) scroller.scrollTop = 0
+      // the bottom, with no place left to keep
+      if (toBottom) {
+        anchor = null
+        scroller.scrollTop = 0
+      }
       toBottom = false
       const channelId = channel()
       // stock's order on a switch: acks off for the old channel, the new one's position, then acks on
@@ -143,9 +147,9 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   resized.observe(scroller)
   resized.observe(scroller.firstElementChild!)
 
-  // after each render; a switch to another channel starts at the bottom
-  return (switched: boolean) => {
-    toBottom ||= switched
+  // after each render; a switch to another channel starts at the bottom, as does a render asked to go there
+  return (switched: boolean, bottom = false) => {
+    toBottom ||= switched || bottom
     if (switched) {
       down = false
       anchor = null
