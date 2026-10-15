@@ -11,7 +11,7 @@ import { text } from '../api/strings'
 import * as users from '../api/users'
 import { Avatar } from '../components/avatar'
 import { Name } from '../components/name'
-import { open as openProfile, openDm } from '../components/profile'
+import { avatarDoubleClick, open as openProfile } from '../components/profile'
 import { useStatusLine } from '../components/status_line'
 import { Toggle } from '../primitives/button'
 import { Icon } from '../primitives/icon'
@@ -70,7 +70,7 @@ function MemberRow(p: { member: members.Member }) {
           size={32}
           status={member().status}
           decorated
-          onDblClick={() => openDm(member().user)}
+          onDblClick={() => avatarDoubleClick(member().user)}
         />
       }
       subtitle={status()}

@@ -24,7 +24,7 @@ export const open = (source: Element, user: User, guildId?: Id | null) => show?.
 
 // a double click on their avatar: the card its clicks toggled closed, and their DM opened unless a DM is open already,
 // it's you, or they can't have one (a webhook)
-export function openDm(user: User, canDm = true) {
+export function avatarDoubleClick(user: User, canDm = true) {
   hide?.()
   if (!canDm || selectedChannel()?.type === ChannelType.DM || user.id === users.me()?.id) return
   void channels.openDm(user.id)

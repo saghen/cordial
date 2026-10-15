@@ -12,7 +12,7 @@ import * as users from '../../api/users'
 import { Avatar } from '../avatar'
 import { Markdown } from '../markdown'
 import { Name } from '../name'
-import { open as openProfile, openDm } from '../profile'
+import { avatarDoubleClick, open as openProfile } from '../profile'
 import { Time } from '../time'
 
 // the avatar in the gutter, the name and the time beside it (and what a card adds: a search result's channel)
@@ -27,7 +27,7 @@ export function Head(p: { message: Message; guildId?: Id | null; children?: JSX.
         guildId={p.guildId}
         size={40}
         decorated
-        onDblClick={() => openDm(p.message.author, p.message.webhookId == null)}
+        onDblClick={() => avatarDoubleClick(p.message.author, p.message.webhookId == null)}
         onClick={profile}
       />
       <header>
