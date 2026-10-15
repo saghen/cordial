@@ -105,6 +105,7 @@ export interface Member {
   nick: string | null
   colorString: string | null
   communicationDisabledUntil?: string | null
+  roles?: Id[]
 }
 
 export interface Guild {

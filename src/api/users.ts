@@ -46,7 +46,7 @@ export function setStatus(next: string) {
   if (next !== prevStatus) A.setStatus({ nextStatus: next, prevStatus })
 }
 // ActivityTypes: playing, streaming, listening, watching, custom (shown as the status, not here), competing
-const VERBS = {
+export const VERBS = {
   [ActivityType.Playing]: 'PLAYING_GAME',
   [ActivityType.Streaming]: 'STREAMING',
   [ActivityType.Listening]: 'LISTENING_TO',

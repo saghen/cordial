@@ -1,0 +1,36 @@
+/* the profile card: beside what opened it (flipping to stay on screen), the banner across its top, the avatar over the
+   banner's edge ringed in the card's colour; themed (Nitro), the card in its two colours top to bottom */
+div.profile-card {
+  inset: auto; position-area: right span-bottom; position-try-fallbacks: flip-inline, flip-block, flip-block flip-inline;
+  width: 300px; max-height: 80vh; margin: 0 8px; padding: 0; overflow: hidden auto; user-select: text;
+}
+section.profile {
+  display: grid; gap: 8px; padding: 0 16px 16px; font-size: 14px;
+  &.themed { --surface: color-mix(in srgb, var(--primary) 35%, var(--bg-deep)); background: linear-gradient(var(--surface), color-mix(in srgb, var(--accent) 35%, var(--bg-deep))); }
+  > .banner { height: 105px; margin: 0 -16px; background: var(--bg-raised) center / cover; }
+  > .avatar { margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
+  > h2 { font-size: 20px; font-weight: 700; color: var(--text-strong); }
+  > .handle { margin-top: -8px; color: var(--text-muted); }
+  > .custom-status { display: flex; align-items: center; gap: 6px; }
+  > .custom-status > .emoji { width: 18px; height: 18px; }
+  > .roles { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; }
+  > .roles > li {
+    display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: var(--bg-raised); font-size: 12px;
+    &::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--role, var(--text-muted)); }
+  }
+}
+/* an activity: its heading over its image and lines */
+section.profile > .activity {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 12px; border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-deep) 60%, transparent);
+  > h3 { grid-column: 1 / -1; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  > img { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; }
+  > p { display: grid; gap: 2px; min-width: 0; }
+  > p > :is(b, span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  > p > b { color: var(--text-strong); font-weight: 600; }
+  > p > time, .progress { font-size: 12px; color: var(--text-muted); }
+  .progress { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; }
+  .progress > progress { width: 100%; height: 4px; appearance: none; border: 0; border-radius: 2px; background: var(--bg-floating); }
+  .progress > progress::-webkit-progress-bar { border-radius: 2px; background: var(--bg-floating); }
+  .progress > progress::-webkit-progress-value { border-radius: 2px; background: var(--text-strong); }
+}

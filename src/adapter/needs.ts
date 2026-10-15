@@ -135,6 +135,15 @@ dispatched('LOAD_PINNED_MESSAGES_SUCCESS', 'the pins fetch, as stock')
 dispatched('CHANNEL_PINS_ACK', "the pins popout's ack")
 storeNeed('PrivateChannelReadState', 'PrivateChannelReadStateStore', 'getUnreadPrivateChannelIds')
 storeNeed('Presence', 'PresenceStore', 'getStatus', 'getActivities')
+storeNeed(
+  'UserProfile',
+  'UserProfileStore',
+  'getUserProfile',
+  'getGuildMemberProfile',
+  'isFetchingProfile',
+  'getMutualGuilds',
+)
+storeNeed('GuildRole', 'GuildRoleStore', 'getRole')
 storeNeed('Relationship', 'RelationshipStore', 'getNickname', 'isBlocked', 'getPendingCount')
 storeNeed('Slowmode', 'SlowmodeStore', 'getSlowmodeCooldownGuess')
 storeNeed('Permission', 'PermissionStore', 'can')
@@ -391,7 +400,14 @@ mangled('reactions', 'REMOVE_EMOJI_REACTIONS(', {
 })
 mangled('pages', 'windowSize().height-145', { size: '.getSetting(),' })
 byProps('markdown', 'parseToAST')
-byProps('icons', 'getChannelIconURL', 'getGuildIconURL')
+byProps(
+  'icons',
+  'getChannelIconURL',
+  'getGuildIconURL',
+  'getUserBannerURL',
+  'getGuildMemberBannerURL',
+  'getAvatarDecorationURL',
+)
 byProps('emojis', 'getURL', 'sanitizeEmojiName')
 // stock's text (api/strings.ts): its messages by key, and the hash that makes a key from a message's name
 byProps('intl', 'intl', 't', 'international')
@@ -406,6 +422,10 @@ moduleNeed('spinner', 'module ("app-spinner") { webm }', () => {
   const file = name && source.match(new RegExp(`\\b${name}=\\w+\\.p\\+"([\\w.]+)"`))?.[1]
   return file ? { webm: wreq.p + file } : null
 })
+// stock's profile fetch (the popout's rules around it are in a chunk of its UI: ported in api/profiles.ts), and
+// activities' images
+mangled('profiles', 'type:"USER_PROFILE_FETCH_START"', { fetch: 'type:"USER_PROFILE_FETCH_START"' })
+mangled('assets', '"ApplicationAssetUtils"', { image: 'app-assets/' })
 mangled('dates', '"DateUtils"', { calendar: '"L LT"', format: 'longFormatters' })
 // the frecency user settings (proto type 2), which FrecencyStore ranks from: stock loads them when a picker opens
 moduleNeed(

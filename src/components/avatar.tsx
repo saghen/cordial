@@ -12,9 +12,14 @@ export function Avatar(p: {
   size: number
   status?: string
   speaking?: boolean
+  onClick?(e: MouseEvent): void
 }) {
   return (
-    <span class={['avatar', { speaking: Boolean(p.speaking) }]} style={{ '--size': `${p.size}px` }}>
+    <span
+      class={['avatar', { speaking: Boolean(p.speaking), clickable: Boolean(p.onClick) }]}
+      style={{ '--size': `${p.size}px` }}
+      onClick={p.onClick}
+    >
       <img src={p.src ?? users.avatar(p.user!, p.guildId, p.size)} alt="" />
       {p.status && <Status kind={p.status} />}
     </span>

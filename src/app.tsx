@@ -4,6 +4,7 @@ import { preloadChannels } from './api/preload'
 import * as session from './api/session'
 import { text } from './api/strings'
 import { useVoiceSounds } from './api/sounds'
+import { ProfileCard } from './components/profile'
 import { ICONS } from './primitives/icons'
 import { CallView, IncomingCalls } from './views/call'
 import { Channels } from './views/channels'
@@ -68,6 +69,7 @@ export function App() {
       <IncomingCalls />
       <Composer />
       <MembersList />
+      <ProfileCard />
     </Show>
   )
 }

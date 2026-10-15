@@ -173,6 +173,16 @@ export interface Stores {
   LocalActivity: FluxStore & { getPrimaryActivity(): AnyRecord | null }
   // activities: { type, name, state }; type 4 is the custom status
   Presence: FluxStore & { getStatus(userId: Id): string; getActivities(userId: Id): AnyRecord[] }
+  // profiles as fetched (/users/:id/profile): { bio, pronouns, banner, accentColor, themeColors, fetchEndedAt, ... },
+  // and a server's own (its bio, pronouns, banner)
+  UserProfile: FluxStore & {
+    getUserProfile(userId: Id): AnyRecord | undefined
+    getGuildMemberProfile(userId: Id, guildId: Id | null | undefined): AnyRecord | null
+    isFetchingProfile(userId: Id, guildId?: Id | null): boolean
+    getMutualGuilds(userId: Id): AnyRecord[] | undefined
+  }
+  // a server's roles: { id, name, colorString, position, hoist }
+  GuildRole: FluxStore & { getRole(guildId: Id, roleId: Id): AnyRecord | undefined }
   // friend nicknames
   Relationship: FluxStore & {
     getNickname(userId: Id): string | undefined
@@ -518,5 +528,33 @@ export interface Actions {
     getChannelIconURL(opts: { id: Id; icon?: string | null; applicationId?: Id; size?: number }): string
     // undefined when the guild has none
     getGuildIconURL(opts: { id: Id; icon: string | null; size: number; canAnimate?: boolean }): string | undefined
+    getUserBannerURL(opts: { id: Id; banner?: string | null; size: number; canAnimate?: boolean }): string | undefined
+    getGuildMemberBannerURL(opts: {
+      id: Id
+      guildId: Id
+      banner?: string | null
+      size: number
+      canAnimate?: boolean
+    }): string | undefined
+    getAvatarDecorationURL(opts: {
+      avatarDecoration: AnyRecord
+      size: number
+      canAnimate?: boolean
+    }): string | undefined
   }
+  // stock's profile fetch (/users/:id/profile), into UserProfileStore
+  profiles: {
+    fetch(
+      userId: Id,
+      opts: {
+        type: string
+        withMutualGuilds: boolean
+        withMutualFriends: boolean
+        withMutualFriendsCount: boolean
+        guildId?: Id | null
+      },
+    ): Promise<unknown>
+  }
+  // an activity's image: an app's asset key, or "mp:", "spotify:" and the like
+  assets: { image(applicationId: Id | undefined, key: string | undefined, size: number): string | undefined }
 }

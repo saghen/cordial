@@ -8,6 +8,7 @@ import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
 import { Avatar } from '../components/avatar'
 import { Name } from '../components/name'
+import { open as openProfile } from '../components/profile'
 import { Toggle } from '../primitives/button'
 import { Row } from '../primitives/row'
 
@@ -43,6 +44,7 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
       name="member"
       class={{ offline: row.status === 'offline' }}
       data-id={row.user.id}
+      onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, row.user, selectedGuild())}
       icon={<Avatar user={row.user} guildId={selectedGuild()} size={32} status={row.status} />}
     >
       <Name user={row.user} guildId={selectedGuild()} />
