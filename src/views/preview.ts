@@ -91,7 +91,8 @@ function inline(text: string, at: number, marks: Mark[]) {
   inline(text.slice(first.index + first.length), at + first.index + first.length, marks)
 }
 
-const CODE_BLOCK = /```([\w+-]*\n)?([\s\S]*?)```/g
+// a block still being typed (no closing fence yet) runs to the end, so it's highlighted as it's written
+const CODE_BLOCK = /```([\w+-]*\n)?([\s\S]*?)(```|$)/g
 export const hasCode = (text: string) => text.search(CODE_BLOCK) >= 0
 
 // the box's text's marks (`rerender` again once a code block's highlight arrives)
@@ -104,7 +105,7 @@ export function preview(text: string, rerender: () => void) {
     marks.push({ name: 'marker', from: match.index, to: match.index + opening })
     code((match[1] ?? '').trim(), match[2], match.index + opening, rerender, marks)
     const end = match.index + match[0].length
-    marks.push({ name: 'marker', from: end - 3, to: end })
+    if (match[3]) marks.push({ name: 'marker', from: end - 3, to: end })
     last = end
   }
   inline(text.slice(last), last, marks)
