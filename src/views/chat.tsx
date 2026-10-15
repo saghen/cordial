@@ -22,6 +22,22 @@ import { SearchInput } from '../primitives/search'
 import { focus } from './composer'
 import { createScroller } from './scroller'
 
+// what a double click on a message leaves alone besides its text: what's clickable in it
+const CLICKABLE = '.name, .reply-to, .embed, .reactions, a, button, img, video, audio, time'
+
+// whether a point is on a character of text (a double click there selects a word)
+function onText(left: number, top: number) {
+  const caret = document.caretPositionFromPoint(left, top)
+  const node = caret?.offsetNode
+  if (node?.nodeType !== Node.TEXT_NODE) return false
+  const range = document.createRange()
+  range.setStart(node, Math.max(0, caret!.offset - 1))
+  range.setEnd(node, Math.min(node.textContent!.length, caret!.offset + 1))
+  return [...range.getClientRects()].some(
+    (rect) => left >= rect.left && left <= rect.right && top >= rect.top && top <= rect.bottom,
+  )
+}
+
 export function Chat() {
   const channelId = selectedChat
   const channel = createMemo(selectedChannel)
@@ -183,6 +199,21 @@ export function Chat() {
     },
   )
   view.addEventListener('contextmenu', menu.open)
+  // ours: a double click on a message outside its text (the gutter, the space beside it) edits your own, else replies
+  view.addEventListener('dblclick', (e) => {
+    const target = e.target as Element
+    const row = target.closest<HTMLElement>('article[data-id]')
+    const id = channelId()
+    const current = channel()
+    if (!row || !id || !current || target.closest(CLICKABLE) || onText(e.clientX, e.clientY)) return
+    const message = messages.get(id, row.dataset.id!)
+    if (!message) return
+    if (messages.own(message) && messages.isUser(message)) messages.startEdit(message)
+    else if (users.can(Permission.SEND_MESSAGES, current)) messages.reply(message, current)
+    else return
+    getSelection()?.removeAllRanges()
+    focus()
+  })
   return (
     <>
       {view}
