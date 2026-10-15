@@ -343,6 +343,8 @@ export interface Actions {
       roles: AnyRecord[]
       globals: AnyRecord[]
     }
+    // a server's members by a query, scored; asks the server for ten more as it's typed
+    queryGuildUsers(opts: { guildId: Id; query: string; limit?: number }): { record: AnyRecord }[]
     queryChannelResults(opts: { query: string; channel: AnyRecord }): { channels: AnyRecord[] }
     queryEmojiResults(opts: { query: string; channel: AnyRecord; intention: number; maxCount?: number }): {
       emojis: { unlocked: AnyRecord[] }

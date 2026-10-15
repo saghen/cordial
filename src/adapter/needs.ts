@@ -253,7 +253,7 @@ byProps(
 byProps('parser', 'parse', 'unparse')
 byProps('drafts', 'saveDraft', 'changeDraft')
 byProps('uploads', 'addFiles', 'remove', 'clearAll')
-byProps('autocomplete', 'queryMentionResults', 'queryChannelResults', 'queryEmojiResults')
+byProps('autocomplete', 'queryMentionResults', 'queryGuildUsers', 'queryChannelResults', 'queryEmojiResults')
 byProps('guilds', 'toggleGuildFolderExpand')
 byProps('notifications', 'updateGuildNotificationSettings', 'updateChannelOverrideSettings')
 // stock's Mark As Read for a channel (an immediate ack), or for a category (each channel and active thread in it); ack

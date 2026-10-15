@@ -7,8 +7,9 @@ import { createSignal } from 'solid-js'
 import { A } from '../adapter/needs'
 import * as composer from './composer'
 import * as guilds from './guilds'
-import type { Channel, Message } from './types'
+import type { Channel, Message, User } from './types'
 import { $ } from './store'
+import * as users from './users'
 import { text } from './strings'
 
 export const PAGE = 25
@@ -22,15 +23,10 @@ export const searchId = (channel: Channel) => channel.guild_id ?? channel.id
 const [loaded, setLoaded] = createSignal(false)
 export const warm = () => void A.search.load().then(() => setLoaded(true))
 
-// a new search: into the history, as stock's (not a page of one), then its first page
-export async function start(channel: Channel, query: string) {
-  await A.search.load()
-  A.dispatcher.dispatch({ type: 'SEARCH_HISTORY_WEB_ADD_ITEM', id: searchId(channel), query })
-  return run(channel, query, 0)
-}
-// a page of the results from offset: as stock, it replaces the last
+// a page of the results from offset: as stock, it replaces the last, and puts the query into the history (each page)
 export async function run(channel: Channel, query: string, offset: number) {
   const search = await A.search.load()
+  A.dispatcher.dispatch({ type: 'SEARCH_HISTORY_WEB_ADD_ITEM', id: searchId(channel), query })
   search.fetchMessages({
     searchContext: context(channel),
     searchQueryString: query,
@@ -61,6 +57,19 @@ export const history = (channel: Channel) =>
 export const clearHistory = (channel: Channel) =>
   A.dispatcher.dispatch({ type: 'SEARCH_HISTORY_WEB_CLEAR_ITEMS', id: searchId(channel) })
 
-// what a filter takes, as the composer's autocomplete finds them: members (from:, mentions:), channels (in:)
-export const members = (query: string, channel: Channel) => composer.mentions(query, channel).users
+// what a filter takes: members (from:, mentions:, a bare word) as stock's SearchAutocompleteStore finds them, in a
+// server asked of it as they're typed (ten, not for an empty answer: the recent authors then), and channels (in:)
+const MEMBER_REQUEST = 10
+export function members(query: string, channel: Channel, max: number): { user: User; nick?: string | null }[] {
+  const guildId = channel.guild_id
+  if (!guildId)
+    return A.autocomplete.queryMentionResults({ query, channel, canMentionEveryone: false }).users.slice(0, max) as {
+      user: User
+      nick?: string | null
+    }[]
+  return A.autocomplete
+    .queryGuildUsers({ guildId, query, limit: MEMBER_REQUEST })
+    .slice(0, max)
+    .map(({ record }) => ({ user: record as User, nick: users.member(record as User, guildId)?.nick }))
+}
 export const channelsMatching = (query: string, channel: Channel) => composer.channelResults(query, channel)

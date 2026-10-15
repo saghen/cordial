@@ -220,6 +220,9 @@ const HAS = [
   'SEARCH_ANSWER_HAS_STICKER',
   'SEARCH_ANSWER_HAS_POLL',
 ] as const
+// stock's: a filter's answers, and a bare word's members in each group
+const ANSWERS = 10
+const GROUP_MEMBERS = 3
 // the word the caret ends, from where it starts
 type Word = { text: string; at: number }
 
@@ -240,7 +243,7 @@ function suggestions(channel: Channel, value: string, word: Word, run: (query: s
       hint: text(filter.answer),
       head: i ? undefined : text('SEARCH_GROUP_HEADER_SEARCH_OPTIONS'),
     }))
-  if (value.trim()) return rows
+  if (value.trim()) return [...rows, ...memberGroups(word.text, channel)]
   const history = search.history(channel)
   if (!history.length) return rows
   return [
@@ -269,12 +272,25 @@ function answers(filter: Filter, query: string, channel: Channel): Suggestion[] 
       icon: <ChannelIcon channel={result} />,
       head: i ? undefined : head,
     }))
-  return search.members(query, channel).map((member, i) => ({
+  return memberRows(filter, search.members(query, channel, ANSWERS), channel)
+}
+
+// a bare word: the members it matches, as stock's From User and Mentions User groups (a few each, one request)
+function memberGroups(query: string, channel: Channel): Suggestion[] {
+  if (!query) return []
+  const found = search.members(query, channel, GROUP_MEMBERS)
+  return FILTERS.filter(
+    (filter) => filter.word === 'SEARCH_FILTER_FROM' || filter.word === 'SEARCH_FILTER_MENTIONS',
+  ).flatMap((filter) => memberRows(filter, found, channel))
+}
+function memberRows(filter: Filter, found: ReturnType<typeof search.members>, channel: Channel): Suggestion[] {
+  const word = text(filter.word)
+  return found.map((member, i) => ({
     text: `${word}:${member.user.username} `,
     label: users.nameOf(member.user, member.nick),
     icon: <Avatar user={member.user} guildId={channel.guild_id} size={24} />,
     hint: member.user.username,
-    head: i ? undefined : head,
+    head: i ? undefined : text(filter.head),
   }))
 }
 
@@ -298,9 +314,7 @@ function Search(p: { channel: Channel }) {
     field.value = value
     query = value.trim()
     setTyped(null)
-    setOffset(0)
-    void search.start(channel(), query)
-    popover.showPopover()
+    run(0)
   }
   function update() {
     const before = field.value.slice(0, field.selectionStart ?? field.value.length)
