@@ -284,8 +284,9 @@ export const link = (message: Message, channel: Channel) =>
 export const startEdit = (message: Message) => A.messages.startEditMessageRecord(message.channel_id, message)
 export const reply = (message: Message, channel: Channel) =>
   A.replies.create({ message, channel, shouldMention: !own(message), showMentionToggle: !own(message) })
+// in a DM only your own: users.can allows everything there
 export const canDelete = (message: Message, channel: Channel) =>
-  own(message) || users.can(Permission.MANAGE_MESSAGES, channel)
+  own(message) || (!channel.isPrivate() && users.can(Permission.MANAGE_MESSAGES, channel))
 // local: a failed message, which only this client has
 export const remove = (message: Message, local = false) =>
   A.messages.deleteMessage(message.channel_id, message.id, local)
