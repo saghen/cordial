@@ -3,6 +3,7 @@
 // HTML, cached by language and code; null for a language it doesn't know, or when the worker fails.
 
 import { highlighterSource } from '../adapter/native'
+import { language as known } from '../workers/languages'
 
 export type Lines = string[] | null
 
@@ -53,8 +54,9 @@ async function start(source: () => Promise<string>) {
 }
 
 // a block's lines: at once when highlighted before, else undefined and `ready` gets them
-export function lines(language: string, code: string, ready: (lines: Lines) => void): Lines | undefined {
+export function lines(name: string, code: string, ready: (lines: Lines) => void): Lines | undefined {
   const source = highlighterSource
+  const language = known(name)
   if (!language || !source || failed) return null
   const key = `${language}\n${code}`
   if (cache.has(key)) return cache.get(key)

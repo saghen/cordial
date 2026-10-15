@@ -1,11 +1,13 @@
 // The code highlighter, a worker in its own bundle (dist/highlight.js, started by api/highlight.ts): Shiki with VS
-// Code's grammars for the common languages, each loaded at its first block. A block comes back as its lines' HTML in
-// the css-variables theme's colours (`var(--code-token-*)`, app.css); a language it doesn't know, as null.
+// Code's grammars for the common languages (languages.ts names them), each loaded at its first block. A block comes
+// back as its lines' HTML in the css-variables theme's colours (`var(--code-token-*)`, app.css).
 
 import { createCssVariablesTheme, createHighlighterCore, type LanguageInput } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 
-const LANGUAGES: Record<string, () => LanguageInput> = {
+import type { Language } from './languages'
+
+const GRAMMARS: Record<Language, () => LanguageInput> = {
   c: () => import('shiki/langs/c.mjs'),
   cpp: () => import('shiki/langs/cpp.mjs'),
   csharp: () => import('shiki/langs/csharp.mjs'),
@@ -48,32 +50,6 @@ const LANGUAGES: Record<string, () => LanguageInput> = {
   yaml: () => import('shiki/langs/yaml.mjs'),
   zig: () => import('shiki/langs/zig.mjs'),
 }
-// what people write after ``` for them
-const ALIASES: Record<string, string> = {
-  'c++': 'cpp',
-  bash: 'shellscript',
-  cs: 'csharp',
-  docker: 'dockerfile',
-  ex: 'elixir',
-  golang: 'go',
-  h: 'c',
-  hpp: 'cpp',
-  hs: 'haskell',
-  js: 'javascript',
-  kt: 'kotlin',
-  makefile: 'make',
-  md: 'markdown',
-  ml: 'ocaml',
-  ps1: 'powershell',
-  py: 'python',
-  rb: 'ruby',
-  rs: 'rust',
-  sh: 'shellscript',
-  shell: 'shellscript',
-  ts: 'typescript',
-  yml: 'yaml',
-  zsh: 'shellscript',
-}
 
 const THEME = createCssVariablesTheme({ name: 'cordial', variablePrefix: '--code-' })
 const highlighter = createHighlighterCore({ themes: [THEME], langs: [], engine: createJavaScriptRegexEngine() })
@@ -84,14 +60,11 @@ const FOREGROUND = 'var(--code-foreground)'
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
 const escape = (text: string) => text.replace(/[&<>]/g, (character) => ESCAPES[character])
 
-async function highlight(language: string, code: string) {
-  const name = ALIASES[language.toLowerCase()] ?? language.toLowerCase()
-  const load = LANGUAGES[name]
-  if (!load) return null
+async function highlight(language: Language, code: string) {
   const shiki = await highlighter
-  if (!loading.has(name)) loading.set(name, shiki.loadLanguage(load()))
-  await loading.get(name)
-  const { tokens } = shiki.codeToTokens(code, { lang: name, theme: 'cordial' })
+  if (!loading.has(language)) loading.set(language, shiki.loadLanguage(GRAMMARS[language]()))
+  await loading.get(language)
+  const { tokens } = shiki.codeToTokens(code, { lang: language, theme: 'cordial' })
   return tokens.map((line) =>
     line
       .map((token) =>
@@ -104,13 +77,13 @@ async function highlight(language: string, code: string) {
 }
 
 // every request is answered: a block that fails shows plain, and its language is loaded again next time
-addEventListener('message', async (e: MessageEvent<{ id: number; language: string; code: string }>) => {
+addEventListener('message', async (e: MessageEvent<{ id: number; language: Language; code: string }>) => {
   const { id, language, code } = e.data
   try {
     postMessage({ id, lines: await highlight(language, code) })
   } catch (error) {
     console.error('cordial: highlighting failed', language, error)
-    loading.delete(ALIASES[language.toLowerCase()] ?? language.toLowerCase())
+    loading.delete(language)
     postMessage({ id, lines: null })
   }
 })
