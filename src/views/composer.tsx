@@ -39,6 +39,17 @@ export function Composer() {
     },
   )
 
+  // as stock, a key typed with nothing else to take it goes into the box: no field focused, no popover, menu or dialog
+  // open, no modifier but Shift
+  function typeInto(e: KeyboardEvent) {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || !state.open()) return
+    if ((e.target as Element).closest('input, textarea, select, [contenteditable=true]')) return
+    if (document.querySelector(':popover-open:not([popover=manual]), dialog[open]')) return
+    box!.focus()
+  }
+  document.addEventListener('keydown', typeInto)
+  onCleanup(() => document.removeEventListener('keydown', typeInto))
+
   function key(e: KeyboardEvent) {
     if (complete.key(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
