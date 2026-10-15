@@ -26,7 +26,7 @@
   }
   > b { font-weight: 700; color: var(--text-strong); }
 }
-&:has(> .messages.up) > output.typing { background: var(--surface); box-shadow: 0 -8px 8px var(--surface); }
+& > .messages.up ~ output.typing { background: var(--surface); box-shadow: 0 -8px 8px var(--surface); }
 
 @keyframes mc-typing { to { mask-position: 0; } }
 /* the message menu as stock: the quick reactions as tiles, groups between lines, an icon per item */

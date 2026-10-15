@@ -2,13 +2,9 @@
    list starts below it), on black; expanded, over the chat and the composer too. Its tiles in a grid of equal 16:9
    ones (app's columns and width, call.tsx), the room for the top bar above them and the buttons below; focused, one
    tile filling the area. Compact (a DM's avatars alone): a row in a shorter area */
-&:has(> section.call) {
-  grid-template-areas: "notice notice notice notice" "servers top top top" "servers panels call call" "servers panels chat members"
-    "servers panels compose members";
-  > header { position: relative; z-index: 2; border-bottom-color: transparent; }
-  > header > .channel { transition: opacity .3s; }
-}
-&:has(> section.call.idle) > header > .channel { opacity: 0; }
+& > header:has(+ section.call) { position: relative; z-index: 2; border-bottom-color: transparent; }
+& > header > .channel { transition: opacity .3s; }
+& > header:has(+ section.call.idle) > .channel { opacity: 0; }
 & > section.call {
   --ui: 1; position: relative; z-index: 1; grid-row: top-start / call-end; grid-column: call-start / call-end;
   display: grid; grid-template-columns: repeat(var(--columns), var(--tile-width)); gap: 8px; place-content: center; height: 50vh;
