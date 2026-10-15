@@ -213,8 +213,8 @@ export function Chat() {
     const message = id && messages.get(id, first.id)
     if (!id || !current || !message) return
     if (messages.editing(id) === message.id) cancel(id)
-    else if (messages.own(message) && messages.isUser(message)) messages.startEdit(message)
-    else if (users.can(Permission.SEND_MESSAGES, current)) messages.reply(message, current)
+    else if (messages.canEdit(message)) messages.startEdit(message)
+    else if (messages.canReply(message, current)) messages.reply(message, current)
     else return
     focus()
   }
@@ -288,8 +288,8 @@ function Typing(p: { channelId: () => Id | null }) {
 }
 
 // the message menu (right click on a message); from the add-reaction chip, straight to the emoji search
-const messageMenu = (onMarkUnread: () => void) =>
-  contextMenu<{ message: MessageRecord; react: boolean }>({
+function messageMenu(onMarkUnread: () => void) {
+  const menu = contextMenu<{ message: MessageRecord; react: boolean }>({
     class: 'message-menu',
     find(e) {
       const id = (e.target as Element).closest('article')?.dataset.id
@@ -298,15 +298,22 @@ const messageMenu = (onMarkUnread: () => void) =>
       return message && { message, react: false }
     },
     children: (target) => (
-      <MessageItems message={target().message} react={target().react} onMarkUnread={onMarkUnread} />
+      <MessageItems
+        message={target().message}
+        react={target().react}
+        onMarkUnread={onMarkUnread}
+        onClose={() => menu.hide()}
+      />
     ),
   })
+  return menu
+}
 
 // the four most used reactions on top, as stock; React swaps the items for an emoji search: the most used, then what
 // the query matches
 const TOP_REACTIONS = 4
 const REACTION_RESULTS = 24
-function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(): void }) {
+function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(): void; onClose(): void }) {
   const [query, setQuery] = createSignal<string | null>(p.react ? '' : null)
   const message = () => p.message
   const channel = () => channels.get(message().channel_id)!
@@ -345,7 +352,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
             onInput={setQuery}
             onEnter={() => {
               if (!emojis()[0]) return
-              document.querySelector<HTMLElement>('.message-menu')!.hidePopover()
+              p.onClose()
               messages.react(message(), emojis()[0])
             }}
           />
@@ -366,7 +373,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
             run: () => setQuery(''),
           },
           can(Permission.ADD_REACTIONS) && '-',
-          messages.own(message()) && {
+          messages.canEdit(message()) && {
             name: 'menu-edit',
             icon: 'pencil',
             label: text('EDIT_MESSAGE'),
@@ -375,7 +382,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
               focus()
             },
           },
-          can(Permission.SEND_MESSAGES) && {
+          messages.canReply(message(), channel()) && {
             name: 'menu-reply',
             icon: 'reply',
             label: text('MESSAGE_ACTION_REPLY'),

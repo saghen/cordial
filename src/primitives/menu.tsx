@@ -107,9 +107,7 @@ export function contextMenu<T>(p: {
       if (found != null) show(e, found)
     },
     show,
-    hide() {
-      if (menu.matches(':popover-open')) menu.hidePopover()
-    },
+    hide: () => menu.hidePopover(),
     view: (
       <menu
         ref={menu}

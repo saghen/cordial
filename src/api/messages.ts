@@ -137,7 +137,7 @@ export const KEPT_ROWS = 30
 const MAX_ROWS = 240
 
 // where the list is: its distance from each end, the view's height, and the height of the KEPT_ROWS rows at each end
-export interface Position {
+interface Position {
   fromTop: number
   fromBottom: number
   view: number
@@ -148,7 +148,7 @@ const ahead = (view: number, kept: number) => Math.max(LOAD_PX, Math.min(LOAD_VI
 
 // As stock's but sooner: older near the top, newer (truncated by a fetch of older) near the bottom, two pages at a
 // time, truncating the other end. Only toward where the reader is heading: a short window can be near both ends, and
-// loading one truncates the other. With unreads, stock waits for the very top (2 px: scrollTop stops 1 px short here),
+// loading one truncates the other. With unreads, stock waits for the very top (2 px),
 // so reading down from the unread line doesn't pull in history
 export function loadMore(channelId: Id, position: Position, down: boolean) {
   const loaded = S.Message.getMessages(channelId)
@@ -307,6 +307,10 @@ export function togglePin(message: Message) {
 
 export const link = (message: Message, channel: Channel) =>
   `https://discord.com/channels/${channel.guild_id ?? '@me'}/${channel.id}/${message.id}`
+// a message is edited or replied to once it's sent: your own of a user's kind; any, where you can send
+export const canEdit = (message: Message) => own(message) && isUser(message) && message.state === 'SENT'
+export const canReply = (message: Message, channel: Channel) =>
+  message.state === 'SENT' && users.can(Permission.SEND_MESSAGES, channel)
 export const startEdit = (message: Message) => A.messages.startEditMessageRecord(message.channel_id, message)
 export const reply = (message: Message, channel: Channel) =>
   A.replies.create({ message, channel, shouldMention: !own(message), showMentionToggle: !own(message) })
