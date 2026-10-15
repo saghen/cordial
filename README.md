@@ -1,7 +1,7 @@
 <h2 align="center">Cordial</h2>
 
 <p align="center">
-  Fast, minimal Discord client for Linux, with a new UI built on top of the official core.
+  Fast, minimal Discord client for Linux, with a custom UI built on the official core
 </p>
 
 **Cordial** loads the official client, leaving the core untouched, and swaps the UI for our own. We can do this because Discord's web client keeps its logic (stores, actions, the gateway, REST, voice) separate from the React UI. Similar to Equibop/Vesktop, we provide shims for improved screen sharing, rich presence, and global keybinds. All three are written from scratch for Cordial, not forked from Equibop or Vesktop.
@@ -12,6 +12,8 @@
 - **Debloated:** No store, nitro, games (activities), gift button, ...
 - **Light:** -70% CPU usage, -20% RAM usage (still high, ideas welcome!)
 - **Fast:** <20ms click latency for all actions
+
+Unlike my other projects, this project has been entirely vibe-coded, use at your own risk!
 
 ### Install
 
@@ -33,11 +35,8 @@ Going native would mean rewriting the entire core of Discord. Much of Discord's 
 
 - [freya](https://github.com/marc2332/freya): UI framework
 - [discord-user-rs](https://github.com/lengoclongk59/discord-user-rs): text/user account support
-- [Songbird](https://github.com/serenity-rs/songbird): voice support
-  - [Serenity](https://github.com/serenity-rs/serenity): text support which songbird is built on. can we use songbird on discord-user-rs?
+- [songbird](https://github.com/serenity-rs/songbird): voice support, including E2EE via DAVE
 
 ### AI Usage
 
-The original idea came after exploring the Equicord and Vencord projects, seeing how they hooked into the core's stores and actions. Afterwards, I wrote the adapters, screen sharing research, file structure, feature list, and behavior myself, then handed them to an AI along with a style guide and plan. It wrote the first draft of the project, under careful guidance.
-
-This project started as a learning experiment, I never intended to release the results. Since then I've been rewriting the all of the UI code by hand, but this is ongoing. The screen capture, global keybinds and game detection crates will remain AI-written for now, as I don't have the time to deep dive into them yet.
+The original idea came after exploring the Equicord and Vencord projects, seeing how they hooked into the core's stores and actions. Afterwards, I wrote the adapters, screen sharing research, file structure, feature list, and behavior myself. Since then, this project has been entirely vibe-coded and will remain this way. It's a learning experiment and I never intended to release the results. Please note that unless stated otherwise, my projects are written entirely by hand (blink.cmp, blink.pairs, frizbee, ...).
