@@ -199,7 +199,8 @@ export function Chat() {
     },
   )
   view.addEventListener('contextmenu', menu.open)
-  // ours: a double click on a message outside its text (the gutter, the space beside it) edits your own, else replies
+  // ours: a double click on a message outside its text (the gutter, the space beside it) edits your own (or leaves the
+  // edit, on the one being edited), else replies
   view.addEventListener('dblclick', (e) => {
     const target = e.target as Element
     const row = target.closest<HTMLElement>('article[data-id]')
@@ -208,7 +209,8 @@ export function Chat() {
     if (!row || !id || !current || target.closest(CLICKABLE) || onText(e.clientX, e.clientY)) return
     const message = messages.get(id, row.dataset.id!)
     if (!message) return
-    if (messages.own(message) && messages.isUser(message)) messages.startEdit(message)
+    if (messages.editing(id) === message.id) cancel(id)
+    else if (messages.own(message) && messages.isUser(message)) messages.startEdit(message)
     else if (users.can(Permission.SEND_MESSAGES, current)) messages.reply(message, current)
     else return
     getSelection()?.removeAllRanges()
