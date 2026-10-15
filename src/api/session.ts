@@ -30,6 +30,15 @@ export function useConnection() {
   }
 }
 
+// nothing to show yet: never connected and nothing from the cache, while stock shows its loading screen
+export function useLoading() {
+  const [opened, setOpened] = createSignal(S.Gateway.isConnected())
+  onAction('CONNECTION_OPEN', () => setOpened(true))
+  return () => !opened() && !$.Guild.getGuildCount()
+}
+// stock's loading screen's animated logo
+export const spinner = () => A.spinner.webm
+
 // stock's badge, in the window title as on the web: mentions and friend requests as "(N)", a dot for any other unread
 export function badge() {
   const count = $.GuildReadState.getTotalMentionCount() + $.Relationship.getPendingCount()

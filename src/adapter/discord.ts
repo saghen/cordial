@@ -22,7 +22,7 @@ export interface Stores {
     getLoginInstanceId(): string | null
   }
   User: FluxStore & { getCurrentUser(): AnyRecord | undefined; getUser(id: Id): AnyRecord | undefined }
-  Guild: FluxStore & { getGuild(id: Id): AnyRecord | undefined }
+  Guild: FluxStore & { getGuild(id: Id): AnyRecord | undefined; getGuildCount(): number }
   // the server bar: single servers are folders without a folderId
   SortedGuild: FluxStore & {
     getGuildFolders(): { folderId?: number; folderName?: string; folderColor?: number; guildIds: Id[] }[]
@@ -388,6 +388,8 @@ export interface Actions {
     canPlay(channel: AnyRecord): boolean
   }
   soundboardSounds: { fetch(): Promise<unknown> }
+  // stock's loading screen's animated logo, the dark theme's
+  spinner: { webm: string }
   video: {
     stream(streamId: string): MediaStream | undefined
     watch(streamId: string): void

@@ -2,6 +2,7 @@ import { createEffect, createMemo, Show } from 'solid-js'
 
 import { preloadChannels } from './api/preload'
 import * as session from './api/session'
+import { text } from './api/strings'
 import { useVoiceSounds } from './api/sounds'
 import { ICONS } from './primitives/icons'
 import { CallView, IncomingCalls } from './views/call'
@@ -34,6 +35,17 @@ function ConnectionWarning() {
   return <Show when={notice()}>{(warning) => <p class="notice">{warning()}</p>}</Show>
 }
 
+// stock's loading screen, roughly: its animated logo over "Connecting", until there's something to show (before the
+// socket opens the connection's own state reads as disconnected)
+function Loading() {
+  return (
+    <div class="loading">
+      <video src={session.spinner()} autoplay loop muted playsinline />
+      <p>{text('CONNECTING')}</p>
+    </div>
+  )
+}
+
 export function App() {
   // window title
   createEffect(createMemo(session.badge), (badge) => {
@@ -41,8 +53,9 @@ export function App() {
   })
   preloadChannels()
   useVoiceSounds()
+  const loading = session.useLoading()
   return (
-    <>
+    <Show when={!loading()} fallback={<Loading />}>
       <ConnectionWarning />
       <ServerBar />
       <section class="side">
@@ -55,6 +68,6 @@ export function App() {
       <IncomingCalls />
       <Composer />
       <MembersList />
-    </>
+    </Show>
   )
 }

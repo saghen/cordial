@@ -90,7 +90,7 @@ storeNeed(
   'getLoginInstanceId',
 )
 storeNeed('User', 'UserStore', 'getCurrentUser', 'getUser')
-storeNeed('Guild', 'GuildStore', 'getGuild')
+storeNeed('Guild', 'GuildStore', 'getGuild', 'getGuildCount')
 storeNeed('SortedGuild', 'SortedGuildStore', 'getGuildFolders')
 storeNeed('ExpandedGuildFolder', 'ExpandedGuildFolderStore', 'isFolderExpanded')
 storeNeed('Channel', 'ChannelStore', 'getChannel')
@@ -397,6 +397,15 @@ byProps('emojis', 'getURL', 'sanitizeEmojiName')
 byProps('intl', 'intl', 't', 'international')
 byProps('messageKey', 'runtimeHashMessageKey')
 // stock's date formats (api/strings.ts), its exports all minified
+// stock's loading screen's animated logo (its app spinner): the dark theme's webm, named only in the module's code
+moduleNeed('spinner', 'module ("app-spinner") { webm }', () => {
+  const id = findModuleId('"app-spinner"')
+  if (id == null) return null
+  const source = String(wreq.m[id])
+  const name = source.match(/webmDark:\w+=(\w+)/)?.[1]
+  const file = name && source.match(new RegExp(`\\b${name}=\\w+\\.p\\+"([\\w.]+)"`))?.[1]
+  return file ? { webm: wreq.p + file } : null
+})
 mangled('dates', '"DateUtils"', { calendar: '"L LT"', format: 'longFormatters' })
 // the frecency user settings (proto type 2), which FrecencyStore ranks from: stock loads them when a picker opens
 moduleNeed(

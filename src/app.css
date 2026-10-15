@@ -35,4 +35,10 @@ small { font-size: 14px; font-weight: 500; color: var(--text-muted); overflow: h
 :hover { --thumb: var(--bg-floating); }
 
 & > p { grid-area: notice; padding: 8px; text-align: center; background: var(--accent); color: var(--text-strong); }
+/* the loading screen: stock's logo in the middle of the window, Connecting under it */
+& > .loading {
+  grid-area: 1 / 1 / -1 / -1; display: grid; place-content: center; justify-items: center; gap: 8px; background: var(--bg);
+  > video { width: 200px; height: 200px; }
+  > p { font-size: 14px; color: var(--text-muted); }
+}
 
