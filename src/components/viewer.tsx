@@ -1,6 +1,6 @@
-// Stock's media viewer, roughly: an image (or a GIF's video) large over a dimmed window, with a link to the original. Escape or a click
-// outside the image closes it; a right click on it is stock's image menu (Copy Image, Save Image, Copy Link), Ctrl+C
-// copies it. Mounted once (the chat view); open() from any image.
+// Stock's media viewer, roughly: an image (or a GIF's video) large over a dimmed window, with a link to the original.
+// Escape or a click outside the image closes it; a right click on it is stock's image menu (Copy Image, Save Image,
+// Copy Link), Ctrl+C copies it. Mounted once (the chat view); open() from any image.
 
 import { onCleanup } from 'solid-js'
 
@@ -27,7 +27,12 @@ export function Viewer() {
             label: text('COPY_IMAGE_MENU_ITEM'),
             run: () => media.copyImage(shown().src),
           },
-          { name: 'menu-save-image', label: text('SAVE_IMAGE_MENU_ITEM'), run: () => media.saveImage(shown().url) },
+          // a GIF's video saves the video: its link is the provider's page
+          {
+            name: 'menu-save-image',
+            label: text('SAVE_IMAGE_MENU_ITEM'),
+            run: () => media.saveImage(shown().video ? shown().src : shown().url),
+          },
           { name: 'menu-copy-link', label: text('COPY_LINK'), run: () => media.copyLink(shown().url) },
         ]}
       />
