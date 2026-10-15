@@ -1,5 +1,5 @@
 /* the member list: group names, then rows of the avatar (with the status), the name in its role colour and the owner's
-   crown after it, at stock's 44 px (the range the list subscribes to counts them so); offline members dimmed; a row
+   crown after it, the custom status or the activity under them (profiles.statusLine), at stock's 44 px (the range the list subscribes to counts them so); offline members dimmed; a row
    not loaded yet keeps its place */
 section.members {
   grid-area: members; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; width: 240px; overflow-y: auto;
@@ -15,6 +15,10 @@ section.members {
   > .row > .name { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   > .row > .name > .badge { margin-left: 4px; vertical-align: 2px; }
   > .row > .avatar { margin-right: 8px; }
+  > .row:has(> small) { align-content: center; }
+  > .row:has(> small) > .avatar { grid-row: span 2; }
+  > .row > small { grid-column: 2 / -1; min-width: 0; font-size: 12px; line-height: 16px; }
+  > .row > small > .emoji { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
   > .row > .end { display: flex; }
   > .row > .end > .icon { --icon-size: 14px; color: var(--warning); }
   > .placeholder { grid-column: 1 / -1; height: 44px; }

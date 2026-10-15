@@ -126,14 +126,26 @@ export function activities(userId: Id): Activity[] {
 }
 
 // the custom status: its emoji and text
+type StatusEmoji = Pick<Emoji, 'id' | 'name' | 'animated' | 'surrogates'>
 export function customStatus(userId: Id) {
   const status = $.Presence.getActivities(userId).find((activity) => activity.type === ActivityType.Custom)
   return (
     status && {
-      emoji: status.emoji as Pick<Emoji, 'id' | 'name' | 'animated' | 'surrogates'> | undefined,
+      emoji: status.emoji as StatusEmoji | undefined,
       text: status.state,
     }
   )
+}
+
+// the line under a name in the lists (members, DMs), as stock's: the custom status (its emoji and text), else what
+// they're doing ("Playing x")
+export type StatusLine = { emoji?: StatusEmoji; text?: string }
+export function statusLine(userId: Id): StatusLine | undefined {
+  const status = customStatus(userId)
+  if (status && (status.emoji || status.text)) return status
+  const activity = $.Presence.getActivities(userId).find((candidate) => candidate.type in users.VERBS)
+  const verb = activity && users.VERBS[activity.type as keyof typeof users.VERBS]
+  return verb && { text: text(verb, { game: activity.name, name: activity.name }) }
 }
 
 // the member's roles, highest first: { id, name, color }

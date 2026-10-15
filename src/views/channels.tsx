@@ -6,6 +6,7 @@ import { For, Show } from 'solid-js'
 import * as channels from '../api/channels'
 import { useNow } from '../api/hooks'
 import { onHover } from '../api/preload'
+import * as profiles from '../api/profiles'
 import { ChannelType, type Channel, type PrivateChannel, type VoiceState } from '../api/types'
 import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
@@ -15,6 +16,7 @@ import { Avatar } from '../components/avatar'
 import { ChannelIcon } from '../components/channel_icon'
 import { DmIcon } from '../components/dm_icon'
 import { Name } from '../components/name'
+import { StatusLine } from '../components/status_line'
 import { Badge } from '../primitives/badge'
 import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
@@ -25,8 +27,14 @@ const count = (mentions: number) => mentions > 0 && <Badge kind="count">{mention
 
 function Dm(p: { channel: PrivateChannel }) {
   const channel = () => p.channel
-  // a 1:1 DM's user: their nameplate and name style
+  // a 1:1 DM's user: their nameplate, name style and status line; a group's size
   const plate = () => users.nameplate(channels.dmUser(channel()))
+  function subtitle() {
+    const user = channels.dmUser(channel())
+    if (!user) return channels.groupSize(channel())
+    const line = profiles.statusLine(user.id)
+    return line && <StatusLine line={line} />
+  }
   return (
     <Row
       name="dm"
@@ -35,7 +43,7 @@ function Dm(p: { channel: PrivateChannel }) {
       class={{ selected: selected() === channel().id, unread: channels.unread(channel()), plated: Boolean(plate()) }}
       style={plate()}
       icon={<DmIcon channel={channel()} size={32} status />}
-      subtitle={channels.dmSubtitle(channel())}
+      subtitle={subtitle()}
       onClick={() => channels.open(channel())}
       {...onHover(() => channel().id)}
     >

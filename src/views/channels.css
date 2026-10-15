@@ -8,6 +8,7 @@ section.side > nav {
     background-clip: padding-box; color: var(--text-muted); font-size: 16px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden;
     > .icon { --icon-size: 18px; }
     > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
+    > small > .emoji { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
     > .end { grid-column: 3; display: flex; align-items: center; gap: 4px; }
   }
   /* a second line (a DM's status or size, a voice channel's status): the icon and the end beside both */

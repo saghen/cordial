@@ -7,7 +7,7 @@ import { A, S } from '../adapter/needs'
 import type { Id } from '../adapter/discord'
 import * as cdn from './cdn'
 import * as notifications from './notifications'
-import { ActivityType, ChannelType, Permission, type Channel, type PrivateChannel } from './types'
+import { ChannelType, Permission, type Channel, type PrivateChannel } from './types'
 import { $, selected } from './store'
 import { text } from './strings'
 import * as users from './users'
@@ -104,12 +104,9 @@ export const groupIcon = (channel: PrivateChannel, px: number) =>
     size: cdn.size(px),
   })
 
-// under a DM's name: a group's size, a user's custom status
-export function dmSubtitle(channel: PrivateChannel) {
-  const user = dmUser(channel)
-  if (!user) return text('GROUP_DM_MEMBER_COUNT', { members: channel.recipients.length + 1 })
-  return $.Presence.getActivities(user.id).find((activity) => activity.type === ActivityType.Custom)?.state
-}
+// under a group DM's name: its size
+export const groupSize = (channel: PrivateChannel) =>
+  text('GROUP_DM_MEMBER_COUNT', { members: channel.recipients.length + 1 })
 
 // a channel's name as the composer and incoming calls name it: #general, @user, a group's names
 export function title(channel: Channel) {
