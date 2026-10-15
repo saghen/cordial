@@ -68,6 +68,16 @@ export function useComposer(channelId: () => Id | null) {
     return null
   })
   const open = () => Boolean(channel()) && !closed()
+  // an edit emptied: Enter deletes the message (stock asks first), unless it has files or stickers to keep
+  const deletes = createMemo(() => {
+    const id = channelId()
+    const edit = editing()
+    if (!id || !edit) return false
+    const message = S.Message.getMessage(id, edit) as Message | undefined
+    return (
+      !$.EditMessage.getEditingTextValue(id)?.trim() && !message?.attachments.length && !message?.stickerItems?.length
+    )
+  })
   // seconds left before the next message
   const cooldown = () => Math.max(0, Math.ceil((slowUntil() - now()) / 1000))
   const reply = createMemo(() => (channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined))
@@ -104,6 +114,7 @@ export function useComposer(channelId: () => Id | null) {
   return {
     channel,
     editing,
+    deletes,
     closed,
     open,
     cooldown,
@@ -123,15 +134,16 @@ export function useComposer(channelId: () => Id | null) {
       if (value.trim() && !value.startsWith('/')) startTyping(id)
       else if (!value) stopTyping(id)
     },
-    // Enter: an edit saved (an unchanged or emptied one just leaves edit mode; stock asks to delete an emptied one), or
-    // the text and files sent; true when the box empties
+    // Enter: an edit saved (an unchanged one just leaves edit mode), an emptied one's message deleted, or the text and
+    // files sent; true when the box empties
     send(id: Id, value: string) {
       const current = channel()!
       const edit = editing()
       const content = value.trim()
       if (edit) {
         const parsed = A.parser.parse(current, content).content
-        if (content && parsed !== S.Message.getMessage(id, edit)?.content)
+        if (deletes()) A.messages.deleteMessage(id, edit)
+        else if (parsed !== S.Message.getMessage(id, edit)?.content)
           A.messages.editMessage(id, edit, { content: parsed, components: undefined })
         A.messages.endEditMessage(id)
         return false

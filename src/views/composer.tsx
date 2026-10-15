@@ -70,34 +70,48 @@ export function Composer() {
 
   return (
     <section class="composer" hidden={!selected()}>
-      <Show when={state.reply()}>
-        {(reply) => (
-          <div class="reply">
-            <span>
-              {textAround('REPLYING_TO', {}, ['userHook']).map((part) =>
-                part === 0 ? <b>{composer.replyName(reply().message as Message, reply().channel.guild_id)}</b> : part,
-              )}
-            </span>
-            <Show when={reply().showMentionToggle}>
-              <Button
-                variant="link"
-                class={['reply-mention', { on: reply().shouldMention }]}
-                aria-pressed={reply().shouldMention ? 'true' : 'false'}
-                onClick={() => state.mention(id(), !reply().shouldMention)}
-              >
-                @ {text(reply().shouldMention ? 'REPLY_MENTION_ON' : 'REPLY_MENTION_OFF')}
-              </Button>
-            </Show>
-            <IconButton
-              class="reply-cancel"
-              icon="close"
-              title={text('CANCEL_REPLY')}
-              onClick={() => state.removeReply(id())}
-            />
-          </div>
-        )}
+      {/* the bar over the box: the edit (red once emptied: Enter deletes), else the reply */}
+      <Show
+        when={state.editing()}
+        fallback={
+          <Show when={state.reply()} keyed>
+            {(reply) => (
+              <div class="bar reply">
+                <span>
+                  {textAround('REPLYING_TO', {}, ['userHook']).map((part) =>
+                    part === 0 ? <b>{composer.replyName(reply.message as Message, reply.channel.guild_id)}</b> : part,
+                  )}
+                </span>
+                <Show when={reply.showMentionToggle}>
+                  <Button
+                    variant="link"
+                    class={['reply-mention', { on: reply.shouldMention }]}
+                    aria-pressed={reply.shouldMention ? 'true' : 'false'}
+                    onClick={() => state.mention(id(), !reply.shouldMention)}
+                  >
+                    @ {text(reply.shouldMention ? 'REPLY_MENTION_ON' : 'REPLY_MENTION_OFF')}
+                  </Button>
+                </Show>
+                <IconButton
+                  class="bar-cancel"
+                  icon="close"
+                  title={text('CANCEL_REPLY')}
+                  onClick={() => state.removeReply(id())}
+                />
+              </div>
+            )}
+          </Show>
+        }
+      >
+        <div class={['bar', 'edit', { delete: state.deletes() }]}>
+          <b>{text(state.deletes() ? 'DELETE_MESSAGE' : 'EDITING_MESSAGE')}</b>
+          <span>
+            {state.deletes() ? text('EDIT_DELETE_HELP') : text('EDIT_TEXTAREA_HELP', { onCancel: '', onSave: '' })}
+          </span>
+          <IconButton class="bar-cancel" icon="close" title={text('CANCEL')} onClick={() => composer.cancel(id())} />
+        </div>
       </Show>
-      <div class={['box', { editing: Boolean(state.editing()) }]}>
+      <div class={['box', { editing: Boolean(state.editing()), delete: state.deletes() }]}>
         <Show when={state.uploads().length}>
           <ul class="uploads">
             <For each={state.uploads()}>

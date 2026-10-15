@@ -1,4 +1,4 @@
-/* the composer: the reply bar on top of the box. The box is a grid: the files waiting to go across its top, then the
+/* the composer: the reply or edit bar on top of the box. The box is a grid: the files waiting to go across its top, then the
    attach button, the text and the pickers (pickers.tsx) in stock's order, GIF, sticker, emoji, each in a column of its
    own, so the text never runs under them. The text grows with its lines, up to half the window; the buttons stay on
    the first line; the pickers open above */
@@ -7,19 +7,22 @@
   &[hidden] { display: none; }
 }
 section.composer {
-  > .reply {
+  /* the bar over the box: a reply's, or the edit's, red when Enter deletes */
+  > .bar {
     display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px 8px 0 0; background: var(--bg-floating);
     font-size: 14px; color: var(--text-muted);
     > span { margin-right: auto; }
-    > span > b { color: var(--text-strong); font-weight: 600; }
+    > b, > span > b { color: var(--text-strong); font-weight: 600; }
     > .reply-mention { color: inherit; }
     > .reply-mention.on { color: var(--accent); font-weight: 700; }
-    > .reply-cancel { --icon-size: 16px; }
+    > .bar-cancel { --icon-size: 16px; }
+    &.delete { background: color-mix(in srgb, var(--danger) 30%, var(--bg-floating)); color: var(--text); }
   }
   > .box {
     display: grid; grid: "uploads uploads uploads uploads uploads" auto "attach text gif sticker emoji" auto / auto minmax(0, 1fr) auto auto auto;
     column-gap: 16px; align-items: start; padding: 0 16px; border-radius: 8px; background: var(--bg-raised);
     &.editing { box-shadow: 0 0 0 2px var(--accent); }
+    &.editing.delete { box-shadow: 0 0 0 2px var(--danger); }
     > textarea {
       grid-area: text; min-height: 56px; max-height: 50vh; padding: 16px 0; resize: none; field-sizing: content;
       border: 0; outline: 0; background: none; color: inherit; font: inherit;
@@ -30,7 +33,7 @@ section.composer {
     > button.gif-button { grid-area: gif; }
     > button.sticker-button { grid-area: sticker; }
   }
-  > .reply + .box { border-top-left-radius: 0; border-top-right-radius: 0; }
+  > .bar + .box { border-top-left-radius: 0; border-top-right-radius: 0; }
 }
 /* the files: a card each, its name and Remove; an image's card shows the image above them */
 ul.uploads {

@@ -103,6 +103,9 @@ const STOCK = [
   'GUILD_COMMUNICATION_DISABLED_BOTTOM_SHEET_TITLE',
   'CHANNEL_SLOWMODE_COOLDOWN',
   'REPLYING_TO',
+  'EDITING_MESSAGE',
+  'EDIT_TEXTAREA_HELP',
+  'CANCEL',
   'REPLY_MENTION_ON',
   'REPLY_MENTION_OFF',
   'CHAT_ATTACH_UPLOAD_A_FILE',
@@ -216,6 +219,8 @@ const OURS = {
   NOT_SENT: 'Not sent.',
   CONFIRM_DELETE: 'Click again to delete',
   EDITING: 'Editing message',
+  // an emptied edit, which Enter deletes (stock asks in a modal)
+  EDIT_DELETE_HELP: 'escape to cancel • enter to delete',
   // stock's text, under a name we haven't found
   ALL_LIVE_STAGES: 'All Live Stages',
   LOAD_MORE: 'Load More',
