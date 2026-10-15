@@ -9,7 +9,7 @@ import { text } from '../api/strings'
 import * as users from '../api/users'
 import { Avatar } from '../components/avatar'
 import { Name } from '../components/name'
-import { open as openProfile } from '../components/profile'
+import { open as openProfile, openDm } from '../components/profile'
 import { Toggle } from '../primitives/button'
 import { Row } from '../primitives/row'
 
@@ -47,7 +47,16 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
       style={users.nameplate(row.user)}
       data-id={row.user.id}
       onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, row.user, selectedGuild())}
-      icon={<Avatar user={row.user} guildId={selectedGuild()} size={32} status={row.status} decorated dm />}
+      icon={
+        <Avatar
+          user={row.user}
+          guildId={selectedGuild()}
+          size={32}
+          status={row.status}
+          decorated
+          onDblClick={() => openDm(row.user)}
+        />
+      }
     >
       <Name user={row.user} guildId={selectedGuild()} />
     </Row>
