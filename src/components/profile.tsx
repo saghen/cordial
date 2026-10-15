@@ -3,7 +3,7 @@
 // doing and their roles, and their profile effect over it all. One card, mounted once (app.tsx), placed beside whatever
 // opened it; a click outside or Escape closes it. A double click on an avatar closes it and opens their DM (ours).
 
-import { createEffect, createSignal, flush, For, Show } from 'solid-js'
+import { createEffect, createSignal, flush, For, onCleanup, Show } from 'solid-js'
 
 import * as channels from '../api/channels'
 import { useNow } from '../api/hooks'
@@ -34,9 +34,19 @@ export function ProfileCard() {
   const [shown, setShown] = createSignal<Shown | null>(null)
   let card!: HTMLDivElement
   hide = () => card.hidePopover()
+  // a click on their avatar or name again closes it: its press closes the card already (light dismiss), so the click
+  // mustn't open it again
+  let pressedOn: Id | undefined
+  const press = (e: PointerEvent) => {
+    pressedOn = card.contains(e.target as Node) ? undefined : shown()?.user.id
+  }
+  document.addEventListener('pointerdown', press, true)
+  onCleanup(() => document.removeEventListener('pointerdown', press, true))
   show = (source, next) => {
-    // a second click on what opened it closes it
+    const again = pressedOn === next.user.id
+    pressedOn = undefined
     if (card.matches(':popover-open') && shown()?.user.id === next.user.id) return card.hidePopover()
+    if (again) return
     setShown(next)
     flush()
     profiles.fetch(next.user, next.guildId)
