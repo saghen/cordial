@@ -4,7 +4,7 @@
   "main": "src/shell/main.js",
   "scripts": {
     "build": "vite build && vite build -c vite.highlight.config.ts",
-    "watch": "vite build --watch",
+    "watch": "vite build -c vite.highlight.config.ts && vite build --watch",
     "check": "tsc",
     "format": "prettier --write .",
     "lint": "oxlint src screen-capture/src"
