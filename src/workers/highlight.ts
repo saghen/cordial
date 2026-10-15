@@ -78,6 +78,8 @@ const ALIASES: Record<string, string> = {
 const THEME = createCssVariablesTheme({ name: 'cordial', variablePrefix: '--code-' })
 const highlighter = createHighlighterCore({ themes: [THEME], langs: [], engine: createJavaScriptRegexEngine() })
 const loading = new Map<string, Promise<void>>()
+// the text's own colour, which the block already has: no span for it
+const FOREGROUND = 'var(--code-foreground)'
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
 const escape = (text: string) => text.replace(/[&<>]/g, (character) => ESCAPES[character])
@@ -91,11 +93,24 @@ async function highlight(language: string, code: string) {
   await loading.get(name)
   const { tokens } = shiki.codeToTokens(code, { lang: name, theme: 'cordial' })
   return tokens.map((line) =>
-    line.map((token) => `<span style="color:${token.color}">${escape(token.content)}</span>`).join(''),
+    line
+      .map((token) =>
+        token.color === FOREGROUND
+          ? escape(token.content)
+          : `<span style="color:${token.color}">${escape(token.content)}</span>`,
+      )
+      .join(''),
   )
 }
 
+// every request is answered: a block that fails shows plain, and its language is loaded again next time
 addEventListener('message', async (e: MessageEvent<{ id: number; language: string; code: string }>) => {
   const { id, language, code } = e.data
-  postMessage({ id, lines: await highlight(language, code) })
+  try {
+    postMessage({ id, lines: await highlight(language, code) })
+  } catch (error) {
+    console.error('cordial: highlighting failed', language, error)
+    loading.delete(ALIASES[language.toLowerCase()] ?? language.toLowerCase())
+    postMessage({ id, lines: null })
+  }
 })

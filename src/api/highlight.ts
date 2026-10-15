@@ -1,6 +1,6 @@
 // Code blocks' syntax highlighting (ours: stock's is highlight.js, loaded with its UI): Shiki in a worker
 // (src/workers/highlight.ts), started at the first block from the source the shell reads. A block's lines come back as
-// HTML, cached by language and code; null for a language it doesn't know.
+// HTML, cached by language and code; null for a language it doesn't know, or when the worker fails.
 
 import { highlighterSource } from '../adapter/native'
 
@@ -9,35 +9,64 @@ export type Lines = string[] | null
 // the blocks highlighted last, oldest first
 const CACHE_SIZE = 200
 const cache = new Map<string, Lines>()
-const waiting = new Map<number, { key: string; ready(lines: Lines): void }>()
-let worker: Promise<Worker> | undefined
+// the blocks asked for and not answered yet, each with who waits for it
+const waiting = new Map<string, ((lines: Lines) => void)[]>()
+// the worker's requests by id, each its block's key
+const requests = new Map<number, string>()
 let next = 0
+let worker: Promise<Worker | null> | undefined
+let failed = false
 
-async function start() {
-  const source = await highlighterSource!()
-  const started = new Worker(URL.createObjectURL(new Blob([source], { type: 'text/javascript' })))
-  started.addEventListener('message', (e: MessageEvent<{ id: number; lines: Lines }>) => {
-    const request = waiting.get(e.data.id)
-    if (!request) return
-    waiting.delete(e.data.id)
-    cache.set(request.key, e.data.lines)
-    if (cache.size > CACHE_SIZE) {
-      const [oldest] = cache.keys()
-      cache.delete(oldest)
-    }
-    request.ready(e.data.lines)
-  })
-  return started
+function answer(key: string, lines: Lines) {
+  const ready = waiting.get(key) ?? []
+  waiting.delete(key)
+  cache.set(key, lines)
+  if (cache.size > CACHE_SIZE) {
+    const [oldest] = cache.keys()
+    cache.delete(oldest)
+  }
+  for (const callback of ready) callback(lines)
+}
+
+// on a failure, every block waiting and every one after shows plain
+function fail(error: unknown) {
+  console.error('cordial: the code highlighter failed', error)
+  failed = true
+  requests.clear()
+  for (const key of waiting.keys()) answer(key, null)
+}
+
+async function start(source: () => Promise<string>) {
+  try {
+    const started = new Worker(URL.createObjectURL(new Blob([await source()], { type: 'text/javascript' })))
+    started.addEventListener('message', (e: MessageEvent<{ id: number; lines: Lines }>) => {
+      const key = requests.get(e.data.id)
+      requests.delete(e.data.id)
+      if (key !== undefined) answer(key, e.data.lines)
+    })
+    started.addEventListener('error', fail)
+    return started
+  } catch (error) {
+    fail(error)
+    return null
+  }
 }
 
 // a block's lines: at once when highlighted before, else undefined and `ready` gets them
 export function lines(language: string, code: string, ready: (lines: Lines) => void): Lines | undefined {
-  if (!language || !highlighterSource) return null
+  const source = highlighterSource
+  if (!language || !source || failed) return null
   const key = `${language}\n${code}`
   if (cache.has(key)) return cache.get(key)
+  const queued = waiting.get(key)
+  if (queued) {
+    queued.push(ready)
+    return undefined
+  }
+  waiting.set(key, [ready])
   const id = next++
-  waiting.set(id, { key, ready })
-  worker ??= start()
-  void worker.then((started) => started.postMessage({ id, language, code }))
+  requests.set(id, key)
+  worker ??= start(source)
+  void worker.then((started) => started?.postMessage({ id, language, code }))
   return undefined
 }
