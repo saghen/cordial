@@ -21,20 +21,18 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
 
   // only toward where the reader is heading (api/messages.ts loadMore)
   function more(channelId: Id) {
-    const rows = list.children
-    const box = list.getBoundingClientRect()
-    const kept = Math.min(messages.KEPT_ROWS, rows.length)
-    messages.loadMore(
-      channelId,
-      {
+    messages.loadMore(channelId, down, () => {
+      const rows = list.children
+      const box = list.getBoundingClientRect()
+      const kept = Math.min(messages.KEPT_ROWS, rows.length)
+      return {
         fromTop: scroller.scrollTop,
         fromBottom: fromBottom(),
         view: scroller.clientHeight,
         keptTop: kept ? rows[kept - 1].getBoundingClientRect().bottom - box.top : 0,
         keptBottom: kept ? box.bottom - rows[rows.length - kept].getBoundingClientRect().top : 0,
-      },
-      down,
-    )
+      }
+    })
   }
 
   const report = (channelId: Id) =>

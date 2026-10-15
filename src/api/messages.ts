@@ -150,17 +150,19 @@ const ahead = (view: number, kept: number) => Math.max(LOAD_PX, Math.min(LOAD_VI
 // time, truncating the other end. Only toward where the reader is heading: a short window can be near both ends, and
 // loading one truncates the other. With unreads, stock waits for the very top (2 px),
 // so reading down from the unread line doesn't pull in history
-export function loadMore(channelId: Id, position: Position, down: boolean) {
+// `measure` (layout reads) only once there's more that way
+export function loadMore(channelId: Id, down: boolean, measure: () => Position) {
   const loaded = S.Message.getMessages(channelId)
   if (!loaded.ready || loaded.loadingMore || !loaded.length) return
+  if (down ? !loaded.hasMoreAfter : !loaded.hasMoreBefore) return
+  const position = measure()
   const top =
     !down &&
-    loaded.hasMoreBefore &&
     position.fromTop <=
       (S.ReadState.getOldestUnreadMessageId(channelId) != null
         ? LOAD_UNREAD_PX
         : ahead(position.view, position.keptTop))
-  const bottom = down && loaded.hasMoreAfter && position.fromBottom <= ahead(position.view, position.keptBottom)
+  const bottom = down && position.fromBottom <= ahead(position.view, position.keptBottom)
   if (!top && !bottom) return
   const inKept = top
     ? position.fromTop + position.view <= position.keptTop
