@@ -1,7 +1,8 @@
 // The call view, as stock's: who's in the selected voice channel or DM call as tiles filling the area (the top bar's
 // too, which it puts on the call's black), a click on one fills the area with it; under them the call's buttons, or
-// Join while you're elsewhere; the DM header's call buttons; incoming calls with Accept and Decline. Its badges, pills,
-// buttons and the top bar fade while the pointer is elsewhere or still for 5 s; Expand puts the call over the chat.
+// Join while you're elsewhere; the DM header's call buttons; incoming calls with Accept and Decline. In a call you're in
+// with a stream, its badges, pills, buttons and the top bar fade while the pointer is elsewhere or still for 5 s;
+// Expand puts the call over the chat.
 
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 
@@ -95,6 +96,8 @@ export function CallView() {
           !states().length ||
           (!guildId() && !states().some((state) => state.selfStream || streams.videoOf(state.userId, null)))
         const watched = () => others().filter((state) => state.selfStream && streams.watching(state.userId, guildId()))
+        // the UI fades only over a stream in a call you're in; otherwise it stays
+        const fades = () => voice.connected(channel()) && states().some((state) => state.selfStream)
         function focus() {
           const tile = focused()
           const id = tile?.replace('stream:', '')
@@ -127,7 +130,15 @@ export function CallView() {
               })
               wake()
             }}
-            class={['call', { compact: compact(), idle: !awake(), expanded: expanded(), focused: Boolean(focus()) }]}
+            class={[
+              'call',
+              {
+                compact: compact(),
+                idle: !awake() && fades(),
+                expanded: expanded(),
+                focused: Boolean(focus()),
+              },
+            ]}
             style={{ '--columns': grid().columns, '--tile-width': `${Math.floor(grid().width)}px` }}
             onClick={(e) => {
               const tile = (e.target as Element).closest('figure.tile')
