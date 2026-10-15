@@ -69,7 +69,9 @@ export function Sections<T, S extends Section<T>>(p: {
       <Show when={p.footer}>
         {(footer) => (
           <footer>
-            <Show when={named()}>{(item) => footer()(item())}</Show>
+            <Show when={named()} keyed>
+              {(item) => footer()(item)}
+            </Show>
           </footer>
         )}
       </Show>
