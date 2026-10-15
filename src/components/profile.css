@@ -5,7 +5,7 @@ div.profile-card {
   width: 300px; max-height: 80vh; margin: 0 8px; padding: 0; overflow: hidden auto; user-select: text;
 }
 section.profile {
-  display: grid; gap: 8px; padding: 0 16px 16px; font-size: 14px;
+  position: relative; display: grid; gap: 8px; padding: 0 16px 16px; font-size: 14px;
   &.themed { --surface: color-mix(in srgb, var(--primary) 35%, var(--bg-deep)); background: linear-gradient(var(--surface), color-mix(in srgb, var(--accent) 35%, var(--bg-deep))); }
   > .banner { height: 105px; margin: 0 -16px; background: var(--bg-raised) center / cover; }
   > .avatar { margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
@@ -13,6 +13,8 @@ section.profile {
   > .handle { margin-top: -8px; color: var(--text-muted); }
   > .custom-status { display: flex; align-items: center; gap: 6px; }
   > .custom-status > .emoji { width: 18px; height: 18px; }
+  /* a profile effect's layers over the card from its top, at its width */
+  > .effect { position: absolute; inset: 0 0 auto; width: 100%; pointer-events: none; }
   > .roles { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; }
   > .roles > li {
     display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: var(--bg-raised); font-size: 12px;

@@ -2,6 +2,8 @@
 // UserProfileStore (a server's own bio, pronouns and banner over the user's), with what they're doing (PresenceStore)
 // and their roles in the server (GuildRoleStore).
 
+import { createSignal } from 'solid-js'
+
 import { A, S } from '../adapter/needs'
 import { $ } from './store'
 import { ActivityType, type Emoji, type Id, type MarkdownNode, type User } from './types'
@@ -43,6 +45,8 @@ export interface Profile {
   // the banner's colour without an image, and the card's two theme colours (Nitro)
   accent?: string
   theme?: [string, string]
+  // a profile effect (Nitro), by its shop product
+  effect?: Id
 }
 
 export function get(userId: Id, guildId: Id | null | undefined): Profile {
@@ -58,8 +62,31 @@ export function get(userId: Id, guildId: Id | null | undefined): Profile {
     banner: memberBanner || A.icons.getUserBannerURL({ id: userId, banner: own?.banner, size: BANNER_PX }),
     accent: hex(own?.accentColor),
     theme: theme && [hex(theme[0])!, hex(theme[1])!],
+    effect: (member?.profileEffect ?? own?.profileEffect)?.skuId,
   }
 }
+
+// profile effects' layers by product: those that play from the start and loop (the rest come in later, now and
+// then: left out). Stock's fetch and store for them load with its UI: its request, replayed once per product
+const [effects, setEffects] = createSignal<Record<Id, string[]>>({})
+const asked = new Set<Id>()
+export function fetchEffect(skuId: Id) {
+  if (asked.has(skuId)) return
+  asked.add(skuId)
+  A.rest
+    .get({
+      url: A.endpoints.COLLECTIBLES_PRODUCTS(skuId),
+      query: { locale: A.intl.intl.currentLocale },
+      rejectWithError: true,
+    })
+    .then((response) => {
+      const layers = (response.body.items?.[0]?.effects ?? []) as { src: string; start: number; loop: boolean }[]
+      const playing = layers.filter((layer) => layer.start === 0 && layer.loop).map((layer) => layer.src)
+      setEffects((shown) => ({ ...shown, [skuId]: playing }))
+    })
+    .catch(() => undefined)
+}
+export const effectLayers = (skuId: Id) => effects()[skuId] ?? []
 
 // a bio's markdown, as stock's: links and emoji
 export const bioAST = (bio: string) =>

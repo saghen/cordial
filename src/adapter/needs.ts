@@ -345,7 +345,7 @@ moduleNeed(
   'the REST client: del, get, patch, post, put',
   () => find((candidate) => Object.keys(candidate).sort().join() === 'del,get,patch,post,put')?.[0],
 )
-byProps('endpoints', 'PIN', 'PINS', 'MESSAGE_ACK')
+byProps('endpoints', 'PIN', 'PINS', 'MESSAGE_ACK', 'COLLECTIBLES_PRODUCTS')
 // whether a message counts towards a channel's mentions (suppress settings; every message in a DM)
 mangled('readStates', '"ReadStateStore"', { countsAsMention: 'isSuppressRolesEnabled' })
 byProps(

@@ -1,8 +1,9 @@
 // A user's profile card, opened from their avatar or name (the author line, the member list): the banner, the avatar
-// with their status, their names and pronouns, the custom status, the bio, what they're doing and their roles. One
-// card, mounted once (app.tsx), placed beside whatever opened it; a click outside or Escape closes it.
+// with their status, their names and pronouns, the custom status, the bio, what they're doing and their roles, and
+// their profile effect over it all. One card, mounted once (app.tsx), placed beside whatever opened it; a click outside
+// or Escape closes it.
 
-import { createSignal, flush, For, Show } from 'solid-js'
+import { createEffect, createSignal, flush, For, Show } from 'solid-js'
 
 import { elapsed } from '../api/channels'
 import { useNow } from '../api/hooks'
@@ -51,6 +52,12 @@ function Card(p: Shown) {
   const custom = () => profiles.customStatus(p.user.id)
   const activities = () => profiles.activities(p.user.id)
   const roles = () => profiles.roles(p.user, p.guildId)
+  createEffect(
+    () => profile().effect,
+    (effect) => {
+      if (effect) profiles.fetchEffect(effect)
+    },
+  )
   // the activities' clocks tick while one has a start
   const now = useNow(() => (activities().some((activity) => activity.start) ? Infinity : 0))
   return (
@@ -91,6 +98,9 @@ function Card(p: Shown) {
         <ul class="roles">
           <For each={roles()}>{(role) => <li style={{ '--role': role.color ?? undefined }}>{role.name}</li>}</For>
         </ul>
+      </Show>
+      <Show when={profile().effect} keyed>
+        {(effect) => <For each={profiles.effectLayers(effect)}>{(src) => <img class="effect" src={src} alt="" />}</For>}
       </Show>
     </section>
   )

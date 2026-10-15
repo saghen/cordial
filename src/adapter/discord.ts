@@ -445,6 +445,7 @@ export interface Actions {
     PIN(channelId: Id, messageId: Id): string
     PINS(channelId: Id): string
     MESSAGE_ACK(channelId: Id, messageId: Id): string
+    COLLECTIBLES_PRODUCTS(skuId: Id): string
   }
   readStates: { countsAsMention(message: AnyRecord, user: AnyRecord): boolean }
   audio: {
