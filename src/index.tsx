@@ -2,6 +2,7 @@ import { render } from '@solidjs/web'
 import { Show } from 'solid-js'
 
 import { setMount } from './adapter/anchor'
+import './adapter/fields'
 import './adapter/native'
 import './adapter/screen'
 import { expose } from './api/lab'

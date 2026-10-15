@@ -134,6 +134,7 @@ Object.assign(G, {
     mounted: Boolean(unmount),
     native: G.nativeApplied?.() ?? null,
     screen: G.screenApplied?.() ?? null,
+    fields: G.fieldsApplied?.() ?? null,
   }),
 })
 
