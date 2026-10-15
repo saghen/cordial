@@ -263,6 +263,7 @@ mangled('ptt', 'type:"PUSH_TO_TALK_STATE_CHANGE",isActive', { set: 'setForceAudi
 // stock's sounds: a sound of the user's soundpack by name, with play, loop and stop (the ringtone); play plays one
 mangled('sounds', '"SoundUtils"', { forPack: '(t)[e]??e', play: 'disableSounds)return' })
 byProps('invites', 'resolveInvite', 'acceptInviteAndTransitionToInviteChannel')
+byProps('privateChannels', 'openPrivateChannel')
 // stock's login: email and password, then a two-factor code (its request layer asks for a captcha when needed)
 byProps('auth', 'login', 'loginMFAv2')
 // stock's sticker packs fetch (once), and its rule for which stickers you can send

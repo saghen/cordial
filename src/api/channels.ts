@@ -19,6 +19,8 @@ export const get = (id: Id) => $.Channel.getChannel(id) as Channel | undefined
 export const lastDm = () => S.SelectedChannel.getChannelId('@me')
 // the DMs, at a DM or the friends page
 export const openDms = (id?: Id | null) => A.nav.transitionTo(`/channels/@me${id ? `/${id}` : ''}`)
+// a user's DM, created first when there's none: stock's PrivateChannelActions.openPrivateChannel
+export const openDm = (userId: Id) => A.privateChannels.openPrivateChannel({ recipientIds: userId })
 export const open = (channel: Channel) => A.nav.transitionTo(`/channels/${channel.guild_id ?? '@me'}/${channel.id}`)
 // a channel link's click (a mention, a link to a channel or to a message: then the message jumped to)
 export const openLink = (guildId: Id | null | undefined, channelId: Id, messageId?: Id) =>

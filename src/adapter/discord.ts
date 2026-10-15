@@ -423,6 +423,10 @@ export interface Actions {
   }
   // undefined for a type it has no text for
   systemMessages: { stringify(message: AnyRecord): string | undefined }
+  // PrivateChannelActions: a DM opened, created first when there's none
+  privateChannels: {
+    openPrivateChannel(opts: { recipientIds: Id | Id[] }): Promise<Id>
+  }
   // an invite by code: resolve (no write) gives { invite: { code, guild, channel, approximate_*_count } }; accepting
   // joins and opens the channel it points to
   invites: {
