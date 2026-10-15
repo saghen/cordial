@@ -12,7 +12,7 @@
 /* back to the present: a pill floating over the messages' bottom middle, above who's typing */
 & > button.jump {
   grid-area: chat; align-self: end; justify-self: center; z-index: 2; margin-bottom: 32px; padding: 6px 16px;
-  border-radius: 16px; box-shadow: var(--shadow); font-size: 14px; font-weight: 600;
+  border-radius: 16px; font-size: 14px; font-weight: 600;
 }
 /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
    on the background with a fade above, over what scrolls under it */
