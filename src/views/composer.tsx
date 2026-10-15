@@ -8,7 +8,7 @@ import type { JSX } from '@solidjs/web'
 import * as composer from '../api/composer'
 import { useFileDrop } from '../api/hooks'
 import type { Channel, Message } from '../api/types'
-import { selected } from '../api/store'
+import { selectedChat } from '../api/store'
 import { text, textAround } from '../api/strings'
 import * as users from '../api/users'
 import { Avatar } from '../components/avatar'
@@ -23,15 +23,15 @@ let box: HTMLTextAreaElement | undefined
 export const focus = () => box?.focus()
 
 export function Composer() {
-  const state = composer.useComposer(selected)
-  const id = () => selected()!
+  const state = composer.useComposer(selectedChat)
+  const id = () => selectedChat()!
   let files!: HTMLInputElement
   const complete = createAutocomplete(() => box!, state.channel)
 
   // a switch saves the text left behind; the box then shows the new channel's draft, or the message being edited, and
   // takes the focus
   createEffect(
-    () => ({ channelId: selected(), editing: state.editing() }),
+    () => ({ channelId: selectedChat(), editing: state.editing() }),
     ({ channelId }, prev) => {
       if (prev?.channelId && prev.channelId !== channelId) state.leave(prev.channelId)
       box!.value = channelId ? state.textOf(channelId) : ''
@@ -69,7 +69,7 @@ export function Composer() {
   const picking = () => (state.open() ? state.channel() : undefined)
 
   return (
-    <section class="composer" hidden={!selected()}>
+    <section class="composer" hidden={!selectedChat()}>
       {/* the bar over the box: the edit (red once emptied: Enter deletes), else the reply */}
       <Show
         when={state.editing()}

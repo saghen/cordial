@@ -12,8 +12,9 @@ import * as users from './users'
 // a row's height, as the range helper counts rows
 const ROW_HEIGHT = 44
 
-// a server's channels and group DMs have a list; whether it's open is stock's (toggled from the header)
-export const listed = () => Boolean(selectedGuild()) || selectedChannel()?.type === ChannelType.GroupDM
+// a server's text channels and group DMs have a list; whether it's open is stock's (toggled from the header)
+export const listed = () =>
+  (Boolean(selectedGuild()) && !selectedChannel()?.isGuildVocal()) || selectedChannel()?.type === ChannelType.GroupDM
 export const open = () => listed() && $.ChannelSection.getSection(selected()!, false) === 'MEMBERS'
 export const toggle = () => A.channelSections.toggleMembersSection()
 

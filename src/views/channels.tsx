@@ -83,11 +83,19 @@ function VoiceChannel(p: { channel: Channel }) {
       <Row
         name="voice"
         data-id={channel().id}
-        class={{ live: voice.states(channel().id).length > 0, joined: voice.connected(channel()) }}
+        class={{
+          selected: selected() === channel().id,
+          live: voice.states(channel().id).length > 0,
+          joined: voice.connected(channel()),
+        }}
         icon={<ChannelIcon channel={channel()} />}
         subtitle={channels.voiceStatus(channel())}
         end={start() && <time>{channels.elapsed(now() - start()!)}</time>}
-        onClick={() => voice.join(channel())}
+        // as stock: join, then show its call
+        onClick={() => {
+          voice.join(channel())
+          channels.open(channel())
+        }}
       >
         {channel().name}
       </Row>

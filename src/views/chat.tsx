@@ -9,7 +9,7 @@ import * as messages from '../api/messages'
 import * as pickers from '../api/pickers'
 import type { Emoji as EmojiRecord, Id, Message as MessageRecord } from '../api/types'
 import { Permission } from '../api/types'
-import { selected, selectedChannel } from '../api/store'
+import { selectedChannel, selectedChat } from '../api/store'
 import { text, textAround } from '../api/strings'
 import * as users from '../api/users'
 import { Emoji } from '../components/emoji'
@@ -23,7 +23,7 @@ import { focus } from './composer'
 import { createScroller } from './scroller'
 
 export function Chat() {
-  const channelId = selected
+  const channelId = selectedChat
   const channel = createMemo(selectedChannel)
   const loaded = createMemo(() => {
     const id = channelId()
@@ -256,7 +256,7 @@ const messageMenu = (onMarkUnread: () => void) =>
     class: 'message-menu',
     find(e) {
       const id = (e.target as Element).closest('article')?.dataset.id
-      const channelId = selected()
+      const channelId = selectedChat()
       const message = id && channelId ? messages.get(channelId, id) : undefined
       return message && { message, react: false }
     },

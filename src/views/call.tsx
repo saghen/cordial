@@ -1,8 +1,8 @@
 // The call view, as stock's: who's in the selected voice channel or DM call as tiles filling the area (the top bar's
-// too, which it puts on the call's black), a click on one fills the area with it; under them the call's buttons, or
-// Join while you're elsewhere; the DM header's call buttons; incoming calls with Accept and Decline. In a call you're in
-// with a stream, its badges, pills, buttons and the top bar fade while the pointer is elsewhere or still for 5 s;
-// Expand puts the call over the chat.
+// too, which it puts on the call's black; a server's voice channel's call takes the chat's place), a click on one fills
+// the area with it; under them the call's buttons, or Join while you're elsewhere; the DM header's call buttons;
+// incoming calls with Accept and Decline. In a call you're in with a stream, its badges, pills, buttons and the top bar
+// fade while the pointer is elsewhere or still for 5 s; Expand puts the call over the chat.
 
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 
@@ -136,6 +136,7 @@ export function CallView() {
                 compact: compact(),
                 idle: !awake() && fades(),
                 expanded: expanded(),
+                voice: channel().isGuildVocal(),
                 focused: Boolean(focus()),
               },
             ]}
@@ -240,7 +241,7 @@ export function CallView() {
                 />
               </Show>
             </footer>
-            <Show when={!compact() && !full()}>
+            <Show when={!compact() && !full() && !channel().isGuildVocal()}>
               <IconButton
                 class="call-expand"
                 icon="chevron"

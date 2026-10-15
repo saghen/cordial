@@ -30,3 +30,5 @@ export const $ = new Proxy(S, { get: (stores, name) => track(stores[name as keyo
 export const selected = () => $.SelectedChannel.getChannelId()
 export const selectedChannel = () => $.Channel.getChannel(selected()!) as Channel | undefined
 export const selectedGuild = () => $.SelectedGuild.getGuildId()
+// the channel whose messages show: none for a server's voice or stage channel, which shows its call in their place
+export const selectedChat = () => (selectedChannel()?.isGuildVocal() ? null : selected())

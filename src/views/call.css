@@ -15,6 +15,8 @@
   padding: 56px 16px 80px; background: #000;
   &.expanded { grid-row: top-start / compose-end; grid-column: call-start / members-end; height: auto; }
   &.compact { display: flex; justify-content: center; align-items: center; gap: 16px; height: 240px; }
+  /* a server's voice channel: the call in the chat's place, always */
+  &.voice { grid-row: top-start / compose-end; grid-column: call-start / members-end; height: auto; }
   /* a tile is a button: a click fills the area with it */
   > figure.tile:not(.compact) { aspect-ratio: 16 / 9; cursor: pointer; }
   &.focused > figure.tile:not(.focus) { display: none; }
