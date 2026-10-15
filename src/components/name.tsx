@@ -19,7 +19,7 @@ export function Name(p: {
   const style = () => users.nameStyle(p.user, Boolean(p.profile) || !p.guildId)
   return (
     <b
-      class={['name', style()?.effect, { clickable: Boolean(p.onClick) }]}
+      class={['name', style()?.effect]}
       style={{
         color: p.profile ? undefined : (member()?.colorString ?? undefined),
         '--name-font': style()?.font && `${style()!.font}, var(--font)`,

@@ -3,6 +3,7 @@
 // blocks are highlighted once the worker answers (api/highlight.ts).
 
 import { openLink } from '../api/channels'
+import { hex } from '../api/color'
 import * as highlight from '../api/highlight'
 import { emojiSrc } from '../api/pickers'
 import type { MarkdownNode } from '../api/types'
@@ -84,7 +85,7 @@ function renderNode(node: MarkdownNode): Node | string {
     case 'mention':
     case 'roleMention': {
       const mark = create('mark', text(node))
-      if (node.roleColor) mark.style.color = `#${node.roleColor.toString(16).padStart(6, '0')}`
+      if (node.roleColor) mark.style.color = hex(node.roleColor)
       return mark
     }
     case 'timestamp':

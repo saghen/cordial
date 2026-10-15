@@ -4,6 +4,7 @@
 import type { Id, AnyRecord } from '../adapter/discord'
 import { A, S } from '../adapter/needs'
 import * as cdn from './cdn'
+import { hex } from './color'
 import { ActivityType, type Channel, type Member, type User } from './types'
 import { $ } from './store'
 import { text } from './strings'
@@ -79,7 +80,6 @@ const NAME_EFFECTS: Record<number, string> = {
   7: 'prism',
   8: 'gummy',
 }
-const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`
 
 // a name's style as stock draws it: the font everywhere; the effect in its colours outside servers and on the profile
 // (in a server the role's colour shows instead)
@@ -120,15 +120,19 @@ export function setStatus(next: string) {
   if (next !== prevStatus) A.setStatus({ nextStatus: next, prevStatus })
 }
 // ActivityTypes: playing, streaming, listening, watching, custom (shown as the status, not here), competing
-export const VERBS = {
+const VERBS = {
   [ActivityType.Playing]: 'PLAYING_GAME',
   [ActivityType.Streaming]: 'STREAMING',
   [ActivityType.Listening]: 'LISTENING_TO',
   [ActivityType.Watching]: 'WATCHING',
   [ActivityType.Competing]: 'COMPETING',
 } as const
+// an activity in stock's words ("Playing x"); undefined for the custom status
+export function verb(activity: AnyRecord) {
+  const name = VERBS[activity.type as keyof typeof VERBS]
+  return name && text(name, { game: activity.name, name: activity.name })
+}
 export function activity() {
   const primary = $.LocalActivity.getPrimaryActivity()
-  const verb = primary && VERBS[primary.type as keyof typeof VERBS]
-  return verb && text(verb, { game: primary.name, name: primary.name })
+  return primary && verb(primary)
 }

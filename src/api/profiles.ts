@@ -5,10 +5,10 @@
 import { createSignal } from 'solid-js'
 
 import { A, S } from '../adapter/needs'
+import { hex } from './color'
 import { windowFocused } from './hooks'
 import { $ } from './store'
 import { ActivityType, type Emoji, type Id, type MarkdownNode, type User } from './types'
-import { text } from './strings'
 import * as users from './users'
 
 const BANNER_PX = 600
@@ -36,9 +36,6 @@ export function fetch(user: User, guildId: Id | null | undefined) {
     .catch(() => undefined)
 }
 
-const hex = (color: number | null | undefined) =>
-  color == null ? undefined : `#${color.toString(16).padStart(6, '0')}`
-
 export interface Profile {
   bio?: string
   pronouns?: string
@@ -55,14 +52,15 @@ export function get(userId: Id, guildId: Id | null | undefined): Profile {
   const member = $.UserProfile.getGuildMemberProfile(userId, guildId)
   const memberBanner =
     member?.banner &&
-    A.icons.getGuildMemberBannerURL({ id: userId, guildId: guildId!, banner: member.banner, size: BANNER_PX })
+    guildId &&
+    A.icons.getGuildMemberBannerURL({ id: userId, guildId, banner: member.banner, size: BANNER_PX })
   const theme = (member?.themeColors ?? own?.themeColors) as [number, number] | undefined
   return {
     bio: member?.bio || own?.bio || undefined,
     pronouns: member?.pronouns || own?.pronouns || undefined,
     banner: memberBanner || A.icons.getUserBannerURL({ id: userId, banner: own?.banner, size: BANNER_PX }),
-    accent: hex(own?.accentColor),
-    theme: theme && [hex(theme[0])!, hex(theme[1])!],
+    accent: own?.accentColor == null ? undefined : hex(own.accentColor),
+    theme: theme && [hex(theme[0]), hex(theme[1])],
     effect: (member?.profileEffect ?? own?.profileEffect)?.skuId,
   }
 }
@@ -130,14 +128,12 @@ export interface Activity {
 
 // what they're doing, headed in stock's words ("Playing x"); the custom status is apart
 export function activities(userId: Id): Activity[] {
-  return $.Presence.getActivities(userId)
-    .filter((activity) => activity.type in users.VERBS)
-    .map((activity) => ({
+  return $.Presence.getActivities(userId).flatMap((activity) => {
+    const heading = users.verb(activity)
+    if (!heading) return []
+    return {
       id: activity.id ?? activity.name,
-      heading:
-        activity.type === ActivityType.Listening
-          ? undefined
-          : text(users.VERBS[activity.type as keyof typeof users.VERBS], { game: activity.name, name: activity.name }),
+      heading: activity.type === ActivityType.Listening ? undefined : heading,
       details: activity.details,
       // Spotify's artists come apart by semicolons: a list, as stock shows them
       state: activity.name === 'Spotify' ? activity.state?.replaceAll(';', ',') : activity.state,
@@ -145,7 +141,8 @@ export function activities(userId: Id): Activity[] {
       imageText: activity.assets?.large_text,
       start: activity.timestamps?.start,
       end: activity.timestamps?.end,
-    }))
+    }
+  })
 }
 
 // the custom status: its emoji and text
@@ -166,9 +163,11 @@ export type StatusLine = { emoji?: StatusEmoji; text?: string }
 export function statusLine(userId: Id): StatusLine | undefined {
   const status = customStatus(userId)
   if (status && (status.emoji || status.text)) return status
-  const activity = $.Presence.getActivities(userId).find((candidate) => candidate.type in users.VERBS)
-  const verb = activity && users.VERBS[activity.type as keyof typeof users.VERBS]
-  return verb && { text: text(verb, { game: activity.name, name: activity.name }) }
+  for (const activity of $.Presence.getActivities(userId)) {
+    const heading = users.verb(activity)
+    if (heading) return { text: heading }
+  }
+  return undefined
 }
 
 // the member's roles, highest first: { id, name, color }

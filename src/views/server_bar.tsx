@@ -4,6 +4,7 @@ import { createSignal, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
 import * as channels from '../api/channels'
+import { hex } from '../api/color'
 import type { Id, Invite, PrivateChannel } from '../api/types'
 import * as guilds from '../api/guilds'
 import { onHover } from '../api/preload'
@@ -145,7 +146,7 @@ function Folder(p: { folder: guilds.Folder }) {
       <div
         class="folder-open"
         style={{
-          '--folder': `#${(p.folder.folderColor ?? DEFAULT_FOLDER_COLOR).toString(16).padStart(6, '0')}`,
+          '--folder': hex(p.folder.folderColor ?? DEFAULT_FOLDER_COLOR),
           '--count': ids().length + 1,
         }}
       >
