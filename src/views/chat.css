@@ -1,5 +1,6 @@
-/* the messages: column-reverse keeps the view at the bottom; scrolled up, scroller.ts keeps the reader's place */
-.messages { grid-area: chat; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+/* the messages: column-reverse keeps the view at the bottom; scrolled up, scroller.ts keeps the reader's place (alone:
+   Chromium's scroll anchoring corrected the same shifts again) */
+.messages { grid-area: chat; overflow-y: auto; overflow-anchor: none; display: flex; flex-direction: column-reverse; }
 .messages > div { padding: 16px 0 24px; }
 /* the new messages bar, across the messages' top */
 & > div.new-messages {
