@@ -10,7 +10,7 @@ import type { Channel } from './types'
 
 const reads = new Map<FluxStore, () => void>()
 
-function track(store: FluxStore) {
+function track(store: FluxStore | undefined) {
   // anything that isn't a store (a devtools inspection, a typo) passes through untracked
   if (!store?.addChangeListener) return store
   let read = reads.get(store)

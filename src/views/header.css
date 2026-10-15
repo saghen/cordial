@@ -16,9 +16,13 @@
   > button.pins.unread::after { content: ""; position: absolute; right: -1px; bottom: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
   /* search: a box at the end, wider while in use */
   > input.search {
-    width: 160px; height: 28px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
+    anchor-name: --search; width: 160px; height: 28px; padding: 0 8px; outline: 0; font-size: 14px; transition: width 0.2s;
     &:focus { width: 240px; }
   }
+}
+/* search's suggestions (components/suggestions.tsx) under the field, from its right edge */
+menu.search-suggestions {
+  position-anchor: --search; inset: auto; position-area: bottom span-left; width: 320px; max-height: 70vh; margin: 8px 0 0; overflow-y: auto;
 }
 /* the bell's menu: an item's second line (when a mute ends, what the default is) under its label */
 menu.notifications-menu {

@@ -166,6 +166,9 @@ export interface Stores {
     getIsFetching(id: Id): boolean
     getError(id: Id): AnyRecord | null
   }
+  // a search's last five queries by the search's id, newest first (SearchHistoryStore_Web): in the search's chunks,
+  // so set once they load (A.search.load)
+  SearchHistory?: FluxStore & { getHistory(id: Id): string[] | undefined }
   // a channel's pins: items { message, pinnedAt }, state LOADING, LOADED_HAS_MORE, LOADING_FINISHED (sic) or FAILED
   ChannelPins: FluxStore & { getPins(channelId: Id): { state: string; items: AnyRecord[] } | undefined }
   PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[] }

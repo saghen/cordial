@@ -323,6 +323,11 @@ moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
   let actions: any
   async function load() {
     await Promise.all(chunks.map((chunk) => wreq.e(chunk)))
+    // the search history's store is made when its module runs, which stock's search bar does
+    const history = findModuleId('SEARCH_HISTORY_WEB_ADD_ITEM:function')
+    if (history != null) wreq(history)
+    S.SearchHistory = A.flux.Store.getAll().find((store: any) => store.getName() === 'SearchHistoryStore_Web') as
+      Stores['SearchHistory'] | undefined
     const exports = wreq(findModuleId('type:"SEARCH_MESSAGES_START"')!)
     return Object.values(exports).find((member: any) => typeof member?.fetchMessages === 'function')
   }
