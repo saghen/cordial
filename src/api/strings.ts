@@ -251,7 +251,6 @@ const OURS = {
   LOGIN_DISCORDS_MFA: "This account's two-factor needs Discord's login screen.",
   NOT_SENT: 'Not sent.',
   CONFIRM_DELETE: 'Click again to delete',
-  EDITING: 'Editing message',
   // an emptied edit, which Enter deletes (stock asks in a modal)
   EDIT_DELETE_HELP: 'escape to cancel • enter to delete',
   // stock's text, under a name we haven't found

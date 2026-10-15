@@ -83,7 +83,7 @@ export function useComposer(channelId: () => Id | null) {
   const reply = createMemo(() => (channelId() ? $.PendingReply.getPendingReply(channelId()!) : undefined))
   const uploads = createMemo(() => (channelId() ? $.UploadAttachment.getUploads(channelId()!, 0) : []) as Upload[])
   function placeholder() {
-    if (editing()) return text('EDITING')
+    if (editing()) return text('EDITING_MESSAGE')
     const reason = closed()
     if (reason !== null) return reason
     if (cooldown()) return text('CHANNEL_SLOWMODE_COOLDOWN', { seconds: cooldown() })
