@@ -17,6 +17,7 @@ import { Emoji } from '../components/emoji'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
 import { Button, IconButton } from '../primitives/button'
 import { Row } from '../primitives/row'
+import { preview } from './preview'
 
 let box: HTMLTextAreaElement | undefined
 // the box focused, for what fills it from elsewhere (the message menu's Edit and Reply)
@@ -26,6 +27,10 @@ export function Composer() {
   const state = composer.useComposer(selectedChat)
   const id = () => selectedChat()!
   let files!: HTMLInputElement
+  let layer!: HTMLDivElement
+  const render = () => {
+    layer.innerHTML = preview(box!.value)
+  }
   const complete = createAutocomplete(() => box!, state.channel)
 
   // a switch saves the text left behind; the box then shows the new channel's draft, or the message being edited, and
@@ -35,6 +40,7 @@ export function Composer() {
     ({ channelId }, prev) => {
       if (prev?.channelId && prev.channelId !== channelId) state.leave(prev.channelId)
       box!.value = channelId ? state.textOf(channelId) : ''
+      render()
       if (channelId) box!.focus()
     },
   )
@@ -54,7 +60,10 @@ export function Composer() {
     if (complete.key(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (state.send(id(), box!.value)) box!.value = ''
+      if (state.send(id(), box!.value)) {
+        box!.value = ''
+        render()
+      }
     } else if (e.key === 'ArrowUp' && !box!.value && !state.editing() && state.editLast(id())) e.preventDefault()
   }
   // pasted files (a screenshot, a copied image) join the uploads, as + does
@@ -156,6 +165,8 @@ export function Composer() {
           hidden={!state.open()}
           onClick={() => files.click()}
         />
+        {/* the text styled as markdown, under the box's own (transparent) text */}
+        <div ref={layer} class="preview" aria-hidden="true" />
         <textarea
           ref={box}
           id="mc-composer"
@@ -165,6 +176,10 @@ export function Composer() {
           onInput={() => {
             complete.update()
             state.input(id(), box!.value)
+            render()
+          }}
+          onScroll={() => {
+            layer.scrollTop = box!.scrollTop
           }}
           onKeyDown={key}
           onPaste={paste}

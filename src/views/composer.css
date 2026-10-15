@@ -23,10 +23,15 @@ section.composer {
     column-gap: 16px; align-items: start; padding: 0 16px; border-radius: 8px; background: var(--bg-raised);
     &.editing { box-shadow: 0 0 0 2px var(--accent); }
     &.editing.delete { box-shadow: 0 0 0 2px var(--danger); }
-    > textarea {
-      grid-area: text; min-height: 56px; max-height: 50vh; padding: 16px 0; resize: none; field-sizing: content;
-      border: 0; outline: 0; background: none; color: inherit; font: inherit;
+    /* the text over its preview (preview.ts): the same box and wrapping, the text itself transparent but for its caret */
+    > :is(textarea, .preview) {
+      grid-area: text; max-height: 50vh; padding: 16px 0; white-space: pre-wrap; overflow-wrap: break-word; scrollbar-gutter: stable;
     }
+    > textarea {
+      position: relative; min-height: 56px; resize: none; field-sizing: content; border: 0; outline: 0; background: none;
+      color: transparent; caret-color: var(--text); font: inherit;
+    }
+    > .preview { overflow: hidden; pointer-events: none; }
     > textarea::placeholder { color: var(--text-faint); }
     > button { grid-area: emoji; width: 24px; height: 24px; margin-top: 16px; }
     > button.attach { grid-area: attach; }
@@ -62,4 +67,20 @@ menu.autocomplete {
   > .row > .icon { --icon-size: 16px; color: var(--text-muted); }
   > .row > .emoji { width: 20px; height: 20px; }
   > .row > .end { margin-left: auto; padding-left: 16px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; color: var(--text-muted); }
+}
+/* the preview's markdown: its markers dimmed, styles that keep each glyph's width (a stroke for bold; gg sans' italic
+   is within a fraction of a pixel of its upright over a phrase), a code block's words in the theme's colours */
+section.composer .preview {
+  .marker { color: var(--text-faint); }
+  .bold { -webkit-text-stroke: 0.035em currentColor; }
+  .italic { font-style: italic; }
+  .underline { text-decoration: underline; }
+  .strike { text-decoration: line-through; }
+  :is(.spoiler, .code, .code-block) { border-radius: 4px; background: var(--bg-deep); }
+  .link { color: var(--link); }
+  .mention { border-radius: 3px; background: var(--mention-bg); color: var(--mention-fg); }
+  .keyword { color: var(--accent); }
+  .string { color: var(--positive); }
+  .number { color: var(--warning); }
+  .comment { color: var(--text-muted); }
 }
