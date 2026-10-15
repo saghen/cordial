@@ -1,3 +1,9 @@
+/* a second line under the label (a status, a group's size): the icon beside both lines */
+:where(.row) > small { min-width: 0; font-size: 12px; line-height: 16px; }
+:where(.row) > small > .emoji { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
+:where(.row:has(> small)) { align-content: center; }
+:where(.row:has(> small)) > :is(.icon, .avatar) { grid-row: span 2; }
+
 /* a row with a nameplate (Nitro, from users.nameplate): its image behind it while hovered (ours: stock's also while
    open), under a fade to its palette's colour */
 :where(.row.plated:hover) {

@@ -7,16 +7,11 @@ section.side > nav {
     min-height: 32px; margin-left: -8px; padding: 0 8px; border-left: 8px solid #0000; border-radius: 16px 8px 8px 16px / 8px;
     background-clip: padding-box; color: var(--text-muted); font-size: 16px; font-weight: 500; line-height: 20px; white-space: nowrap; overflow: hidden;
     > .icon { --icon-size: 18px; }
-    > small { grid-column: 2; min-width: 0; font-size: 12px; line-height: 16px; }
-    > small > .emoji { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
+    > small { grid-column: 2; }
     > .end { grid-column: 3; display: flex; align-items: center; gap: 4px; }
   }
-  /* a second line (a DM's status or size, a voice channel's status): the icon and the end beside both */
-  > .row:has(> small) {
-    align-content: center;
-    > :is(.icon, .avatar) { grid-row: span 2; }
-    > .end { grid-row: 1 / span 2; }
-  }
+  /* a second line (a DM's status or size, a voice channel's status, row.css): the end beside both */
+  > .row:has(> small) > .end { grid-row: 1 / span 2; }
   > .unread {
     background: radial-gradient(circle at 0 50%, var(--text-strong) 3.5px, #0000 4px) 0 50% / 4px 8px no-repeat border-box, none padding-box;
     color: var(--text-strong); font-weight: 600;
