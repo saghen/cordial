@@ -1,7 +1,7 @@
-// One of Discord's icons (icons.ts) as an element.
+// One of Discord's icons (icons.ts) as an element, with a tooltip when it stands alone.
 
 import type { IconName } from './icons'
 
-export function Icon(p: { name: IconName }) {
-  return <i class="icon" style={{ '--icon': `var(--icon-${p.name})` }} />
+export function Icon(p: { name: IconName; title?: string }) {
+  return <i class="icon" style={{ '--icon': `var(--icon-${p.name})` }} title={p.title} />
 }

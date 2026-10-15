@@ -63,6 +63,13 @@ function groupRows(): (Group | Member)[] {
   ]
 }
 
+// the server's owner, or the group DM's
+export function isOwner(userId: Id) {
+  const guildId = selectedGuild()
+  if (guildId) return $.Guild.getGuild(guildId)?.ownerId === userId
+  return (selectedChannel() as PrivateChannel | undefined)?.ownerId === userId
+}
+
 // the server's rows from top to top + height in the list
 export function subscribe(top: number, height: number) {
   const guildId = selectedGuild()

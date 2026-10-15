@@ -1,18 +1,21 @@
-/* the member list: group names, then rows of the avatar (with the status) and the name in its role colour, at stock's
-   44 px (the range the list subscribes to counts them so); offline members dimmed; a row not loaded yet keeps its
-   place. The rows are subgrids: avatar, name */
+/* the member list: group names, then rows of the avatar (with the status), the name in its role colour and the owner's
+   crown after it, at stock's 44 px (the range the list subscribes to counts them so); offline members dimmed; a row
+   not loaded yet keeps its place */
 section.members {
-  grid-area: members; display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; width: 240px; overflow-y: auto;
+  grid-area: members; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; width: 240px; overflow-y: auto;
   padding: 8px; border-left: 1px solid var(--bg-raised);
   > h3 { grid-column: 1 / -1; padding: 16px 8px 4px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
   > h3:first-child { padding-top: 0; }
   > .row {
-    grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: 12px; height: 44px; padding: 0 8px;
+    grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, max-content) 1fr; align-items: center; column-gap: 4px; height: 44px; padding: 0 8px;
     border-radius: 4px; color: var(--text-muted); white-space: nowrap;
   }
   > .row:hover { background: var(--bg-raised); }
   > .row.offline { opacity: 0.3; }
   > .row > .name { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   > .row > .name > .badge { margin-left: 4px; vertical-align: 2px; }
+  > .row > .avatar { margin-right: 8px; }
+  > .row > .end { display: flex; }
+  > .row > .end > .icon { --icon-size: 14px; color: var(--warning); }
   > .placeholder { grid-column: 1 / -1; height: 44px; }
 }

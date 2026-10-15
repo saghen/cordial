@@ -13,6 +13,7 @@ import { Avatar } from '../components/avatar'
 import { Name } from '../components/name'
 import { open as openProfile, openDm } from '../components/profile'
 import { Toggle } from '../primitives/button'
+import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
 import { Row } from '../primitives/row'
 import { canInsert, insert } from './composer'
@@ -62,6 +63,11 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
           decorated
           onDblClick={() => openDm(row.user)}
         />
+      }
+      end={
+        members.isOwner(row.user.id) && (
+          <Icon name="crown" title={text(selectedGuild() ? 'GUILD_OWNER' : 'GROUP_OWNER')} />
+        )
       }
     >
       <Name user={row.user} guildId={selectedGuild()} />

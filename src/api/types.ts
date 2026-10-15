@@ -89,6 +89,8 @@ export interface PrivateChannel extends Channel {
   // everyone but you
   recipients: Id[]
   icon: string | null
+  // a group DM's owner
+  ownerId?: Id
 }
 
 export interface User {
@@ -120,6 +122,7 @@ export interface Guild {
   icon: string | null
   premiumTier?: number
   afkChannelId: Id | null
+  ownerId: Id
 }
 
 export interface VoiceState {

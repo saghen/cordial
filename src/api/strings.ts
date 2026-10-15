@@ -41,7 +41,9 @@ const STOCK = [
   'UNMUTE_CATEGORY',
   'COPY_LINK',
   'COPY_ID_CHANNEL',
-  // the member menu
+  // the member list's crown, and its menu
+  'GUILD_OWNER',
+  'GROUP_OWNER',
   'PROFILE',
   'MENTION',
   'USER_POPOUT_MESSAGE',
