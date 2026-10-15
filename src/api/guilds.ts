@@ -9,9 +9,10 @@ import { $ } from './store'
 
 export const get = (id: Id) => $.Guild.getGuild(id) as Guild | undefined
 
-// a server's icon at a size (none when it has none; an invite's server counts), else stock's initials
-export const icon = (guild: Pick<Guild, 'id' | 'icon'>, px: number) =>
-  A.icons.getGuildIconURL({ id: guild.id, icon: guild.icon, size: cdn.size(px), canAnimate: false })
+// a server's icon at a size (none when it has none; an invite's server counts), playing when it's animated and asked
+// to, else stock's initials
+export const icon = (guild: Pick<Guild, 'id' | 'icon'>, px: number, animate = false) =>
+  A.icons.getGuildIconURL({ id: guild.id, icon: guild.icon, size: cdn.size(px), canAnimate: animate })
 export const acronym = (guild: Pick<Guild, 'name'>) => A.names.acronym(guild.name)
 
 // the server bar: servers and folders in the user's order (a folder of one server is just the server)

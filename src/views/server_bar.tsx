@@ -71,7 +71,7 @@ function Guild(p: { id: Id }) {
           open={() => guilds.open(p.id)}
           preload={() => guilds.lastChannel(p.id)}
         >
-          <GuildIcon guild={record()} size={40} />
+          <GuildIcon guild={record()} size={40} animate={selectedGuild() === p.id} />
         </Tile>
       )}
     </Show>
