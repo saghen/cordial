@@ -8,6 +8,8 @@ import * as messages from '../api/messages'
 import type { Id } from '../api/types'
 
 const REPORT_DEBOUNCE_MS = 200
+// how long after the list's height changes a scroll may still land on the old position
+const LATE_MS = 100
 
 export function createScroller(scroller: HTMLElement, channel: () => Id | null) {
   // only toward where the reader is heading (api/messages.ts loadMore)
@@ -61,12 +63,19 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     if (row?.dataset.id)
       anchor = { id: row.dataset.id, top: row.getBoundingClientRect().top, height: scroller.scrollHeight }
   }
-  function keepPlace() {
+  // how far the anchor row has moved since it was pinned
+  function moved() {
     const row = anchor && rowOf(anchor.id)
-    if (anchor && row) {
-      const moved = row.getBoundingClientRect().top - anchor.top
-      if (Math.abs(moved) >= 1) scroller.scrollTop += moved
-    }
+    return anchor && row ? row.getBoundingClientRect().top - anchor.top : 0
+  }
+  // a change in the list's height that a scroll in flight can still land on: a wheel's scroll carried from before a
+  // page was prepended comes back in the next scroll event, the view off by the page's height
+  let late: { height: number; until: number } | null = null
+  function keepPlace() {
+    const by = moved()
+    if (Math.abs(by) >= 1) scroller.scrollTop += by
+    if (anchor && anchor.height !== scroller.scrollHeight)
+      late = { height: Math.abs(scroller.scrollHeight - anchor.height), until: performance.now() + LATE_MS }
     pin()
   }
 
@@ -135,7 +144,10 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     'scroll',
     () => {
       if (anchor && anchor.height !== scroller.scrollHeight) keepPlace()
-      else pin()
+      else if (late && performance.now() < late.until && Math.abs(moved()) > late.height / 2) {
+        late = null
+        keepPlace()
+      } else pin()
       if (dragging) down = scroller.scrollTop > last
       last = scroller.scrollTop
       clearTimeout(timer)
