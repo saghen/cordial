@@ -5,6 +5,7 @@ import * as session from './api/session'
 import { text } from './api/strings'
 import { useVoiceSounds } from './api/sounds'
 import { ProfileCard } from './components/profile'
+import { Guard } from './primitives/guard'
 import { ICONS } from './primitives/icons'
 import { CallView, IncomingCalls } from './views/call'
 import { Channels } from './views/channels'
@@ -58,18 +59,39 @@ export function App() {
   return (
     <Show when={!loading()} fallback={<Loading />}>
       <ConnectionWarning />
-      <ServerBar />
+      {/* each region apart: an error in one rebuilds it, not the rest */}
+      <Guard>
+        <ServerBar />
+      </Guard>
       <section class="side">
-        <Channels />
-        <UserPanel />
+        <Guard>
+          <Channels />
+        </Guard>
+        <Guard>
+          <UserPanel />
+        </Guard>
       </section>
-      <Header />
-      <CallView />
-      <Chat />
-      <IncomingCalls />
-      <Composer />
-      <MembersList />
-      <ProfileCard />
+      <Guard>
+        <Header />
+      </Guard>
+      <Guard>
+        <CallView />
+      </Guard>
+      <Guard>
+        <Chat />
+      </Guard>
+      <Guard>
+        <IncomingCalls />
+      </Guard>
+      <Guard>
+        <Composer />
+      </Guard>
+      <Guard>
+        <MembersList />
+      </Guard>
+      <Guard>
+        <ProfileCard />
+      </Guard>
     </Show>
   )
 }
