@@ -24,12 +24,16 @@ const count = (mentions: number) => mentions > 0 && <Badge kind="count">{mention
 
 function Dm(p: { channel: PrivateChannel }) {
   const channel = () => p.channel
+  // a 1:1 DM's user's nameplate
+  const plate = () =>
+    channel().recipients.length === 1 ? users.nameplate(users.get(channel().recipients[0])) : undefined
   return (
     <Row
       name="dm"
       data-id={channel().id}
       title={channels.dmName(channel())}
-      class={{ selected: selected() === channel().id, unread: channels.unread(channel()) }}
+      class={{ selected: selected() === channel().id, unread: channels.unread(channel()), plated: Boolean(plate()) }}
+      style={plate()}
       icon={<DmIcon channel={channel()} size={32} status />}
       subtitle={channels.dmSubtitle(channel())}
       onClick={() => channels.open(channel())}

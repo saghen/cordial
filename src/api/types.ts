@@ -101,6 +101,8 @@ export interface User {
   displayNameStyles?: { fontId: number; effectId: number; colors: number[] } | null
   // Nitro's avatar decoration, from the shop
   avatarDecorationData?: { asset: string; skuId: Id } | null
+  // Nitro's nameplate, from the shop: its palette names the colour rows fade to
+  collectibles?: { nameplate?: { skuId: Id; palette: string } | null } | null
   getAvatarURL(guildId?: Id | null, size?: number): string
 }
 

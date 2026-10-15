@@ -6,6 +6,7 @@ import { createEffect, createMemo, For, Show } from 'solid-js'
 import * as members from '../api/members'
 import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
+import * as users from '../api/users'
 import { Avatar } from '../components/avatar'
 import { Name } from '../components/name'
 import { open as openProfile } from '../components/profile'
@@ -42,7 +43,8 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
   return (
     <Row
       name="member"
-      class={{ offline: row.status === 'offline' }}
+      class={{ offline: row.status === 'offline', plated: Boolean(users.nameplate(row.user)) }}
+      style={users.nameplate(row.user)}
       data-id={row.user.id}
       onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, row.user, selectedGuild())}
       icon={<Avatar user={row.user} guildId={selectedGuild()} size={32} status={row.status} decorated />}

@@ -28,6 +28,32 @@ export const decoration = (user: User, px: number, animate: boolean) =>
     ? A.icons.getAvatarDecorationURL({ avatarDecoration: user.avatarDecorationData, size: px, canAnimate: animate })
     : undefined
 
+// stock's nameplate palettes: the colour a row fades to (their dark backgrounds)
+const NAMEPLATE_COLORS: Record<string, string> = {
+  crimson: '#900007',
+  berry: '#893A99',
+  sky: '#0080B7',
+  teal: '#086460',
+  forest: '#2D5401',
+  bubble_gum: '#DC3E97',
+  violet: '#730BC8',
+  cobalt: '#0131C2',
+  clover: '#047B20',
+  lemon: '#F6CD12',
+  white: '#FFFFFF',
+  black: '#000000',
+}
+// a user's nameplate (Nitro) as a row's style: its image (an APNG that plays) and its palette's colour, for the row's
+// background while hovered or open
+export function nameplate(user: User | undefined) {
+  const plate = user?.collectibles?.nameplate
+  if (!plate) return undefined
+  return {
+    '--nameplate': `url(https://cdn.discordapp.com/media/v1/collectibles-shop/${plate.skuId}/animated)`,
+    '--nameplate-color': NAMEPLATE_COLORS[plate.palette] ?? 'transparent',
+  }
+}
+
 // Nitro's display name styles: stock's fonts by id, as its stylesheet's @font-face rules name them (the rest have none),
 // and its effects
 const NAME_FONTS: Record<number, string> = {

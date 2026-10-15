@@ -1,0 +1,9 @@
+/* a row with a nameplate (Nitro, from users.nameplate): its image behind it while hovered or open, under a fade to
+   its palette's colour, as stock's */
+:where(.row.plated:is(:hover, .selected)) {
+  background-image: linear-gradient(90deg, #0000, color-mix(in srgb, var(--nameplate-color) 8%, #0000) 20% 50%, color-mix(in srgb, var(--nameplate-color) 20%, #0000)), var(--nameplate);
+  background-size: auto, cover; background-position: right;
+}
+:where(.row.plated.selected) {
+  background-image: linear-gradient(90deg, #0000, color-mix(in srgb, var(--nameplate-color) 8%, #0000) 20% 50%, color-mix(in srgb, var(--nameplate-color) 50%, #0000)), var(--nameplate);
+}
