@@ -218,17 +218,19 @@ function AddServer() {
           onInput={(e) => resolve(e.currentTarget.value)}
         />
         <Show when={invite() !== undefined}>
-          <Show when={invite()} fallback={<p>{text('INSTANT_INVITE_EXPIRED')}</p>}>
+          <Show when={invite()} keyed fallback={<p>{text('INSTANT_INVITE_EXPIRED')}</p>}>
             {(resolved) => (
               <p>
-                <Show when={resolved().guild}>{(guild) => <GuildIcon guild={guild()} size={48} />}</Show>
-                {resolved().guild?.name ?? resolved().channel?.name}
+                <Show when={resolved.guild} keyed>
+                  {(guild) => <GuildIcon guild={guild} size={48} />}
+                </Show>
+                {resolved.guild?.name ?? resolved.channel?.name}
                 <small>
                   {text('INSTANT_INVITE_GUILD_MEMBERS_ONLINE', {
-                    membersOnline: resolved().approximate_presence_count ?? 0,
+                    membersOnline: resolved.approximate_presence_count ?? 0,
                   })}
                   {' · '}
-                  {text('INSTANT_INVITE_GUILD_MEMBERS_TOTAL', { count: resolved().approximate_member_count ?? 0 })}
+                  {text('INSTANT_INVITE_GUILD_MEMBERS_TOTAL', { count: resolved.approximate_member_count ?? 0 })}
                 </small>
               </p>
             )}
