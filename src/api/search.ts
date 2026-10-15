@@ -22,10 +22,15 @@ export const searchId = (channel: Channel) => channel.guild_id ?? channel.id
 const [loaded, setLoaded] = createSignal(false)
 export const warm = () => void A.search.load().then(() => setLoaded(true))
 
-// a page of the results from offset: as stock, it replaces the last; a new search goes into the history
+// a new search: into the history, as stock's (not a page of one), then its first page
+export async function start(channel: Channel, query: string) {
+  await A.search.load()
+  A.dispatcher.dispatch({ type: 'SEARCH_HISTORY_WEB_ADD_ITEM', id: searchId(channel), query })
+  return run(channel, query, 0)
+}
+// a page of the results from offset: as stock, it replaces the last
 export async function run(channel: Channel, query: string, offset: number) {
   const search = await A.search.load()
-  if (offset === 0) A.dispatcher.dispatch({ type: 'SEARCH_HISTORY_WEB_ADD_ITEM', id: searchId(channel), query })
   search.fetchMessages({
     searchContext: context(channel),
     searchQueryString: query,

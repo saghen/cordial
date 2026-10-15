@@ -220,7 +220,6 @@ const HAS = [
   'SEARCH_ANSWER_HAS_STICKER',
   'SEARCH_ANSWER_HAS_POLL',
 ] as const
-const SUGGESTION_LIMIT = 10
 // the word the caret ends, from where it starts
 type Word = { text: string; at: number }
 
@@ -266,7 +265,6 @@ function answers(filter: Filter, query: string, channel: Channel): Suggestion[] 
   if (filter.word === 'SEARCH_FILTER_IN')
     return search
       .channelsMatching(query, channel)
-      .slice(0, SUGGESTION_LIMIT)
       .map((result, i) => ({
         text: `${word}:${result.name} `,
         label: result.name,
@@ -275,7 +273,6 @@ function answers(filter: Filter, query: string, channel: Channel): Suggestion[] 
       }))
   return search
     .members(query, channel)
-    .slice(0, SUGGESTION_LIMIT)
     .map((member, i) => ({
       text: `${word}:${member.user.username} `,
       label: users.nameOf(member.user, member.nick),
@@ -305,7 +302,9 @@ function Search(p: { channel: Channel }) {
     field.value = value
     query = value.trim()
     setTyped(null)
-    run(0)
+    setOffset(0)
+    void search.start(channel(), query)
+    popover.showPopover()
   }
   function update() {
     const before = field.value.slice(0, field.selectionStart ?? field.value.length)
