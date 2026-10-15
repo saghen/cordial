@@ -79,7 +79,7 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
         <Sections
           search={
             <SearchInput
-              class="emoji-search"
+              class="picker-search"
               placeholder={text('SEARCH_FOR_EMOJI')}
               autofocus
               value={query()}
@@ -163,7 +163,7 @@ export function GifPicker(p: { channel: () => Channel | undefined; send: (text: 
           when={view()}
           fallback={
             <SearchInput
-              class="gif-search"
+              class="picker-search"
               placeholder={text('SEARCH_KLIPY')}
               autofocus
               value={query()}
@@ -261,7 +261,7 @@ export function StickerPicker(p: { channel: () => Channel | undefined; send: (st
         <Sections
           search={
             <SearchInput
-              class="sticker-search"
+              class="picker-search"
               placeholder={text('SEARCH_FOR_STICKER')}
               autofocus
               value={query()}

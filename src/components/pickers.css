@@ -22,11 +22,6 @@ menu.sticker-picker {
   .chunk > button > img { width: 88px; height: 88px; }
 }
 menu.gif-picker {
-  > input {
-    margin: 12px; padding: 8px 8px 8px 36px; outline: 0; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--bg-raised);
-    background: var(--image-search) 10px center / 18px no-repeat, var(--bg-deep); color: inherit;
-  }
-  > input:focus { box-shadow: inset 0 0 0 1px var(--accent); }
   > h3 { display: flex; align-items: center; gap: 12px; margin: 12px; min-height: 36px; font-size: 16px; font-weight: 600; color: var(--text-strong); }
   > :is(.gif-categories, .gif-results) { height: 400px; overflow-y: auto; padding: 0 12px 12px; }
   > .gif-categories { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 110px; gap: 8px; align-content: start; }

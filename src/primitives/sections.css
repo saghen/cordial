@@ -1,11 +1,7 @@
 /* Sections: the search field with its magnifier above; the rail on the left, the list beside it, sections under
    sticky names; the footer below. Each picker sets the list's height and its items' grid: --columns to a row of --row */
 :where(.sections) { display: grid; grid: "search search" auto "rail list" var(--list, 380px) "foot foot" auto / 48px minmax(0, 1fr); }
-:where(.sections > input) {
-  grid-area: search; margin: 12px; padding: 8px 8px 8px 36px; outline: 0; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--bg-raised);
-  background: var(--image-search) 10px center / 18px no-repeat, var(--bg-deep); color: inherit;
-}
-:where(.sections > input:focus) { box-shadow: inset 0 0 0 1px var(--accent); }
+:where(.sections > input) { grid-area: search; }
 :where(.sections > .rail) { grid-area: rail; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-y: auto; padding: 4px 0 8px; scrollbar-width: none; }
 :where(.sections > .rail > button) { display: grid; place-content: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; color: var(--text-muted); font: 600 11px/1 sans-serif; --icon-size: 20px; }
 :where(.sections > .rail > button:hover) { background: var(--bg-raised); color: var(--text-strong); }
