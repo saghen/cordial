@@ -3,7 +3,7 @@
   --status-size: calc(var(--size) * 0.32); --status-ring: calc(var(--size) * 0.09); --status-inset: calc(var(--size) * 0.15);
   position: relative; flex: none; display: inline-grid; grid-template: 100% / 100%; width: var(--size); height: var(--size); border-radius: 50%;
 }
-:where(.avatar > img:not(.decoration)) { grid-area: 1 / 1; width: 100%; height: 100%; border-radius: 50%; background: var(--bg-raised); object-fit: cover; }
+:where(.avatar > img:not(.decoration)) { grid-area: 1 / 1; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 :where(.avatar > .status) {
   grid-area: 1 / 1; place-self: end; width: var(--status-size); height: var(--status-size);
   margin: 0 calc(var(--status-inset) - var(--status-size) / 2) calc(var(--status-inset) - var(--status-size) / 2) 0;
