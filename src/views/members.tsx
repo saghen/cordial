@@ -2,7 +2,7 @@
 // rows not loaded yet keep their place. The header's toggle opens and closes it. A right click on a member: stock's
 // Profile, Mention, Message and Copy User ID.
 
-import { createEffect, createMemo, For, Show } from 'solid-js'
+import { createEffect, createMemo, For, Show, untrack } from 'solid-js'
 
 import * as channels from '../api/channels'
 import * as members from '../api/members'
@@ -37,44 +37,50 @@ export function MembersList() {
   return (
     <Show when={members.open()}>
       <section ref={list} class="members" onScroll={subscribe} onContextMenu={menu.open}>
-        <For each={members.rows()}>{(row) => <MemberRow row={row} />}</For>
+        <For each={members.rows()} keyed={members.key}>
+          {(row) => {
+            // its key keeps its kind; the record changes (a status, a name, a count)
+            const type = untrack(() => row().type)
+            if (type === 'GROUP') return <h3>{(row() as members.Group).label}</h3>
+            if (type === 'MEMBER') return <MemberRow member={row() as members.Member} />
+            return <div class="placeholder" />
+          }}
+        </For>
       </section>
       {menu.view}
     </Show>
   )
 }
 
-function MemberRow(p: { row: members.Group | members.Member | undefined }) {
-  const row = p.row
-  if (!row) return <div class="placeholder" />
-  if (row.type === 'GROUP') return <h3>{row.label}</h3>
-  const plate = () => users.nameplate(row.user)
-  const status = useStatusLine(() => row.user.id)
+function MemberRow(p: { member: members.Member }) {
+  const member = () => p.member
+  const plate = () => users.nameplate(member().user)
+  const status = useStatusLine(() => member().user.id)
   return (
     <Row
       name="member"
-      class={{ offline: row.status === 'offline', plated: Boolean(plate()) }}
+      class={{ offline: member().status === 'offline', plated: Boolean(plate()) }}
       style={plate()}
-      data-id={row.user.id}
-      onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, row.user, selectedGuild())}
+      data-id={member().user.id}
+      onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, member().user, selectedGuild())}
       icon={
         <Avatar
-          user={row.user}
+          user={member().user}
           guildId={selectedGuild()}
           size={32}
-          status={row.status}
+          status={member().status}
           decorated
-          onDblClick={() => openDm(row.user)}
+          onDblClick={() => openDm(member().user)}
         />
       }
       subtitle={status()}
       end={
-        members.isOwner(row.user.id) && (
+        members.isOwner(member().user.id) && (
           <Icon name="crown" title={text(selectedGuild() ? 'GUILD_OWNER' : 'GROUP_OWNER')} />
         )
       }
     >
-      <Name user={row.user} guildId={selectedGuild()} />
+      <Name user={member().user} guildId={selectedGuild()} />
     </Row>
   )
 }
@@ -85,7 +91,8 @@ const memberMenu = () =>
     class: 'member-menu',
     find(e) {
       const row = (e.target as Element).closest<HTMLElement>('.member')
-      const user = row && users.get(row.dataset.id!)
+      const id = row?.dataset.id
+      const user = id ? users.get(id) : undefined
       return row && user && { row, user }
     },
     children: (target) => (

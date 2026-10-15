@@ -29,28 +29,33 @@ export interface Member {
   user: User
   status: string
 }
+// a server's row not loaded yet, kept for its place
+export interface Placeholder {
+  type: 'PLACEHOLDER'
+  id: string
+}
+export type Row = Group | Member | Placeholder
+// what keeps a row's element across updates: the user, the group, the place
+export const key = (row: Row) => (row.type === 'MEMBER' ? row.user.id : `${row.type} ${row.id}`)
 // ChannelMemberStore's props: its rows (a server's not loaded yet are undefined) and its groups' counts
 interface Props {
   rows: ({ type: 'GROUP'; id: Id; title: string } | { type: 'MEMBER'; user: User; status: string } | undefined)[]
   groups: { id: Id; count: number }[]
 }
-// the rows in order; a server's not loaded yet are undefined, kept for their place
-export function rows(): (Group | Member | undefined)[] {
+// the rows in order
+export function rows(): Row[] {
   const guildId = selectedGuild()
   if (!guildId) return groupRows()
   const props = $.ChannelMember.getProps(guildId, selected()!) as Props
   // a group row carries no count: it's in groups
-  return props.rows.map((row): Group | Member | undefined =>
-    row?.type === 'GROUP'
-      ? {
-          type: 'GROUP',
-          id: row.id,
-          label: `${row.title} — ${props.groups.find((group) => group.id === row.id)?.count ?? 0}`,
-        }
-      : row && { type: 'MEMBER', user: row.user, status: row.status },
-  )
+  return props.rows.map((row, i): Row => {
+    if (!row) return { type: 'PLACEHOLDER', id: String(i) }
+    if (row.type === 'MEMBER') return { type: 'MEMBER', user: row.user, status: row.status }
+    const count = props.groups.find((group) => group.id === row.id)?.count ?? 0
+    return { type: 'GROUP', id: row.id, label: `${row.title} — ${count}` }
+  })
 }
-function groupRows(): (Group | Member)[] {
+function groupRows(): Row[] {
   const channel = selectedChannel()
   if (!channel || channel.type !== ChannelType.GroupDM) return []
   const all = [...(channel as PrivateChannel).recipients, users.me()?.id]
