@@ -135,8 +135,8 @@ export function CallView() {
               {
                 compact: compact(),
                 idle: !awake() && fades(),
-                expanded: expanded(),
-                voice: channel().isGuildVocal(),
+                // a server's voice channel: the call in the chat's place, always
+                expanded: expanded() || channel().isGuildVocal(),
                 focused: Boolean(focus()),
               },
             ]}
