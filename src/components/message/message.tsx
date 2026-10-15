@@ -62,54 +62,63 @@ export function Message(p: {
   gone: boolean
   onReact(e: MouseEvent): void
 }) {
-  const message = p.message
+  const message = () => p.message
   const guildId = () => p.channel?.guild_id
-  const channelId = message.channel_id
-  const hasText = !messages.linkOnly(message) && (Boolean(message.content) || !messages.isUser(message))
+  const hasText = (record: MessageRecord) =>
+    !messages.linkOnly(record) && (Boolean(record.content) || !messages.isUser(record))
   return (
     <article
-      data-id={message.id}
+      data-id={message().id}
       class={{
-        sending: message.state === 'SENDING',
-        failed: message.state === 'SEND_FAILED',
+        sending: message().state === 'SENDING',
+        failed: message().state === 'SEND_FAILED',
         head: p.head,
-        system: !messages.isUser(message),
-        call: message.type === MessageType.Call,
-        missed: message.type === MessageType.Call && messages.missed(message),
+        system: !messages.isUser(message()),
+        call: message().type === MessageType.Call,
+        missed: message().type === MessageType.Call && messages.missed(message()),
         new: p.isNew,
-        mention: message.mentioned,
+        mention: message().mentioned,
         replying: p.replying,
         editing: p.editing,
         collapsed: p.collapsed,
         gone: p.gone,
       }}
       // the hover time in the gutter: none on an author line, a call's line or a message without text (an image alone)
-      data-t={p.head || message.type === MessageType.Call || !hasText ? undefined : clock(message.timestamp)}
+      data-t={
+        p.head || message().type === MessageType.Call || !hasText(message()) ? undefined : clock(message().timestamp)
+      }
     >
       <Show when={p.day || p.isNew}>
         <Divider day={p.day} isNew={p.isNew} />
       </Show>
       {p.run}
       <Show when={!p.collapsed}>
-        <ReplyPreview message={message} guildId={guildId()} />
-        <CommandLine message={message} guildId={guildId()} />
-        <Show when={p.head}>
-          <Head message={message} guildId={guildId()} />
-        </Show>
-        <Show when={hasText}>
-          <Content message={message} channelId={channelId} cache />
-        </Show>
-        <For each={message.messageSnapshots}>
-          {(snapshot) => <Forward message={snapshot.message} channelId={channelId} />}
-        </For>
-        <For each={message.attachments}>{(file) => <Attachment file={file} />}</For>
-        <For each={message.stickerItems}>{(sticker) => <Sticker sticker={sticker} />}</For>
-        <For each={message.embeds}>{(embed) => <Embed embed={embed} />}</For>
-        <Show when={message.reactions?.length}>
-          <Reactions message={message} onAdd={p.onReact} />
-        </Show>
-        <Show when={message.state === 'SEND_FAILED'}>
-          <Failed message={message} />
+        {/* built again for each version of the message, inside the row that stays */}
+        <Show when={message()} keyed>
+          {(record) => (
+            <>
+              <ReplyPreview message={record} guildId={guildId()} />
+              <CommandLine message={record} guildId={guildId()} />
+              <Show when={p.head}>
+                <Head message={record} guildId={guildId()} />
+              </Show>
+              <Show when={hasText(record)}>
+                <Content message={record} channelId={record.channel_id} cache />
+              </Show>
+              <For each={record.messageSnapshots}>
+                {(snapshot) => <Forward message={snapshot.message} channelId={record.channel_id} />}
+              </For>
+              <For each={record.attachments}>{(file) => <Attachment file={file} />}</For>
+              <For each={record.stickerItems}>{(sticker) => <Sticker sticker={sticker} />}</For>
+              <For each={record.embeds}>{(embed) => <Embed embed={embed} />}</For>
+              <Show when={record.reactions?.length}>
+                <Reactions message={record} onAdd={p.onReact} />
+              </Show>
+              <Show when={record.state === 'SEND_FAILED'}>
+                <Failed message={record} />
+              </Show>
+            </>
+          )}
         </Show>
       </Show>
     </article>

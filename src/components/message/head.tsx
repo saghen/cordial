@@ -50,41 +50,42 @@ function jump(e: MouseEvent, message: Message) {
 // the avatar's column to it; a click on them jumps to it
 export function ReplyPreview(p: { message: Message; guildId?: Id | null }) {
   const replied = () => messages.replied(p.message)
+  // both read the store, never the outer Show's value: a reference dropped from the store would make an inner read of
+  // it stale, which halts Solid
   return (
     <Show when={replied()}>
-      {(reference) => (
-        <q class="reply-to">
-          <span onClick={(e) => jump(e, p.message)}>
-            <Show
-              when={reference().message}
-              fallback={text(
-                reference().state === ReferencedMessageState.Deleted
-                  ? 'REPLY_QUOTE_MESSAGE_DELETED'
-                  : 'REPLY_QUOTE_MESSAGE_NOT_LOADED',
-              )}
-            >
-              {(repliedMessage) => {
-                const author = repliedMessage().author as User
-                return (
-                  <>
-                    <Avatar user={author} guildId={p.guildId} size={16} />
-                    <Name
-                      user={author}
-                      guildId={messages.authorGuild(repliedMessage(), p.guildId)}
-                      at={p.message.mentions.includes(author.id)}
-                    />
-                    {repliedMessage().content ? (
-                      <Markdown ast={messages.contentAST(repliedMessage(), repliedMessage().channel_id)} inline />
-                    ) : (
-                      text('REPLY_QUOTE_NO_TEXT_CONTENT')
-                    )}
-                  </>
-                )
-              }}
-            </Show>
-          </span>
-        </q>
-      )}
+      <q class="reply-to">
+        <span onClick={(e) => jump(e, p.message)}>
+          <Show
+            when={replied()?.message}
+            keyed
+            fallback={text(
+              replied()?.state === ReferencedMessageState.Deleted
+                ? 'REPLY_QUOTE_MESSAGE_DELETED'
+                : 'REPLY_QUOTE_MESSAGE_NOT_LOADED',
+            )}
+          >
+            {(repliedMessage) => {
+              const author = repliedMessage.author as User
+              return (
+                <>
+                  <Avatar user={author} guildId={p.guildId} size={16} />
+                  <Name
+                    user={author}
+                    guildId={messages.authorGuild(repliedMessage, p.guildId)}
+                    at={p.message.mentions.includes(author.id)}
+                  />
+                  {repliedMessage.content ? (
+                    <Markdown ast={messages.contentAST(repliedMessage, repliedMessage.channel_id)} inline />
+                  ) : (
+                    text('REPLY_QUOTE_NO_TEXT_CONTENT')
+                  )}
+                </>
+              )
+            }}
+          </Show>
+        </span>
+      </q>
     </Show>
   )
 }

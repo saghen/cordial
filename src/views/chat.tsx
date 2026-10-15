@@ -56,45 +56,44 @@ export function Chat() {
   // the runs of blocked or ignored messages shown, by their first message
   const [shown, setShown] = createSignal<Record<Id, boolean>>({})
 
-  function Row(message: MessageRecord, i: () => number) {
+  // keyed by id: an updated message (an edit, a reaction, a scan) keeps its row, which keeps its measured height
+  function Row(message: () => MessageRecord, i: () => number) {
     // as stock, a run of blocked (or ignored) messages is one line, "N blocked messages", until Show messages
-    const hidden = messages.hiddenAs(message)
+    const id = message().id
+    const hidden = createMemo(() => messages.hiddenAs(message()))
     const run = createMemo(() => {
-      if (!hidden) return
+      if (!hidden()) return
       let start = i()
-      while (start > 0 && messages.hiddenAs(list()[start - 1]) === hidden) start--
+      while (start > 0 && messages.hiddenAs(list()[start - 1]) === hidden()) start--
       return list()[start].id
     })
     const count = createMemo(() => {
       let length = 0
-      if (run() === message.id) while (messages.hiddenAs(list()[i() + length]) === hidden) length++
+      if (run() === id) while (messages.hiddenAs(list()[i() + length]) === hidden()) length++
       return length
     })
-    const collapsed = () => Boolean(hidden) && !shown()[run()!]
+    const collapsed = () => Boolean(hidden()) && !shown()[run()!]
     return (
       <Message
-        message={message}
+        message={message()}
         channel={channel()}
         // a system message is a line of its own, without an author line
-        head={!collapsed() && messages.isUser(message) && messages.startsGroup(channel(), list()[i() - 1], message)}
-        day={messages.dayOf(list()[i() - 1], message)}
-        isNew={unread() === message.id}
-        replying={replying() === message.id}
-        editing={editing() === message.id}
+        head={!collapsed() && messages.isUser(message()) && messages.startsGroup(channel(), list()[i() - 1], message())}
+        day={messages.dayOf(list()[i() - 1], message())}
+        isNew={unread() === id}
+        replying={replying() === id}
+        editing={editing() === id}
         collapsed={collapsed()}
         gone={collapsed() && !count()}
         run={
           count() > 0 && (
-            <button
-              class={`${hidden}-show`}
-              onClick={() => setShown((prev) => ({ ...prev, [message.id]: !prev[message.id] }))}
-            >
-              {text(hidden === 'blocked' ? 'BLOCKED_MESSAGE_COUNT' : 'IGNORED_MESSAGE_COUNT', { count: count() })} —{' '}
+            <button class={`${hidden()}-show`} onClick={() => setShown((prev) => ({ ...prev, [id]: !prev[id] }))}>
+              {text(hidden() === 'blocked' ? 'BLOCKED_MESSAGE_COUNT' : 'IGNORED_MESSAGE_COUNT', { count: count() })} —{' '}
               {text(collapsed() ? 'BLOCKED_MESSAGES_SHOW' : 'BLOCKED_MESSAGES_HIDE', { count: count() })}
             </button>
           )
         }
-        onReact={(e) => menu.show(e, { message, react: true })}
+        onReact={(e) => menu.show(e, { message: message(), react: true })}
       />
     )
   }
@@ -111,7 +110,9 @@ export function Chat() {
       }}
     >
       <div>
-        <For each={list()}>{Row}</For>
+        <For each={list()} keyed={(message) => message.id}>
+          {Row}
+        </For>
       </div>
     </div>
   ) as HTMLElement

@@ -31,9 +31,8 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     )
   }
 
-  // the row at the view's top (by message: a row is built again when its record is replaced) and where it was, while
-  // scrolled up
-  let anchor: { id: string; top: number } | null = null
+  // the row at the view's top (by message) and where it was, while scrolled up, with the list's height then
+  let anchor: { id: string; top: number; height: number } | null = null
   const rowOf = (id: string) => scroller.querySelector(`article[data-id="${id}"]`)
   function pin() {
     anchor = null
@@ -49,7 +48,8 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       else low = middle + 1
     }
     const row = rows[low] as HTMLElement | undefined
-    if (row?.dataset.id) anchor = { id: row.dataset.id, top: row.getBoundingClientRect().top }
+    if (row?.dataset.id)
+      anchor = { id: row.dataset.id, top: row.getBoundingClientRect().top, height: scroller.scrollHeight }
   }
   function keepPlace() {
     const row = anchor && rowOf(anchor.id)
@@ -115,10 +115,13 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     else if (/^(PageUp|ArrowUp|Home)$/.test(e.key)) down = false
   })
 
+  // a scroll that comes with a change in the list's height is the layout moving the view (rows settling or replaced
+  // below it): its scroll event comes before the resize observer, so the place is kept here, not taken as the reader's
   scroller.addEventListener(
     'scroll',
     () => {
-      pin()
+      if (anchor && anchor.height !== scroller.scrollHeight) keepPlace()
+      else pin()
       if (dragging) down = scroller.scrollTop > last
       last = scroller.scrollTop
       clearTimeout(timer)
