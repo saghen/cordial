@@ -45,7 +45,7 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
       class={{ offline: row.status === 'offline' }}
       data-id={row.user.id}
       onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, row.user, selectedGuild())}
-      icon={<Avatar user={row.user} guildId={selectedGuild()} size={32} status={row.status} />}
+      icon={<Avatar user={row.user} guildId={selectedGuild()} size={32} status={row.status} decorated />}
     >
       <Name user={row.user} guildId={selectedGuild()} />
     </Row>

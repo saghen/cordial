@@ -1,8 +1,10 @@
 :where(.avatar) { position: relative; flex: none; display: inline-grid; width: var(--size); height: var(--size); border-radius: 50%; }
-:where(.avatar > img) { grid-area: 1 / 1; width: 100%; height: 100%; border-radius: 50%; background: var(--bg-raised); object-fit: cover; }
+:where(.avatar > img:not(.decoration)) { grid-area: 1 / 1; width: 100%; height: 100%; border-radius: 50%; background: var(--bg-raised); object-fit: cover; }
 :where(.avatar > .status) { grid-area: 1 / 1; place-self: end; width: 32%; height: 32%; }
 /* the ring around the status, cut out of the image */
-:where(.avatar:has(> .status) > img) { mask: radial-gradient(25% 25% at 84% 84%, #0000 calc(100% - 1px), #000); }
+:where(.avatar:has(> .status) > img:not(.decoration)) { mask: radial-gradient(25% 25% at 84% 84%, #0000 calc(100% - 1px), #000); }
 /* speaking, stock's ring: inset over the image, with a line of what's behind between it and the image */
 :where(.avatar.speaking)::after { content: ''; grid-area: 1 / 1; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--positive), inset 0 0 0 3px var(--surface); }
 :where(.avatar.clickable) { cursor: pointer; }
+/* the decoration (Nitro), a fifth larger, over the image and under the status */
+:where(.avatar > img.decoration) { grid-area: 1 / 1; place-self: center; width: 120%; height: 120%; max-width: none; pointer-events: none; }

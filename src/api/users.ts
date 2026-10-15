@@ -22,6 +22,12 @@ export const nameOf = (user?: AnyRecord | null, nick?: string | null): string =>
 export const displayName = (user: User | undefined, guildId?: Id | null) =>
   nameOf(user, user && member(user, guildId)?.nick)
 
+// a user's avatar decoration (Nitro), still or playing
+export const decoration = (user: User, px: number, animate: boolean) =>
+  user.avatarDecorationData
+    ? A.icons.getAvatarDecorationURL({ avatarDecoration: user.avatarDecorationData, size: px, canAnimate: animate })
+    : undefined
+
 // Nitro's display name styles: stock's fonts by id, as its stylesheet's @font-face rules name them (the rest have none),
 // and its effects
 const NAME_FONTS: Record<number, string> = {

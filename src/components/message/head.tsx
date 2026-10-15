@@ -22,7 +22,7 @@ export function Head(p: { message: Message; guildId?: Id | null; children?: JSX.
     openProfile(e.currentTarget as Element, p.message.author, messages.authorGuild(p.message, p.guildId))
   return (
     <>
-      <Avatar user={p.message.author} guildId={p.guildId} size={40} onClick={profile} />
+      <Avatar user={p.message.author} guildId={p.guildId} size={40} decorated onClick={profile} />
       <header>
         <Name user={p.message.author} guildId={messages.authorGuild(p.message, p.guildId)} onClick={profile} />
         <Time at={p.message.timestamp} />

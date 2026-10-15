@@ -99,6 +99,8 @@ export interface User {
   premiumType?: number | null
   // Nitro's display name style: a font, an effect, its colours (as numbers)
   displayNameStyles?: { fontId: number; effectId: number; colors: number[] } | null
+  // Nitro's avatar decoration, from the shop
+  avatarDecorationData?: { asset: string; skuId: Id } | null
   getAvatarURL(guildId?: Id | null, size?: number): string
 }
 

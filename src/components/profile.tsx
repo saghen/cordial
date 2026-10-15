@@ -65,7 +65,7 @@ function Card(p: Shown) {
           'background-color': profile().accent,
         }}
       />
-      <Avatar user={p.user} guildId={p.guildId} size={80} status={users.status(p.user.id)} />
+      <Avatar user={p.user} guildId={p.guildId} size={80} status={users.status(p.user.id)} decorated="playing" />
       <h2>
         <Name user={p.user} guildId={p.guildId} profile />
       </h2>
