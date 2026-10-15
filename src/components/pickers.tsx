@@ -38,7 +38,7 @@ function Named(p: { image?: JSX.Element; name: string; from?: string }) {
   )
 }
 
-export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => Channel | undefined }) {
+export function EmojiPicker(p: { insert(text: string): void; onClose(): void; channel: () => Channel | undefined }) {
   const [query, setQuery] = createSignal('')
   let menu!: HTMLElement
   function all() {
@@ -46,18 +46,7 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
     return channel ? pickers.emojiSections(channel) : []
   }
   const found = () => pickers.searchEmoji(p.channel()!, query())
-  function pick(emoji: EmojiRecord) {
-    const box = p.box()
-    // a space before it when it would join a word
-    const before = box.value.slice(0, box.selectionStart)
-    box.setRangeText(
-      `${before && !/\s$/.test(before) ? ' ' : ''}:${emoji.name}: `,
-      box.selectionStart,
-      box.selectionEnd,
-      'end',
-    )
-    box.dispatchEvent(new Event('input', { bubbles: true }))
-  }
+  const pick = (emoji: EmojiRecord) => p.insert(`:${emoji.name}: `)
   return (
     <>
       <IconButton
@@ -73,7 +62,7 @@ export function EmojiPicker(p: { box: () => HTMLTextAreaElement; channel: () => 
         class="emoji-picker"
         onClose={() => {
           setQuery('')
-          p.box().focus()
+          p.onClose()
         }}
       >
         <Sections

@@ -22,14 +22,18 @@ import { hasCode, preview } from './preview'
 let box: HTMLTextAreaElement | undefined
 // the box focused, for what fills it from elsewhere (the message menu's Edit and Reply)
 export const focus = () => box?.focus()
-// text put in at the caret (the member menu's Mention), a space before it where it would join a word
+// text put in at the caret (the member menu's Mention, the emoji picker), a space before it where it would join a
+// word; `insert` then focuses the box, `place` leaves the focus where it is (a picker kept open by Shift)
 export const canInsert = () => Boolean(box && !box.disabled)
-export function insert(text: string) {
+function place(text: string) {
   if (!box || box.disabled) return
   const before = box.value.slice(0, box.selectionStart)
   box.setRangeText(before && !/\s$/.test(before) ? ` ${text}` : text, box.selectionStart, box.selectionEnd, 'end')
   box.dispatchEvent(new Event('input', { bubbles: true }))
-  box.focus()
+}
+export function insert(text: string) {
+  place(text)
+  focus()
 }
 
 export function Composer() {
@@ -199,7 +203,7 @@ export function Composer() {
         />
         <StickerPicker channel={picking} send={(sticker) => state.sendSticker(id(), sticker)} />
         <GifPicker channel={picking} send={(url) => state.sendLink(id(), url)} />
-        <EmojiPicker box={() => box!} channel={picking} />
+        <EmojiPicker insert={place} onClose={focus} channel={picking} />
       </div>
       {complete.view}
     </section>

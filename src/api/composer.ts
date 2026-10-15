@@ -73,7 +73,7 @@ export function useComposer(channelId: () => Id | null) {
     const id = channelId()
     const edit = editing()
     if (!id || !edit) return false
-    const message = S.Message.getMessage(id, edit) as Message | undefined
+    const message = $.Message.getMessage(id, edit) as Message | undefined
     return (
       !$.EditMessage.getEditingTextValue(id)?.trim() && !message?.attachments.length && !message?.stickerItems?.length
     )
