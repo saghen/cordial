@@ -88,7 +88,8 @@ export function activities(userId: Id): Activity[] {
         name: activity.name,
       }),
       details: activity.details,
-      state: activity.state,
+      // Spotify's artists come apart by semicolons: a list, as stock shows them
+      state: activity.name === 'Spotify' ? activity.state?.replaceAll(';', ',') : activity.state,
       image: A.assets.image(activity.application_id, activity.assets?.large_image, ACTIVITY_IMAGE_PX),
       imageText: activity.assets?.large_text,
       start: activity.timestamps?.start,
