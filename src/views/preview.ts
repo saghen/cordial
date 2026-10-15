@@ -16,11 +16,19 @@ const KNOWN_LINES = 1000
 const known = new Map<string, string>()
 
 function code(language: string, body: string, rerender: () => void) {
-  const lines = highlight.lines(language, body, rerender)
   const plain = body.split('\n')
-  if (lines) {
+  // what it highlighted, kept by line: shown for the same lines while a later version waits
+  function remember(lines: string[]) {
     if (known.size > KNOWN_LINES) known.clear()
     plain.forEach((line, i) => known.set(line, lines[i] ?? ''))
+  }
+  const lines = highlight.lines(language, body, (ready) => {
+    if (ready) remember(ready)
+    rerender()
+  })
+  if (lines === null) return escape(body)
+  if (lines) {
+    remember(lines)
     return lines.join('\n')
   }
   return plain.map((line) => known.get(line) ?? escape(line)).join('\n')
@@ -82,7 +90,7 @@ export function preview(text: string, rerender: () => void) {
   for (const match of text.matchAll(CODE_BLOCK)) {
     html += inline(text.slice(last, match.index))
     const language = match[1] ?? ''
-    html += span('code-block', marker('```' + language) + code(language.trim(), match[2], rerender) + marker('```'))
+    html += marker('```' + language) + code(language.trim(), match[2], rerender) + marker('```')
     last = match.index + match[0].length
   }
   html += inline(text.slice(last))
