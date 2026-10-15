@@ -222,8 +222,13 @@ storeNeed(
 )
 storeNeed('SelfPresence', 'SelfPresenceStore', 'getStatus')
 storeNeed('LocalActivity', 'LocalActivityStore', 'getPrimaryActivity')
-// the user's reduced motion setting: a property, so no method to check
+// the user's reduced motion setting: a property, checked apart
 storeNeed('Accessibility', 'AccessibilityStore')
+needs.push({
+  name: 'S.Accessibility.useReducedMotion',
+  what: 'AccessibilityStore.useReducedMotion, whether profile effects play',
+  resolve: () => (typeof S.Accessibility?.useReducedMotion === 'boolean' ? null : 'not a boolean'),
+})
 storeNeed('DefaultRoute', 'DefaultRouteStore')
 needs.push({
   name: 'S.DefaultRoute.defaultRoute',
@@ -330,6 +335,8 @@ moduleNeed('search', 'the lazy "Search" component\'s chunks { load }', () => {
     if (history != null) wreq(history)
     S.SearchHistory = A.flux.Store.getAll().find((store: any) => store.getName() === 'SearchHistoryStore_Web') as
       Stores['SearchHistory'] | undefined
+    // loaded late, past the self-check: search works without it
+    if (!S.SearchHistory) console.warn('cordial: no SearchHistoryStore_Web, so search shows no history')
     const exports = wreq(findModuleId('type:"SEARCH_MESSAGES_START"')!)
     return Object.values(exports).find((member: any) => typeof member?.fetchMessages === 'function')
   }
