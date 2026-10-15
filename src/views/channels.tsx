@@ -181,7 +181,8 @@ const channelMenu = () =>
     class: 'channel-menu',
     find(e) {
       const row = (e.target as Element).closest<HTMLElement>('nav > .channel, nav > .category')
-      return row && channels.get(row.dataset.id!)
+      const id = row?.dataset.id
+      return id ? channels.get(id) : undefined
     },
     children(channel) {
       const category = channel().type === ChannelType.Category

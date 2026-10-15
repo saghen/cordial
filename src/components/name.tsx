@@ -22,7 +22,7 @@ export function Name(p: {
       class={['name', style()?.effect]}
       style={{
         color: p.profile ? undefined : (member()?.colorString ?? undefined),
-        '--name-font': style()?.font && `${style()!.font}, var(--font)`,
+        '--name-font': style()?.font,
         '--name-color': style()?.color,
         '--name-stops': style()?.stops,
       }}

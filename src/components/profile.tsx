@@ -80,12 +80,9 @@ function Card(p: Shown) {
     const id = effectId()
     return id ? profiles.effect(id) : undefined
   }
-  createEffect(
-    effectId,
-    (effect) => {
-      if (effect) profiles.fetchEffect(effect)
-    },
-  )
+  createEffect(effectId, (effect) => {
+    if (effect) profiles.fetchEffect(effect)
+  })
   // the activities' clocks tick while one has a start
   const now = useNow(() => (ticking() ? Infinity : 0))
   return (

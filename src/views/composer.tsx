@@ -42,11 +42,13 @@ export function Composer() {
   const state = composer.useComposer(chat)
   const id = () => chat()!
   let files!: HTMLInputElement
+  let field!: HTMLDivElement
   let layer!: HTMLDivElement
   // the preview under the text; with a code block, the whole box in monospace (a textarea has one font)
-  const render = () => {
-    layer.innerHTML = preview(box!.value, render)
-    layer.parentElement!.toggleAttribute('data-code', hasCode(box!.value))
+  function render() {
+    const value = box?.value ?? ''
+    layer.innerHTML = preview(value, render)
+    field.toggleAttribute('data-code', hasCode(value))
   }
   const complete = createAutocomplete(() => box!, state.channel)
 
@@ -137,7 +139,7 @@ export function Composer() {
           <IconButton class="bar-cancel" icon="close" title={text('CANCEL')} onClick={() => composer.cancel(id())} />
         </div>
       </Show>
-      <div class={['box', { editing: Boolean(state.editing()), delete: state.deletes() }]}>
+      <div ref={field} class={['box', { editing: Boolean(state.editing()), delete: state.deletes() }]}>
         <Show when={state.uploads().length}>
           <ul class="uploads">
             <For each={state.uploads()}>
@@ -289,7 +291,9 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
 
   function pick(item: Suggestion) {
     const textarea = box()
-    textarea.setRangeText(`${item.text} `, token()!.at, textarea.selectionStart, 'end')
+    const at = token()?.at
+    if (at === undefined) return
+    textarea.setRangeText(`${item.text} `, at, textarea.selectionStart, 'end')
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
     textarea.focus()
   }

@@ -263,23 +263,19 @@ function answers(filter: Filter, query: string, channel: Channel): Suggestion[] 
       .filter((answer) => answer.startsWith(query.toLowerCase()))
       .map((answer, i) => ({ text: `${word}:${answer} `, label: answer, head: i ? undefined : head }))
   if (filter.word === 'SEARCH_FILTER_IN')
-    return search
-      .channelsMatching(query, channel)
-      .map((result, i) => ({
-        text: `${word}:${result.name} `,
-        label: result.name,
-        icon: <ChannelIcon channel={result} />,
-        head: i ? undefined : head,
-      }))
-  return search
-    .members(query, channel)
-    .map((member, i) => ({
-      text: `${word}:${member.user.username} `,
-      label: users.nameOf(member.user, member.nick),
-      icon: <Avatar user={member.user} guildId={channel.guild_id} size={24} />,
-      hint: member.user.username,
+    return search.channelsMatching(query, channel).map((result, i) => ({
+      text: `${word}:${result.name} `,
+      label: result.name,
+      icon: <ChannelIcon channel={result} />,
       head: i ? undefined : head,
     }))
+  return search.members(query, channel).map((member, i) => ({
+    text: `${word}:${member.user.username} `,
+    label: users.nameOf(member.user, member.nick),
+    icon: <Avatar user={member.user} guildId={channel.guild_id} size={24} />,
+    hint: member.user.username,
+    head: i ? undefined : head,
+  }))
 }
 
 // search, as stock's header search bar: Enter searches the server (or the DM); the results open on the right, a page
@@ -321,7 +317,8 @@ function Search(p: { channel: Channel }) {
     class: 'search-suggestions',
     list,
     pick(item) {
-      const word = typed()!.word
+      const word = typed()?.word
+      if (!word) return
       field.setRangeText(item.text, word.at, word.at + word.text.length, 'end')
       update()
     },

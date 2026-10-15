@@ -1,6 +1,7 @@
-/* a Nitro display name style: its font; its effect in its colours (light and dark shades mixed from the first) */
+/* a Nitro display name style: its font (without one the declaration is invalid, so the name inherits its font); its
+   effect in its colours (light and dark shades mixed from the first) */
 b.name {
-  font-family: var(--name-font);
+  font-family: var(--name-font), var(--font);
   &:is(.solid, .neon, .toon, .pop, .gummy) { color: var(--name-color); }
   &:is(.gradient, .glow, .prism) { background: linear-gradient(90deg, var(--name-stops)) text; color: transparent; }
   &.neon { color: color-mix(in srgb, var(--name-color) 40%, #fff); text-shadow: 0 0 2px var(--name-color), 0 0 6px var(--name-color); }
