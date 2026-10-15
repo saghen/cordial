@@ -23,9 +23,12 @@ interface Native {
   // the shell's image actions (src/shell/main.js): one copied to the clipboard (false when it isn't PNG or JPEG), one
   // saved
   image: { copy(url: string): Promise<boolean>; save(url: string): void }
+  // the code highlighter's worker source (dist/highlight.js)
+  highlighter(): Promise<string>
 }
 const native = (window as any).cordialNative as Native | undefined
 export const image = native?.image
+export const highlighterSource = native?.highlighter
 
 const requireModule = patch('getDiscordUtils(){', [
   /requireModule\(([\w$]+)\)\{(?=if\([\w$]+\.hasOwnProperty\(\1\))/,

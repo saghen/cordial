@@ -1,38 +1,29 @@
 // The composer's live preview: its text as HTML for the layer under the box, with the markers kept (dimmed) and the
 // text between them styled, as stock's editor shows markdown while typing. Only styles that keep each glyph's width
 // (colour, backgrounds, lines, a stroke for bold; italic is within a fraction of a pixel), so the layer stays under the
-// box's own text. Code blocks get a generic highlight (comments, strings, numbers, keywords): Discord's highlighter
-// loads only with its own UI.
+// box's own text. Code blocks are highlighted by the worker (api/highlight.ts): an edited block shows the lines it
+// highlighted before, by their text, until it answers, so only the changed line shows plain for a moment.
+
+import * as highlight from '../api/highlight'
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
 const escape = (text: string) => text.replace(/[&<>]/g, (character) => ESCAPES[character])
 const span = (name: string, html: string) => `<span class="${name}">${html}</span>`
 const marker = (text: string) => span('marker', escape(text))
 
-// a code block's words that light up in most languages
-const KEYWORDS = new Set(
-  (
-    'if else for while do return function fn func def class struct enum interface type impl trait const let var mut ' +
-    'pub use import from export as in of new this self super null nil None true false True False async await try ' +
-    'catch finally throw match case switch break continue static void int string bool float double char public ' +
-    'private protected package module where with yield lambda and or not is'
-  ).split(' '),
-)
-const CODE_TOKEN =
-  /(\/\/.*|#.*|\/\*[\s\S]*?\*\/|--.*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(\b\d[\w.]*\b)|([A-Za-z_]\w*)/g
+// lines highlighted before, by their text
+const KNOWN_LINES = 1000
+const known = new Map<string, string>()
 
-function highlight(code: string) {
-  let html = ''
-  let last = 0
-  for (const match of code.matchAll(CODE_TOKEN)) {
-    const [whole, comment, string, number, word] = match
-    if (word && !KEYWORDS.has(word)) continue
-    html += escape(code.slice(last, match.index))
-    const name = (comment && 'comment') || (string && 'string') || (number && 'number') || 'keyword'
-    html += span(name, escape(whole))
-    last = match.index + whole.length
+function code(language: string, body: string, rerender: () => void) {
+  const lines = highlight.lines(language, body, rerender)
+  const plain = body.split('\n')
+  if (lines) {
+    if (known.size > KNOWN_LINES) known.clear()
+    plain.forEach((line, i) => known.set(line, lines[i] ?? ''))
+    return lines.join('\n')
   }
-  return html + escape(code.slice(last))
+  return plain.map((line) => known.get(line) ?? escape(line)).join('\n')
 }
 
 // the inline styles, each a marker on both sides of text that's styled in turn; inline code, links and mentions are
@@ -81,15 +72,17 @@ function inline(text: string): string {
 }
 
 const CODE_BLOCK = /```([\w+-]*\n)?([\s\S]*?)```/g
+export const hasCode = (text: string) => text.search(CODE_BLOCK) >= 0
 
-// the box's text as the preview's HTML; a trailing newline gets a space after it, or the layer's last line collapses
-export function preview(text: string) {
+// the box's text as the preview's HTML (`rerender` again once a code block's highlight arrives); a trailing newline
+// gets a space after it, or the layer's last line collapses
+export function preview(text: string, rerender: () => void) {
   let html = ''
   let last = 0
   for (const match of text.matchAll(CODE_BLOCK)) {
     html += inline(text.slice(last, match.index))
     const language = match[1] ?? ''
-    html += span('code-block', marker('```' + language) + highlight(match[2]) + marker('```'))
+    html += span('code-block', marker('```' + language) + code(language.trim(), match[2], rerender) + marker('```'))
     last = match.index + match[0].length
   }
   html += inline(text.slice(last))

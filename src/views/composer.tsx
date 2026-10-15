@@ -17,7 +17,7 @@ import { Emoji } from '../components/emoji'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
 import { Button, IconButton } from '../primitives/button'
 import { Row } from '../primitives/row'
-import { preview } from './preview'
+import { hasCode, preview } from './preview'
 
 let box: HTMLTextAreaElement | undefined
 // the box focused, for what fills it from elsewhere (the message menu's Edit and Reply)
@@ -28,8 +28,10 @@ export function Composer() {
   const id = () => selectedChat()!
   let files!: HTMLInputElement
   let layer!: HTMLDivElement
+  // the preview under the text; with a code block, the whole box in monospace (a textarea has one font)
   const render = () => {
-    layer.innerHTML = preview(box!.value)
+    layer.innerHTML = preview(box!.value, render)
+    layer.parentElement!.toggleAttribute('data-code', hasCode(box!.value))
   }
   const complete = createAutocomplete(() => box!, state.channel)
 

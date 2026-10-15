@@ -10,6 +10,10 @@
   /* text on a coloured fill (buttons, badges, the new messages bar) */
   --on-color: #fff;
   --font: "gg sans", "Noto Sans", sans-serif; --mono: "gg mono", ui-monospace, monospace;
+  /* code's syntax colours (api/highlight.ts: Shiki's css-variables theme), the palette's own */
+  --code-foreground: var(--text); --code-token-keyword: #cba6f7; --code-token-string: #a6e3a1; --code-token-string-expression: #a6e3a1;
+  --code-token-constant: #fab387; --code-token-function: #89b4fa; --code-token-parameter: #eba0ac; --code-token-comment: #7f849c;
+  --code-token-punctuation: #9399b2; --code-token-link: var(--link);
   --shadow: 0 8px 16px #0006; --backdrop: #000a;
   /* what's behind: each surface sets it to its background, and what has to match it (rings cut out of an icon, the date
      label over its line, the typing line's fade, sticky headings) reads it */

@@ -1,7 +1,9 @@
 // Discord's markdown AST (api/messages.ts contentAST) to plain DOM: content never changes, so it needs no reactivity.
-// An unknown node type renders its text. Inline, as a reply preview shows it: one line, its blocks flattened.
+// An unknown node type renders its text. Inline, as a reply preview shows it: one line, its blocks flattened. Code
+// blocks are highlighted once the worker answers (api/highlight.ts).
 
 import { openLink } from '../api/channels'
+import * as highlight from '../api/highlight'
 import { emojiSrc } from '../api/pickers'
 import type { MarkdownNode } from '../api/types'
 import { Icon } from '../primitives/icon'
@@ -33,6 +35,17 @@ function create(tag: string, content: unknown) {
   return element
 }
 
+// a code block, plain until the highlighter's lines arrive
+function codeBlock(node: MarkdownNode) {
+  const pre = create('pre', node.content)
+  const show = (lines: highlight.Lines) => {
+    if (lines) pre.innerHTML = lines.join('\n')
+  }
+  const lines = highlight.lines(node.lang ?? '', text(node), show)
+  if (lines !== undefined) show(lines)
+  return pre
+}
+
 function renderNode(node: MarkdownNode): Node | string {
   switch (node.type) {
     case 'text':
@@ -43,7 +56,7 @@ function renderNode(node: MarkdownNode): Node | string {
     case 'heading':
       return create(`h${Math.min(3, node.level ?? 1)}`, node.content)
     case 'codeBlock':
-      return create('pre', node.content)
+      return codeBlock(node)
     case 'list': {
       const list = create(node.ordered ? 'ol' : 'ul', null)
       if (list instanceof HTMLOListElement && node.start != null) list.start = node.start

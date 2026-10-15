@@ -87,9 +87,13 @@ const image = {
   save: (url) => ipcRenderer.send('cordial:save', url),
 }
 
+// the code highlighter's worker source (api/highlight.ts), read when the first code block shows
+const highlighter = () => fs.promises.readFile(path.join(__dirname, '../../dist/highlight.js'), 'utf8')
+
 contextBridge.exposeInMainWorld('cordialNative', {
   cast,
   image,
+  highlighter,
   ...(process.env.CORDIAL_PRESENCE !== '0' ? { observeGames, rpc } : {}),
 })
 contextBridge.executeInMainWorld({

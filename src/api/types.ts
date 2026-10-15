@@ -229,6 +229,8 @@ export interface Interaction {
 export type MarkdownNode = {
   type: string
   content?: string | MarkdownNode[]
+  // a code block's language, as written after its ```
+  lang?: string
   level?: number
   ordered?: boolean
   start?: number
