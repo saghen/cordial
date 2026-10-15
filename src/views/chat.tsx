@@ -16,7 +16,7 @@ import { Emoji } from '../components/emoji'
 import { flash } from '../components/message/head'
 import { Message } from '../components/message/message'
 import { Viewer } from '../components/viewer'
-import { Button, IconButton } from '../primitives/button'
+import { Button } from '../primitives/button'
 import { contextMenu, Items } from '../primitives/menu'
 import { SearchInput } from '../primitives/search'
 import { focus } from './composer'
@@ -189,7 +189,9 @@ export function Chat() {
       <NewMessages channelId={channelId} onRead={() => setUnread(null)} />
       <Typing channelId={channelId} />
       <Show when={up() || loaded()?.hasMoreAfter}>
-        <IconButton class="jump" icon="chevron" title={text('JUMP_TO_PRESENT')} onClick={present} />
+        <Button variant="primary" class="jump" onClick={present}>
+          {text('JUMP_TO_PRESENT')}
+        </Button>
       </Show>
       {menu.view}
       <Viewer />

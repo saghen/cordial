@@ -8,10 +8,10 @@
   > button { padding: 0 12px; color: inherit; }
   > button:first-child { flex: 1; text-align: left; }
 }
-/* back to the present, at the messages' bottom right */
+/* back to the present: a pill floating over the messages' bottom middle, above who's typing */
 & > button.jump {
-  --icon-size: 28px; grid-area: chat; align-self: end; justify-self: end; z-index: 2; width: 48px; height: 48px;
-  margin: 0 28px 40px 0; border-radius: 50%; background: var(--bg-floating); box-shadow: 0 4px 8px #0006;
+  grid-area: chat; align-self: end; justify-self: center; z-index: 2; margin-bottom: 32px; padding: 6px 16px;
+  border-radius: 16px; box-shadow: var(--shadow); font-size: 14px; font-weight: 600;
 }
 /* who's typing: over the messages' bottom padding, the dots in line with +, a pulse running across them; scrolled up,
    on the background with a fade above, over what scrolls under it */
