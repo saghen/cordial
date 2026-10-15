@@ -1,23 +1,30 @@
 /* the profile card: beside what opened it (flipping to stay on screen), the banner across its top, the avatar over the
-   banner's edge ringed in the card's colour; themed (Nitro), the card in its two colours top to bottom */
+   banner's edge ringed in the card's colour */
 div.profile-card {
   inset: auto; position-area: right span-bottom; position-try-fallbacks: flip-inline, flip-block, flip-block flip-inline;
   width: 300px; max-height: 80vh; margin: 0 8px; padding: 0; overflow: hidden auto; user-select: text;
 }
 section.profile {
-  position: relative; display: grid; gap: 8px; padding: 0 16px 16px; font-size: 14px;
-  &.themed { --surface: color-mix(in srgb, var(--primary) 35%, var(--bg-deep)); background: linear-gradient(var(--surface), color-mix(in srgb, var(--accent) 35%, var(--bg-deep))); }
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 0 16px 16px; font-size: 14px;
+  /* themed (Nitro): the card in its two colours top to bottom, bordered in them */
+  &.themed {
+    --surface: color-mix(in srgb, var(--primary) 35%, var(--bg-deep)); border: 2px solid transparent; border-radius: inherit;
+    background: linear-gradient(var(--surface), color-mix(in srgb, var(--accent) 35%, var(--bg-deep))) padding-box, linear-gradient(var(--primary), var(--accent)) border-box;
+  }
   > .banner { height: 105px; margin: 0 -16px; background: var(--bg-raised) center / cover; }
-  > .avatar { margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
+  > .avatar { --status-size: 16px; --status-ring: 5px; margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
   > h2 { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 700; color: var(--text-strong); }
   > h2 > .emoji { width: 20px; height: 20px; }
   > .handle { margin-top: -8px; color: var(--text); }
   /* a profile effect's layers over the card from its top, at its width */
   > .effect { position: absolute; inset: 0 0 auto; width: 100%; pointer-events: none; }
   > .roles { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; }
+  /* a role: a pill on one line, outlined over the card */
   > .roles > li {
-    display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: var(--bg-raised); font-size: 12px;
-    &::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--role, var(--text-muted)); }
+    display: flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 6px; border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+    border-radius: 6px; font-size: 12px;
+    &::before { content: ""; flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--role, var(--text-muted)); }
+    > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   }
 }
 /* an activity: its heading over its image and lines */

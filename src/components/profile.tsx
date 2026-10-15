@@ -105,7 +105,13 @@ function Card(p: Shown) {
       <For each={activities()}>{(activity) => <Activity activity={activity} now={now()} />}</For>
       <Show when={roles().length}>
         <ul class="roles">
-          <For each={roles()}>{(role) => <li style={{ '--role': role.color ?? undefined }}>{role.name}</li>}</For>
+          <For each={roles()}>
+            {(role) => (
+              <li style={{ '--role': role.color ?? undefined }}>
+                <span>{role.name}</span>
+              </li>
+            )}
+          </For>
         </ul>
       </Show>
       <Show when={profile().effect} keyed>
