@@ -4,6 +4,10 @@
 import { For, omit } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
+// whether keys pressed there are typing: a field, or editable text (the composer's box)
+export const isField = (target: EventTarget | null) =>
+  target instanceof HTMLElement && (target.isContentEditable || Boolean(target.closest('input, textarea, select')))
+
 export function TextField(p: Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'children'> & { label: JSX.Element }) {
   const rest = omit(p, 'label')
   return (

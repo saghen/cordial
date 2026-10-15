@@ -36,13 +36,23 @@ function create(tag: string, content: unknown) {
   return element
 }
 
-// a code block, plain until the highlighter's lines arrive
+// a code block, plain until the highlighter's lines arrive: then its coloured stretches as spans
 function codeBlock(node: MarkdownNode) {
+  const code = text(node)
   const pre = create('pre', node.content)
-  const show = (lines: highlight.Lines) => {
-    if (lines) pre.innerHTML = lines.join('\n')
+  function show(lines: highlight.Lines) {
+    if (!lines) return
+    const parts: (Node | string)[] = []
+    let at = 0
+    for (const { from, to, colour } of highlight.colours(code, lines)) {
+      const span = create('span', code.slice(from, to))
+      span.style.color = `var(--code-${colour})`
+      parts.push(code.slice(at, from), span)
+      at = to
+    }
+    pre.replaceChildren(...parts, code.slice(at))
   }
-  const lines = highlight.lines(node.lang ?? '', text(node), show)
+  const lines = highlight.lines(node.lang ?? '', code, show)
   if (lines !== undefined) show(lines)
   return pre
 }

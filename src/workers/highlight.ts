@@ -1,6 +1,7 @@
 // The code highlighter, a worker in its own bundle (dist/highlight.js, started by api/highlight.ts): Shiki with VS
 // Code's grammars for the common languages (languages.ts names them), each loaded at its first block. A block comes
-// back as its lines' HTML in the css-variables theme's colours (`var(--code-token-*)`, app.css).
+// back as its lines' tokens: each a length and the css-variables theme's colour it takes (`token-keyword` for
+// `var(--code-token-keyword)`, app.css), '' for the text's own.
 
 import { createCssVariablesTheme, createHighlighterCore, type LanguageInput } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
@@ -54,26 +55,28 @@ const GRAMMARS: Record<Language, () => LanguageInput> = {
 const THEME = createCssVariablesTheme({ name: 'cordial', variablePrefix: '--code-' })
 const highlighter = createHighlighterCore({ themes: [THEME], langs: [], engine: createJavaScriptRegexEngine() })
 const loading = new Map<string, Promise<void>>()
-// the text's own colour, which the block already has: no span for it
-const FOREGROUND = 'var(--code-foreground)'
 
-const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
-const escape = (text: string) => text.replace(/[&<>]/g, (character) => ESCAPES[character])
+export type Token = [length: number, colour: string]
+// the text's own colour, which the block already has
+const FOREGROUND = 'var(--code-foreground)'
+const PREFIX = 'var(--code-'
 
 async function highlight(language: Language, code: string) {
   const shiki = await highlighter
   if (!loading.has(language)) loading.set(language, shiki.loadLanguage(GRAMMARS[language]()))
   await loading.get(language)
   const { tokens } = shiki.codeToTokens(code, { lang: language, theme: 'cordial' })
-  return tokens.map((line) =>
-    line
-      .map((token) =>
-        token.color === FOREGROUND
-          ? escape(token.content)
-          : `<span style="color:${token.color}">${escape(token.content)}</span>`,
-      )
-      .join(''),
-  )
+  // neighbours in one colour as one token
+  return tokens.map((line) => {
+    const merged: Token[] = []
+    for (const token of line) {
+      const colour = !token.color || token.color === FOREGROUND ? '' : token.color.slice(PREFIX.length, -1)
+      const last = merged.at(-1)
+      if (last?.[1] === colour) last[0] += token.content.length
+      else merged.push([token.content.length, colour])
+    }
+    return merged
+  })
 }
 
 // every request is answered: a block that fails shows plain, and its language is loaded again next time

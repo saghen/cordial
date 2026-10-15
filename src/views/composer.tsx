@@ -17,19 +17,32 @@ import { Emoji } from '../components/emoji'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
 import { createSuggestions, type Suggestion } from '../components/suggestions'
 import { Button, IconButton } from '../primitives/button'
+import { isField } from '../primitives/fields'
+import { keepLines, paint, replace, select, selection, valueOf } from './editable'
 import { hasCode, preview } from './preview'
 
-let box: HTMLTextAreaElement | undefined
-// the box focused, for what fills it from elsewhere (the message menu's Edit and Reply)
-export const focus = () => box?.focus()
+let box: HTMLDivElement | undefined
+// where the caret was when the box lost the focus (to a picker's search), for what goes in while it's away
+let saved: { from: number; to: number } | null = null
+// the box focused, its caret where it was left, else at the end (for what fills it from elsewhere: Edit, Reply, a
+// switch)
+export function focus() {
+  if (!box || document.activeElement === box) return
+  const end = valueOf(box).length
+  box.focus()
+  select(box, Math.min(saved?.from ?? end, end), Math.min(saved?.to ?? end, end))
+}
 // text put in at the caret (the member menu's Mention, the emoji picker), a space before it where it would join a
 // word; `insert` then focuses the box, `place` leaves the focus where it is (a picker kept open by Shift)
-export const canInsert = () => Boolean(box && !box.disabled)
+export const canInsert = () => Boolean(box?.isContentEditable)
 function place(text: string) {
-  if (!box || box.disabled) return
-  const before = box.value.slice(0, box.selectionStart)
-  box.setRangeText(before && !/\s$/.test(before) ? ` ${text}` : text, box.selectionStart, box.selectionEnd, 'end')
-  box.dispatchEvent(new Event('input', { bubbles: true }))
+  if (!box?.isContentEditable) return
+  const end = valueOf(box).length
+  const at = selection(box) ?? saved ?? { from: end, to: end }
+  const before = valueOf(box).slice(0, at.from)
+  const put = before && !/\s$/.test(before) ? ` ${text}` : text
+  replace(box, at.from, at.to, put)
+  saved = { from: at.from + put.length, to: at.from + put.length }
 }
 export function insert(text: string) {
   place(text)
@@ -43,11 +56,11 @@ export function Composer() {
   const id = () => chat()!
   let files!: HTMLInputElement
   let field!: HTMLDivElement
-  let layer!: HTMLDivElement
-  // the preview under the text; with a code block, the whole box in monospace (a textarea has one font)
+  // the preview over the box's own text; with a code block, the whole box in monospace
   function render() {
-    const value = box?.value ?? ''
-    layer.innerHTML = preview(value, render)
+    if (!box) return
+    const value = valueOf(box)
+    paint(box, preview(value, render))
     field.toggleAttribute('data-code', hasCode(value))
   }
   const complete = createAutocomplete(() => box!, state.channel)
@@ -58,9 +71,10 @@ export function Composer() {
     () => ({ channelId: chat(), editing: state.editing() }),
     ({ channelId }, prev) => {
       if (prev?.channelId && prev.channelId !== channelId) state.leave(prev.channelId)
-      box!.value = channelId ? state.textOf(channelId) : ''
+      box!.textContent = channelId ? state.textOf(channelId) : ''
+      saved = null
       render()
-      if (channelId) box!.focus()
+      if (channelId) focus()
     },
   )
 
@@ -68,9 +82,9 @@ export function Composer() {
   // open, no modifier but Shift
   function typeInto(e: KeyboardEvent) {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || !state.open()) return
-    if ((e.target as Element).closest('input, textarea, select, [contenteditable=true]')) return
+    if (isField(e.target)) return
     if (document.querySelector(':popover-open:not([popover=manual]), dialog[open]')) return
-    box!.focus()
+    focus()
   }
   document.addEventListener('keydown', typeInto)
   onCleanup(() => document.removeEventListener('keydown', typeInto))
@@ -79,11 +93,11 @@ export function Composer() {
     if (complete.key(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (state.send(id(), box!.value)) {
-        box!.value = ''
+      if (state.send(id(), valueOf(box!))) {
+        box!.textContent = ''
         render()
       }
-    } else if (e.key === 'ArrowUp' && !box!.value && !state.editing() && state.editLast(id())) e.preventDefault()
+    } else if (e.key === 'ArrowUp' && !valueOf(box!) && !state.editing() && state.editLast(id())) e.preventDefault()
   }
   // pasted files (a screenshot, a copied image) join the uploads, as + does
   function paste(e: ClipboardEvent) {
@@ -184,21 +198,23 @@ export function Composer() {
           hidden={!state.open()}
           onClick={() => files.click()}
         />
-        {/* the text styled as markdown, under the box's own (transparent) text */}
-        <div ref={layer} class="preview" aria-hidden="true" />
-        <textarea
+        <div
           ref={box}
           id="mc-composer"
-          rows={1}
-          disabled={!state.open()}
-          placeholder={state.placeholder()}
+          class="text"
+          role="textbox"
+          aria-multiline="true"
+          aria-placeholder={state.placeholder()}
+          aria-disabled={state.open() ? 'false' : 'true'}
+          contenteditable={state.open() ? 'plaintext-only' : 'false'}
           onInput={() => {
             complete.update()
-            state.input(id(), box!.value)
+            state.input(id(), valueOf(box!))
             render()
           }}
-          onScroll={() => {
-            layer.scrollTop = box!.scrollTop
+          onBeforeInput={keepLines}
+          onBlur={() => {
+            saved = selection(box!)
           }}
           onKeyDown={key}
           onPaste={paste}
@@ -272,7 +288,7 @@ function items(token: Token, channel: Channel): Suggestion[] {
   }))
 }
 
-function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Channel | undefined) {
+function createAutocomplete(box: () => HTMLElement, channel: () => Channel | undefined) {
   const [token, setToken] = createSignal<Token | null>(null)
   const list = createMemo(() => {
     const typed = token()
@@ -281,21 +297,22 @@ function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Chann
   })
   const suggestions = createSuggestions({ class: 'autocomplete', list, pick })
 
+  // the caret's offset in the box
+  const caret = () => selection(box())?.to ?? valueOf(box()).length
+
   // after each input: the token the caret ends
   function update() {
-    const textarea = box()
-    const match = TOKEN.exec(textarea.value.slice(0, textarea.selectionStart))
-    setToken(match ? { kind: match[1], query: match[2], at: textarea.selectionStart - match[2].length - 1 } : null)
+    const end = caret()
+    const match = TOKEN.exec(valueOf(box()).slice(0, end))
+    setToken(match ? { kind: match[1], query: match[2], at: end - match[2].length - 1 } : null)
     suggestions.reset()
   }
 
   function pick(item: Suggestion) {
-    const textarea = box()
     const at = token()?.at
     if (at === undefined) return
-    textarea.setRangeText(`${item.text} `, at, textarea.selectionStart, 'end')
-    textarea.dispatchEvent(new Event('input', { bubbles: true }))
-    textarea.focus()
+    box().focus()
+    replace(box(), at, caret(), `${item.text} `)
   }
 
   return { view: suggestions.view, update, key: suggestions.key }

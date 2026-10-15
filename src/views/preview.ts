@@ -1,98 +1,112 @@
-// The composer's live preview: its text as HTML for the layer under the box, with the markers kept (dimmed) and the
-// text between them styled, as stock's editor shows markdown while typing. Only styles that keep each glyph's width
-// (colour, backgrounds, lines, a stroke for bold; italic is within a fraction of a pixel), so the layer stays under the
-// box's own text. Code blocks are highlighted by the worker (api/highlight.ts): an edited block shows the lines it
-// highlighted before, by their text, until it answers, so only the changed line shows plain for a moment.
+// The composer's live preview, as stock's editor shows markdown while typing: where each style goes in the box's text,
+// its markers kept (dimmed), the text between them styled, code blocks in the highlighter's colours (api/highlight.ts;
+// an edited block shows the lines it highlighted before, by their text, until it answers, so only the changed line
+// shows plain for a moment). The box paints them as highlights over its own text (editable.ts), so no style can move a
+// glyph: italic, which only a font can draw, shows as its markers alone.
 
 import * as highlight from '../api/highlight'
 
-const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
-const escape = (text: string) => text.replace(/[&<>]/g, (character) => ESCAPES[character])
-const span = (name: string, html: string) => `<span class="${name}">${html}</span>`
-const marker = (text: string) => span('marker', escape(text))
+export interface Mark {
+  // a style (`bold`, `marker`), or a code colour (`code-token-keyword`)
+  name: string
+  from: number
+  to: number
+}
 
 // lines highlighted before, by their text
 const KNOWN_LINES = 1000
-const known = new Map<string, string>()
+const known = new Map<string, highlight.Token[]>()
 
-function code(language: string, body: string, rerender: () => void) {
+function code(language: string, body: string, at: number, rerender: () => void, marks: Mark[]) {
   const plain = body.split('\n')
   // what it highlighted, kept by line: shown for the same lines while a later version waits
-  function remember(lines: string[]) {
+  function remember(lines: highlight.Token[][]) {
     if (known.size > KNOWN_LINES) known.clear()
-    plain.forEach((line, i) => known.set(line, lines[i] ?? ''))
+    plain.forEach((line, i) => known.set(line, lines[i] ?? []))
   }
   const lines = highlight.lines(language, body, (ready) => {
     if (ready) remember(ready)
     rerender()
   })
-  if (lines === null) return escape(body)
-  if (lines) {
-    remember(lines)
-    return lines.join('\n')
-  }
-  return plain.map((line) => known.get(line) ?? escape(line)).join('\n')
+  if (lines === null) return
+  if (lines) remember(lines)
+  const shown = lines ?? plain.map((line) => known.get(line) ?? [])
+  for (const { from, to, colour } of highlight.colours(body, shown))
+    marks.push({ name: `code-${colour}`, from: at + from, to: at + to })
 }
 
-// the inline styles, each a marker on both sides of text that's styled in turn; inline code, links and mentions are
-// styled as they are
-const STYLES: { pattern: RegExp; name: string }[] = [
+// the inline styles, each a marker on both sides of text that's styled in turn (italic: only its markers); inline
+// code, links and mentions are styled as they are
+const STYLES: { pattern: RegExp; name?: string }[] = [
   { pattern: /\|\|(.+?)\|\|/s, name: 'spoiler' },
   { pattern: /\*\*(.+?)\*\*/s, name: 'bold' },
   { pattern: /__(.+?)__/s, name: 'underline' },
-  { pattern: /\*(?=\S)(.+?)(?<=\S)\*/s, name: 'italic' },
-  { pattern: /\b_(?=\S)(.+?)(?<=\S)_\b/s, name: 'italic' },
+  { pattern: /\*(?=\S)(.+?)(?<=\S)\*/s },
+  { pattern: /\b_(?=\S)(.+?)(?<=\S)_\b/s },
   { pattern: /~~(.+?)~~/s, name: 'strike' },
 ]
 const INLINE_CODE = /(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/
 const LINK = /https?:\/\/[^\s<]+[^\s<.,:;"')\]]/
 const MENTION = /(?<![\w@#])[@#][\w.-]+/
 
-// where a pattern first matches, and its HTML when it's the one used
+// where a pattern first matches, and its marks when it's the one used (at: the match's offset in the box)
 interface Found {
   index: number
   length: number
-  html(): string
+  mark(at: number, marks: Mark[]): void
 }
-function find(pattern: RegExp, text: string, html: (match: RegExpExecArray) => string): Found | undefined {
+function find(pattern: RegExp, text: string, mark: (match: RegExpExecArray, at: number, marks: Mark[]) => void) {
   const match = pattern.exec(text)
-  return match ? { index: match.index, length: match[0].length, html: () => html(match) } : undefined
+  return match ? { index: match.index, length: match[0].length, mark: mark.bind(null, match) } : undefined
 }
+const whole = (name: string) => (match: RegExpExecArray, at: number, marks: Mark[]) =>
+  marks.push({ name, from: at, to: at + match[0].length })
 
-function inline(text: string): string {
+// the marks of text that starts at `at` in the box
+function inline(text: string, at: number, marks: Mark[]) {
   // the earliest of everything that matches, then the rest after it
   const first = [
-    find(INLINE_CODE, text, ([, fence, code]) => span('code', marker(fence) + escape(code) + marker(fence))),
-    find(LINK, text, ([link]) => span('link', escape(link))),
-    find(MENTION, text, ([mention]) => span('mention', escape(mention))),
+    find(INLINE_CODE, text, ([all, fence], start, into) => {
+      into.push({ name: 'code', from: start, to: start + all.length })
+      into.push({ name: 'marker', from: start, to: start + fence.length })
+      into.push({ name: 'marker', from: start + all.length - fence.length, to: start + all.length })
+    }),
+    find(LINK, text, whole('link')),
+    find(MENTION, text, whole('mention')),
     ...STYLES.map((style) =>
-      find(style.pattern, text, ([whole, inner]) => {
-        const mark = whole.slice(0, (whole.length - inner.length) / 2)
-        return span(style.name, marker(mark) + inline(inner) + marker(mark))
+      find(style.pattern, text, ([all, inner], start, into) => {
+        const length = (all.length - inner.length) / 2
+        into.push({ name: 'marker', from: start, to: start + length })
+        if (style.name) into.push({ name: style.name, from: start + length, to: start + length + inner.length })
+        inline(inner, start + length, into)
+        into.push({ name: 'marker', from: start + all.length - length, to: start + all.length })
       }),
     ),
   ].reduce<Found | undefined>(
     (earliest, found) => (found && (!earliest || found.index < earliest.index) ? found : earliest),
     undefined,
   )
-  if (!first) return escape(text)
-  return escape(text.slice(0, first.index)) + first.html() + inline(text.slice(first.index + first.length))
+  if (!first) return
+  first.mark(at + first.index, marks)
+  inline(text.slice(first.index + first.length), at + first.index + first.length, marks)
 }
 
 const CODE_BLOCK = /```([\w+-]*\n)?([\s\S]*?)```/g
 export const hasCode = (text: string) => text.search(CODE_BLOCK) >= 0
 
-// the box's text as the preview's HTML (`rerender` again once a code block's highlight arrives); a trailing newline
-// gets a space after it, or the layer's last line collapses
+// the box's text's marks (`rerender` again once a code block's highlight arrives)
 export function preview(text: string, rerender: () => void) {
-  let html = ''
+  const marks: Mark[] = []
   let last = 0
   for (const match of text.matchAll(CODE_BLOCK)) {
-    html += inline(text.slice(last, match.index))
-    const language = match[1] ?? ''
-    html += marker('```' + language) + code(language.trim(), match[2], rerender) + marker('```')
-    last = match.index + match[0].length
+    inline(text.slice(last, match.index), last, marks)
+    const opening = 3 + (match[1]?.length ?? 0)
+    marks.push({ name: 'marker', from: match.index, to: match.index + opening })
+    code((match[1] ?? '').trim(), match[2], match.index + opening, rerender, marks)
+    const end = match.index + match[0].length
+    marks.push({ name: 'marker', from: end - 3, to: end })
+    last = end
   }
-  html += inline(text.slice(last))
-  return text.endsWith('\n') ? `${html} ` : html
+  inline(text.slice(last), last, marks)
+  return marks
 }

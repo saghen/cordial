@@ -17,6 +17,7 @@ import { flash } from '../components/message/head'
 import { Message } from '../components/message/message'
 import { Viewer } from '../components/viewer'
 import { Button } from '../primitives/button'
+import { isField } from '../primitives/fields'
 import { contextMenu, Items } from '../primitives/menu'
 import { SearchInput } from '../primitives/search'
 import { focus } from './composer'
@@ -138,7 +139,7 @@ export function Chat() {
     const target = e.target as Element
     if (e.key !== 'Escape' || e.defaultPrevented || !id || document.fullscreenElement) return
     if (document.querySelector(':popover-open:not([popover=manual]), dialog[open]')) return
-    if (target.closest('input, textarea, [contenteditable=true]') && target.id !== 'mc-composer') return
+    if (isField(target) && target.id !== 'mc-composer') return
     if (!cancel(id)) {
       messages.readByKey(id)
       setUnread(null)

@@ -23,17 +23,13 @@ section.composer {
     column-gap: 16px; align-items: start; padding: 0 16px; border-radius: 8px; background: var(--bg-raised);
     &.editing { box-shadow: 0 0 0 2px var(--accent); }
     &.editing.delete { box-shadow: 0 0 0 2px var(--danger); }
-    /* the text over its preview (preview.ts): the same box and wrapping, the text itself transparent but for its caret */
-    > :is(textarea, .preview) {
-      grid-area: text; max-height: 50vh; padding: 16px 0; white-space: pre-wrap; overflow-wrap: break-word; scrollbar-gutter: stable;
+    /* the text (editable.ts), its placeholder while empty */
+    > .text {
+      grid-area: text; position: relative; min-height: 56px; max-height: 50vh; padding: 16px 0; overflow-y: auto; outline: 0;
+      white-space: pre-wrap; overflow-wrap: break-word; user-select: text; scrollbar-gutter: stable;
     }
-    > textarea {
-      position: relative; min-height: 56px; resize: none; field-sizing: content; border: 0; outline: 0; background: none;
-      color: transparent; caret-color: var(--text); font: inherit;
-    }
-    > .preview { overflow: hidden; pointer-events: none; }
-    &[data-code] > :is(textarea, .preview) { font: 14px/1.375 var(--mono); }
-    > textarea::placeholder { color: var(--text-faint); }
+    > .text:empty::before { content: attr(aria-placeholder); position: absolute; color: var(--text-faint); pointer-events: none; }
+    &[data-code] > .text { font: 14px/1.375 var(--mono); }
     > button { grid-area: emoji; width: 24px; height: 24px; margin-top: 16px; }
     > button.attach { grid-area: attach; }
     > button.gif-button { grid-area: gif; }
@@ -54,15 +50,24 @@ ul.uploads {
 }
 /* autocomplete (components/suggestions.tsx): over the messages, as wide as the composer, just above it */
 menu.autocomplete { position-anchor: --composer; width: anchor-size(width); margin: 0 0 8px; }
-/* the preview's markdown: its markers dimmed, styles that keep each glyph's width (a stroke for bold; gg sans' italic
-   is within a fraction of a pixel of its upright over a phrase); a code block highlighted (api/highlight.ts) */
-section.composer .preview {
-  .marker { color: var(--text-faint); }
-  .bold { -webkit-text-stroke: 0.035em currentColor; }
-  .italic { font-style: italic; }
-  .underline { text-decoration: underline; }
-  .strike { text-decoration: line-through; }
-  :is(.spoiler, .code) { border-radius: 4px; background: var(--bg-deep); }
-  .link { color: var(--link); }
-  .mention { border-radius: 3px; background: var(--mention-bg); color: var(--mention-fg); }
+/* the preview's markdown, highlights over the box's own text (preview.ts, editable.ts): only colours, backgrounds,
+   lines and shadows can be painted so, never a glyph moved. Its markers dimmed, bold as a shadow beside each glyph; a
+   code block in the highlighter's colours (api/highlight.ts) */
+section.composer .text {
+  &::highlight(composer-marker) { color: var(--text-faint); }
+  &::highlight(composer-bold) { text-shadow: 0.04em 0 currentColor; }
+  &::highlight(composer-underline) { text-decoration: underline; }
+  &::highlight(composer-strike) { text-decoration: line-through; }
+  &::highlight(composer-spoiler), &::highlight(composer-code) { background-color: var(--bg-deep); }
+  &::highlight(composer-link) { color: var(--link); }
+  &::highlight(composer-mention) { background-color: var(--mention-bg); color: var(--mention-fg); }
+  &::highlight(composer-code-token-keyword) { color: var(--code-token-keyword); }
+  &::highlight(composer-code-token-string) { color: var(--code-token-string); }
+  &::highlight(composer-code-token-string-expression) { color: var(--code-token-string-expression); }
+  &::highlight(composer-code-token-constant) { color: var(--code-token-constant); }
+  &::highlight(composer-code-token-function) { color: var(--code-token-function); }
+  &::highlight(composer-code-token-parameter) { color: var(--code-token-parameter); }
+  &::highlight(composer-code-token-comment) { color: var(--code-token-comment); }
+  &::highlight(composer-code-token-punctuation) { color: var(--code-token-punctuation); }
+  &::highlight(composer-code-token-link) { color: var(--code-token-link); }
 }

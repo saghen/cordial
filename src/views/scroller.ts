@@ -10,6 +10,7 @@ import { onCleanup } from 'solid-js'
 
 import * as messages from '../api/messages'
 import type { Id } from '../api/types'
+import { isField } from '../primitives/fields'
 
 const REPORT_DEBOUNCE_MS = 200
 // how long a scroll counts as the reader's after their wheel, key or touch (a wheel's smooth scroll runs on after it)
@@ -141,7 +142,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   )
   // keys in a field are the field's
   function key(e: KeyboardEvent) {
-    if ((e.target as Element).closest('input, textarea, [contenteditable=true]')) return
+    if (isField(e.target)) return
     if (/^(PageDown|ArrowDown|End| )$/.test(e.key)) down = true
     else if (/^(PageUp|ArrowUp|Home)$/.test(e.key)) down = false
     else return

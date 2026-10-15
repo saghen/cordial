@@ -1,11 +1,29 @@
 // Code blocks' syntax highlighting (ours: stock's is highlight.js, loaded with its UI): Shiki in a worker
 // (src/workers/highlight.ts), started at the first block from the source the shell reads. A block's lines come back as
-// HTML, cached by language and code; null for a language it doesn't know, or when the worker fails.
+// tokens, cached by language and code; null for a language it doesn't know, or when the worker fails.
 
 import { highlighterSource } from '../adapter/native'
+import type { Token } from '../workers/highlight'
 import { language as known } from '../workers/languages'
 
-export type Lines = string[] | null
+export type { Token }
+
+export type Lines = Token[][] | null
+
+// the coloured stretches of a block's code, by offset in it (a colour: `token-keyword`, app.css's --code-token-*)
+export function colours(code: string, lines: Token[][]) {
+  const found: { from: number; to: number; colour: string }[] = []
+  let start = 0
+  code.split('\n').forEach((line, i) => {
+    let at = start
+    for (const [length, colour] of lines[i] ?? []) {
+      if (colour) found.push({ from: at, to: Math.min(at + length, start + line.length), colour })
+      at += length
+    }
+    start += line.length + 1
+  })
+  return found
+}
 
 // the blocks highlighted last, oldest first
 const CACHE_SIZE = 200
