@@ -108,7 +108,7 @@ export function Chat() {
     <div
       class="messages"
       onScroll={() => {
-        const below = view.scrollHeight - view.clientHeight - view.scrollTop
+        const below = scroller.fromBottom()
         setUp(below > view.clientHeight)
         view.classList.toggle('up', below > 1)
       }}
@@ -125,19 +125,7 @@ export function Chat() {
     if (loaded()?.hasMoreAfter) {
       jumping = true
       messages.jumpToPresent(channelId()!)
-    } else {
-      view.scrollTo({ top: view.scrollHeight, behavior: 'smooth' })
-      // rows below can settle taller while it scrolls: the rest of the way at its end, if it ended near
-      view.addEventListener(
-        'scrollend',
-        () => {
-          if (view.scrollHeight - view.clientHeight - view.scrollTop >= view.clientHeight) return
-          view.scrollTop = view.scrollHeight
-          scroller.moved()
-        },
-        { once: true },
-      )
-    }
+    } else scroller.toBottom(true)
   }
 
   // Escape, as stock's, anywhere but another field or an open menu: the edit or the reply dropped, else the channel
@@ -188,13 +176,12 @@ export function Chat() {
         id === prev.id &&
         last?.id !== prev.list.at(-1)?.id &&
         Boolean(last && messages.own(last)) &&
-        view.scrollHeight - view.clientHeight - view.scrollTop <= view.clientHeight
+        scroller.fromBottom() <= view.clientHeight
       scroller.rendered(id !== prev?.id, sent)
       if (id && ready) jumped(id)
       if (jumping && !loaded()?.hasMoreAfter) {
         jumping = false
-        view.scrollTop = view.scrollHeight
-        scroller.moved()
+        scroller.toBottom()
       }
       if (id && ready) view.dataset.id = id
       else delete view.dataset.id

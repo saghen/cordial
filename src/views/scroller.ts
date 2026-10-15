@@ -6,6 +6,8 @@
 // Like stock's list, it reports its position, turns automatic acks on for its channel and loads more history near
 // either end: without a UI nothing else does.
 
+import { onCleanup } from 'solid-js'
+
 import * as messages from '../api/messages'
 import type { Id } from '../api/types'
 
@@ -68,7 +70,10 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       return
     }
     const row = place && list.querySelector<HTMLElement>(`:scope > [data-id="${place.id}"]`)
-    if (!place || !row) return note()
+    if (!place || !row) {
+      note()
+      return
+    }
     const moved = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top - place.offset
     if (Math.abs(moved) >= 1) scroller.scrollTop += moved
   }
@@ -102,10 +107,12 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   }
 
   // which way the reader is going, and when they last moved the list, from the wheel, keys, touch and the scrollbar:
-  // scroll events also come from anchoring, the list changing and jumps, which leave the noted place as it is. A wheel
-  // at either end doesn't scroll, but may still need more history
+  // scroll events also come from anchoring, the list changing and jumps, which leave the noted place as it is, but a
+  // smooth scroll to the bottom is followed to its end. A wheel at either end doesn't scroll, but may still need more
+  // history
   let down = false
   let dragging = false
+  let smooth = false
   let last = 0
   let input = -Infinity
   scroller.addEventListener(
@@ -113,16 +120,19 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     (e) => {
       down = e.deltaY > 0
       input = e.timeStamp
+      smooth = false
       update()
     },
     { passive: true },
   )
   scroller.addEventListener('pointerdown', () => {
     dragging = true
+    smooth = false
   })
-  addEventListener('pointerup', () => {
+  const released = () => {
     dragging = false
-  })
+  }
+  addEventListener('pointerup', released)
   scroller.addEventListener(
     'touchmove',
     (e) => {
@@ -130,16 +140,20 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     },
     { passive: true },
   )
-  addEventListener('keydown', (e) => {
+  // keys in a field are the field's
+  function key(e: KeyboardEvent) {
+    if ((e.target as Element).closest('input, textarea, [contenteditable=true]')) return
     if (/^(PageDown|ArrowDown|End| )$/.test(e.key)) down = true
     else if (/^(PageUp|ArrowUp|Home)$/.test(e.key)) down = false
     else return
     input = e.timeStamp
-  })
+    smooth = false
+  }
+  addEventListener('keydown', key)
   scroller.addEventListener(
     'scroll',
     (e) => {
-      if (dragging || e.timeStamp - input < INPUT_MS) note()
+      if (smooth || dragging || e.timeStamp - input < INPUT_MS) note()
       if (dragging) down = scroller.scrollTop > last
       last = scroller.scrollTop
       clearTimeout(timer)
@@ -161,6 +175,25 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
   })
   resized.observe(scroller)
   resized.observe(list)
+  // rows below can settle taller while a smooth scroll runs: the rest of the way at its end, if it ended near
+  scroller.addEventListener('scrollend', () => {
+    if (!smooth) return
+    smooth = false
+    if (fromBottom() < scroller.clientHeight) toBottom()
+  })
+
+  function toBottom() {
+    scroller.scrollTop = scroller.scrollHeight
+    note()
+  }
+
+  onCleanup(() => {
+    removeEventListener('pointerup', released)
+    removeEventListener('keydown', key)
+    resized.disconnect()
+    clearTimeout(timer)
+    if (acking) messages.automaticAck(acking, false)
+  })
 
   return {
     // after each render; a switch to another channel starts at the bottom, as does a render asked to go there
@@ -175,6 +208,14 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       update()
     },
     // after the view scrolls the list itself: where it stands now (a jump: its target held as rows around it settle)
-    moved: (row?: HTMLElement) => note(row),
+    moved: note,
+    fromBottom,
+    // the newest message in view: at once, or smoothly, followed as rows settle on the way
+    toBottom(smoothly = false) {
+      if (smoothly && fromBottom() >= 1) {
+        smooth = true
+        scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
+      } else toBottom()
+    },
   }
 }
