@@ -93,7 +93,8 @@ export function Message(p: {
       </Show>
       {p.run}
       <Show when={!p.collapsed}>
-        {/* built again for each version of the message, inside the row that stays */}
+        {/* built again for each version of the message, inside the row that stays; but its files, stickers and
+            embeds, which a new version (a reaction, an edit) keeps unless they change: a video or a sound plays on */}
         <Show when={message()} keyed>
           {(record) => (
             <>
@@ -108,9 +109,15 @@ export function Message(p: {
               <For each={record.messageSnapshots}>
                 {(snapshot) => <Forward message={snapshot.message} channelId={record.channel_id} />}
               </For>
-              <For each={record.attachments}>{(file) => <Attachment file={file} />}</For>
-              <For each={record.stickerItems}>{(sticker) => <Sticker sticker={sticker} />}</For>
-              <For each={record.embeds}>{(embed) => <Embed embed={embed} />}</For>
+            </>
+          )}
+        </Show>
+        <For each={message().attachments}>{(file) => <Attachment file={file} />}</For>
+        <For each={message().stickerItems}>{(sticker) => <Sticker sticker={sticker} />}</For>
+        <For each={message().embeds}>{(embed) => <Embed embed={embed} />}</For>
+        <Show when={message()} keyed>
+          {(record) => (
+            <>
               <Show when={record.reactions?.length}>
                 <Reactions message={record} onAdd={p.onReact} />
               </Show>
