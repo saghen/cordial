@@ -44,15 +44,15 @@ export function Media(p: { media: Source; box: Box; href?: string }) {
 }
 
 // a video at its box's size (when it's known): with controls, or a GIF's (muted, looping, playing while the window is
-// focused)
-export function Clip(p: { src: string; media: Source; poster?: string; gif?: boolean }) {
+// focused, opening in the viewer)
+export function Clip(p: { src: string; media: Source; poster?: string; gif?: boolean; url?: string }) {
   const { width, height } = p.media.width ? fit(p.media, ...BOX.media) : { width: undefined, height: undefined }
   let video!: HTMLVideoElement
   if (p.gif) createEffect(windowFocused, (focused) => void (focused ? video.play() : video.pause()))
   return p.gif ? (
     <video
       ref={video}
-      class="media"
+      class="media zoom"
       muted
       loop
       playsinline
@@ -60,6 +60,7 @@ export function Clip(p: { src: string; media: Source; poster?: string; gif?: boo
       height={height}
       poster={p.poster}
       src={p.src}
+      onClick={() => viewer.open(p.src, p.url ?? p.src, true)}
     />
   ) : (
     <video class="media" controls preload="metadata" width={width} height={height} src={p.src} />

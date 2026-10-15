@@ -24,6 +24,7 @@ export function Embed(p: { embed: EmbedRecord }) {
           media={embed.video}
           poster={embed.thumbnail?.proxyURL}
           gif={embed.type === 'gifv'}
+          url={embed.url}
         />
       )
     const media = embed.image ?? embed.thumbnail
