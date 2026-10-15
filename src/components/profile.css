@@ -4,18 +4,23 @@ div.profile-card {
   inset: auto; position-area: right span-bottom; position-try-fallbacks: flip-inline, flip-block, flip-block flip-inline;
   width: 300px; max-height: 80vh; margin: 0 8px; padding: 0; overflow: hidden auto; user-select: text;
 }
+/* themed, stock's 300 px inside its 2 px border */
+div.profile-card:has(> .themed) { width: 304px; }
 section.profile {
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 0 16px 16px; font-size: 14px;
-  /* themed (Nitro): the card in its two colours top to bottom, bordered in them */
+  /* themed (Nitro), as stock's: its two colours from the banner's foot down, bare in the border and under 60 % black
+     inside; the effect clipped to the card */
   &.themed {
-    --surface: color-mix(in srgb, var(--primary) 35%, var(--bg-deep)); border: 2px solid transparent; border-radius: inherit;
-    background: linear-gradient(var(--surface), color-mix(in srgb, var(--accent) 35%, var(--bg-deep))) padding-box, linear-gradient(var(--primary), var(--accent)) border-box;
+    --surface: color-mix(in srgb, var(--primary) 40%, #000); overflow: hidden; border: 2px solid transparent; border-radius: inherit;
+    background: linear-gradient(#0009 0 0) padding-box, linear-gradient(var(--primary) 105px, var(--accent)) border-box;
   }
   > .banner { height: 105px; margin: 0 -16px; background: var(--bg-raised) center / cover; }
   > .avatar { --status-size: 16px; --status-ring: 5px; margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
   > h2 { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 700; color: var(--text-strong); }
   > h2 > .emoji { width: 20px; height: 20px; }
   > .handle { margin-top: -8px; color: var(--text); }
+  /* the bio, its line breaks kept as a message's are */
+  > .markdown { white-space: pre-wrap; overflow-wrap: anywhere; }
   /* a profile effect's layers over the card from its top, at its width */
   > .effect { position: absolute; inset: 0 0 auto; width: 100%; pointer-events: none; }
   > .roles { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; }

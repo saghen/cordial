@@ -5,6 +5,7 @@
 import { createSignal } from 'solid-js'
 
 import { A, S } from '../adapter/needs'
+import { windowFocused } from './hooks'
 import { $ } from './store'
 import { ActivityType, type Emoji, type Id, type MarkdownNode, type User } from './types'
 import { text } from './strings'
@@ -66,9 +67,22 @@ export function get(userId: Id, guildId: Id | null | undefined): Profile {
   }
 }
 
-// profile effects' layers by product: those that play from the start and loop (the rest come in later, now and
-// then: left out). Stock's fetch and store for them load with its UI: its request, replayed once per product
-const [effects, setEffects] = createSignal<Record<Id, string[]>>({})
+// a profile effect, as stock plays it: its layers on their timeline (ms: each from its start, a looping one to the end
+// of the longest), once, then its still frame; only the still frame while the window isn't focused or motion is
+// reduced. Stock's fetch and store for them load with its UI: its request, replayed once per product
+export interface Effect {
+  layers: { src: string; from: number; to: number }[]
+  end: number
+  still: string
+}
+interface Layer {
+  src: string
+  start: number
+  duration: number
+  loop: boolean
+  zIndex?: number
+}
+const [effects, setEffects] = createSignal<Record<Id, Effect>>({})
 const asked = new Set<Id>()
 export function fetchEffect(skuId: Id) {
   if (asked.has(skuId)) return
@@ -80,13 +94,22 @@ export function fetchEffect(skuId: Id) {
       rejectWithError: true,
     })
     .then((response) => {
-      const layers = (response.body.items?.[0]?.effects ?? []) as { src: string; start: number; loop: boolean }[]
-      const playing = layers.filter((layer) => layer.start === 0 && layer.loop).map((layer) => layer.src)
-      setEffects((shown) => ({ ...shown, [skuId]: playing }))
+      const item = response.body.items?.[0]
+      const layers = (item?.effects ?? []) as Layer[]
+      const end = Math.max(0, ...layers.map((layer) => layer.start + layer.duration))
+      const effect = {
+        layers: layers
+          .toSorted((left, right) => (left.zIndex ?? 0) - (right.zIndex ?? 0))
+          .map((layer) => ({ src: layer.src, from: layer.start, to: layer.loop ? end : layer.start + layer.duration })),
+        end,
+        still: (item?.staticFrameSrc ?? item?.reducedMotionSrc) as string,
+      }
+      setEffects((shown) => ({ ...shown, [skuId]: effect }))
     })
     .catch(() => undefined)
 }
-export const effectLayers = (skuId: Id) => effects()[skuId] ?? []
+export const effect = (skuId: Id) => effects()[skuId] as Effect | undefined
+export const effectPlays = () => windowFocused() && !$.Accessibility.useReducedMotion
 
 // a bio's markdown, as stock's: links and emoji
 export const bioAST = (bio: string) =>

@@ -222,6 +222,8 @@ storeNeed(
 )
 storeNeed('SelfPresence', 'SelfPresenceStore', 'getStatus')
 storeNeed('LocalActivity', 'LocalActivityStore', 'getPrimaryActivity')
+// the user's reduced motion setting: a property, so no method to check
+storeNeed('Accessibility', 'AccessibilityStore')
 storeNeed('DefaultRoute', 'DefaultRouteStore')
 needs.push({
   name: 'S.DefaultRoute.defaultRoute',

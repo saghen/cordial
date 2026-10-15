@@ -174,6 +174,7 @@ export interface Stores {
   PrivateChannelReadState: FluxStore & { getUnreadPrivateChannelIds(): Id[] }
   // this client's own activities (games, Rich Presence, a custom status): { type, name, state, details }
   LocalActivity: FluxStore & { getPrimaryActivity(): AnyRecord | null }
+  Accessibility: FluxStore & { useReducedMotion: boolean }
   // activities: { type, name, state }; type 4 is the custom status
   Presence: FluxStore & { getStatus(userId: Id): string; getActivities(userId: Id): AnyRecord[] }
   // profiles as fetched (/users/:id/profile): { bio, pronouns, banner, accentColor, themeColors, fetchEndedAt, ... },

@@ -73,6 +73,10 @@ function Card(p: Shown) {
   const custom = () => profiles.customStatus(p.user.id)
   const activities = () => profiles.activities(p.user.id)
   const roles = () => profiles.roles(p.user, p.guildId)
+  function effect() {
+    const id = profile().effect
+    return id ? profiles.effect(id) : undefined
+  }
   createEffect(
     () => profile().effect,
     (effect) => {
@@ -124,11 +128,28 @@ function Card(p: Shown) {
           </For>
         </ul>
       </Show>
-      <Show when={profile().effect} keyed>
-        {(effect) => <For each={profiles.effectLayers(effect)}>{(src) => <img class="effect" src={src} alt="" />}</For>}
+      <Show when={effect()} keyed>
+        {(effect) => <Effect effect={effect} />}
       </Show>
     </section>
   )
+}
+
+// stock's wait before an effect's first frame
+const EFFECT_DELAY_MS = 500
+
+// a profile effect over the card: each layer in its stretch of the timeline (an image mounting at its start plays from
+// its first frame), then its still frame, as are shown alone while it can't play
+function Effect(p: { effect: profiles.Effect }) {
+  const [time, setTime] = createSignal(-EFFECT_DELAY_MS)
+  const bounds = new Set([...p.effect.layers.flatMap((layer) => [layer.from, layer.to]), p.effect.end])
+  const timers = [...bounds].map((at) => setTimeout(() => setTime(at), at + EFFECT_DELAY_MS))
+  onCleanup(() => timers.forEach(clearTimeout))
+  function shown() {
+    if (!profiles.effectPlays() || time() >= p.effect.end) return [p.effect.still]
+    return p.effect.layers.filter((layer) => layer.from <= time() && time() < layer.to).map((layer) => layer.src)
+  }
+  return <For each={shown()}>{(src) => <img class="effect" src={src} alt="" />}</For>
 }
 
 // what they're doing: its heading, its image, its lines, and its clock (a song's progress through its length)
