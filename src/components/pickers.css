@@ -40,4 +40,5 @@ menu.gif-picker {
   .gif-columns { columns: 2; column-gap: 8px; }
   .gif { display: block; width: 100%; margin-bottom: 8px; padding: 0; border-radius: 8px; overflow: hidden; break-inside: avoid; }
   .gif > :is(img, video) { display: block; width: 100%; height: auto; }
+  .gif:hover > :is(img, video) { filter: brightness(1.15); }
 }
