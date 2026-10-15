@@ -108,8 +108,9 @@ export function Chat() {
     <div
       class="messages"
       onScroll={() => {
-        setUp(view.scrollTop < -view.clientHeight)
-        view.classList.toggle('up', view.scrollTop < -1)
+        const below = view.scrollHeight - view.clientHeight - view.scrollTop
+        setUp(below > view.clientHeight)
+        view.classList.toggle('up', below > 1)
       }}
     >
       <div>
@@ -124,7 +125,19 @@ export function Chat() {
     if (loaded()?.hasMoreAfter) {
       jumping = true
       messages.jumpToPresent(channelId()!)
-    } else view.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      view.scrollTo({ top: view.scrollHeight, behavior: 'smooth' })
+      // rows below can settle taller while it scrolls: the rest of the way at its end, if it ended near
+      view.addEventListener(
+        'scrollend',
+        () => {
+          if (view.scrollHeight - view.clientHeight - view.scrollTop >= view.clientHeight) return
+          view.scrollTop = view.scrollHeight
+          scroller.moved()
+        },
+        { once: true },
+      )
+    }
   }
 
   // Escape, as stock's, anywhere but another field or an open menu: the edit or the reply dropped, else the channel
@@ -157,12 +170,13 @@ export function Chat() {
       const row = view.querySelector<HTMLElement>(`[data-id="${jump.id}"]`)
       if (!row) return
       row.scrollIntoView({ block: jump.top ? 'start' : 'center' })
+      scroller.moved(row)
       if (jump.flash) flash(row)
     })
   }
 
   // after the rows are in the DOM: the scroller, and the list's `data-id` (the channel whose messages it shows)
-  const rendered = createScroller(view, channelId)
+  const scroller = createScroller(view, channelId)
   createEffect(
     () => ({ id: channelId(), list: list(), ready: loaded()?.ready }),
     ({ id, list, ready }, prev) => {
@@ -174,12 +188,13 @@ export function Chat() {
         id === prev.id &&
         last?.id !== prev.list.at(-1)?.id &&
         Boolean(last && messages.own(last)) &&
-        view.scrollTop >= -view.clientHeight
-      rendered(id !== prev?.id, sent)
+        view.scrollHeight - view.clientHeight - view.scrollTop <= view.clientHeight
+      scroller.rendered(id !== prev?.id, sent)
       if (id && ready) jumped(id)
       if (jumping && !loaded()?.hasMoreAfter) {
         jumping = false
-        view.scrollTop = 0
+        view.scrollTop = view.scrollHeight
+        scroller.moved()
       }
       if (id && ready) view.dataset.id = id
       else delete view.dataset.id

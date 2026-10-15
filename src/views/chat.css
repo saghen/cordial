@@ -1,7 +1,9 @@
-/* the messages: column-reverse keeps the view at the bottom; scrolled up, scroller.ts keeps the reader's place (alone:
-   Chromium's scroll anchoring corrected the same shifts again) */
-.messages { grid-area: chat; overflow-y: auto; overflow-anchor: none; display: flex; flex-direction: column-reverse; }
-.messages > div { padding: 16px 0 24px; }
+/* the messages, oldest first, at the bottom while they're fewer than fill the view; the browser's scroll anchoring
+   keeps the reader's place (scroller.ts) */
+.messages { grid-area: chat; overflow-y: auto; display: flex; flex-direction: column; }
+.messages > div { margin-top: auto; padding: 16px 0 24px; }
+/* the rows are what's anchored, not what changes inside them */
+.messages article * { overflow-anchor: none; }
 /* the new messages bar, across the messages' top */
 & > div.new-messages {
   grid-area: chat; align-self: start; z-index: 2; display: flex; margin: 0 16px; border-radius: 0 0 8px 8px; background: var(--accent);
