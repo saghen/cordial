@@ -28,10 +28,10 @@
   :is(.name, .badges, .stream-full), > :is(.call-bar, .call-expand) { opacity: var(--ui); transition: opacity .3s; }
   &.idle:not(:has(:focus-visible)) :is(button, .name) { pointer-events: none; }
 }
-/* the call's buttons in the middle below the tiles: round, red while muted, deafened, to stop watching or to
-   disconnect; Join as text */
+/* the call's buttons in the middle below the tiles, as wide as they are (full screen, a full-width bar would cover the
+   stream's own buttons): round, red while muted, deafened, to stop watching or to disconnect; Join as text */
 section.call > .call-bar {
-  position: absolute; inset: auto 0 16px; display: flex; justify-content: center; gap: 8px; font-size: 14px;
+  position: absolute; inset: auto 0 16px; width: fit-content; margin-inline: auto; display: flex; gap: 8px; font-size: 14px;
   > .icon-button { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-floating); color: var(--text-strong); }
   > .icon-button:hover { filter: brightness(1.2); }
   > :is(.call-mute, .call-deafen).on, > :is(.call-stop-watching, .call-disconnect) { background: var(--danger); color: var(--on-color); }
