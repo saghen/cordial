@@ -22,6 +22,48 @@ export const nameOf = (user?: AnyRecord | null, nick?: string | null): string =>
 export const displayName = (user: User | undefined, guildId?: Id | null) =>
   nameOf(user, user && member(user, guildId)?.nick)
 
+// Nitro's display name styles: stock's fonts by id, as its stylesheet's @font-face rules name them (the rest have none),
+// and its effects
+const NAME_FONTS: Record<number, string> = {
+  3: 'Sakura',
+  4: 'Jellybean',
+  6: 'Modern',
+  7: 'Medieval',
+  8: '"8Bit"',
+  10: 'Vampyre',
+  12: 'Tempo',
+  13: '"Monkey Bars"',
+  14: 'Mainframe',
+  15: 'Headbang',
+  16: 'Journal',
+}
+const NAME_EFFECTS: Record<number, string> = {
+  1: 'solid',
+  2: 'gradient',
+  3: 'neon',
+  4: 'toon',
+  5: 'pop',
+  6: 'glow',
+  7: 'prism',
+  8: 'gummy',
+}
+const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`
+
+// a name's style as stock draws it: the font everywhere; the effect in its colours outside servers and on the profile
+// (in a server the role's colour shows instead)
+export function nameStyle(user: User, effect: boolean) {
+  const style = user.displayNameStyles
+  if (!style) return undefined
+  const colors = style.colors.map(hex)
+  return {
+    font: NAME_FONTS[style.fontId],
+    effect: effect && colors.length ? NAME_EFFECTS[style.effectId] : undefined,
+    color: colors[0],
+    // a gradient's stops: the one colour twice when there's one
+    stops: colors.length > 1 ? colors.join(', ') : `${colors[0]}, ${colors[0]}`,
+  }
+}
+
 export const avatar = (user: User, guildId: Id | null | undefined, px: number) =>
   user.getAvatarURL(guildId, cdn.size(px))
 

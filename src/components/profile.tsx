@@ -12,6 +12,7 @@ import * as users from '../api/users'
 import { Avatar } from './avatar'
 import { Emoji } from './emoji'
 import { Markdown } from './markdown'
+import { Name } from './name'
 
 type Shown = { user: User; guildId?: Id | null }
 let show: ((source: Element, shown: Shown) => void) | undefined
@@ -65,7 +66,9 @@ function Card(p: Shown) {
         }}
       />
       <Avatar user={p.user} guildId={p.guildId} size={80} status={users.status(p.user.id)} />
-      <h2>{users.displayName(p.user, p.guildId)}</h2>
+      <h2>
+        <Name user={p.user} guildId={p.guildId} profile />
+      </h2>
       <p class="handle">
         {p.user.username}
         <Show when={profile().pronouns} keyed>

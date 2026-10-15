@@ -97,6 +97,8 @@ export interface User {
   globalName: string | null
   bot: boolean
   premiumType?: number | null
+  // Nitro's display name style: a font, an effect, its colours (as numbers)
+  displayNameStyles?: { fontId: number; effectId: number; colors: number[] } | null
   getAvatarURL(guildId?: Id | null, size?: number): string
 }
 

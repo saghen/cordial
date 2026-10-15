@@ -1,0 +1,11 @@
+/* a Nitro display name style: its font; its effect in its colours (light and dark shades mixed from the first) */
+b.name {
+  font-family: var(--name-font);
+  &:is(.solid, .neon, .toon, .pop, .gummy) { color: var(--name-color); }
+  &:is(.gradient, .glow, .prism) { background: linear-gradient(90deg, var(--name-stops)) text; color: transparent; }
+  &.neon { color: color-mix(in srgb, var(--name-color) 40%, #fff); text-shadow: 0 0 2px var(--name-color), 0 0 6px var(--name-color); }
+  &.glow { filter: drop-shadow(0 0 3px var(--name-color)); }
+  &.toon { -webkit-text-stroke: 3px color-mix(in srgb, var(--name-color) 30%, #000); paint-order: stroke fill; }
+  &.pop { text-shadow: 1px 1px 0 color-mix(in srgb, var(--name-color) 40%, #000); }
+  &.gummy { text-shadow: 0 -1px 0 color-mix(in srgb, var(--name-color) 50%, #fff), 0 1px 1px color-mix(in srgb, var(--name-color) 50%, #000); }
+}
