@@ -6,14 +6,13 @@ import { createEffect, createMemo, For, Show } from 'solid-js'
 
 import * as channels from '../api/channels'
 import * as members from '../api/members'
-import * as profiles from '../api/profiles'
 import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
 import * as users from '../api/users'
 import { Avatar } from '../components/avatar'
 import { Name } from '../components/name'
 import { open as openProfile, openDm } from '../components/profile'
-import { StatusLine } from '../components/status_line'
+import { useStatusLine } from '../components/status_line'
 import { Toggle } from '../primitives/button'
 import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
@@ -49,16 +48,13 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
   const row = p.row
   if (!row) return <div class="placeholder" />
   if (row.type === 'GROUP') return <h3>{row.label}</h3>
-  const user = row.user
-  function subtitle() {
-    const line = profiles.statusLine(user.id)
-    return line && <StatusLine line={line} />
-  }
+  const plate = () => users.nameplate(row.user)
+  const status = useStatusLine(() => row.user.id)
   return (
     <Row
       name="member"
-      class={{ offline: row.status === 'offline', plated: Boolean(users.nameplate(row.user)) }}
-      style={users.nameplate(row.user)}
+      class={{ offline: row.status === 'offline', plated: Boolean(plate()) }}
+      style={plate()}
       data-id={row.user.id}
       onClick={(e: MouseEvent) => openProfile(e.currentTarget as Element, row.user, selectedGuild())}
       icon={
@@ -71,7 +67,7 @@ function MemberRow(p: { row: members.Group | members.Member | undefined }) {
           onDblClick={() => openDm(row.user)}
         />
       }
-      subtitle={subtitle()}
+      subtitle={status()}
       end={
         members.isOwner(row.user.id) && (
           <Icon name="crown" title={text(selectedGuild() ? 'GUILD_OWNER' : 'GROUP_OWNER')} />
