@@ -1,5 +1,6 @@
-// A search field: the query as it's typed, Enter with it, Escape. autofocus focuses it once it's shown (a popover
-// shows after mounting its contents; the message menu's reaction search mounts in a menu already open)
+// A search field: the query as it's typed, Enter with it, Escape. autofocus focuses it once it's shown: in a popover
+// that shows after mounting it, the attribute (the popover focuses it as it opens); in one already open (the message
+// menu's reaction search), at once
 
 export function SearchInput(p: {
   class: string
@@ -16,6 +17,7 @@ export function SearchInput(p: {
       type="search"
       placeholder={p.placeholder}
       value={p.value ?? ''}
+      autofocus={p.autofocus}
       ref={(input) => p.autofocus && queueMicrotask(() => input.focus())}
       onInput={(e) => p.onInput?.(e.currentTarget.value)}
       onKeyDown={(e) => {
