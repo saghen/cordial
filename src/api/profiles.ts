@@ -94,7 +94,8 @@ export const bioAST = (bio: string) =>
 
 export interface Activity {
   id: string
-  heading: string
+  // none for a song: its lines and art say it (ours)
+  heading?: string
   details?: string
   state?: string
   image?: string
@@ -104,16 +105,16 @@ export interface Activity {
   end?: number
 }
 
-// what they're doing, headed in stock's words ("Playing x", "Listening to x"); the custom status is apart
+// what they're doing, headed in stock's words ("Playing x"); the custom status is apart
 export function activities(userId: Id): Activity[] {
   return $.Presence.getActivities(userId)
     .filter((activity) => activity.type in users.VERBS)
     .map((activity) => ({
       id: activity.id ?? activity.name,
-      heading: text(users.VERBS[activity.type as keyof typeof users.VERBS], {
-        game: activity.name,
-        name: activity.name,
-      }),
+      heading:
+        activity.type === ActivityType.Listening
+          ? undefined
+          : text(users.VERBS[activity.type as keyof typeof users.VERBS], { game: activity.name, name: activity.name }),
       details: activity.details,
       // Spotify's artists come apart by semicolons: a list, as stock shows them
       state: activity.name === 'Spotify' ? activity.state?.replaceAll(';', ',') : activity.state,

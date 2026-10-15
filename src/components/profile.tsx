@@ -1,7 +1,7 @@
 // A user's profile card, opened from their avatar or name (the author line, the member list): the banner, the avatar
-// with their status, their names and pronouns, the custom status, the bio, what they're doing and their roles, and
-// their profile effect over it all. One card, mounted once (app.tsx), placed beside whatever opened it; a click outside
-// or Escape closes it.
+// with their status, their names and pronouns, the custom status (its emoji beside the name), the bio, what they're
+// doing and their roles, and their profile effect over it all. One card, mounted once (app.tsx), placed beside whatever
+// opened it; a click outside or Escape closes it.
 
 import { createEffect, createSignal, flush, For, Show } from 'solid-js'
 
@@ -75,6 +75,9 @@ function Card(p: Shown) {
       <Avatar user={p.user} guildId={p.guildId} size={80} status={users.status(p.user.id)} decorated="playing" />
       <h2>
         <Name user={p.user} guildId={p.guildId} profile />
+        <Show when={custom()?.emoji} keyed>
+          {(emoji) => <Emoji emoji={emoji} />}
+        </Show>
       </h2>
       <p class="handle">
         {p.user.username}
@@ -82,13 +85,8 @@ function Card(p: Shown) {
           {(pronouns) => <> • {pronouns}</>}
         </Show>
       </p>
-      <Show when={custom()} keyed>
-        {(status) => (
-          <p class="custom-status">
-            {status.emoji && <Emoji emoji={status.emoji} />}
-            {status.text}
-          </p>
-        )}
+      <Show when={custom()?.text} keyed>
+        {(text) => <p class="custom-status">{text}</p>}
       </Show>
       <Show when={profile().bio} keyed>
         {(bio) => <Markdown ast={profiles.bioAST(bio)} />}
@@ -111,7 +109,7 @@ function Activity(p: { activity: profiles.Activity; now: number }) {
   const activity = () => p.activity
   return (
     <section class="activity">
-      <h3>{activity().heading}</h3>
+      {activity().heading && <h3>{activity().heading}</h3>}
       {activity().image && <img src={activity().image} alt="" title={activity().imageText} />}
       <p>
         {activity().details && <b>{activity().details}</b>}

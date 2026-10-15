@@ -9,10 +9,9 @@ section.profile {
   &.themed { --surface: color-mix(in srgb, var(--primary) 35%, var(--bg-deep)); background: linear-gradient(var(--surface), color-mix(in srgb, var(--accent) 35%, var(--bg-deep))); }
   > .banner { height: 105px; margin: 0 -16px; background: var(--bg-raised) center / cover; }
   > .avatar { margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
-  > h2 { font-size: 20px; font-weight: 700; color: var(--text-strong); }
-  > .handle { margin-top: -8px; color: var(--text-muted); }
-  > .custom-status { display: flex; align-items: center; gap: 6px; }
-  > .custom-status > .emoji { width: 18px; height: 18px; }
+  > h2 { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 700; color: var(--text-strong); }
+  > h2 > .emoji { width: 20px; height: 20px; }
+  > .handle { margin-top: -8px; color: var(--text); }
   /* a profile effect's layers over the card from its top, at its width */
   > .effect { position: absolute; inset: 0 0 auto; width: 100%; pointer-events: none; }
   > .roles { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; }
