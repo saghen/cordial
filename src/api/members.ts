@@ -7,6 +7,7 @@ import { A } from '../adapter/needs'
 import { ChannelType, type Id, type PrivateChannel, type User } from './types'
 import { $, selected, selectedChannel, selectedGuild } from './store'
 import { text } from './strings'
+import * as guilds from './guilds'
 import * as users from './users'
 
 // a row's height, as the range helper counts rows
@@ -68,10 +69,10 @@ function groupRows(): Row[] {
   ]
 }
 
-// the server's owner, or the group DM's
+// the server's owner (GuildStore), or the group DM's (ChannelStore)
 export function isOwner(userId: Id) {
   const guildId = selectedGuild()
-  if (guildId) return $.Guild.getGuild(guildId)?.ownerId === userId
+  if (guildId) return guilds.get(guildId)?.ownerId === userId
   return (selectedChannel() as PrivateChannel | undefined)?.ownerId === userId
 }
 
