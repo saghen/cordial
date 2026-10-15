@@ -7,14 +7,15 @@ div.profile-card {
 /* themed, stock's 300 px inside its 2 px border */
 div.profile-card:has(> .themed) { width: 304px; }
 section.profile {
+  --banner: 105px;
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 0 16px 16px; font-size: 14px;
   /* themed (Nitro), as stock's: its two colours from the banner's foot down, bare in the border and under 60 % black
      inside; the effect clipped to the card */
   &.themed {
     --surface: color-mix(in srgb, var(--theme-from) 40%, #000); overflow: hidden; border: 2px solid transparent; border-radius: inherit;
-    background: linear-gradient(#0009 0 0) padding-box, linear-gradient(var(--theme-from) 105px, var(--theme-to)) border-box;
+    background: linear-gradient(#0009 0 0) padding-box, linear-gradient(var(--theme-from) var(--banner), var(--theme-to)) border-box;
   }
-  > .banner { height: 105px; margin: 0 -16px; background: var(--bg-raised) center / cover; }
+  > .banner { height: var(--banner); margin: 0 -16px; background: var(--bg-raised) center / cover; }
   > .avatar { --status-size: 16px; --status-ring: 5px; margin-top: -48px; border-radius: 50%; box-shadow: 0 0 0 6px var(--surface); background: var(--surface); }
   > h2 { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 700; color: var(--text-strong); }
   > h2 > .emoji { width: 20px; height: 20px; }

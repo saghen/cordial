@@ -9,7 +9,7 @@ import type { Id, User } from '../api/types'
 import * as users from '../api/users'
 import { Status } from '../primitives/status'
 
-// stock's: a decoration a fifth larger than the avatar, centred on it
+// stock's: a decoration a fifth larger than the avatar, centred on it (avatar.css's --decoration-scale)
 const DECORATION_SCALE = 1.2
 
 export function Avatar(p: {

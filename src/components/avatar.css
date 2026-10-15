@@ -1,4 +1,6 @@
 :where(.avatar) {
+  /* the decoration's size to the avatar's (stock's, as avatar.tsx asks its image) */
+  --decoration-scale: 1.2;
   /* the status: its size, the ring cut around it, and its centre's distance from the right and bottom (on the circle) */
   --status-size: calc(var(--size) * 0.32); --status-ring: calc(var(--size) * 0.09); --status-inset: calc(var(--size) * 0.15);
   position: relative; flex: none; display: inline-grid; grid-template: 100% / 100%; width: var(--size); height: var(--size); border-radius: 50%;
@@ -8,14 +10,16 @@
   grid-area: 1 / 1; place-self: end; width: var(--status-size); height: var(--status-size);
   margin: 0 calc(var(--status-inset) - var(--status-size) / 2) calc(var(--status-inset) - var(--status-size) / 2) 0;
 }
-/* the ring around the status, cut out of the image and the decoration (which overhangs by a tenth of the size) */
+/* the ring around the status, cut out of the image and the decoration (which overhangs on each side) */
 :where(.avatar:has(> .status) > img) {
   --inset: var(--status-inset);
   mask: radial-gradient(circle calc(var(--status-size) / 2 + var(--status-ring)) at right var(--inset) bottom var(--inset), #0000 calc(100% - 1px), #000);
 }
-:where(.avatar:has(> .status) > img.decoration) { --inset: calc(var(--status-inset) + var(--size) * 0.1); }
+:where(.avatar:has(> .status) > img.decoration) { --inset: calc(var(--status-inset) + var(--size) * (var(--decoration-scale) - 1) / 2); }
 /* speaking, stock's ring: inset over the image, with a line of what's behind between it and the image */
 :where(.avatar.speaking)::after { content: ''; grid-area: 1 / 1; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--positive), inset 0 0 0 3px var(--surface); }
 :where(.avatar.clickable) { cursor: pointer; }
-/* the decoration (Nitro), a fifth larger, over the image and under the status */
-:where(.avatar > img.decoration) { grid-area: 1 / 1; place-self: center; width: 120%; height: 120%; max-width: none; pointer-events: none; }
+/* the decoration (Nitro), larger, over the image and under the status */
+:where(.avatar > img.decoration) {
+  grid-area: 1 / 1; place-self: center; width: calc(var(--decoration-scale) * 100%); height: calc(var(--decoration-scale) * 100%); max-width: none; pointer-events: none;
+}
