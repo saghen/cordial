@@ -22,21 +22,8 @@ import { SearchInput } from '../primitives/search'
 import { focus } from './composer'
 import { createScroller } from './scroller'
 
-// what a double click on a message leaves alone besides its text: what's clickable in it
-const CLICKABLE = '.name, .reply-to, .embed, .reactions, a, button, img, video, audio, time'
-
-// whether a point is on a character of text (a double click there selects a word)
-function onText(left: number, top: number) {
-  const caret = document.caretPositionFromPoint(left, top)
-  const node = caret?.offsetNode
-  if (node?.nodeType !== Node.TEXT_NODE) return false
-  const range = document.createRange()
-  range.setStart(node, Math.max(0, caret!.offset - 1))
-  range.setEnd(node, Math.min(node.textContent!.length, caret!.offset + 1))
-  return [...range.getClientRects()].some(
-    (rect) => left >= rect.left && left <= rect.right && top >= rect.top && top <= rect.bottom,
-  )
-}
+// a second right click this soon after the first on a message is a double one
+const DOUBLE_MS = 500
 
 export function Chat() {
   const channelId = selectedChat
@@ -198,24 +185,39 @@ export function Chat() {
       else delete view.dataset.id
     },
   )
-  view.addEventListener('contextmenu', menu.open)
-  // ours: a double click on a message outside its text (the gutter, the space beside it) edits your own (or leaves the
-  // edit, on the one being edited), else replies
-  view.addEventListener('dblclick', (e) => {
+  view.addEventListener('contextmenu', (e) => {
+    const id = (e.target as Element).closest<HTMLElement>('article[data-id]')?.dataset.id
+    if (id) right = { id, at: e.timeStamp }
+    menu.open(e)
+  })
+  // ours: a double right click on a message (the second on it or on the menu the first opened) edits your own, or
+  // leaves the edit on the one being edited, else replies
+  let right: { id: string; at: number } | null = null
+  function onRight(e: MouseEvent) {
     const target = e.target as Element
-    const row = target.closest<HTMLElement>('article[data-id]')
+    const first = right
+    right = null
+    if (!first || e.timeStamp - first.at > DOUBLE_MS) return
+    if (
+      !target.closest('menu.message-menu') &&
+      target.closest<HTMLElement>('article[data-id]')?.dataset.id !== first.id
+    )
+      return
+    e.preventDefault()
+    e.stopPropagation()
+    menu.hide()
     const id = channelId()
     const current = channel()
-    if (!row || !id || !current || target.closest(CLICKABLE) || onText(e.clientX, e.clientY)) return
-    const message = messages.get(id, row.dataset.id!)
-    if (!message) return
+    const message = id && messages.get(id, first.id)
+    if (!id || !current || !message) return
     if (messages.editing(id) === message.id) cancel(id)
     else if (messages.own(message) && messages.isUser(message)) messages.startEdit(message)
     else if (users.can(Permission.SEND_MESSAGES, current)) messages.reply(message, current)
     else return
-    getSelection()?.removeAllRanges()
     focus()
-  })
+  }
+  document.addEventListener('contextmenu', onRight, true)
+  onCleanup(() => document.removeEventListener('contextmenu', onRight, true))
   return (
     <>
       {view}
