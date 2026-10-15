@@ -41,6 +41,11 @@ const STOCK = [
   'UNMUTE_CATEGORY',
   'COPY_LINK',
   'COPY_ID_CHANNEL',
+  // the member menu
+  'PROFILE',
+  'MENTION',
+  'USER_POPOUT_MESSAGE',
+  'COPY_ID_USER',
   // notification settings
   'NOTIFICATION_SETTINGS',
   'MUTE_DURATION_15_MINUTES',
