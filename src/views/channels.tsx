@@ -140,7 +140,7 @@ function VoiceUser(p: { state: VoiceState; channel: Channel }) {
         (state().selfStream || muted()) && (
           <>
             <Show when={state().selfStream}>
-              <Badge kind="live">LIVE</Badge>
+              <Badge kind="live">{text('LIVE')}</Badge>
             </Show>
             <Show when={muted()}>
               <Icon name="mic-off" />

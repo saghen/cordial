@@ -41,6 +41,8 @@ const STOCK = [
   'UNMUTE_CATEGORY',
   'COPY_LINK',
   'COPY_ID_CHANNEL',
+  // a stream's badge (stock's CSS uppercases it)
+  'LIVE',
   // the member list's crown, and its menu
   'GUILD_OWNER',
   'GROUP_OWNER',

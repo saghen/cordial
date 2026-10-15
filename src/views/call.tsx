@@ -353,7 +353,7 @@ function StreamTile(p: {
             </i>
           )}
         </Show>
-        <Badge kind="live">LIVE</Badge>
+        <Badge kind="live">{text('LIVE')}</Badge>
       </span>
       <b class="name">
         <Icon name="screen" />
