@@ -171,7 +171,9 @@ export function ServerBar() {
         preload={channels.lastDm}
         open={() => channels.openDms(channels.lastDm())}
       >
-        <Icon name="chat" />
+        <span class="dms-icon">
+          <Icon name="chat" />
+        </span>
       </Tile>
       <For each={channels.unreadDms()}>{(channel) => <Dm channel={channel} />}</For>
       <hr />
