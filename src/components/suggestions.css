@@ -1,0 +1,17 @@
+/* a field's suggestions (suggestions.tsx), placed by the field's view; stock's sizes: headings 12/600 caps, rows 16 px
+   with the hint at 12 px at the end, 24 px avatars (with the status), 20 px emoji, 16 px channel icons, lines between
+   sections */
+menu.suggestions {
+  border-radius: 5px; gap: 0;
+  > h3 { margin: 0 0 8px; padding: 4px 0; font-size: 12px; font-weight: 600; line-height: 16px; text-transform: uppercase; color: var(--text-muted); }
+  > hr { margin: 8px 0; }
+  > .row {
+    display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 3px; color: var(--text-strong); font-size: 16px; line-height: 20px;
+    white-space: nowrap;
+  }
+  > .row:has(> .emoji) { min-height: 31px; padding: 4px 8px; }
+  > .row:is(:hover, .selected) { background: var(--bg-raised); }
+  > .row > .icon { --icon-size: 16px; color: var(--text-muted); }
+  > .row > .emoji { width: 20px; height: 20px; }
+  > .row > .end { margin-left: auto; padding-left: 16px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; color: var(--text-muted); }
+}

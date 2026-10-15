@@ -15,8 +15,8 @@ import { Avatar } from '../components/avatar'
 import { ChannelIcon } from '../components/channel_icon'
 import { Emoji } from '../components/emoji'
 import { EmojiPicker, GifPicker, StickerPicker } from '../components/pickers'
+import { createSuggestions, type Suggestion } from '../components/suggestions'
 import { Button, IconButton } from '../primitives/button'
-import { Row } from '../primitives/row'
 import { hasCode, preview } from './preview'
 
 let box: HTMLTextAreaElement | undefined
@@ -199,15 +199,6 @@ export function Composer() {
 // in as text the parser turns back into a mention.
 
 // one row: what goes in, what shows, stock's hint at its end. A section's first row carries its heading or a divider
-interface Item {
-  text: string
-  label: string
-  icon?: JSX.Element
-  hint?: string
-  color?: string
-  head?: JSX.Element
-  divider?: boolean
-}
 
 const TOKEN = /(?:^|\s)([@#:])([^\s@#:]*)$/
 const MENTION_LIMIT = 15
@@ -222,12 +213,12 @@ const heading = (
     ? textAround(matching, {}, ['prefix']).map((part) => (part === 0 ? <b>{token.kind + token.query}</b> : part))
     : text(alone)
 // sections in order, each after a divider (stock's @ list: members, @everyone and @here, roles)
-const sections = (...lists: Item[][]) =>
+const sections = (...lists: Suggestion[][]) =>
   lists
     .filter((list) => list.length)
     .flatMap((list, i) => (i ? [{ ...list[0], divider: true }, ...list.slice(1)] : list))
 
-function items(token: Token, channel: Channel): Item[] {
+function items(token: Token, channel: Channel): Suggestion[] {
   if (token.kind === '@') {
     const results = composer.mentions(token.query, channel)
     return sections(
@@ -266,73 +257,27 @@ function items(token: Token, channel: Channel): Item[] {
 
 function createAutocomplete(box: () => HTMLTextAreaElement, channel: () => Channel | undefined) {
   const [token, setToken] = createSignal<Token | null>(null)
-  const [active, setActive] = createSignal(0)
-  let menu!: HTMLMenuElement
   const list = createMemo(() => {
     const typed = token()
     const current = channel()
     return typed && current ? items(typed, current) : []
   })
+  const suggestions = createSuggestions({ class: 'autocomplete', list, pick })
 
   // after each input: the token the caret ends
   function update() {
     const textarea = box()
     const match = TOKEN.exec(textarea.value.slice(0, textarea.selectionStart))
     setToken(match ? { kind: match[1], query: match[2], at: textarea.selectionStart - match[2].length - 1 } : null)
-    setActive(0)
+    suggestions.reset()
   }
-  // open while there's something to pick (writes apply in a microtask: read them in an effect)
-  createEffect(
-    () => list().length > 0,
-    (open) => {
-      if (open) menu.showPopover()
-      else if (menu.matches(':popover-open')) menu.hidePopover()
-    },
-  )
 
-  function pick(item: Item) {
+  function pick(item: Suggestion) {
     const textarea = box()
     textarea.setRangeText(`${item.text} `, token()!.at, textarea.selectionStart, 'end')
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
     textarea.focus()
   }
 
-  // true when the key was the list's
-  function key(e: KeyboardEvent) {
-    const count = list().length
-    if (!count || !menu.matches(':popover-open')) return false
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp')
-      setActive((active() + (e.key === 'ArrowDown' ? 1 : count - 1)) % count)
-    else if (e.key === 'Tab' || e.key === 'Enter') pick(list()[active()])
-    else if (e.key === 'Escape') menu.hidePopover()
-    else return false
-    e.preventDefault()
-    return true
-  }
-
-  const view = (
-    <menu ref={menu} class="autocomplete" popover="manual">
-      <For each={list()}>
-        {(item, i) => (
-          <>
-            {item.head ? <h3>{item.head}</h3> : item.divider && <hr />}
-            <Row
-              name="suggestion"
-              class={{ selected: i() === active() }}
-              data-id={item.text}
-              icon={item.icon}
-              end={item.hint}
-              style={item.color ? { color: item.color } : undefined}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => pick(item)}
-            >
-              {item.label}
-            </Row>
-          </>
-        )}
-      </For>
-    </menu>
-  )
-
-  return { view, update, key }
+  return { view: suggestions.view, update, key: suggestions.key }
 }

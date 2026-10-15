@@ -52,23 +52,8 @@ ul.uploads {
   > li[style] { width: 216px; grid: 168px auto / minmax(0, 1fr) auto; }
   > li[style]::before { content: ""; grid-column: 1 / -1; height: 168px; background: var(--preview) center / contain no-repeat; }
 }
-/* autocomplete: a list over the messages, as wide as the composer, just above it; stock's sizes: headings 12/600 caps,
-   rows 16 px with the hint at 12 px at the end, 24 px avatars (with the status), 20 px emoji, 16 px channel icons,
-   dividers between the @ list's sections */
-menu.autocomplete {
-  position-anchor: --composer; width: anchor-size(width); margin: 0 0 8px; border-radius: 5px; gap: 0;
-  > h3 { margin: 0 0 8px; padding: 4px 0; font-size: 12px; font-weight: 600; line-height: 16px; text-transform: uppercase; color: var(--text-muted); }
-  > hr { margin: 8px 0; }
-  > .row {
-    display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 3px; color: var(--text-strong); font-size: 16px; line-height: 20px;
-    white-space: nowrap;
-  }
-  > .row:has(> .emoji) { min-height: 31px; padding: 4px 8px; }
-  > .row:is(:hover, .selected) { background: var(--bg-raised); }
-  > .row > .icon { --icon-size: 16px; color: var(--text-muted); }
-  > .row > .emoji { width: 20px; height: 20px; }
-  > .row > .end { margin-left: auto; padding-left: 16px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; color: var(--text-muted); }
-}
+/* autocomplete (components/suggestions.tsx): over the messages, as wide as the composer, just above it */
+menu.autocomplete { position-anchor: --composer; width: anchor-size(width); margin: 0 0 8px; }
 /* the preview's markdown: its markers dimmed, styles that keep each glyph's width (a stroke for bold; gg sans' italic
    is within a fraction of a pixel of its upright over a phrase); a code block highlighted (api/highlight.ts) */
 section.composer .preview {
