@@ -48,6 +48,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       ? { id: row.dataset.id, offset: row.getBoundingClientRect().top - scroller.getBoundingClientRect().top }
       : null
   }
+  const byId = (id: string) => list.querySelector<HTMLElement>(`:scope > [data-id="${id}"]`)
   // the first row reaching below the view's top
   function topRow() {
     const top = scroller.getBoundingClientRect().top
@@ -67,7 +68,7 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
       scroller.scrollTop = scroller.scrollHeight
       return
     }
-    const row = place && list.querySelector<HTMLElement>(`:scope > [data-id="${place.id}"]`)
+    const row = place && byId(place.id)
     if (!place || !row) {
       note()
       return
@@ -207,6 +208,8 @@ export function createScroller(scroller: HTMLElement, channel: () => Id | null) 
     },
     // after the view scrolls the list itself: where it stands now (a jump: its target held as rows around it settle)
     moved: note,
+    // a message's row, if it's rendered
+    row: byId,
     fromBottom,
     // the newest message in view: at once, or smoothly, followed as rows settle on the way
     toBottom(smoothly = false) {

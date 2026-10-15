@@ -24,6 +24,9 @@ import { createScroller } from './scroller'
 
 // a second right click this soon after the first on a message is a double one
 const DOUBLE_MS = 500
+// the message an event happened on, by its row
+const messageId = (target: EventTarget | null) =>
+  (target as Element).closest<HTMLElement>('article[data-id]')?.dataset.id
 
 export function Chat() {
   const channelId = selectedChat
@@ -155,7 +158,7 @@ export function Chat() {
     if (!jump.id) return
     // after the scroller's frame, which takes a switched channel to the bottom
     requestAnimationFrame(() => {
-      const row = view.querySelector<HTMLElement>(`[data-id="${jump.id}"]`)
+      const row = scroller.row(jump.id)
       if (!row) return
       row.scrollIntoView({ block: jump.top ? 'start' : 'center' })
       scroller.moved(row)
@@ -188,7 +191,7 @@ export function Chat() {
     },
   )
   view.addEventListener('contextmenu', (e) => {
-    const id = (e.target as Element).closest<HTMLElement>('article[data-id]')?.dataset.id
+    const id = messageId(e.target)
     if (id) right = { id, at: e.timeStamp }
     menu.open(e)
   })
@@ -200,11 +203,7 @@ export function Chat() {
     const first = right
     right = null
     if (!first || e.timeStamp - first.at > DOUBLE_MS) return
-    if (
-      !target.closest('menu.message-menu') &&
-      target.closest<HTMLElement>('article[data-id]')?.dataset.id !== first.id
-    )
-      return
+    if (!target.closest('menu.message-menu') && messageId(target) !== first.id) return
     e.preventDefault()
     e.stopPropagation()
     menu.hide()
@@ -292,7 +291,7 @@ function messageMenu(onMarkUnread: () => void) {
   const menu = contextMenu<{ message: MessageRecord; react: boolean }>({
     class: 'message-menu',
     find(e) {
-      const id = (e.target as Element).closest('article')?.dataset.id
+      const id = messageId(e.target)
       const channelId = selectedChat()
       const message = id && channelId ? messages.get(channelId, id) : undefined
       return message && { message, react: false }
