@@ -1,6 +1,7 @@
 // A user's name as stock shows it: the server nickname in its role colour, @ before it when a reply pings them, APP
 // after a bot's. A Nitro display name style: its font everywhere, its effect outside servers and on the profile
 
+import { text } from '../api/strings'
 import type { Id, User } from '../api/types'
 import * as users from '../api/users'
 import { Badge } from '../primitives/badge'
@@ -30,7 +31,7 @@ export function Name(p: {
     >
       {p.at && '@'}
       {p.label ?? users.nameOf(p.user, member()?.nick)}
-      {p.user.bot && <Badge kind="app">APP</Badge>}
+      {p.user.bot && <Badge kind="app">{text('APP_TAG')}</Badge>}
     </b>
   )
 }
