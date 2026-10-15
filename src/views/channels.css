@@ -24,6 +24,7 @@ section.side > nav {
   > .row.selected { background-color: var(--bg-selected); }
   > .muted { color: var(--text-faint); }
   > .dm { min-height: 42px; }
+  > .dm > .name { overflow: hidden; text-overflow: ellipsis; font-weight: inherit; }
   /* a voice channel with someone in it: the icon green, how long the call has gone on at the end; the one you're in
      lit, without the selected background */
   > .live > .icon { color: var(--positive); }

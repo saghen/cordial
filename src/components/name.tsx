@@ -11,6 +11,8 @@ export function Name(p: {
   at?: boolean
   // the profile's: the style's effect even in a server, without the role's colour
   profile?: boolean
+  // the text shown instead of their name (a DM's: a friend nickname)
+  label?: string
   onClick?(e: MouseEvent): void
 }) {
   const member = () => users.member(p.user, p.guildId)
@@ -27,7 +29,7 @@ export function Name(p: {
       onClick={p.onClick}
     >
       {p.at && '@'}
-      {users.nameOf(p.user, member()?.nick)}
+      {p.label ?? users.nameOf(p.user, member()?.nick)}
       {p.user.bot && <Badge kind="app">APP</Badge>}
     </b>
   )

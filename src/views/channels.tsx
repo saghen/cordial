@@ -14,6 +14,7 @@ import * as voice from '../api/voice'
 import { Avatar } from '../components/avatar'
 import { ChannelIcon } from '../components/channel_icon'
 import { DmIcon } from '../components/dm_icon'
+import { Name } from '../components/name'
 import { Badge } from '../primitives/badge'
 import { Icon } from '../primitives/icon'
 import { contextMenu, Items } from '../primitives/menu'
@@ -24,9 +25,8 @@ const count = (mentions: number) => mentions > 0 && <Badge kind="count">{mention
 
 function Dm(p: { channel: PrivateChannel }) {
   const channel = () => p.channel
-  // a 1:1 DM's user's nameplate
-  const plate = () =>
-    channel().recipients.length === 1 ? users.nameplate(users.get(channel().recipients[0])) : undefined
+  // a 1:1 DM's user: their nameplate and name style
+  const plate = () => users.nameplate(channels.dmUser(channel()))
   return (
     <Row
       name="dm"
@@ -39,7 +39,9 @@ function Dm(p: { channel: PrivateChannel }) {
       onClick={() => channels.open(channel())}
       {...onHover(() => channel().id)}
     >
-      {channels.dmName(channel())}
+      <Show when={channels.dmUser(channel())} keyed fallback={channels.dmName(channel())}>
+        {(user) => <Name user={user} label={channels.dmName(channel())} />}
+      </Show>
     </Row>
   )
 }
