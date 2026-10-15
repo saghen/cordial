@@ -33,8 +33,10 @@ export function insert(text: string) {
 }
 
 export function Composer() {
-  const state = composer.useComposer(selectedChat)
-  const id = () => selectedChat()!
+  // the chat's id, not its record: the ChannelStore changes far more often than the selection
+  const chat = createMemo(selectedChat)
+  const state = composer.useComposer(chat)
+  const id = () => chat()!
   let files!: HTMLInputElement
   let layer!: HTMLDivElement
   // the preview under the text; with a code block, the whole box in monospace (a textarea has one font)
@@ -47,7 +49,7 @@ export function Composer() {
   // a switch saves the text left behind; the box then shows the new channel's draft, or the message being edited, and
   // takes the focus
   createEffect(
-    () => ({ channelId: selectedChat(), editing: state.editing() }),
+    () => ({ channelId: chat(), editing: state.editing() }),
     ({ channelId }, prev) => {
       if (prev?.channelId && prev.channelId !== channelId) state.leave(prev.channelId)
       box!.value = channelId ? state.textOf(channelId) : ''
@@ -89,7 +91,7 @@ export function Composer() {
   const picking = () => (state.open() ? state.channel() : undefined)
 
   return (
-    <section class="composer" hidden={!selectedChat()}>
+    <section class="composer" hidden={!chat()}>
       {/* the bar over the box: the edit (red once emptied: Enter deletes), else the reply */}
       <Show
         when={state.editing()}
