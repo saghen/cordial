@@ -21,6 +21,10 @@ const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
 const DEFAULT_ZOOM = 1.5
 
+// Chrome's net error for a cancelled load; a failed load is tried again after this
+const ERR_ABORTED = -3
+const RETRY_MS = 3000
+
 // <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none);
 // { "keybinds": { "Ctrl+Shift+M": "TOGGLE_MUTE", ... } } are global shortcuts (read at start): TOGGLE_MUTE,
 // TOGGLE_DEAFEN, PUSH_TO_TALK
@@ -188,6 +192,11 @@ app.whenReady().then(() => {
   mainWindow.on('page-title-updated', (_, title) => app.setBadgeCount(+(title.match(/^\((\d+)\) /)?.[1] ?? 0)))
   // hidden rather than auto-hidden: Alt doesn't show it, its shortcuts (DevTools, reload) still work
   mainWindow.setMenuBarVisibility(false)
+  // the page failed to load (no connection at start: Electron shows no error page, only the background), loaded again
+  // until it does. ERR_ABORTED is a navigation that another replaced
+  mainWindow.webContents.on('did-fail-load', (_, code, _description, url, isMainFrame) => {
+    if (isMainFrame && code !== ERR_ABORTED) setTimeout(() => mainWindow.loadURL(url), RETRY_MS)
+  })
   mainWindow.loadURL(`https://discord.com${linkPath(process.argv) ?? '/app'}`)
   bindKeys(config().keybinds ?? {})
 })
