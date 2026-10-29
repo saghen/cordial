@@ -60,7 +60,8 @@ article > .divider {
   &.new { padding-right: 16px; }
   &.new:not(:has(> span)) { padding-bottom: 2px; }
   &.new::before, &.new::after { background: var(--danger); }
-  > .badge { grid-area: 1 / 3; justify-self: end; }
+  /* over the red line, which paints after it in the same cell */
+  > .badge { grid-area: 1 / 3; justify-self: end; z-index: 1; }
 }
 /* a reply: the replied-to message on one line, the spine in the gutter from the avatar's column to it; a command's line
    (not a link; the command in the link colour) */
