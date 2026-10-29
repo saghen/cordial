@@ -21,9 +21,9 @@ const MIN_ZOOM = 0.5
 const MAX_ZOOM = 3
 const DEFAULT_ZOOM = 1.5
 
-// Chrome's net error for a cancelled load; a failed load is tried again after this
+// Chrome's net error for a cancelled load; a failed load is tried again after each of these in turn, then every 30 s
 const ERR_ABORTED = -3
-const RETRY_MS = 3000
+const RETRY_MS = [2000, 5000, 10000, 30000]
 
 // <userData>/config.json, read on each load: { "warm": N } preloads the N most used channels (default 5, 0 for none);
 // { "keybinds": { "Ctrl+Shift+M": "TOGGLE_MUTE", ... } } are global shortcuts (read at start): TOGGLE_MUTE,
@@ -193,9 +193,17 @@ app.whenReady().then(() => {
   // hidden rather than auto-hidden: Alt doesn't show it, its shortcuts (DevTools, reload) still work
   mainWindow.setMenuBarVisibility(false)
   // the page failed to load (no connection at start: Electron shows no error page, only the background), loaded again
-  // until it does. ERR_ABORTED is a navigation that another replaced
+  // until it does, backing off; a load that gets through starts the steps over. ERR_ABORTED is a navigation that
+  // another replaced
+  let failures = 0
   mainWindow.webContents.on('did-fail-load', (_, code, _description, url, isMainFrame) => {
-    if (isMainFrame && code !== ERR_ABORTED) setTimeout(() => mainWindow.loadURL(url), RETRY_MS)
+    if (!isMainFrame || code === ERR_ABORTED) return
+    setTimeout(() => mainWindow.loadURL(url), RETRY_MS[Math.min(failures, RETRY_MS.length - 1)])
+    failures++
+  })
+  // a failed load finishes too, on an empty page: only a response counts as getting through
+  mainWindow.webContents.on('did-navigate', (_, _url, status) => {
+    if (status > 0) failures = 0
   })
   mainWindow.loadURL(`https://discord.com${linkPath(process.argv) ?? '/app'}`)
   bindKeys(config().keybinds ?? {})
