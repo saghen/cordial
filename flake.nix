@@ -5,7 +5,7 @@
     let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
       fs = pkgs.lib.fileset;
-      # game detection's native side (src/adapter/native.ts)
+
       game-detection = pkgs.rustPlatform.buildRustPackage {
         pname = "game-detection";
         version = "0";
@@ -15,14 +15,13 @@
         };
         cargoLock.lockFile = ./game-detection/Cargo.lock;
       };
-      # Rich Presence for Wine and Proton games, a Windows program game-detection starts in each prefix
       wine-bridge = pkgs.pkgsCross.mingwW64.stdenv.mkDerivation {
         name = "cordial-wine-bridge";
         src = ./game-detection/bridge;
         buildPhase = "$CC -O2 -Wall -static -mwindows -o bridge.exe bridge.c -lws2_32";
         installPhase = "install -D bridge.exe $out/bridge.exe";
       };
-      # global keybinds with releases (push to talk) through the desktop's GlobalShortcuts portal (src/shell/main.js)
+
       global-keybinds = pkgs.rustPlatform.buildRustPackage {
         pname = "global-keybinds";
         version = "0";
@@ -32,9 +31,8 @@
         };
         cargoLock.lockFile = ./global-keybinds/Cargo.lock;
       };
-      # Go Live's capture and encoder (screen-capture/)
+
       capture = pkgs.callPackage ./screen-capture/capture { };
-      # its fallback's fd socket for Electron's main process (N-API: the symbols resolve from Electron at load)
       fdsock = pkgs.stdenv.mkDerivation {
         name = "cordial-fdsock";
         src = fs.toSource { root = ./screen-capture/addon; fileset = ./screen-capture/addon/fdsock.c; };
@@ -53,7 +51,6 @@
           };
           npmDepsHash = "sha256-r+Jf2Ke9XUba/QJPRrTvRMk6ktFu55KpnpTHZpNWWwY=";
           nativeBuildInputs = [ pkgs.makeWrapper pkgs.copyDesktopItems ];
-          # discord:// links come to cordial when the desktop picks it as their handler (main.js routes them)
           desktopItems = [
             # found by "discord" in a launcher too; the window's app id (Wayland) and class (X11) are "cordial"
             (pkgs.makeDesktopItem {
