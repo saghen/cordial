@@ -14,6 +14,8 @@ menu.emoji-picker {
   width: 600px; --columns: 12; --row: 40px;
   .chunk > button > img { width: 32px; height: 32px; object-fit: contain; }
 }
+/* the reactions' picker: beside their add chip, flipped where it would leave the window */
+menu.reaction-picker { margin: 0 8px; position-area: right span-bottom; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
 /* a Lottie sticker by its name, as the chat shows one */
 menu.sticker-picker {
   --columns: 4; --row: 100px;

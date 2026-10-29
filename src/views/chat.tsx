@@ -1,5 +1,6 @@
-// The selected channel's messages: the list (scrolling, jumps, loading more), the new messages bar, the viewer and the
-// message menu. Each message is a Message row; the list works out which start groups, carry dividers, or are collapsed.
+// The selected channel's messages: the list (scrolling, jumps, loading more), the new messages bar, the viewer, the
+// message menu and the reactions' emoji picker. Each message is a Message row; the list works out which start groups,
+// carry dividers, or are collapsed.
 
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js'
 
@@ -16,6 +17,7 @@ import { avatarDoubleRight } from '../components/avatar'
 import { Emoji } from '../components/emoji'
 import { flash } from '../components/message/head'
 import { Message } from '../components/message/message'
+import { ReactionPicker } from '../components/pickers'
 import { Viewer } from '../components/viewer'
 import { Button } from '../primitives/button'
 import { isField } from '../primitives/fields'
@@ -77,6 +79,8 @@ export function Chat() {
     return id && messages.editing(id)
   })
   const menu = messageMenu(() => setUnread(null))
+  // the message whose reactions' add chip opened the emoji picker
+  const [reacting, setReacting] = createSignal<MessageRecord | null>(null)
 
   // the runs of blocked or ignored messages shown, by their first message
   const [shown, setShown] = createSignal<Record<Id, boolean>>({})
@@ -118,7 +122,7 @@ export function Chat() {
             </button>
           )
         }
-        onReact={(e) => menu.show(e, { message: message(), react: true })}
+        onReact={() => setReacting(message())}
       />
     )
   }
@@ -247,6 +251,7 @@ export function Chat() {
         </Button>
       </Show>
       {menu.view}
+      <ReactionPicker message={reacting} />
       <Viewer />
     </>
   )
@@ -303,23 +308,18 @@ function Typing(p: { channelId: () => Id | null }) {
   )
 }
 
-// the message menu (right click on a message); from the add-reaction chip, straight to the emoji search
+// the message menu (right click on a message)
 function messageMenu(onMarkUnread: () => void) {
-  const menu = contextMenu<{ message: MessageRecord; react: boolean }>({
+  const menu = contextMenu<{ message: MessageRecord }>({
     class: 'message-menu',
     find(e) {
       const id = messageId(e.target)
       const channelId = selectedChat()
       const message = id && channelId ? messages.get(channelId, id) : undefined
-      return message && { message, react: false }
+      return message && { message }
     },
     children: (target) => (
-      <MessageItems
-        message={target().message}
-        react={target().react}
-        onMarkUnread={onMarkUnread}
-        onClose={() => menu.hide()}
-      />
+      <MessageItems message={target().message} onMarkUnread={onMarkUnread} onClose={() => menu.hide()} />
     ),
   })
   return menu
@@ -329,8 +329,8 @@ function messageMenu(onMarkUnread: () => void) {
 // the query matches
 const TOP_REACTIONS = 4
 const REACTION_RESULTS = 24
-function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(): void; onClose(): void }) {
-  const [query, setQuery] = createSignal<string | null>(p.react ? '' : null)
+function MessageItems(p: { message: MessageRecord; onMarkUnread(): void; onClose(): void }) {
+  const [query, setQuery] = createSignal<string | null>(null)
   const message = () => p.message
   const channel = () => channels.get(message().channel_id)!
   const can = (permission: bigint) => users.can(permission, channel())
@@ -350,7 +350,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
             id: emoji.id ?? emoji.name,
             title: `:${emoji.name}:`,
             label: <Emoji emoji={emoji} />,
-            run: () => messages.react(message(), emoji),
+            run: () => messages.react(message(), emoji, 'Message Context Menu'),
           }))}
         />
       </p>
@@ -369,7 +369,7 @@ function MessageItems(p: { message: MessageRecord; react: boolean; onMarkUnread(
             onEnter={() => {
               if (!emojis()[0]) return
               p.onClose()
-              messages.react(message(), emojis()[0])
+              messages.react(message(), emojis()[0], 'Message Context Menu')
             }}
           />
           <Emojis each={emojis()} />

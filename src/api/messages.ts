@@ -288,13 +288,13 @@ export const toggleReaction = (message: Message, reaction: Reaction) =>
         location: 'Message Inline Button',
       })
     : A.reactions.add(message.channel_id, message.id, reaction.emoji, 'Message Inline Button')
-// a reaction from the message menu
-export const react = (message: Message, emoji: Emoji) =>
+// a reaction from the message menu, or from the picker the reactions' add chip opens
+export const react = (message: Message, emoji: Emoji, location: 'Message Context Menu' | 'Message Reaction Picker') =>
   A.reactions.add(
     message.channel_id,
     message.id,
     emoji.id ? { id: emoji.id, name: emoji.name, animated: emoji.animated } : { id: null, name: emoji.surrogates! },
-    'Message Context Menu',
+    location,
   )
 
 export const canPin = (message: Message, channel: Channel) =>

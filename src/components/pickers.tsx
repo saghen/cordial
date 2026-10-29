@@ -1,13 +1,16 @@
 // The composer's pickers, as buttons at the box's right edge, laid out as stock's: emoji and stickers on Sections, with
 // the hovered one named below; GIFs as tiles. An emoji is written into the box as its :name:, which the parser turns
-// into the emoji on send (as autocomplete does); a sticker or GIF is sent at once
+// into the emoji on send (as autocomplete does); a sticker or GIF is sent at once. The emoji picker also reacts to a
+// message, from its reactions' add chip
 
 import { createSignal, For, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 
+import * as channels from '../api/channels'
 import * as guilds from '../api/guilds'
+import * as messages from '../api/messages'
 import * as pickers from '../api/pickers'
-import type { Channel, Emoji as EmojiRecord, Gif, Sticker } from '../api/types'
+import type { Channel, Emoji as EmojiRecord, Gif, Message, Sticker } from '../api/types'
 import { text } from '../api/strings'
 import { IconButton } from '../primitives/button'
 import { Icon } from '../primitives/icon'
@@ -38,7 +41,15 @@ function Named(p: { image?: JSX.Element; name: string; from?: string }) {
   )
 }
 
-export function EmojiPicker(p: { insert(text: string): void; onClose(): void; channel: () => Channel | undefined }) {
+// emoji on Sections with a search, the hovered one named below; a pick goes to onPick, and Shift keeps the picker open
+// for more, as stock
+function EmojiPopout(p: {
+  name: string
+  class?: string
+  channel: () => Channel | undefined
+  onPick(emoji: EmojiRecord): void
+  onClose?(): void
+}) {
   const [query, setQuery] = createSignal('')
   let menu!: HTMLElement
   function all() {
@@ -46,7 +57,56 @@ export function EmojiPicker(p: { insert(text: string): void; onClose(): void; ch
     return channel ? pickers.emojiSections(channel) : []
   }
   const found = () => pickers.searchEmoji(p.channel()!, query())
-  const pick = (emoji: EmojiRecord) => p.insert(`:${emoji.name}: `)
+  return (
+    <Popout
+      ref={menu}
+      name={p.name}
+      class={['emoji-picker', p.class]}
+      onClose={() => {
+        setQuery('')
+        p.onClose?.()
+      }}
+    >
+      <Sections
+        search={
+          <SearchInput
+            class="picker-search"
+            placeholder={text('SEARCH_FOR_EMOJI')}
+            autofocus
+            value={query()}
+            onInput={setQuery}
+            onEnter={() => {
+              if (!found()[0]) return
+              p.onPick(found()[0])
+              menu.hidePopover()
+            }}
+          />
+        }
+        all={all()}
+        shown={query() ? [{ id: 'results', name: '', items: found() }] : all()}
+        rail={rail((section) => (
+          <Emoji emoji={section.items[0]} />
+        ))}
+        item={(emoji) => (
+          <button
+            data-id={emoji.id ?? emoji.name}
+            onClick={(e) => {
+              p.onPick(emoji)
+              if (!e.shiftKey) menu.hidePopover()
+            }}
+          >
+            <img alt={emoji.name} src={pickers.emojiSrc(emoji)} loading="lazy" />
+          </button>
+        )}
+        footer={(emoji) => (
+          <Named image={<Emoji emoji={emoji} />} name={`:${emoji.name}:`} from={pickers.emojiFrom(emoji)} />
+        )}
+      />
+    </Popout>
+  )
+}
+
+export function EmojiPicker(p: { insert(text: string): void; onClose(): void; channel: () => Channel | undefined }) {
   return (
     <>
       <IconButton
@@ -56,53 +116,32 @@ export function EmojiPicker(p: { insert(text: string): void; onClose(): void; ch
         popovertarget="mc-emoji"
         hidden={!p.channel()}
       />
-      <Popout
-        ref={menu}
+      <EmojiPopout
         name="emoji"
-        class="emoji-picker"
-        onClose={() => {
-          setQuery('')
-          p.onClose()
-        }}
-      >
-        <Sections
-          search={
-            <SearchInput
-              class="picker-search"
-              placeholder={text('SEARCH_FOR_EMOJI')}
-              autofocus
-              value={query()}
-              onInput={setQuery}
-              onEnter={() => {
-                if (!found()[0]) return
-                pick(found()[0])
-                menu.hidePopover()
-              }}
-            />
-          }
-          all={all()}
-          shown={query() ? [{ id: 'results', name: '', items: found() }] : all()}
-          rail={rail((section) => (
-            <Emoji emoji={section.items[0]} />
-          ))}
-          item={(emoji) => (
-            <button
-              data-id={emoji.id ?? emoji.name}
-              // shift keeps the picker open for more, as stock
-              onClick={(e) => {
-                pick(emoji)
-                if (!e.shiftKey) menu.hidePopover()
-              }}
-            >
-              <img alt={emoji.name} src={pickers.emojiSrc(emoji)} loading="lazy" />
-            </button>
-          )}
-          footer={(emoji) => (
-            <Named image={<Emoji emoji={emoji} />} name={`:${emoji.name}:`} from={pickers.emojiFrom(emoji)} />
-          )}
-        />
-      </Popout>
+        channel={p.channel}
+        onPick={(emoji) => p.insert(`:${emoji.name}: `)}
+        onClose={p.onClose}
+      />
     </>
+  )
+}
+
+// the emoji picker for a message's reactions, opened by their add chip (mc-react): a pick reacts, as stock's
+export function ReactionPicker(p: { message: () => Message | null }) {
+  const channel = () => {
+    const message = p.message()
+    return message ? channels.get(message.channel_id) : undefined
+  }
+  return (
+    <EmojiPopout
+      name="react"
+      class="reaction-picker"
+      channel={channel}
+      onPick={(emoji) => {
+        const message = p.message()
+        if (message) messages.react(message, emoji, 'Message Reaction Picker')
+      }}
+    />
   )
 }
 

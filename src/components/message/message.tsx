@@ -60,7 +60,7 @@ export function Message(p: {
   run?: JSX.Element
   collapsed: boolean
   gone: boolean
-  onReact(e: MouseEvent): void
+  onReact(): void
 }) {
   const message = () => p.message
   const guildId = () => p.channel?.guild_id
