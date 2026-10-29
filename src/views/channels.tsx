@@ -9,12 +9,14 @@ import { onHover } from '../api/preload'
 import { ChannelType, type Channel, type PrivateChannel, type VoiceState } from '../api/types'
 import { selected, selectedGuild } from '../api/store'
 import { text } from '../api/strings'
+import * as streams from '../api/streams'
 import * as users from '../api/users'
 import * as voice from '../api/voice'
 import { Avatar } from '../components/avatar'
 import { ChannelIcon } from '../components/channel_icon'
 import { DmIcon } from '../components/dm_icon'
 import { Name } from '../components/name'
+import { open as openProfile } from '../components/profile'
 import { useStatusLine } from '../components/status_line'
 import { Badge } from '../primitives/badge'
 import { Icon } from '../primitives/icon'
@@ -113,7 +115,8 @@ function VoiceChannel(p: { channel: Channel }) {
   )
 }
 
-// muted: the mic off; deafened: the mic and headphones off; by the server: in red
+// muted: the mic off; deafened: the mic and headphones off; by the server: in red. A click opens their profile, as
+// stock; a double click on someone streaming watches it and shows the call (ours)
 function VoiceUser(p: { state: VoiceState; channel: Channel }) {
   const state = () => p.state
   const user = () => users.get(state().userId)
@@ -124,6 +127,15 @@ function VoiceUser(p: { state: VoiceState; channel: Channel }) {
       name="voice-user"
       data-id={state().userId}
       class={{ forced: voice.forced(state()), elsewhere: voice.elsewhere(state(), p.channel) }}
+      onClick={(e: MouseEvent) => {
+        const record = user()
+        if (record) openProfile(e.currentTarget as Element, record, p.channel.guild_id)
+      }}
+      onDblClick={() => {
+        if (!state().selfStream) return
+        streams.watch(state().userId, p.channel.guild_id)
+        channels.open(p.channel)
+      }}
       icon={
         <Show when={user()}>
           {(record) => (

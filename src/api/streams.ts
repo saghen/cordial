@@ -26,6 +26,11 @@ export function toggleWatch(ownerId: Id, guildId: Id | null) {
   const stream = S.ApplicationStreaming.getStreamForUser(ownerId, guildId)
   if (stream) A.streams.watch(stream, { noFocus: true })
 }
+// watched: stock's watch, which connects to its voice channel (not when that's full) and takes the call's focus
+export function watch(ownerId: Id, guildId: Id | null) {
+  const stream = S.ApplicationStreaming.getStreamForUser(ownerId, guildId)
+  if (stream && !S.ApplicationStreaming.getActiveStreamForUser(ownerId, guildId)) A.streams.watch(stream)
+}
 
 // a user's camera, or (context "stream") the stream you watch: its video's stream id
 export const videoOf = (userId: Id, guildId: Id | null, context?: 'stream') =>
