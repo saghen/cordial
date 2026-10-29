@@ -19,7 +19,7 @@ section.side > footer {
   > .voice-buttons > button:hover { background: var(--bg-raised); color: var(--text-strong); }
   > .voice-buttons > button:is(.voice-camera, .voice-screen).on { color: var(--positive); }
   > .voice-buttons > button.voice-disconnect:hover { color: var(--danger); }
-  > .stream-stats { grid-area: stats; margin: 6px 0 0; font: 11px/1.45 ui-monospace, monospace; color: var(--text-muted); cursor: pointer; overflow-x: auto; }
+  > .stream-stats { grid-area: stats; margin: 6px 0 0; font: 11px/1.45 ui-monospace, monospace; color: var(--text-muted); white-space: pre-wrap; overflow-wrap: anywhere; cursor: pointer; }
   > .stream-stats.limited { color: var(--warning); }
 }
 /* the voice settings: a column of labelled controls, a section of the voice panel above its line */
