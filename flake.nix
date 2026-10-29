@@ -55,12 +55,17 @@
           nativeBuildInputs = [ pkgs.makeWrapper pkgs.copyDesktopItems ];
           # discord:// links come to cordial when the desktop picks it as their handler (main.js routes them)
           desktopItems = [
+            # found by "discord" in a launcher too; the window's app id (Wayland) and class (X11) are "cordial"
             (pkgs.makeDesktopItem {
               name = "cordial";
-              desktopName = "cordial";
+              desktopName = "Cordial";
+              genericName = "Internet Messenger";
+              comment = "Chat, talk and stream on Discord";
+              keywords = [ "discord" "chat" "voice" "messenger" ];
               exec = "cordial %U";
-              icon = "discord";
-              categories = [ "Network" "InstantMessaging" ];
+              icon = "cordial";
+              startupWMClass = "cordial";
+              categories = [ "Network" "InstantMessaging" "Chat" ];
               mimeTypes = [ "x-scheme-handler/discord" ];
             })
           ];
@@ -69,6 +74,7 @@
             mkdir -p $out/lib/cordial/src
             cp -r dist package.json $out/lib/cordial/
             cp -r src/shell $out/lib/cordial/src/
+            install -D src/shell/icon.svg $out/share/icons/hicolor/scalable/apps/cordial.svg
             mkdir -p $out/lib/cordial/screen-capture/src
             cp -r screen-capture/src/main screen-capture/src/preload $out/lib/cordial/screen-capture/src/
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/cordial --add-flags $out/lib/cordial \
