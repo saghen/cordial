@@ -66,7 +66,7 @@ export function Composer() {
   const complete = createAutocomplete(() => box!, state.channel)
 
   // a switch saves the text left behind; the box then shows the new channel's draft, or the message being edited, and
-  // takes the focus
+  // takes the focus with the caret at its end (focused already, as for Up, the new text leaves it at the start)
   createEffect(
     () => ({ channelId: chat(), editing: state.editing() }),
     ({ channelId }, prev) => {
@@ -74,7 +74,9 @@ export function Composer() {
       box!.textContent = channelId ? state.textOf(channelId) : ''
       saved = null
       render()
-      if (channelId) focus()
+      if (!channelId) return
+      box!.focus()
+      select(box!, valueOf(box!).length)
     },
   )
 
